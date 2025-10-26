@@ -28,6 +28,10 @@ pub enum MnemosyneError {
     #[error("Invalid memory ID: {0}")]
     InvalidMemoryId(#[from] uuid::Error),
 
+    /// Invalid ID format (generic)
+    #[error("Invalid ID: {0}")]
+    InvalidId(String),
+
     /// Memory not found
     #[error("Memory not found: {0}")]
     MemoryNotFound(String),
