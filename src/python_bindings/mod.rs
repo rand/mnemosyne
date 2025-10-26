@@ -16,7 +16,7 @@ use pyo3::prelude::*;
 ///
 /// Exposes Rust types and functions to Python as the `mnemosyne_core` module.
 #[pymodule]
-fn mnemosyne_core(_py: Python, m: &PyModule) -> PyResult<()> {
+fn mnemosyne_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Storage layer
     m.add_class::<storage::PyStorage>()?;
 

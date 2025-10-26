@@ -6,7 +6,7 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use std::collections::HashMap;
 
 /// Agent execution state.
@@ -131,7 +131,7 @@ impl PyCoordinator {
         });
 
         Python::with_gil(|py| {
-            let dict = PyDict::new(py);
+            let dict = PyDict::new_bound(py);
             for (agent_id, state) in states {
                 let state_str = match state {
                     AgentState::Idle => "idle",
@@ -267,7 +267,7 @@ impl PyCoordinator {
         });
 
         Python::with_gil(|py| {
-            let dict = PyDict::new(py);
+            let dict = PyDict::new_bound(py);
             for (key, value) in metrics {
                 dict.set_item(key, value)?;
             }
