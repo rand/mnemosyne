@@ -1,0 +1,65 @@
+[package]
+name = "mnemosyne"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mnemosyne Contributors"]
+description = "Project-aware agentic memory system for Claude Code"
+license = "MIT"
+
+[[bin]]
+name = "mnemosyne"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full", "tracing"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+
+# Database
+sqlx = { version = "0.7", features = [
+    "runtime-tokio",
+    "sqlite",
+    "json",
+    "chrono",
+    "uuid"
+] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# LLM Integration
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+
+# Embeddings (optional for now, will be implemented later)
+# fastembed = "3.0"
+# ndarray = "0.15"
+
+# Utilities
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.6", features = ["v4", "serde"] }
+config = "0.13"
+clap = { version = "4.4", features = ["derive"] }
+async-trait = "0.1"
+
+[dev-dependencies]
+mockall = "0.12"
+proptest = "1.4"
+criterion = "0.5"
+tempfile = "3.8"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 0
+
+[[bench]]
+name = "memory_benchmarks"
+harness = false
