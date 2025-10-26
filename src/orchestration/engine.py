@@ -7,6 +7,7 @@ Integrates all components:
 - Parallel execution with sub-agents (max 4 concurrent)
 - Work Plan Protocol enforcement (Phases 1-4)
 - PyO3 bindings for <1ms storage operations
+- Real-time monitoring dashboard (optional)
 """
 
 import asyncio
@@ -45,6 +46,9 @@ class EngineConfig:
     # Parallel execution
     max_concurrent: int = 4
     spawn_timeout: float = 30.0
+
+    # Dashboard
+    enable_dashboard: bool = False
 
     # Agent configs
     orchestrator_config: Optional[OrchestratorConfig] = None
@@ -127,6 +131,10 @@ class OrchestrationEngine:
             parallel_executor=self.parallel_executor
         )
 
+        # Dashboard
+        self._dashboard = None
+        self._dashboard_task = None
+
         # State
         self._monitoring_active = False
 
@@ -136,6 +144,12 @@ class OrchestrationEngine:
         await self.context_monitor.start()
         self._monitoring_active = True
 
+        # Start dashboard if enabled
+        if self.config.enable_dashboard:
+            from .dashboard import run_dashboard
+            self._dashboard_task = asyncio.create_task(run_dashboard(self))
+            print(f"Dashboard: enabled")
+
         print(f"Orchestration engine started")
         print(f"- Context monitoring: {self.config.polling_interval*1000:.1f}ms interval")
         print(f"- Max concurrent agents: {self.config.max_concurrent}")
@@ -143,6 +157,15 @@ class OrchestrationEngine:
 
     async def stop(self):
         """Stop orchestration engine."""
+        # Stop dashboard if running
+        if self._dashboard_task:
+            self._dashboard_task.cancel()
+            try:
+                await self._dashboard_task
+            except asyncio.CancelledError:
+                pass
+
+        # Stop context monitoring
         if self._monitoring_active:
             await self.context_monitor.stop()
             self._monitoring_active = False
