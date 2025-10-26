@@ -12,6 +12,10 @@ pub enum MnemosyneError {
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 
+    /// Database migration failed
+    #[error("Migration error: {0}")]
+    Migration(#[from] sqlx::migrate::MigrateError),
+
     /// LLM API request failed
     #[error("LLM API error: {0}")]
     LlmApi(String),
