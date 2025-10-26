@@ -246,14 +246,29 @@ Provide structured analysis."""
 
     def _extract_keywords_from_analysis(self, analysis_responses: List[Any], task_description: str) -> List[str]:
         """Extract keywords from Claude's analysis and task description."""
+        # Extract text from message objects
+        response_texts = []
+        for r in analysis_responses[:3]:
+            if hasattr(r, 'data'):
+                # SystemMessage has .data attribute which contains the actual content
+                data = r.data
+                if isinstance(data, dict) and 'text' in data:
+                    response_texts.append(data['text'])
+                elif isinstance(data, str):
+                    response_texts.append(data)
+            else:
+                response_texts.append(str(r))
+
         # Combine Claude's analysis with task description
-        combined_text = task_description + " " + " ".join(str(r) for r in analysis_responses[:3])
+        combined_text = task_description + " " + " ".join(response_texts)
 
         # Simple keyword extraction
         words = combined_text.lower().split()
         stopwords = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "this", "that"}
         keywords = [w for w in words if w not in stopwords and len(w) > 3]
-        return list(set(keywords))[:20]  # Limit to top 20
+        result = list(set(keywords))[:20]  # Limit to top 20
+
+        return result
 
     async def _score_skill_relevance(self, skill_file: Path, keywords: List[str], task_description: str) -> float:
         """Score skill relevance using basic heuristics (Claude SDK scoring for top candidates)."""

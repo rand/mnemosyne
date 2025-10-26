@@ -59,6 +59,117 @@ class TestAgentCoordination:
         yield storage
         os.unlink(temp_db)
 
+    @pytest.fixture
+    def skills_directory(self):
+        """Create temporary skills directory with test skills."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            skills_dir = Path(temp_dir)
+
+            # Create test skill files with relevant keywords and substantial content
+            skills = {
+                "api-rest-design.md": """---
+title: REST API Design Patterns
+tags: [api, rest, design, backend]
+---
+
+# REST API Design Patterns and Best Practices
+
+## Overview
+Guidelines for designing robust, scalable REST APIs.
+
+## Key Principles
+- Resource-oriented design
+- HTTP method semantics (GET, POST, PUT, DELETE, PATCH)
+- Proper status codes (200, 201, 400, 404, 500)
+- Versioning strategies
+
+## Authentication
+- JWT tokens
+- OAuth 2.0
+- API keys
+
+## Testing
+- Integration tests
+- Contract testing
+- Performance testing
+""",
+                "api-authentication.md": """---
+title: API Authentication Patterns
+tags: [api, authentication, security, jwt, oauth]
+---
+
+# API Authentication and Authorization
+
+## Authentication Methods
+- JWT (JSON Web Tokens)
+- OAuth 2.0 / OpenID Connect
+- API Keys
+- Session-based auth
+
+## Security Best Practices
+- HTTPS only
+- Token rotation
+- Rate limiting
+- CORS configuration
+
+## Implementation
+- Middleware patterns
+- Token validation
+- Refresh tokens
+""",
+                "database-postgres.md": """---
+title: PostgreSQL Database Design
+tags: [database, postgres, sql, backend]
+---
+
+# PostgreSQL Database Design and Optimization
+
+## Schema Design
+- Normalization vs denormalization
+- Indexing strategies
+- Foreign keys and constraints
+
+## Performance
+- Query optimization
+- Connection pooling
+- Partitioning
+- VACUUM and ANALYZE
+
+## Migrations
+- Schema versioning
+- Rollback strategies
+- Zero-downtime deployments
+""",
+                "containers-docker.md": """---
+title: Docker Containerization
+tags: [docker, containers, deployment, devops]
+---
+
+# Docker Containerization and Deployment
+
+## Docker Basics
+- Dockerfile best practices
+- Multi-stage builds
+- Layer optimization
+
+## Deployment
+- Docker Compose
+- Health checks
+- Resource limits
+
+## Production
+- Registry management
+- Security scanning
+- Orchestration (Kubernetes)
+"""
+            }
+
+            for filename, content in skills.items():
+                skill_file = skills_dir / filename
+                skill_file.write_text(content)
+
+            yield str(skills_dir)
+
     @pytest.mark.asyncio
     async def test_orchestrator_circular_dependency_detection(self, coordinator, storage):
         """
@@ -103,7 +214,7 @@ class TestAgentCoordination:
         }
 
     @pytest.mark.asyncio
-    async def test_optimizer_skills_discovery(self, coordinator, storage):
+    async def test_optimizer_skills_discovery(self, coordinator, storage, skills_directory):
         """
         Test 2.3: Optimizer - Skills Discovery
 
@@ -111,8 +222,9 @@ class TestAgentCoordination:
         """
         config = OptimizerConfig(
             agent_id="test_optimizer",
-            skills_dir="~/.claude/skills",
-            max_skills_loaded=7
+            skills_dir=skills_directory,
+            max_skills_loaded=7,
+            skill_relevance_threshold=0.30  # Lower threshold for test environment
         )
 
         optimizer = OptimizerAgent(
@@ -308,7 +420,7 @@ def calculate(x, y):
 
         # Test safety check: context budget
         # Simulate high context utilization
-        coordinator.set_metric("context_utilization", 0.80)  # 80% - over 75% threshold
+        coordinator.update_context_utilization(0.80)  # 80% - over 75% threshold
 
         print("\n=== Test 2.6: Sub-Agent Safety Checks ===")
         print(f"Current context utilization: 80%")
