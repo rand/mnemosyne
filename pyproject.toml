@@ -23,3 +23,9 @@ dev = [
 module-name = "mnemosyne_core"
 bindings = "pyo3"
 features = ["python"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: Integration tests that require ANTHROPIC_API_KEY (deselect with '-m \"not integration\"')",
+]
+asyncio_mode = "auto"
