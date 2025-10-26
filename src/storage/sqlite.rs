@@ -639,7 +639,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_graph_traversal() {
-        use crate::types::LinkType;
+        use crate::types::{LinkType, MemoryLink};
 
         let storage = SqliteStorage::new("sqlite::memory:").await.unwrap();
         storage.run_migrations().await.unwrap();
