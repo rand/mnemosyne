@@ -184,7 +184,11 @@ mod tests {
 
     #[test]
     fn test_env_var_takes_precedence() {
+        // Clean up first to avoid interference from other tests
+        env::remove_var("ANTHROPIC_API_KEY");
+
         let manager = ConfigManager::new().unwrap();
+        let _ = manager.delete_api_key(); // Clean keychain too
 
         // Set both env var and keychain
         env::set_var("ANTHROPIC_API_KEY", "env-key");
