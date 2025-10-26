@@ -414,20 +414,24 @@ impl StorageBackend for SqliteStorage {
 
         let namespace_filter = namespace.map(|ns| serde_json::to_string(&ns).unwrap());
 
+        // FTS5 with content table - join on rowid
         let sql = if namespace_filter.is_some() {
             r#"
             SELECT m.* FROM memories m
-            JOIN memories_fts fts ON m.id = fts.memory_id
-            WHERE memories_fts MATCH ? AND m.namespace = ? AND m.is_archived = 0
-            ORDER BY rank
+            WHERE m.rowid IN (
+                SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
+            )
+            AND m.namespace = ?
+            AND m.is_archived = 0
             LIMIT 20
             "#
         } else {
             r#"
             SELECT m.* FROM memories m
-            JOIN memories_fts fts ON m.id = fts.memory_id
-            WHERE memories_fts MATCH ? AND m.is_archived = 0
-            ORDER BY rank
+            WHERE m.rowid IN (
+                SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
+            )
+            AND m.is_archived = 0
             LIMIT 20
             "#
         };
@@ -460,9 +464,65 @@ impl StorageBackend for SqliteStorage {
     ) -> Result<Vec<MemoryNote>> {
         debug!("Graph traverse from {} seeds, max {} hops", seed_ids.len(), max_hops);
 
-        // TODO: Implement recursive CTE for graph traversal
-        warn!("Graph traversal not yet implemented");
-        Ok(vec![])
+        if seed_ids.is_empty() || max_hops == 0 {
+            return Ok(vec![]);
+        }
+
+        // Convert seed IDs to strings for SQL IN clause
+        let seed_strings: Vec<String> = seed_ids.iter().map(|id| id.to_string()).collect();
+        let placeholders = seed_strings.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+
+        // Recursive CTE to traverse the graph bidirectionally
+        let sql = format!(
+            r#"
+            WITH RECURSIVE graph_walk(memory_id, depth) AS (
+                -- Base case: start with seed nodes at depth 0
+                SELECT id, 0 FROM memories WHERE id IN ({placeholders})
+
+                UNION
+
+                -- Recursive case: follow links bidirectionally
+                SELECT
+                    CASE
+                        WHEN ml.source_id = gw.memory_id THEN ml.target_id
+                        ELSE ml.source_id
+                    END as memory_id,
+                    gw.depth + 1
+                FROM graph_walk gw
+                JOIN memory_links ml ON (
+                    ml.source_id = gw.memory_id OR ml.target_id = gw.memory_id
+                )
+                WHERE gw.depth < ?
+            )
+            SELECT DISTINCT m.*
+            FROM memories m
+            JOIN graph_walk gw ON m.id = gw.memory_id
+            WHERE m.is_archived = 0
+            ORDER BY gw.depth, m.importance DESC
+            "#,
+            placeholders = placeholders
+        );
+
+        let mut query = sqlx::query(&sql);
+
+        // Bind seed IDs
+        for seed_str in &seed_strings {
+            query = query.bind(seed_str);
+        }
+
+        // Bind max hops
+        query = query.bind(max_hops as i32);
+
+        let rows = query.fetch_all(&self.pool).await?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            let memory = self.row_to_memory(row).await?;
+            results.push(memory);
+        }
+
+        debug!("Graph traversal found {} memories", results.len());
+        Ok(results)
     }
 
     async fn find_consolidation_candidates(
@@ -520,6 +580,8 @@ mod tests {
     async fn test_sqlite_storage_lifecycle() {
         // Create in-memory database for testing
         let storage = SqliteStorage::new("sqlite::memory:").await.unwrap();
+
+        // Run migrations to set up schema
         storage.run_migrations().await.unwrap();
 
         // Create test memory
@@ -573,5 +635,115 @@ mod tests {
         // Count memories
         let count = storage.count_memories(None).await.unwrap();
         assert_eq!(count, 0); // Archived memories don't count
+    }
+
+    #[tokio::test]
+    async fn test_graph_traversal() {
+        use crate::types::LinkType;
+
+        let storage = SqliteStorage::new("sqlite::memory:").await.unwrap();
+        storage.run_migrations().await.unwrap();
+
+        // Create a chain of linked memories: A -> B -> C -> D
+        let memory_a = MemoryNote {
+            id: MemoryId::new(),
+            namespace: Namespace::Global,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            content: "Memory A".to_string(),
+            summary: "First memory".to_string(),
+            keywords: vec![],
+            tags: vec![],
+            context: "Test".to_string(),
+            memory_type: MemoryType::CodePattern,
+            importance: 5,
+            confidence: 0.9,
+            links: vec![],
+            related_files: vec![],
+            related_entities: vec![],
+            access_count: 0,
+            last_accessed_at: Utc::now(),
+            expires_at: None,
+            is_archived: false,
+            superseded_by: None,
+            embedding: None,
+            embedding_model: "test".to_string(),
+        };
+
+        let memory_b = MemoryNote {
+            id: MemoryId::new(),
+            namespace: Namespace::Global,
+            content: "Memory B".to_string(),
+            summary: "Second memory".to_string(),
+            links: vec![MemoryLink {
+                target_id: memory_a.id,
+                link_type: LinkType::References,
+                strength: 0.8,
+                reason: Some("Extends A".to_string()),
+                created_at: Utc::now(),
+            }],
+            ..memory_a.clone()
+        };
+
+        let memory_c = MemoryNote {
+            id: MemoryId::new(),
+            content: "Memory C".to_string(),
+            summary: "Third memory".to_string(),
+            links: vec![MemoryLink {
+                target_id: memory_b.id,
+                link_type: LinkType::Extends,
+                strength: 0.9,
+                reason: Some("Extends B".to_string()),
+                created_at: Utc::now(),
+            }],
+            ..memory_a.clone()
+        };
+
+        let memory_d = MemoryNote {
+            id: MemoryId::new(),
+            content: "Memory D".to_string(),
+            summary: "Fourth memory".to_string(),
+            links: vec![MemoryLink {
+                target_id: memory_c.id,
+                link_type: LinkType::Implements,
+                strength: 0.7,
+                reason: Some("Implements C".to_string()),
+                created_at: Utc::now(),
+            }],
+            ..memory_a.clone()
+        };
+
+        // Store all memories
+        storage.store_memory(&memory_a).await.unwrap();
+        storage.store_memory(&memory_b).await.unwrap();
+        storage.store_memory(&memory_c).await.unwrap();
+        storage.store_memory(&memory_d).await.unwrap();
+
+        // Test: traverse 1 hop from A should find A and B
+        let results = storage.graph_traverse(&[memory_a.id], 1).await.unwrap();
+        assert!(results.len() >= 2, "Should find at least A and B");
+        let ids: Vec<MemoryId> = results.iter().map(|m| m.id).collect();
+        assert!(ids.contains(&memory_a.id));
+        assert!(ids.contains(&memory_b.id));
+
+        // Test: traverse 2 hops from A should find A, B, and C
+        let results = storage.graph_traverse(&[memory_a.id], 2).await.unwrap();
+        assert!(results.len() >= 3, "Should find at least A, B, and C");
+        let ids: Vec<MemoryId> = results.iter().map(|m| m.id).collect();
+        assert!(ids.contains(&memory_a.id));
+        assert!(ids.contains(&memory_b.id));
+        assert!(ids.contains(&memory_c.id));
+
+        // Test: traverse 3 hops from A should find all memories
+        let results = storage.graph_traverse(&[memory_a.id], 3).await.unwrap();
+        assert_eq!(results.len(), 4, "Should find all 4 memories");
+
+        // Test: traverse 0 hops should return empty
+        let results = storage.graph_traverse(&[memory_a.id], 0).await.unwrap();
+        assert_eq!(results.len(), 0);
+
+        // Test: traverse from empty seeds should return empty
+        let results = storage.graph_traverse(&[], 3).await.unwrap();
+        assert_eq!(results.len(), 0);
     }
 }
