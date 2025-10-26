@@ -48,7 +48,7 @@ class ReviewerConfig:
     antipattern_patterns: List[str] = None
     # Claude Agent SDK configuration
     allowed_tools: Optional[List[str]] = None
-    permission_mode: str = "view"  # Reviewer reads to validate
+    permission_mode: str = "default"  # Reviewer reads to validate
 
     def __post_init__(self):
         if self.required_gates is None:

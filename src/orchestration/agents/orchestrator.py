@@ -38,7 +38,7 @@ class OrchestratorConfig:
     deadlock_timeout: float = 60.0  # Detect deadlock after 60s of no progress
     # Claude Agent SDK configuration
     allowed_tools: Optional[List[str]] = None
-    permission_mode: str = "view"  # Orchestrator mostly observes, doesn't edit
+    permission_mode: str = "default"  # Orchestrator observes, doesn't edit
 
 
 class OrchestratorAgent:

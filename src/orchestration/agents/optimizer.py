@@ -29,7 +29,7 @@ class OptimizerConfig:
     skill_relevance_threshold: float = 0.60
     # Claude Agent SDK configuration
     allowed_tools: Optional[List[str]] = None
-    permission_mode: str = "view"  # Optimizer reads to analyze, doesn't edit
+    permission_mode: str = "default"  # Optimizer reads to analyze, doesn't edit
 
 
 @dataclass
