@@ -184,13 +184,9 @@ CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
-    UPDATE memories_fts
-    SET content = NEW.content,
-        summary = NEW.summary,
-        keywords = NEW.keywords,
-        tags = NEW.tags,
-        context = NEW.context
-    WHERE rowid = NEW.rowid;
+    DELETE FROM memories_fts WHERE rowid = OLD.rowid;
+    INSERT INTO memories_fts(rowid, memory_id, content, summary, keywords, tags, context)
+    VALUES (NEW.rowid, NEW.id, NEW.content, NEW.summary, NEW.keywords, NEW.tags, NEW.context);
 END;
 
 -- ============================================================================
