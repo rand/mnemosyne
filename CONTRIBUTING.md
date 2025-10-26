@@ -652,4 +652,4 @@ Thank you for contributing to Mnemosyne!
 ---
 
 **Version**: 0.1.0
-**Last Updated**: 2024-10-26
+**Last Updated**: 2025-10-26
