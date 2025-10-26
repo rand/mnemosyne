@@ -4,7 +4,7 @@
 //! persistent semantic memory capabilities to Claude Code's multi-agent system.
 
 use clap::{Parser, Subcommand};
-use mnemosyne::{
+use mnemosyne_core::{
     error::Result, ConfigManager, LlmConfig, LlmService, McpServer, SqliteStorage, ToolHandler,
 };
 use std::sync::Arc;
