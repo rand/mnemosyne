@@ -679,7 +679,7 @@ mod tests {
                 target_id: memory_a.id,
                 link_type: LinkType::References,
                 strength: 0.8,
-                reason: Some("Extends A".to_string()),
+                reason: "Extends A".to_string(),
                 created_at: Utc::now(),
             }],
             ..memory_a.clone()
@@ -693,7 +693,7 @@ mod tests {
                 target_id: memory_b.id,
                 link_type: LinkType::Extends,
                 strength: 0.9,
-                reason: Some("Extends B".to_string()),
+                reason: "Extends B".to_string(),
                 created_at: Utc::now(),
             }],
             ..memory_a.clone()
@@ -707,7 +707,7 @@ mod tests {
                 target_id: memory_c.id,
                 link_type: LinkType::Implements,
                 strength: 0.7,
-                reason: Some("Implements C".to_string()),
+                reason: "Implements C".to_string(),
                 created_at: Utc::now(),
             }],
             ..memory_a.clone()
