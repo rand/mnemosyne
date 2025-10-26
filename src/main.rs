@@ -4,7 +4,10 @@
 //! persistent semantic memory capabilities to Claude Code's multi-agent system.
 
 use clap::{Parser, Subcommand};
-use mnemosyne::{error::Result, ConfigManager};
+use mnemosyne::{
+    error::Result, ConfigManager, LlmConfig, LlmService, McpServer, SqliteStorage, ToolHandler,
+};
+use std::sync::Arc;
 use tracing::{info, Level};
 use tracing_subscriber;
 
@@ -85,6 +88,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_max_level(level)
         .with_target(false)
+        .with_writer(std::io::stderr) // Write logs to stderr, not stdout
         .init();
 
     info!("Mnemosyne v{} starting...", env!("CARGO_PKG_VERSION"));
@@ -92,8 +96,44 @@ async fn main() -> Result<()> {
     match cli.command {
         Some(Commands::Serve) => {
             info!("Starting MCP server...");
-            // TODO: Start MCP server
-            eprintln!("MCP server not yet implemented");
+
+            // Initialize configuration
+            let _config_manager = ConfigManager::new()?;
+
+            // Initialize storage
+            // TODO: Make database path configurable
+            let db_path = "mnemosyne.db";
+            let storage = SqliteStorage::new(db_path).await?;
+
+            // Initialize LLM service (will error on first use if no API key)
+            let llm = match LlmService::with_default() {
+                Ok(service) => {
+                    info!("LLM service initialized successfully");
+                    Arc::new(service)
+                }
+                Err(_) => {
+                    info!("LLM service not configured (ANTHROPIC_API_KEY not set)");
+                    info!("Tools requiring LLM will return errors until configured");
+                    info!("Configure with: mnemosyne config set-key");
+
+                    // Create a dummy service - it will error on use
+                    // This allows the server to start for basic operations
+                    Arc::new(LlmService::new(LlmConfig {
+                        api_key: String::new(),
+                        model: "claude-3-5-haiku-20241022".to_string(),
+                        max_tokens: 1024,
+                        temperature: 0.7,
+                    })?)
+                }
+            };
+
+            // Initialize tool handler
+            let tool_handler = ToolHandler::new(Arc::new(storage), llm);
+
+            // Create and run server
+            let server = McpServer::new(tool_handler);
+            server.run().await?;
+
             Ok(())
         }
         Some(Commands::Init { database: _ }) => {
@@ -171,7 +211,43 @@ async fn main() -> Result<()> {
         None => {
             // Default: start MCP server
             info!("Starting MCP server (default)...");
-            eprintln!("MCP server not yet implemented");
+
+            // Initialize configuration
+            let _config_manager = ConfigManager::new()?;
+
+            // Initialize storage
+            let db_path = "mnemosyne.db";
+            let storage = SqliteStorage::new(db_path).await?;
+
+            // Initialize LLM service (will error on first use if no API key)
+            let llm = match LlmService::with_default() {
+                Ok(service) => {
+                    info!("LLM service initialized successfully");
+                    Arc::new(service)
+                }
+                Err(_) => {
+                    info!("LLM service not configured (ANTHROPIC_API_KEY not set)");
+                    info!("Tools requiring LLM will return errors until configured");
+                    info!("Configure with: mnemosyne config set-key");
+
+                    // Create a dummy service - it will error on use
+                    // This allows the server to start for basic operations
+                    Arc::new(LlmService::new(LlmConfig {
+                        api_key: String::new(),
+                        model: "claude-3-5-haiku-20241022".to_string(),
+                        max_tokens: 1024,
+                        temperature: 0.7,
+                    })?)
+                }
+            };
+
+            // Initialize tool handler
+            let tool_handler = ToolHandler::new(Arc::new(storage), llm);
+
+            // Create and run server
+            let server = McpServer::new(tool_handler);
+            server.run().await?;
+
             Ok(())
         }
     }

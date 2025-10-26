@@ -80,13 +80,10 @@ struct Content {
 
 impl LlmService {
     /// Create a new LLM service with custom config
+    ///
+    /// Note: Empty API keys are allowed during initialization to support
+    /// server startup, but API calls will fail until a valid key is provided.
     pub fn new(config: LlmConfig) -> Result<Self> {
-        if config.api_key.is_empty() {
-            return Err(MnemosyneError::Config(
-                config::ConfigError::Message("ANTHROPIC_API_KEY not set".to_string()),
-            ));
-        }
-
         Ok(Self {
             config,
             client: reqwest::Client::new(),
@@ -397,6 +394,13 @@ SUPERSEDING_ID: <memory_id if SUPERSEDE, otherwise NONE>
 
     /// Make an API call to Claude
     async fn call_api(&self, prompt: &str) -> Result<String> {
+        // Check for API key before making request
+        if self.config.api_key.is_empty() {
+            return Err(MnemosyneError::Config(
+                config::ConfigError::Message("ANTHROPIC_API_KEY not set".to_string()),
+            ));
+        }
+
         debug!("Calling Anthropic API");
 
         let request = AnthropicRequest {

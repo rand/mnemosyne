@@ -4,4 +4,4 @@
 
 pub mod llm;
 
-pub use llm::LlmService;
+pub use llm::{LlmConfig, LlmService};

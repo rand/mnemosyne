@@ -55,7 +55,7 @@ pub use config::ConfigManager;
 pub use error::{MnemosyneError, Result};
 pub use mcp::{McpServer, ToolHandler};
 pub use namespace::{NamespaceDetector, ProjectMetadata};
-pub use services::LlmService;
+pub use services::{LlmConfig, LlmService};
 pub use storage::{sqlite::SqliteStorage, StorageBackend};
 pub use types::{
     ConsolidationDecision, LinkType, MemoryId, MemoryLink, MemoryNote, MemoryType, MemoryUpdates,
