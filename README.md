@@ -22,27 +22,57 @@ Mnemosyne is a high-performance, Rust-based memory system designed to provide Cl
 
 ## Current Status
 
-### ✅ Phase 1: Core Memory System (IN PROGRESS)
+### ✅ Phase 1: Core Memory System (COMPLETE)
 
 **Completed**:
 - [x] Rust project foundation with Cargo workspace
 - [x] Core data structures (`types.rs`)
   - MemoryId, Namespace (Global/Project/Session)
-  - MemoryType, LinkType
-  - MemoryNote with full metadata
+  - MemoryType (9 classifications), LinkType (5 relationships)
+  - MemoryNote with full metadata and importance decay
   - SearchQuery and SearchResult
   - Consolidation decisions
 - [x] Comprehensive error handling (`error.rs`)
+- [x] SQLite storage backend with FTS5
+  - Full CRUD operations
+  - FTS5 keyword search
+  - Graph traversal with recursive CTE
+  - Immutable audit logging
+- [x] Database migrations (sqlx)
 - [x] CLI framework with clap
-- [x] Code compiles successfully ✓
+- [x] All tests passing ✓
+
+### ✅ Phase 2: LLM Intelligence (COMPLETE)
+
+**Completed**:
+- [x] LLM service with Claude Haiku integration
+- [x] Secure API key management (OS keychain)
+  - macOS Keychain, Windows Credential Manager, Linux Secret Service
+  - Three-tier lookup: env var → keychain → interactive prompt
+- [x] Note construction and enrichment
+  - Auto-generate summary, keywords, tags
+  - Classify memory type and importance
+- [x] Semantic link generation
+  - Detect relationships between memories
+  - Assign link types and strengths
+- [x] Consolidation decision logic
+  - Merge similar memories
+  - Supersede outdated information
+  - Keep distinct content separate
+
+**Deferred**:
+- [ ] Vector similarity search (needs embeddings)
+- [ ] Embedding service (fastembed/ort compilation issues)
+
+### 🔨 Phase 3: Namespace Management (IN PROGRESS)
 
 **In Progress**:
-- [ ] SQLite storage backend with sqlite-vec
-- [ ] Database migrations
-- [ ] Embedding service (fastembed integration pending)
+- [ ] Namespace detection (git root, CLAUDE.md)
+- [ ] Namespace hierarchy and priority system
+- [ ] Memory permission system
 
 **Not Started**:
-- Remaining phases 2-10 (see [Implementation Plan](#implementation-plan))
+- Remaining phases 4-10 (see [Implementation Plan](#implementation-plan))
 
 ---
 
@@ -134,12 +164,50 @@ FEEDBACK → Link strength evolution, importance decay
 
 ---
 
-## Quick Start (Coming Soon)
+## Quick Start
+
+### 1. API Key Configuration
+
+Mnemosyne uses Claude Haiku for memory intelligence. Configure your Anthropic API key:
+
+**Option A: Interactive Setup (Recommended)**
+```bash
+mnemosyne config set-key
+```
+This will prompt you for your API key and store it securely in your OS keychain.
+
+**Option B: Command Line**
+```bash
+mnemosyne config set-key sk-ant-api03-...
+```
+
+**Option C: Environment Variable**
+```bash
+export ANTHROPIC_API_KEY=sk-ant-api03-...
+```
+
+**View Configuration Status**:
+```bash
+mnemosyne config show-key
+```
+
+**Delete Stored Key**:
+```bash
+mnemosyne config delete-key
+```
+
+**Security Features**:
+- Keys stored in OS-native secure storage:
+  - **macOS**: Keychain
+  - **Windows**: Credential Manager
+  - **Linux**: Secret Service (libsecret)
+- Environment variables take precedence (for CI/CD)
+- Keys never written to disk in plaintext
+- Masked display in status commands
+
+### 2. Initialize Database (Coming Soon)
 
 ```bash
-# Start MCP server
-mnemosyne serve
-
 # Initialize database
 mnemosyne init
 
