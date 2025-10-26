@@ -106,10 +106,16 @@ Mnemosyne is a high-performance, Rust-based memory system designed to provide Cl
 **Completed**:
 - [x] Memory management skill (`~/.claude/skills/mnemosyne-memory-management.md`)
 - [x] Context preservation skill (`~/.claude/skills/mnemosyne-context-preservation.md`)
+- [x] Slash commands (6 commands in `.claude/commands/`)
+  - `/memory-store` - Store new memories
+  - `/memory-search` - Hybrid search with formatted output
+  - `/memory-context` - Load project context
+  - `/memory-list` - Browse memories with sorting
+  - `/memory-export` - Export to markdown/JSON
+  - `/memory-consolidate` - Review and merge duplicates
 
 **Deferred**:
-- [ ] Slash commands (can now be implemented)
-- [ ] Enhanced hooks (depends on slash commands)
+- [ ] Enhanced hooks (session-start, pre-compact, post-commit)
 
 ### ✅ Phase 7: Installation (COMPLETE)
 
@@ -308,12 +314,26 @@ cargo run -- --log-level debug serve
 
 ### 3. Use in Claude Code
 
-Once configured, Mnemosyne tools are available automatically:
+**Slash Commands** (convenient interface):
+
+```
+/memory-store <content>              # Store a new memory
+/memory-search <query>               # Search memories
+/memory-context                      # Load project context
+/memory-list                         # Browse all memories
+/memory-export                       # Export to markdown
+/memory-consolidate                  # Review duplicates
+```
+
+**MCP Tools** (programmatic interface):
 
 ```
 mnemosyne.remember - Store a memory with LLM enrichment
+mnemosyne.recall   - Hybrid search (keyword + graph)
+mnemosyne.list     - List memories with sorting
 mnemosyne.graph    - Get memory graph for context
 mnemosyne.context  - Get full project context
+mnemosyne.consolidate - Merge/supersede memories
 mnemosyne.update   - Update existing memory
 mnemosyne.delete   - Archive a memory
 ```
