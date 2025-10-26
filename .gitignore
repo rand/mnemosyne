@@ -1,1 +1,8 @@
 /target
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+*.so
+.pytest_cache/
+*.db
