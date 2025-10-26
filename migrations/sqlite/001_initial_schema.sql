@@ -163,7 +163,6 @@ CREATE INDEX IF NOT EXISTS idx_audit_operation ON audit_log(operation);
 -- Virtual table for fast keyword search
 
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
-    memory_id UNINDEXED,
     content,
     summary,
     keywords,
@@ -175,18 +174,20 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
 
 -- Triggers to keep FTS in sync
 CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
-    INSERT INTO memories_fts(rowid, memory_id, content, summary, keywords, tags, context)
-    VALUES (NEW.rowid, NEW.id, NEW.content, NEW.summary, NEW.keywords, NEW.tags, NEW.context);
+    INSERT INTO memories_fts(rowid, content, summary, keywords, tags, context)
+    VALUES (NEW.rowid, NEW.content, NEW.summary, NEW.keywords, NEW.tags, NEW.context);
 END;
 
 CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
-    DELETE FROM memories_fts WHERE rowid = OLD.rowid;
+    INSERT INTO memories_fts(memories_fts, rowid, content, summary, keywords, tags, context)
+    VALUES ('delete', OLD.rowid, OLD.content, OLD.summary, OLD.keywords, OLD.tags, OLD.context);
 END;
 
 CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
-    DELETE FROM memories_fts WHERE rowid = OLD.rowid;
-    INSERT INTO memories_fts(rowid, memory_id, content, summary, keywords, tags, context)
-    VALUES (NEW.rowid, NEW.id, NEW.content, NEW.summary, NEW.keywords, NEW.tags, NEW.context);
+    INSERT INTO memories_fts(memories_fts, rowid, content, summary, keywords, tags, context)
+    VALUES ('delete', OLD.rowid, OLD.content, OLD.summary, OLD.keywords, OLD.tags, OLD.context);
+    INSERT INTO memories_fts(rowid, content, summary, keywords, tags, context)
+    VALUES (NEW.rowid, NEW.content, NEW.summary, NEW.keywords, NEW.tags, NEW.context);
 END;
 
 -- ============================================================================
