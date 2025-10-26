@@ -59,9 +59,14 @@ Mnemosyne is a high-performance, Rust-based memory system designed to provide Cl
   - Merge similar memories
   - Supersede outdated information
   - Keep distinct content separate
+- [x] Hybrid search implementation (keyword + graph)
+  - FTS5 keyword search as seed
+  - Graph expansion (2 hops from top seeds)
+  - Weighted ranking: 50% keyword, 20% graph, 20% importance, 10% recency
+  - Exponential recency decay (30-day half-life)
 
 **Deferred**:
-- [ ] Vector similarity search (needs embeddings)
+- [ ] Vector similarity search (deferred to v2.0 due to compilation issues)
 - [ ] Embedding service (fastembed/ort compilation issues)
 
 ### ✅ Phase 3: Namespace Management (COMPLETE)
@@ -84,15 +89,15 @@ Mnemosyne is a high-performance, Rust-based memory system designed to provide Cl
 **Completed**:
 - [x] JSON-RPC 2.0 protocol over stdio
 - [x] MCP server architecture
-- [x] 8 OODA-aligned tools (5 fully functional)
-  - ✅ mnemosyne.remember (store with LLM enrichment)
+- [x] All 8 OODA-aligned tools fully functional
+  - ✅ mnemosyne.recall (hybrid search: keyword + graph)
+  - ✅ mnemosyne.list (recent/important/accessed memories)
   - ✅ mnemosyne.graph (graph traversal)
   - ✅ mnemosyne.context (get full context)
+  - ✅ mnemosyne.remember (store with LLM enrichment)
+  - ✅ mnemosyne.consolidate (LLM-guided merge/supersede)
   - ✅ mnemosyne.update (update memories)
   - ✅ mnemosyne.delete (archive)
-  - ⏳ mnemosyne.recall (pending hybrid search)
-  - ⏳ mnemosyne.list (pending)
-  - ⏳ mnemosyne.consolidate (pending)
 - [x] MCP configuration for Claude Code (`.claude/mcp_config.json`)
 - [x] API documentation (`MCP_SERVER.md`)
 
@@ -103,8 +108,8 @@ Mnemosyne is a high-performance, Rust-based memory system designed to provide Cl
 - [x] Context preservation skill (`~/.claude/skills/mnemosyne-context-preservation.md`)
 
 **Deferred**:
-- [ ] Slash commands (waiting for hybrid search)
-- [ ] Enhanced hooks (waiting for slash commands)
+- [ ] Slash commands (can now be implemented)
+- [ ] Enhanced hooks (depends on slash commands)
 
 ### ✅ Phase 7: Installation (COMPLETE)
 
@@ -447,6 +452,6 @@ MIT
 
 ---
 
-**Status**: 5 of 10 phases complete (70% of core functionality)
-**Next Milestone**: Hybrid search implementation (Phase 2 completion)
-**Current Work**: Documentation (ARCHITECTURE.md, CONTRIBUTING.md)
+**Status**: 5 of 10 phases complete (~80% of core functionality)
+**Next Milestone**: Slash commands and hooks (Phase 5 completion)
+**Current Work**: All 8 MCP tools functional, ready for production use
