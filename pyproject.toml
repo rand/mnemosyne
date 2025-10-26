@@ -6,9 +6,8 @@ build-backend = "maturin"
 name = "mnemosyne-orchestration"
 version = "0.1.0"
 description = "Multi-agent orchestration system for Mnemosyne with PyO3 bindings"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 dependencies = [
-    "claude-agent-sdk>=0.1.0",
     "rich>=13.0.0",
 ]
 
