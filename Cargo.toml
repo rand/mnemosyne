@@ -10,6 +10,10 @@ license = "MIT"
 name = "mnemosyne"
 path = "src/main.rs"
 
+[lib]
+name = "mnemosyne_core"
+crate-type = ["cdylib", "rlib"]  # cdylib for Python, rlib for Rust binary
+
 [dependencies]
 # Async runtime
 tokio = { version = "1.35", features = ["full", "tracing"] }
@@ -46,6 +50,14 @@ config = "0.13"
 clap = { version = "4.4", features = ["derive"] }
 async-trait = "0.1"
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native"] }
+
+# Python integration (PyO3)
+pyo3 = { version = "0.22", features = ["extension-module", "abi3"], optional = true }
+pyo3-asyncio = { version = "0.22", features = ["tokio-runtime"], optional = true }
+
+[features]
+default = []
+python = ["pyo3", "pyo3-asyncio"]
 
 [dev-dependencies]
 mockall = "0.12"

@@ -1,0 +1,8 @@
+# Multi-Agent Orchestration Dependencies
+claude-agent-sdk>=0.1.0
+asyncio>=3.4.3
+rich>=13.0.0
+
+# Development
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
