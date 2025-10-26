@@ -43,11 +43,13 @@
 //! ```
 
 pub mod error;
+pub mod services;
 pub mod storage;
 pub mod types;
 
 // Re-export commonly used types
 pub use error::{MnemosyneError, Result};
+pub use services::LlmService;
 pub use storage::{sqlite::SqliteStorage, StorageBackend};
 pub use types::{
     ConsolidationDecision, LinkType, MemoryId, MemoryLink, MemoryNote, MemoryType, MemoryUpdates,
