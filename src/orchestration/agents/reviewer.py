@@ -214,7 +214,7 @@ Be thorough but constructive. Identify real issues, not nitpicks."""
             )
 
             # Store review result
-            await self.storage.store({
+            self.storage.store({
                 "content": f"Review {'PASSED' if all_passed else 'FAILED'}: {len(issues)} issues found",
                 "namespace": f"project:agent-{self.config.agent_id}",
                 "importance": 9 if not all_passed else 7,
@@ -385,7 +385,7 @@ Be thorough but constructive.""")
         """Store important review messages in memory."""
         content = str(message)
         if len(content) > 100:
-            await self.storage.store({
+            self.storage.store({
                 "content": content[:500],
                 "namespace": f"project:agent-{self.config.agent_id}",
                 "importance": 8,

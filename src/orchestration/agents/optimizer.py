@@ -235,7 +235,7 @@ Provide structured analysis."""
             self._loaded_skills[match.skill_path] = match
 
         # Store skill discovery in memory
-        await self.storage.store({
+        self.storage.store({
             "content": f"Loaded {len(top_matches)} skills for task: {task_description[:100]}",
             "namespace": f"project:agent-{self.config.agent_id}",
             "importance": 7,
@@ -357,7 +357,7 @@ Recommend allocation percentages with reasoning."""
         """Store important optimization messages in memory."""
         content = str(message)
         if len(content) > 100:
-            await self.storage.store({
+            self.storage.store({
                 "content": content[:500],
                 "namespace": f"project:agent-{self.config.agent_id}",
                 "importance": 6,

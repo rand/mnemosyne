@@ -246,7 +246,7 @@ Always follow best practices and validate your work before marking it complete."
         # Extract content from message
         content = str(message)
         if len(content) > 100:  # Only store substantial messages
-            await self.storage.store({
+            self.storage.store({
                 "content": content[:500],  # Truncate long messages
                 "namespace": f"project:agent-{self.config.agent_id}",
                 "importance": 7,
@@ -313,7 +313,7 @@ Always follow best practices and validate your work before marking it complete."
     async def _commit_work(self, artifacts: Dict):
         """Commit work to version control."""
         # Store commit record in memory
-        await self.storage.store({
+        self.storage.store({
             "content": f"Checkpoint {self._checkpoint_count}: Work committed",
             "namespace": f"session:{self.config.agent_id}",
             "importance": 10,

@@ -197,7 +197,7 @@ Focus on orchestration strategy, not implementation details."""
         """Store important orchestration messages in memory."""
         content = str(message)
         if len(content) > 100:
-            await self.storage.store({
+            self.storage.store({
                 "content": content[:500],
                 "namespace": f"project:agent-{self.config.agent_id}",
                 "importance": 8,
@@ -342,7 +342,7 @@ What should be preserved in this checkpoint? What can be compressed or discarded
         }
 
         # Save to storage
-        await self.storage.store({
+        self.storage.store({
             "content": f"Context snapshot at {metrics.utilization:.1%} utilization",
             "namespace": "project:agent-orchestration",
             "importance": 10,
