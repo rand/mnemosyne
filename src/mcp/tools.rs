@@ -251,41 +251,92 @@ impl ToolHandler {
 
     async fn recall(&self, params: Value) -> Result<Value> {
         #[derive(Deserialize)]
-        #[allow(dead_code)]
         struct RecallParams {
             query: String,
             namespace: Option<String>,
             max_results: Option<usize>,
             min_importance: Option<u8>,
+            expand_graph: Option<bool>,
         }
 
         let params: RecallParams = serde_json::from_value(params)?;
 
-        // TODO: Parse namespace from string
-        // TODO: Implement hybrid search (vector + keyword + graph)
+        // Parse namespace
+        let namespace = if let Some(ns_str) = &params.namespace {
+            Some(self.parse_namespace(ns_str)?)
+        } else {
+            None
+        };
 
-        // For now, return placeholder
+        // Perform hybrid search (keyword + graph)
+        let max_results = params.max_results.unwrap_or(10);
+        let expand_graph = params.expand_graph.unwrap_or(true);
+
+        let mut results = self.storage
+            .hybrid_search(&params.query, namespace, max_results, expand_graph)
+            .await?;
+
+        // Filter by minimum importance if specified
+        if let Some(min_importance) = params.min_importance {
+            results.retain(|r| r.memory.importance >= min_importance);
+        }
+
+        // Increment access counts for returned memories
+        for result in &results {
+            if let Err(e) = self.storage.increment_access(result.memory.id).await {
+                warn!("Failed to increment access count: {}", e);
+            }
+        }
+
         Ok(serde_json::json!({
-            "results": [],
+            "results": results,
             "query": params.query,
-            "message": "Recall implementation pending (Phase 5: Hybrid Search)"
+            "count": results.len(),
+            "method": "hybrid_search (keyword + graph)"
         }))
     }
 
     async fn list(&self, params: Value) -> Result<Value> {
         #[derive(Deserialize)]
-        #[allow(dead_code)]
         struct ListParams {
             namespace: Option<String>,
             limit: Option<usize>,
+            sort_by: Option<String>,
         }
 
-        let _params: ListParams = serde_json::from_value(params)?;
+        let params: ListParams = serde_json::from_value(params)?;
 
-        // TODO: Implement list
+        // Parse namespace
+        let namespace = if let Some(ns_str) = &params.namespace {
+            Some(self.parse_namespace(ns_str)?)
+        } else {
+            None
+        };
+
+        // Parse sort order
+        use crate::storage::MemorySortOrder;
+        let sort_by = match params.sort_by.as_deref() {
+            Some("importance") => MemorySortOrder::Importance,
+            Some("access_count") => MemorySortOrder::AccessCount,
+            _ => MemorySortOrder::Recent, // Default
+        };
+
+        let limit = params.limit.unwrap_or(20);
+
+        // Get memories
+        let memories = self.storage
+            .list_memories(namespace, limit, sort_by)
+            .await?;
+
         Ok(serde_json::json!({
-            "memories": [],
-            "message": "List implementation pending"
+            "memories": memories,
+            "count": memories.len(),
+            "limit": limit,
+            "sort_by": match sort_by {
+                MemorySortOrder::Recent => "recent",
+                MemorySortOrder::Importance => "importance",
+                MemorySortOrder::AccessCount => "access_count",
+            }
         }))
     }
 
@@ -396,18 +447,107 @@ impl ToolHandler {
     }
 
     async fn consolidate(&self, params: Value) -> Result<Value> {
+        use crate::types::ConsolidationDecision;
+
         #[derive(Deserialize)]
-        #[allow(dead_code)]
         struct ConsolidateParams {
             memory_ids: Option<Vec<String>>,
             namespace: Option<String>,
+            auto_apply: Option<bool>,
         }
 
-        let _params: ConsolidateParams = serde_json::from_value(params)?;
+        let params: ConsolidateParams = serde_json::from_value(params)?;
 
-        // TODO: Implement consolidation
+        let auto_apply = params.auto_apply.unwrap_or(false);
+
+        // If specific memory IDs provided, analyze those
+        if let Some(id_strs) = params.memory_ids {
+            if id_strs.len() != 2 {
+                return Ok(serde_json::json!({
+                    "error": "Exactly 2 memory IDs required for pairwise consolidation"
+                }));
+            }
+
+            let id_a = MemoryId::from_string(&id_strs[0])
+                .map_err(|e| crate::error::MnemosyneError::InvalidId(e.to_string()))?;
+            let id_b = MemoryId::from_string(&id_strs[1])
+                .map_err(|e| crate::error::MnemosyneError::InvalidId(e.to_string()))?;
+
+            let memory_a = self.storage.get_memory(id_a).await?;
+            let memory_b = self.storage.get_memory(id_b).await?;
+
+            // Get LLM decision
+            let decision = self.llm.should_consolidate(&memory_a, &memory_b).await?;
+
+            // Apply if auto_apply is true
+            if auto_apply {
+                match decision {
+                    ConsolidationDecision::Merge { into, content } => {
+                        let mut memory = if into == id_a {
+                            memory_a
+                        } else {
+                            memory_b
+                        };
+                        memory.content = content;
+                        memory.updated_at = chrono::Utc::now();
+                        self.storage.update_memory(&memory).await?;
+
+                        // Archive the other one
+                        let archived = if into == id_a { id_b } else { id_a };
+                        self.storage.archive_memory(archived).await?;
+
+                        return Ok(serde_json::json!({
+                            "action": "merged",
+                            "kept": into.to_string(),
+                            "archived": archived.to_string()
+                        }));
+                    }
+                    ConsolidationDecision::Supersede { kept, superseded } => {
+                        // Update the superseded memory's metadata
+                        let mut memory = self.storage.get_memory(superseded).await?;
+                        memory.superseded_by = Some(kept);
+                        memory.is_archived = true;
+                        self.storage.update_memory(&memory).await?;
+
+                        return Ok(serde_json::json!({
+                            "action": "superseded",
+                            "kept": kept.to_string(),
+                            "superseded": superseded.to_string()
+                        }));
+                    }
+                    ConsolidationDecision::KeepBoth => {
+                        return Ok(serde_json::json!({
+                            "action": "keep_both",
+                            "reason": "Memories are distinct enough to maintain separately"
+                        }));
+                    }
+                }
+            } else {
+                // Return recommendation without applying
+                return Ok(serde_json::json!({
+                    "recommendation": match decision {
+                        ConsolidationDecision::Merge { .. } => "merge",
+                        ConsolidationDecision::Supersede { .. } => "supersede",
+                        ConsolidationDecision::KeepBoth => "keep_both",
+                    },
+                    "auto_applied": false,
+                    "hint": "Set auto_apply: true to apply this decision"
+                }));
+            }
+        }
+
+        // Otherwise, find candidates in namespace
+        let namespace = if let Some(ns_str) = &params.namespace {
+            Some(self.parse_namespace(ns_str)?)
+        } else {
+            None
+        };
+
+        let candidates = self.storage.find_consolidation_candidates(namespace).await?;
+
         Ok(serde_json::json!({
-            "message": "Consolidation implementation pending (Phase 5)"
+            "candidates": candidates.len(),
+            "message": "Candidate finding not yet fully implemented (needs similarity scoring)"
         }))
     }
 

@@ -57,4 +57,30 @@ pub trait StorageBackend: Send + Sync {
 
     /// Get memory count by namespace
     async fn count_memories(&self, namespace: Option<Namespace>) -> Result<usize>;
+
+    /// Hybrid search combining keyword + graph traversal
+    /// (vector similarity deferred to v2.0)
+    async fn hybrid_search(
+        &self,
+        query: &str,
+        namespace: Option<Namespace>,
+        max_results: usize,
+        expand_graph: bool,
+    ) -> Result<Vec<SearchResult>>;
+
+    /// List recent or important memories
+    async fn list_memories(
+        &self,
+        namespace: Option<Namespace>,
+        limit: usize,
+        sort_by: MemorySortOrder,
+    ) -> Result<Vec<MemoryNote>>;
+}
+
+/// Sort order for listing memories
+#[derive(Debug, Clone, Copy)]
+pub enum MemorySortOrder {
+    Recent,
+    Importance,
+    AccessCount,
 }

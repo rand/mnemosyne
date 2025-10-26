@@ -569,6 +569,148 @@ impl StorageBackend for SqliteStorage {
 
         Ok(count as usize)
     }
+
+    async fn hybrid_search(
+        &self,
+        query: &str,
+        namespace: Option<Namespace>,
+        max_results: usize,
+        expand_graph: bool,
+    ) -> Result<Vec<SearchResult>> {
+        debug!("Hybrid search: {} (expand_graph: {})", query, expand_graph);
+
+        // Phase 1: Keyword search with FTS5
+        let keyword_results = self.keyword_search(query, namespace.clone()).await?;
+
+        if keyword_results.is_empty() {
+            debug!("No keyword matches found");
+            return Ok(vec![]);
+        }
+
+        // Phase 2: Optionally expand via graph traversal
+        let mut all_memories = std::collections::HashMap::new();
+
+        // Add keyword results with initial scores
+        for result in keyword_results {
+            all_memories.insert(
+                result.memory.id,
+                (result.memory.clone(), 1.0, 0), // (memory, keyword_score, depth)
+            );
+        }
+
+        if expand_graph {
+            debug!("Expanding graph from {} seed memories", all_memories.len());
+
+            // Use top 5 keyword results as seeds
+            let seed_ids: Vec<_> = all_memories.keys().take(5).copied().collect();
+            let graph_memories = self.graph_traverse(&seed_ids, 2).await?;
+
+            // Add graph-expanded memories with decay based on presence in seeds
+            for memory in graph_memories {
+                if !all_memories.contains_key(&memory.id) {
+                    // Not a keyword match, lower score
+                    all_memories.insert(memory.id, (memory, 0.3, 1));
+                }
+            }
+        }
+
+        // Phase 3: Hybrid ranking
+        let now = Utc::now();
+        let mut scored_results: Vec<_> = all_memories
+            .into_values()
+            .map(|(memory, keyword_score, depth)| {
+                // Normalize importance (1-10) to 0.0-1.0
+                let importance_score = memory.importance as f32 / 10.0;
+
+                // Recency score (exponential decay, half-life = 30 days)
+                let age_days = (now - memory.created_at).num_days() as f32;
+                let recency_score = (-age_days / 30.0).exp();
+
+                // Graph proximity score (1.0 for seeds, decay for expanded)
+                let graph_score = 1.0 / (1.0 + depth as f32);
+
+                // Hybrid score combining all factors
+                // Weights: keyword (50%), graph (20%), importance (20%), recency (10%)
+                let score = 0.5 * keyword_score
+                    + 0.2 * graph_score
+                    + 0.2 * importance_score
+                    + 0.1 * recency_score;
+
+                let match_reason = if keyword_score > 0.5 {
+                    format!("keyword_match (score: {:.2})", score)
+                } else {
+                    format!("graph_expansion (score: {:.2})", score)
+                };
+
+                SearchResult {
+                    memory,
+                    score,
+                    match_reason,
+                }
+            })
+            .collect();
+
+        // Sort by score descending
+        scored_results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Limit results
+        scored_results.truncate(max_results);
+
+        debug!("Hybrid search returned {} results", scored_results.len());
+        Ok(scored_results)
+    }
+
+    async fn list_memories(
+        &self,
+        namespace: Option<Namespace>,
+        limit: usize,
+        sort_by: crate::storage::MemorySortOrder,
+    ) -> Result<Vec<MemoryNote>> {
+        use crate::storage::MemorySortOrder;
+
+        debug!("Listing memories (namespace: {:?}, limit: {}, sort: {:?})", namespace, limit, sort_by);
+
+        let order_clause = match sort_by {
+            MemorySortOrder::Recent => "created_at DESC",
+            MemorySortOrder::Importance => "importance DESC, created_at DESC",
+            MemorySortOrder::AccessCount => "access_count DESC, created_at DESC",
+        };
+
+        let sql = if namespace.is_some() {
+            format!(
+                "SELECT * FROM memories WHERE namespace = ? AND is_archived = 0 ORDER BY {} LIMIT ?",
+                order_clause
+            )
+        } else {
+            format!(
+                "SELECT * FROM memories WHERE is_archived = 0 ORDER BY {} LIMIT ?",
+                order_clause
+            )
+        };
+
+        let mut query = sqlx::query(&sql);
+
+        if let Some(ns) = namespace {
+            let ns_str = serde_json::to_string(&ns)?;
+            query = query.bind(ns_str);
+        }
+
+        query = query.bind(limit as i64);
+
+        let rows = query.fetch_all(&self.pool).await?;
+
+        let mut memories = Vec::new();
+        for row in rows {
+            memories.push(self.row_to_memory(row).await?);
+        }
+
+        debug!("Listed {} memories", memories.len());
+        Ok(memories)
+    }
 }
 
 #[cfg(test)]
