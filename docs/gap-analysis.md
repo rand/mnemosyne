@@ -60,7 +60,73 @@ test-key
 
 ## Major Issues (P1) - Feature Incomplete
 
-*(To be populated after testing)*
+### P1-001: Multi-Agent System Was Using Stub Implementations ✅ FIXED
+
+**Severity**: P1 - Major Architectural Issue
+**Component**: `src/orchestration/agents/*.py` - All 4 agents
+**Impact**: Agents had no real intelligence, couldn't make decisions, no tool access
+**Status**: ✅ FIXED in commits 0335b1c through f2f5ded
+
+**Description**:
+All 4 agents (Orchestrator, Optimizer, Reviewer, Executor) were basic Python classes with hardcoded logic and no actual Claude Agent SDK integration. The agents could not:
+- Make intelligent decisions
+- Access tools (Read, Write, Edit, Bash, etc.)
+- Maintain conversation context
+- Adapt to complex scenarios
+
+**Root Cause**:
+The `claude-agent-sdk` dependency was incorrectly removed when installation failed with Python 3.9. The package DOES exist but requires Python 3.10+. Instead of investigating the version requirement, the dependency was removed and agents were implemented as stubs.
+
+**Fix Applied**:
+
+1. **Restored Dependency** (`pyproject.toml`):
+```toml
+requires-python = ">=3.10"  # Was >=3.9
+dependencies = [
+    "claude-agent-sdk>=0.1.0",  # Restored
+    "rich>=13.0.0",
+]
+```
+
+2. **Created Python 3.11 Environment**:
+```bash
+uv venv --python 3.11
+source .venv/bin/activate
+uv pip install claude-agent-sdk==0.1.5
+```
+
+3. **Refactored All 4 Agents** to use `ClaudeSDKClient`:
+   - **ExecutorAgent**: Tools (Read, Write, Edit, Bash, Glob, Grep), permission mode `acceptEdits`
+   - **OrchestratorAgent**: Tools (Read, Glob), permission mode `view`
+   - **OptimizerAgent**: Tools (Read, Glob), permission mode `view`
+   - **ReviewerAgent**: Tools (Read, Glob, Grep), permission mode `view`
+
+4. **Added System Prompts** defining each agent's role and responsibilities
+
+5. **Implemented Session Lifecycle** with async context managers
+
+6. **Added Message Storage** in PyStorage for persistence
+
+**Verification**:
+```bash
+# Unit tests (no API key required)
+pytest tests/orchestration/test_integration.py -v -m "not integration"
+# Result: 9/9 tests passing ✅
+
+# Integration tests (requires API key export)
+export ANTHROPIC_API_KEY=sk-ant-...
+pytest tests/orchestration/test_integration.py -v -m integration
+# Result: Ready for execution
+```
+
+**Impact**: The multi-agent system now has real intelligence and can make context-aware decisions. This is a fundamental architectural improvement.
+
+**Related Documentation**:
+- `docs/multi-agent-refactoring-summary.md` - Complete refactoring details
+- `tests/orchestration/test_integration.py` - Comprehensive test suite
+- `multi-agent-design-spec.md` - Updated architecture section
+
+**Actual Effort**: 4 hours (investigation, refactoring all 4 agents, testing, documentation)
 
 ---
 
