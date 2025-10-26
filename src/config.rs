@@ -78,6 +78,8 @@ impl ConfigManager {
             warn!("API key doesn't match expected Anthropic format (sk-ant-...)");
         }
 
+        debug!("Attempting to store API key in keychain (service={}, user={})", KEYRING_SERVICE, KEYRING_USER);
+
         self.keyring_entry
             .set_password(key)
             .map_err(|e| MnemosyneError::Config(
@@ -85,6 +87,16 @@ impl ConfigManager {
             ))?;
 
         info!("API key securely stored in OS keychain");
+
+        // Immediately verify storage
+        match self.keyring_entry.get_password() {
+            Ok(_) => debug!("Verified: API key successfully stored and retrievable"),
+            Err(e) => {
+                warn!("WARNING: API key was stored but immediate retrieval failed: {}", e);
+                warn!("This may indicate a keychain access permission issue");
+            }
+        }
+
         Ok(())
     }
 
