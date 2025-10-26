@@ -45,6 +45,7 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 config = "0.13"
 clap = { version = "4.4", features = ["derive"] }
 async-trait = "0.1"
+keyring = "3.6.3"
 
 [dev-dependencies]
 mockall = "0.12"

@@ -6,11 +6,11 @@
 //! - Consolidation decisions
 //! - Memory summarization
 
+use crate::config::ConfigManager;
 use crate::error::{MnemosyneError, Result};
 use crate::types::{ConsolidationDecision, LinkType, MemoryLink, MemoryNote, MemoryType};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::env;
 use tracing::{debug, info};
 
 /// Configuration for LLM service
@@ -31,8 +31,14 @@ pub struct LlmConfig {
 
 impl Default for LlmConfig {
     fn default() -> Self {
+        // Try to get API key from ConfigManager
+        let api_key = ConfigManager::new()
+            .ok()
+            .and_then(|cm| cm.get_api_key().ok())
+            .unwrap_or_default();
+
         Self {
-            api_key: env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
+            api_key,
             model: "claude-3-5-haiku-20241022".to_string(),
             max_tokens: 1024,
             temperature: 0.7,
