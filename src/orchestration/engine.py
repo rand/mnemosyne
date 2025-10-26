@@ -208,6 +208,11 @@ class OrchestrationEngine:
             print("\n[Executor] Executing work plan...")
             execution_result = await self.executor.execute_work_plan(work_plan)
 
+            # If executor challenged requirements, return immediately
+            if execution_result["status"] == "challenged":
+                print(f"\n[Executor] Requirements challenged: {len(execution_result.get('issues', []))} issues")
+                return execution_result
+
             # Step 3: Reviewer validates results
             if execution_result["status"] == "success":
                 print("\n[Reviewer] Validating artifacts...")

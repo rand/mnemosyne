@@ -161,6 +161,7 @@ Always follow best practices and validate your work before marking it complete."
 
             # Validate work plan
             validation_result = await self._validate_work_plan(work_plan)
+
             if not validation_result["valid"]:
                 # Challenge vague requirements
                 if self.config.challenge_vague_requirements:
@@ -278,7 +279,7 @@ Always follow best practices and validate your work before marking it complete."
 
         if "tech_stack" not in work_plan:
             issues.append("Tech stack not specified")
-            questions.append("What technologies should be used?")
+            questions.append("What tech stack / technologies should be used?")
 
         if "deployment" not in work_plan:
             questions.append("Where will this be deployed?")
@@ -287,13 +288,46 @@ Always follow best practices and validate your work before marking it complete."
             issues.append("Success criteria not defined")
             questions.append("How will we know when this is complete?")
 
-        # Check for vague terms
+        # Check prompt for vague terms and insufficient detail
         prompt = work_plan.get("prompt", "")
+
+        # 1. Check for vague trigger words
         vague_terms = ["quickly", "just", "simple", "easy", "whatever"]
         for term in vague_terms:
             if term in prompt.lower():
                 issues.append(f"Vague requirement: '{term}'")
                 questions.append(f"Please clarify what '{term}' means in this context")
+
+        # 2. Check word count (< 10 words is likely too brief)
+        word_count = len(prompt.split())
+        if word_count < 10:
+            issues.append(f"Requirement too brief ({word_count} words)")
+            questions.append("Please provide more details about what needs to be built")
+
+        # 3. Check for missing detail categories
+        prompt_lower = prompt.lower()
+        detail_categories = {
+            "what": ["add", "create", "build", "implement", "develop"],
+            "why": ["because", "to", "for", "need", "require", "goal", "purpose"],
+            "how": ["using", "with", "via", "through", "by"],
+            "constraints": ["must", "should", "cannot", "within", "limit", "requirement"],
+            "scope": ["only", "all", "some", "specific", "following", "include"]
+        }
+
+        missing_categories = []
+        for category, indicators in detail_categories.items():
+            if not any(indicator in prompt_lower for indicator in indicators):
+                missing_categories.append(category)
+
+        # If missing 3+ categories, prompt is likely too vague
+        if len(missing_categories) >= 3:
+            issues.append(f"Prompt lacks detail in: {', '.join(missing_categories)}")
+            questions.extend([
+                "What specifically needs to be built? (what)",
+                "Why is this needed? (purpose)",
+                "How should it be implemented? (approach)",
+                "Are there any constraints or requirements? (constraints)"
+            ])
 
         return {
             "valid": len(issues) == 0,
