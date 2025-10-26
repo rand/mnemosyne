@@ -92,7 +92,27 @@ def coordinator():
 
 @pytest.fixture
 def storage(temp_db):
-    """Create test storage instance."""
+    """Create test storage instance with initialized database."""
+    from pathlib import Path
+    import subprocess
+
+    # Ensure database directory exists
+    Path(temp_db).parent.mkdir(parents=True, exist_ok=True)
+
+    # Initialize database using Rust CLI init command
+    try:
+        result = subprocess.run(
+            ["./target/release/mnemosyne", "init", "--database", temp_db],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode != 0:
+            print(f"Database init warning: {result.stderr}")
+    except Exception as e:
+        print(f"Database init skipped: {e}")
+
+    # Create storage instance (schema should now exist)
     return mnemosyne_core.PyStorage(temp_db)
 
 
