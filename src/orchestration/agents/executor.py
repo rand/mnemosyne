@@ -248,7 +248,7 @@ Always follow best practices and validate your work before marking it complete."
         if len(content) > 100:  # Only store substantial messages
             await self.storage.store({
                 "content": content[:500],  # Truncate long messages
-                "namespace": f"session:{self.config.agent_id}",
+                "namespace": f"project:agent-{self.config.agent_id}",
                 "importance": 7,
                 "tags": ["execution", self._current_phase.value]
             })

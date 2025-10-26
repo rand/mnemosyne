@@ -199,7 +199,7 @@ Focus on orchestration strategy, not implementation details."""
         if len(content) > 100:
             await self.storage.store({
                 "content": content[:500],
-                "namespace": f"session:{self.config.agent_id}",
+                "namespace": f"project:agent-{self.config.agent_id}",
                 "importance": 8,
                 "tags": ["orchestration", phase]
             })
@@ -344,7 +344,7 @@ What should be preserved in this checkpoint? What can be compressed or discarded
         # Save to storage
         await self.storage.store({
             "content": f"Context snapshot at {metrics.utilization:.1%} utilization",
-            "namespace": "session:orchestration",
+            "namespace": "project:agent-orchestration",
             "importance": 10,
             "summary": f"Checkpoint {self._checkpoint_count}",
             "tags": ["checkpoint", "context-preservation"]

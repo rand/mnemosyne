@@ -216,7 +216,7 @@ Be thorough but constructive. Identify real issues, not nitpicks."""
             # Store review result
             await self.storage.store({
                 "content": f"Review {'PASSED' if all_passed else 'FAILED'}: {len(issues)} issues found",
-                "namespace": f"session:{self.config.agent_id}",
+                "namespace": f"project:agent-{self.config.agent_id}",
                 "importance": 9 if not all_passed else 7,
                 "tags": ["review", "quality-gate", "passed" if all_passed else "failed"]
             })
@@ -387,7 +387,7 @@ Be thorough but constructive.""")
         if len(content) > 100:
             await self.storage.store({
                 "content": content[:500],
-                "namespace": f"session:{self.config.agent_id}",
+                "namespace": f"project:agent-{self.config.agent_id}",
                 "importance": 8,
                 "tags": ["review", phase]
             })

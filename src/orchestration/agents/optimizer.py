@@ -237,7 +237,7 @@ Provide structured analysis."""
         # Store skill discovery in memory
         await self.storage.store({
             "content": f"Loaded {len(top_matches)} skills for task: {task_description[:100]}",
-            "namespace": f"session:{self.config.agent_id}",
+            "namespace": f"project:agent-{self.config.agent_id}",
             "importance": 7,
             "tags": ["skill-discovery", "optimization"]
         })
@@ -359,7 +359,7 @@ Recommend allocation percentages with reasoning."""
         if len(content) > 100:
             await self.storage.store({
                 "content": content[:500],
-                "namespace": f"session:{self.config.agent_id}",
+                "namespace": f"project:agent-{self.config.agent_id}",
                 "importance": 6,
                 "tags": ["optimization", phase]
             })
