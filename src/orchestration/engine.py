@@ -244,8 +244,9 @@ class OrchestrationEngine:
 
             print("\n=== Orchestration Complete ===")
             print(f"- Context utilization: {self.context_monitor.get_current_metrics().utilization:.0%}")
-            print(f"- Tasks completed: {execution_result['completed_tasks']}")
-            print(f"- Checkpoints: {execution_result['checkpoints']}")
+            if execution_result.get("status") == "success":
+                print(f"- Tasks completed: {execution_result.get('completed_tasks', 0)}")
+                print(f"- Checkpoints: {execution_result.get('checkpoints', 0)}")
 
             return {
                 "status": "success",
