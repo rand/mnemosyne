@@ -320,33 +320,115 @@ Mnemosyne Storage (Rust)
 
 ## Future Enhancements (v2.0+)
 
-### Vector Similarity Search
-- Add embeddings via fastembed (when stable)
-- Use `sqlite-vec` extension for similarity search
-- Hybrid ranking: vector + keyword + graph + importance
+### v2.0 Core Features
 
-### Background Memory Evolution
-- Periodic consolidation jobs
-- Link strength decay over time
-- Importance recalculation based on access patterns
-- Automatic archival of unused memories
+Detailed implementation plans available in `docs/v2/`:
 
-### Advanced Agent Features
-- Agent-specific memory views
-- Role-based access control
-- Custom importance scoring per agent
-- Memory prefetching based on work patterns
+#### Vector Similarity Search (P0)
+**Plan**: [`docs/v2/vector-similarity-search-plan.md`](docs/v2/vector-similarity-search-plan.md)
 
-### Enhanced Hooks
-- `session-start`: Automatic context loading
-- `pre-compact`: Checkpoint before context compression
-- `post-commit`: Capture decisions and rationale
-- `phase-transition`: Load relevant memories for next phase
+- Remote embeddings (Voyage AI or Anthropic) for v2.0
+- Local embeddings (fastembed) when compilation stable
+- sqlite-vec extension for native vector search
+- Hybrid ranking: vector (40%) + keyword (30%) + graph (20%) + importance (10%)
+- Target: 85-95% search accuracy (up from 70-80%)
 
-### Extended Namespace Features
+**Timeline**: 2-3 weeks for remote embeddings
+
+#### Background Memory Evolution (P1)
+**Plan**: [`docs/v2/background-memory-evolution-plan.md`](docs/v2/background-memory-evolution-plan.md)
+
+- Periodic consolidation jobs (daily)
+- Link strength decay over time (weekly)
+- Importance recalibration based on access patterns (weekly)
+- Automatic archival of unused memories (monthly)
+- Self-organizing knowledge base with zero manual maintenance
+
+**Timeline**: 6 weeks across 6 phases
+
+#### Advanced Agent Features (P2)
+**Plan**: [`docs/v2/advanced-agent-features-plan.md`](docs/v2/advanced-agent-features-plan.md)
+
+- Agent-specific memory views (role-based filtering)
+- Role-based access control with audit trail
+- Custom importance scoring per agent (different weights)
+- Memory prefetching based on work patterns (70%+ cache hit rate)
+- <5ms latency for cached memories (10-40x improvement)
+
+**Timeline**: 7 weeks across 5 phases
+
+---
+
+### v2.0 Ecosystem Features
+
+#### VSCode Extension (P1)
+**Status**: Planned (do not implement yet)
+
+**Goal**: Bring Mnemosyne memory system to VSCode users
+
+**Features**:
+- Memory browser sidebar
+  - Tree view of memories by namespace (global/project/session)
+  - Search with inline results
+  - Filter by importance, type, tags
+  - Preview memory content in panel
+- Inline memory suggestions
+  - Show relevant memories as you code
+  - Context-aware suggestions based on current file
+  - Quick preview on hover
+- Quick-add memory command
+  - `Cmd+Shift+M`: Store current selection as memory
+  - Auto-detect context (file, function, line numbers)
+  - Prompt for importance and tags
+- Memory graph visualization
+  - Interactive graph of memory relationships
+  - Click to navigate between linked memories
+  - Visual indicators for importance and freshness
+- Status bar integration
+  - Show memory count for current project
+  - Quick search trigger
+  - MCP connection status
+
+**Technical Stack**:
+- TypeScript + VSCode Extension API
+- MCP client to connect to mnemosyne server
+- Webview for graph visualization (D3.js or similar)
+- SQLite for local cache (faster than repeated MCP calls)
+
+**Implementation Plan**:
+1. Phase 1: Basic MCP connection + sidebar browser (2 weeks)
+2. Phase 2: Inline suggestions + quick-add (2 weeks)
+3. Phase 3: Graph visualization (2 weeks)
+4. Phase 4: Polish, testing, marketplace submission (1 week)
+
+**Timeline**: 7 weeks (deferred until after v2.0 core features)
+
+**Dependencies**:
+- Mnemosyne v1.0+ with stable MCP server
+- VSCode 1.80+
+- Node.js 18+
+
+**Success Metrics**:
+- 1000+ installs in first month
+- 4+ star rating
+- <50ms memory search latency
+- 80%+ user retention after 1 week
+
+---
+
+### Other Future Enhancements
+
+#### Enhanced Hooks (Future)
+- `phase-transition`: Load relevant memories for next work phase
+- `skill-activation`: Store skill usage patterns
+- `consolidation-trigger`: Auto-consolidate on pattern detection
+- `context-warning`: Alert before hitting context limits
+
+#### Extended Namespace Features (Future)
 - Cross-project memory sharing (with permissions)
-- Team-level namespaces
+- Team-level namespaces (shared across developers)
 - Memory inheritance across project forks
+- Namespace hierarchies (org → team → project → user)
 
 ---
 

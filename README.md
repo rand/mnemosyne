@@ -242,8 +242,11 @@ For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
 # Rust core
 cargo build --release
 
-# Python orchestration (optional, in development)
-pip install maturin
+# Python orchestration (optional)
+# See ORCHESTRATION.md for complete PyO3 setup instructions
+uv venv .venv && source .venv/bin/activate
+uv pip install maturin
+export PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1
 maturin develop
 ```
 
