@@ -33,6 +33,7 @@ Mnemosyne is a high-performance, project-aware agentic memory system built in Ru
 ### System Diagram
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'primaryTextColor':'#000', 'primaryBorderColor':'#333', 'lineColor':'#333', 'fontSize':'14px'}}}%%
 flowchart TD
     subgraph Claude["Claude Code Environment"]
         direction LR
@@ -45,7 +46,7 @@ flowchart TD
 
     Protocol{{MCP Protocol<br/>JSON-RPC over stdio}}
 
-    subgraph Mnemosyne["Mnemosyne Server (Rust + Tokio)"]
+    subgraph Mnemosyne["Mnemosyne Server"]
         MCP[MCP Server<br/>Tool Router]
 
         subgraph Core["Core Services"]
@@ -70,12 +71,22 @@ flowchart TD
     LLM --> API
     NS --> DB
 
-    style Claude fill:#e1bee7,stroke:#4a148c,stroke-width:3px
-    style Mnemosyne fill:#ffe0b2,stroke:#e65100,stroke-width:3px
-    style Core fill:#e0e0e0,stroke:#212121,stroke-width:2px
-    style Protocol fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px
-    style API fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
-    style DB fill:#bbdefb,stroke:#0d47a1,stroke-width:3px
+    style Claude fill:#e1bee7,stroke:#4a148c,stroke-width:3px,color:#000
+    style Mnemosyne fill:#ffe0b2,stroke:#e65100,stroke-width:3px,color:#000
+    style Core fill:#e0e0e0,stroke:#212121,stroke-width:2px,color:#000
+    style Protocol fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px,color:#000
+    style API fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px,color:#000
+    style DB fill:#bbdefb,stroke:#0d47a1,stroke-width:3px,color:#000
+
+    style Orch fill:#fff,color:#000,stroke:#333,stroke-width:2px
+    style Opt fill:#fff,color:#000,stroke:#333,stroke-width:2px
+    style Rev fill:#fff,color:#000,stroke:#333,stroke-width:2px
+    style Exec fill:#fff,color:#000,stroke:#333,stroke-width:2px
+    style Skills fill:#fff,color:#000,stroke:#333,stroke-width:2px
+    style MCP fill:#fff,color:#000,stroke:#333,stroke-width:2px
+    style Storage fill:#fff,color:#000,stroke:#333,stroke-width:2px
+    style LLM fill:#fff,color:#000,stroke:#333,stroke-width:2px
+    style NS fill:#fff,color:#000,stroke:#333,stroke-width:2px
 ```
 
 **Layer Responsibilities**:
