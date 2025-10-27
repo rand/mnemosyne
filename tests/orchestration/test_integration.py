@@ -446,11 +446,11 @@ class TestEndToEndWorkflow:
         await engine.start()
 
         try:
-            # Define simple work plan
+            # Define work plan with clear requirements
             work_plan = {
-                "prompt": "Analyze this simple task: count to 5",
-                "tech_stack": "Python",
-                "success_criteria": "Returns list [1, 2, 3, 4, 5]"
+                "prompt": "Create a Python function that generates a list of integers from 1 to 5 using a range-based approach for numerical sequence generation",
+                "tech_stack": "Python 3.11+",
+                "success_criteria": "Function returns list [1, 2, 3, 4, 5] and includes type hints"
             }
 
             # Execute work plan
@@ -479,12 +479,12 @@ class TestEndToEndWorkflow:
         await engine.start()
 
         try:
-            # Work plan with clear success criteria
+            # Work plan with clear success criteria and detailed requirements
             work_plan = {
-                "prompt": "Create a simple Python function",
-                "tech_stack": "Python",
-                "success_criteria": "Function is documented and tested",
-                "constraints": ["No external dependencies"]
+                "prompt": "Implement a Python function for calculating the factorial of a given integer using recursive approach with base case handling and input validation",
+                "tech_stack": "Python 3.11+ with type hints",
+                "success_criteria": "Function is documented with docstrings, includes unit tests with edge cases, and handles invalid inputs gracefully",
+                "constraints": ["No external dependencies", "Must include type hints", "Must handle negative numbers"]
             }
 
             # Execute work plan

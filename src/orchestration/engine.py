@@ -224,6 +224,7 @@ class OrchestrationEngine:
                     print(f"[Reviewer] Validation failed: {len(review_result.issues)} issues")
                     return {
                         "status": "validation_failed",
+                        "execution": execution_result,
                         "review": {
                             "passed": False,
                             "issues": review_result.issues,

@@ -256,11 +256,23 @@ Always follow best practices and validate your work before marking it complete."
 
     def _extract_artifacts(self, responses: List[Any]) -> Dict[str, Any]:
         """Extract artifacts from Claude agent responses."""
+        # Convert responses to serializable format
+        serializable_responses = []
+        for response in responses:
+            if hasattr(response, 'data'):
+                # SystemMessage or similar - extract data
+                serializable_responses.append({
+                    "type": type(response).__name__,
+                    "data": str(response.data) if not isinstance(response.data, (dict, list)) else response.data
+                })
+            else:
+                serializable_responses.append(str(response))
+
         artifacts = {
             "code": {},
             "tests": {},
             "documentation": {},
-            "responses": responses
+            "responses": serializable_responses
         }
 
         # In production, parse tool_use messages to extract created files
@@ -349,7 +361,7 @@ Always follow best practices and validate your work before marking it complete."
         # Store commit record in memory
         self.storage.store({
             "content": f"Checkpoint {self._checkpoint_count}: Work committed",
-            "namespace": f"session:{self.config.agent_id}",
+            "namespace": f"project:agent-{self.config.agent_id}",
             "importance": 10,
             "tags": ["checkpoint", "commit"]
         })
