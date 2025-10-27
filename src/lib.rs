@@ -46,6 +46,7 @@ pub mod config;
 pub mod error;
 pub mod mcp;
 pub mod namespace;
+pub mod secrets;
 pub mod services;
 pub mod storage;
 pub mod types;
