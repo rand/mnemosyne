@@ -20,14 +20,8 @@ tokio = { version = "1.35", features = ["full", "tracing"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 
 # Database
-sqlx = { version = "0.7", features = [
-    "runtime-tokio",
-    "sqlite",
-    "json",
-    "chrono",
-    "uuid"
-] }
-sqlite-vec = "0.1.7-alpha.2"
+libsql = { version = "0.9", features = ["core", "replication", "sync"] }
+libsql_migration = { version = "0.2", features = ["dir"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

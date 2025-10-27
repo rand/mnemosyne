@@ -10,11 +10,11 @@ use thiserror::Error;
 pub enum MnemosyneError {
     /// Database operation failed
     #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(String),
 
     /// Database migration failed
     #[error("Migration error: {0}")]
-    Migration(#[from] sqlx::migrate::MigrateError),
+    Migration(String),
 
     /// LLM API request failed
     #[error("LLM API error: {0}")]
@@ -80,6 +80,13 @@ pub type Result<T> = std::result::Result<T, MnemosyneError>;
 impl From<anyhow::Error> for MnemosyneError {
     fn from(err: anyhow::Error) -> Self {
         MnemosyneError::Other(err.to_string())
+    }
+}
+
+/// Convert libsql::Error to MnemosyneError
+impl From<libsql::Error> for MnemosyneError {
+    fn from(err: libsql::Error) -> Self {
+        MnemosyneError::Database(err.to_string())
     }
 }
 
