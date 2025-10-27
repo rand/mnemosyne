@@ -137,33 +137,41 @@ FEEDBACK → Link strength evolution, importance decay
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│         Claude Code + Multi-Agent System        │
-│  ┌──────────────────────────────────────────┐   │
-│  │  Orchestrator  Optimizer  Reviewer       │   │
-│  │  Executor      (with memory skills)      │   │
-│  └───────────────────┬──────────────────────┘   │
-└────────────────────┼─────────────────────────────┘
-                     │ MCP Protocol (JSON-RPC)
-          ┌──────────▼──────────┐
-          │  Mnemosyne Server   │
-          │  (Rust + Tokio)     │
-          └──────────┬──────────┘
-                     │
-     ┌───────────────┼───────────────┐
-     │               │               │
-┌────▼────┐    ┌────▼────┐    ┌────▼────┐
-│ Storage │    │   LLM   │    │Namespace│
-│(SQLite) │    │(Claude) │    │Detector │
-│  +FTS5  │    │  Haiku  │    │         │
-└─────────┘    └─────────┘    └─────────┘
+┌───────────────────────────────────────────────────────────┐
+│                      Claude Code                          │
+│                                                           │
+│  • Slash commands (/memory-search, /memory-store, ...)   │
+│  • MCP tools (mnemosyne.recall, mnemosyne.remember, ...) │
+│  • Multi-agent skills & orchestration                    │
+└─────────────────────────┬─────────────────────────────────┘
+                          │
+                          │ MCP Protocol
+                          │ (JSON-RPC over stdio)
+                          │
+┌─────────────────────────▼─────────────────────────────────┐
+│                  Mnemosyne Server                         │
+│                   (Rust + Tokio)                          │
+│                                                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐      │
+│  │   Storage   │  │ LLM Service │  │  Namespace  │      │
+│  │             │  │             │  │  Detector   │      │
+│  │   SQLite    │  │   Claude    │  │             │      │
+│  │   + FTS5    │  │   Haiku     │  │  Git-aware  │      │
+│  │             │  │             │  │  Context    │      │
+│  └─────────────┘  └─────────────┘  └─────────────┘      │
+│                                                           │
+│  • Hybrid search (keyword + graph)                       │
+│  • LLM-enriched memory (summaries, tags, links)          │
+│  • Project-aware namespacing (global/project/session)    │
+└───────────────────────────────────────────────────────────┘
 ```
 
-**Core Components**:
-- **MCP Server**: JSON-RPC 2.0 over stdio for Claude Code integration
-- **Storage Layer**: SQLite with FTS5 full-text search and graph traversal
-- **LLM Service**: Claude Haiku for enrichment, linking, and consolidation
-- **Namespace Detector**: Git-aware project context detection
+**Data Flow**:
+1. Claude Code calls MCP tools via JSON-RPC
+2. Mnemosyne Server processes requests using Storage, LLM, and Namespace services
+3. Storage persists to SQLite with FTS5 indexing
+4. LLM Service enriches memories via Claude Haiku API
+5. Results flow back to Claude Code for agent decision-making
 
 For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
