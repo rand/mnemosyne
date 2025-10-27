@@ -24,6 +24,30 @@ pub enum MnemosyneError {
     #[error("Embedding error: {0}")]
     Embedding(String),
 
+    /// Embedding service error (replaces Embedding for v2.0)
+    #[error("Embedding error: {0}")]
+    EmbeddingError(String),
+
+    /// Authentication error (invalid API key, etc.)
+    #[error("Authentication error: {0}")]
+    AuthenticationError(String),
+
+    /// Rate limit exceeded
+    #[error("Rate limit exceeded: {0}")]
+    RateLimitExceeded(String),
+
+    /// Network communication error
+    #[error("Network error: {0}")]
+    NetworkError(String),
+
+    /// Serialization/deserialization error
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
+
+    /// Validation error (invalid input)
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+
     /// Invalid memory ID format
     #[error("Invalid memory ID: {0}")]
     InvalidMemoryId(#[from] uuid::Error),
@@ -39,6 +63,10 @@ pub enum MnemosyneError {
     /// Invalid namespace
     #[error("Invalid namespace: {0}")]
     InvalidNamespace(String),
+
+    /// Invalid agent role
+    #[error("Invalid agent role: {0}")]
+    InvalidAgentRole(String),
 
     /// Configuration error
     #[error("Configuration error: {0}")]
