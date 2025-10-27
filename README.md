@@ -136,42 +136,48 @@ FEEDBACK → Link strength evolution, importance decay
 
 ## Architecture
 
-```
-┌───────────────────────────────────────────────────────────┐
-│                      Claude Code                          │
-│                                                           │
-│  • Slash commands (/memory-search, /memory-store, ...)   │
-│  • MCP tools (mnemosyne.recall, mnemosyne.remember, ...) │
-│  • Multi-agent skills & orchestration                    │
-└─────────────────────────┬─────────────────────────────────┘
-                          │
-                          │ MCP Protocol
-                          │ (JSON-RPC over stdio)
-                          │
-┌─────────────────────────▼─────────────────────────────────┐
-│                  Mnemosyne Server                         │
-│                   (Rust + Tokio)                          │
-│                                                           │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐      │
-│  │   Storage   │  │ LLM Service │  │  Namespace  │      │
-│  │             │  │             │  │  Detector   │      │
-│  │   SQLite    │  │   Claude    │  │             │      │
-│  │   + FTS5    │  │   Haiku     │  │  Git-aware  │      │
-│  │             │  │             │  │  Context    │      │
-│  └─────────────┘  └─────────────┘  └─────────────┘      │
-│                                                           │
-│  • Hybrid search (keyword + graph)                       │
-│  • LLM-enriched memory (summaries, tags, links)          │
-│  • Project-aware namespacing (global/project/session)    │
-└───────────────────────────────────────────────────────────┘
+```mermaid
+C4Container
+    title Mnemosyne System Architecture
+
+    Person(user, "Developer/Agent", "Uses Claude Code")
+
+    Container_Boundary(claude, "Claude Code") {
+        Container(ui, "User Interface", "CLI", "Slash commands")
+        Container(mcp_client, "MCP Client", "JSON-RPC", "Tool invocation")
+        Container(agents, "Multi-Agent System", "Python", "Orchestrator, Optimizer, Reviewer, Executor")
+    }
+
+    Container_Boundary(mnemosyne, "Mnemosyne Server (Rust + Tokio)") {
+        Container(mcp_server, "MCP Server", "JSON-RPC", "8 OODA-aligned tools")
+        Container(storage, "Storage Layer", "SQLite + FTS5", "Hybrid search & graph")
+        Container(llm, "LLM Service", "Claude Haiku", "Memory enrichment")
+        Container(namespace, "Namespace Detector", "Git-aware", "Project context")
+    }
+
+    System_Ext(api, "Anthropic API", "Claude Haiku endpoint")
+
+    Rel(user, ui, "Uses", "Slash commands")
+    Rel(ui, mcp_client, "Invokes", "Function calls")
+    Rel(mcp_client, mcp_server, "Calls tools", "JSON-RPC/stdio")
+    Rel(agents, mcp_server, "Queries memories", "MCP tools")
+
+    Rel(mcp_server, storage, "Persists/retrieves", "CRUD + search")
+    Rel(mcp_server, llm, "Enriches", "Summaries, tags, links")
+    Rel(mcp_server, namespace, "Detects context", "Git root, CLAUDE.md")
+
+    Rel(llm, api, "Requests enrichment", "HTTPS")
+    Rel(storage, storage, "FTS5 keyword search")
+    Rel(storage, storage, "Graph traversal")
+
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```
 
-**Data Flow**:
-1. Claude Code calls MCP tools via JSON-RPC
-2. Mnemosyne Server processes requests using Storage, LLM, and Namespace services
-3. Storage persists to SQLite with FTS5 indexing
-4. LLM Service enriches memories via Claude Haiku API
-5. Results flow back to Claude Code for agent decision-making
+**Key Features**:
+- **Hybrid Search**: FTS5 keyword + graph traversal for semantic retrieval
+- **LLM Enrichment**: Auto-generates summaries, keywords, tags, and semantic links
+- **Project-Aware**: Automatic namespacing (global/project/session) via git detection
+- **OODA Integration**: 8 tools aligned to Observe-Orient-Decide-Act loops
 
 For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
