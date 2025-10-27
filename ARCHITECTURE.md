@@ -34,7 +34,7 @@ Mnemosyne is a high-performance, project-aware agentic memory system built in Ru
 
 ```mermaid
 flowchart TD
-    subgraph Claude["🎯 Claude Code Environment"]
+    subgraph Claude["Claude Code Environment"]
         direction LR
         Orch[Orchestrator]
         Opt[Optimizer]
@@ -45,7 +45,7 @@ flowchart TD
 
     Protocol{{MCP Protocol<br/>JSON-RPC over stdio}}
 
-    subgraph Mnemosyne["⚡ Mnemosyne Server (Rust + Tokio)"]
+    subgraph Mnemosyne["Mnemosyne Server (Rust + Tokio)"]
         MCP[MCP Server<br/>Tool Router]
 
         subgraph Core["Core Services"]
@@ -70,12 +70,12 @@ flowchart TD
     LLM --> API
     NS --> DB
 
-    style Claude fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style Mnemosyne fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style Core fill:#fafafa,stroke:#616161,stroke-width:1px
-    style Protocol fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style API fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style DB fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    style Claude fill:#e1bee7,stroke:#4a148c,stroke-width:3px
+    style Mnemosyne fill:#ffe0b2,stroke:#e65100,stroke-width:3px
+    style Core fill:#e0e0e0,stroke:#212121,stroke-width:2px
+    style Protocol fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px
+    style API fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+    style DB fill:#bbdefb,stroke:#0d47a1,stroke-width:3px
 ```
 
 **Layer Responsibilities**:
@@ -326,7 +326,7 @@ sequenceDiagram
         Store-->>-MCP: MemoryId
     end
 
-    MCP-->>-User: ✓ Success + MemoryId
+    MCP-->>-User: Success + MemoryId
 ```
 
 ### 2. Memory Retrieval Flow
@@ -371,7 +371,7 @@ sequenceDiagram
         Store-->>-MCP: Ranked memory list
     end
 
-    MCP-->>-User: ✓ Memories + metadata
+    MCP-->>-User: Memories + metadata
 ```
 
 ### 3. Context Building Flow
@@ -385,7 +385,7 @@ sequenceDiagram
     participant Store as Storage Layer
     database DB as SQLite
 
-    Note over Agent: 🚀 Session Start
+    Note over Agent: Session Start
 
     Agent->>+MCP: mnemosyne.context()
 
@@ -423,7 +423,7 @@ sequenceDiagram
         Note right of MCP: • Total memories<br/>• Coverage metrics<br/>• Link density
     end
 
-    MCP-->>-Agent: ✓ Context payload
+    MCP-->>-Agent: Context payload
     Note right of Agent: Ready with:<br/>• Project metadata<br/>• Recent work<br/>• Key decisions<br/>• Knowledge graph
 ```
 
