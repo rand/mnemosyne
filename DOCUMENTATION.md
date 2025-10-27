@@ -292,7 +292,7 @@ Documentation improvements are always welcome!
 
 **How to contribute:**
 
-1. **Found an error?** [File an issue](https://github.com/rand/mnemosyne/issues/new?template=documentation.md)
+1. **Found an error?** [File an issue](https://github.com/rand/mnemosyne/issues/new?template=bug_report.md)
 2. **Want to improve?** [Submit a PR](CONTRIBUTING.md#pull-request-process)
 3. **Missing documentation?** [Request it](https://github.com/rand/mnemosyne/discussions)
 
