@@ -621,9 +621,89 @@ impl StorageBackend for SqliteStorage {
     ) -> Result<Vec<(MemoryNote, MemoryNote)>> {
         debug!("Finding consolidation candidates (namespace: {:?})", namespace);
 
-        // TODO: Implement similarity-based candidate finding
-        warn!("Consolidation candidate search not yet implemented");
-        Ok(vec![])
+        // Get all active memories in namespace with embeddings
+        let memories_sql = if let Some(ref ns) = namespace {
+            let ns_json = serde_json::to_string(ns)?;
+            format!(
+                r#"
+                SELECT DISTINCT m.*
+                FROM memories m
+                JOIN vec_memories v ON m.id = v.memory_id
+                WHERE m.namespace = ?
+                  AND m.is_archived = 0
+                  AND m.superseded_by IS NULL
+                ORDER BY m.created_at DESC
+                LIMIT 100
+                "#
+            )
+        } else {
+            r#"
+                SELECT DISTINCT m.*
+                FROM memories m
+                JOIN vec_memories v ON m.id = v.memory_id
+                WHERE m.is_archived = 0
+                  AND m.superseded_by IS NULL
+                ORDER BY m.created_at DESC
+                LIMIT 100
+                "#
+            .to_string()
+        };
+
+        let mut query = sqlx::query(&memories_sql);
+        if let Some(ref ns) = namespace {
+            let ns_json = serde_json::to_string(ns)?;
+            query = query.bind(ns_json);
+        }
+
+        let rows = query.fetch_all(&self.pool).await?;
+
+        let mut memories = Vec::new();
+        for row in rows {
+            memories.push(self.row_to_memory(row).await?);
+        }
+
+        debug!("Found {} memories to compare for consolidation", memories.len());
+
+        // Find similar pairs using vector similarity
+        let mut candidates = Vec::new();
+        let similarity_threshold = 0.85; // High similarity suggests potential duplicates
+
+        for i in 0..memories.len() {
+            if let Some(ref embedding_i) = memories[i].embedding {
+                // Use vector search to find similar memories
+                let similar = self
+                    .vector_search(embedding_i, 5, namespace.clone())
+                    .await?;
+
+                for result in similar {
+                    // Skip self-comparison
+                    if result.memory.id == memories[i].id {
+                        continue;
+                    }
+
+                    // Only consider high-similarity pairs
+                    if result.score >= similarity_threshold {
+                        // Avoid duplicate pairs (A,B) and (B,A)
+                        let should_add = memories
+                            .iter()
+                            .position(|m| m.id == result.memory.id)
+                            .map(|j| i < j)
+                            .unwrap_or(false);
+
+                        if should_add {
+                            debug!(
+                                "Consolidation candidate: {} <-> {} (similarity: {:.2})",
+                                memories[i].id, result.memory.id, result.score
+                            );
+                            candidates.push((memories[i].clone(), result.memory));
+                        }
+                    }
+                }
+            }
+        }
+
+        debug!("Found {} consolidation candidate pairs", candidates.len());
+        Ok(candidates)
     }
 
     async fn increment_access(&self, id: MemoryId) -> Result<()> {
