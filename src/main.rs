@@ -494,9 +494,15 @@ if __name__ == "__main__":
             // Perform hybrid search (keyword + vector + graph)
             let keyword_results = storage.hybrid_search(&query, ns.clone(), limit * 2, true).await?;
 
-            // Vector search
-            let query_embedding = embedding_service.generate_embedding(&query).await?;
-            let vector_results = storage.vector_search(&query_embedding, limit * 2, ns.clone()).await?;
+            // Vector search (optional - gracefully handle failures)
+            let vector_results = match embedding_service.generate_embedding(&query).await {
+                Ok(query_embedding) => {
+                    storage.vector_search(&query_embedding, limit * 2, ns.clone())
+                        .await
+                        .unwrap_or_default()
+                }
+                Err(_) => Vec::new(),
+            };
 
             // Merge results
             let mut memory_scores = std::collections::HashMap::new();
