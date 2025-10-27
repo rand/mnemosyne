@@ -141,9 +141,9 @@ flowchart TD
     User([Developer/Agent])
 
     subgraph Claude["Claude Code"]
-        UI[Slash Commands<br/>/memory-store, /memory-search, ...]
+        UI[Slash Commands<br/>6 memory operations]
         MCP[MCP Client]
-        Agents[Multi-Agent System<br/>Orchestrator • Optimizer<br/>Reviewer • Executor]
+        Agents[Multi-Agent System<br/>4 specialized agents]
     end
 
     Protocol{{MCP Protocol<br/>JSON-RPC over stdio}}
@@ -154,7 +154,7 @@ flowchart TD
         subgraph Services["Core Services"]
             Storage[(Storage Layer<br/>SQLite + FTS5)]
             LLM[LLM Service<br/>Claude Haiku]
-            NS[Namespace Detector<br/>Git + CLAUDE.md]
+            NS[Namespace<br/>Git-aware]
         end
     end
 
