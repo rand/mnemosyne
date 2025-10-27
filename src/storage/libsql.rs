@@ -267,23 +267,245 @@ impl LibsqlStorage {
     }
 }
 
-// Placeholder - will implement all StorageBackend methods in Phase 2
 #[async_trait]
 impl StorageBackend for LibsqlStorage {
     async fn store_memory(&self, memory: &MemoryNote) -> Result<()> {
-        todo!("Implement in Phase 2")
+        debug!("Storing memory: {}", memory.id);
+
+        let conn = self.get_conn()?;
+        let tx = conn.transaction().await?;
+
+        // Insert memory metadata including embedding column
+        tx.execute(
+            r#"
+            INSERT INTO memories (
+                id, namespace, created_at, updated_at,
+                content, summary, keywords, tags, context,
+                memory_type, importance, confidence,
+                related_files, related_entities,
+                access_count, last_accessed_at, expires_at,
+                is_archived, superseded_by, embedding_model, embedding
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
+            params![
+                memory.id.to_string(),
+                serde_json::to_string(&memory.namespace)?,
+                memory.created_at.to_rfc3339(),
+                memory.updated_at.to_rfc3339(),
+                memory.content.clone(),
+                memory.summary.clone(),
+                serde_json::to_string(&memory.keywords)?,
+                serde_json::to_string(&memory.tags)?,
+                memory.context.clone(),
+                serde_json::to_value(&memory.memory_type)?.as_str().unwrap(),
+                memory.importance as i64,
+                memory.confidence as f64,
+                serde_json::to_string(&memory.related_files)?,
+                serde_json::to_string(&memory.related_entities)?,
+                memory.access_count as i64,
+                memory.last_accessed_at.to_rfc3339(),
+                memory.expires_at.map(|dt| dt.to_rfc3339()),
+                if memory.is_archived { 1i64 } else { 0i64 },
+                memory.superseded_by.map(|id| id.to_string()),
+                memory.embedding_model.clone(),
+                libsql::Value::Null // Embedding storage in Phase 3
+            ],
+        )
+        .await?;
+
+        // Store links
+        for link in &memory.links {
+            tx.execute(
+                r#"
+                INSERT INTO memory_links (source_id, target_id, link_type, strength, reason, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                "#,
+                params![
+                    memory.id.to_string(),
+                    link.target_id.to_string(),
+                    serde_json::to_value(&link.link_type)?.as_str().unwrap(),
+                    link.strength as f64,
+                    link.reason.clone(),
+                    link.created_at.to_rfc3339(),
+                ],
+            )
+            .await?;
+        }
+
+        tx.commit().await?;
+
+        self.log_audit(
+            "create",
+            Some(memory.id),
+            serde_json::json!({
+                "namespace": memory.namespace,
+                "memory_type": memory.memory_type,
+                "importance": memory.importance,
+            }),
+        )
+        .await?;
+
+        debug!("Memory stored successfully: {}", memory.id);
+        Ok(())
     }
 
     async fn get_memory(&self, id: MemoryId) -> Result<MemoryNote> {
-        todo!("Implement in Phase 2")
+        debug!("Fetching memory: {}", id);
+
+        let conn = self.get_conn()?;
+        let mut rows = conn
+            .query("SELECT * FROM memories WHERE id = ?", params![id.to_string()])
+            .await?;
+
+        let row = rows
+            .next()
+            .await?
+            .ok_or_else(|| MnemosyneError::MemoryNotFound(id.to_string()))?;
+
+        let mut memory = self.row_to_memory(&row).await?;
+
+        // Fetch associated links
+        let mut link_rows = conn
+            .query(
+                "SELECT target_id, link_type, strength, reason, created_at FROM memory_links WHERE source_id = ?",
+                params![id.to_string()],
+            )
+            .await?;
+
+        let mut links = Vec::new();
+        while let Some(link_row) = link_rows.next().await? {
+            let target_id_str: String = link_row.get(0)?;
+            let target_id = MemoryId::from_string(&target_id_str)?;
+
+            let link_type_str: String = link_row.get(1)?;
+            let link_type = match link_type_str.as_str() {
+                "extends" => crate::types::LinkType::Extends,
+                "contradicts" => crate::types::LinkType::Contradicts,
+                "implements" => crate::types::LinkType::Implements,
+                "references" => crate::types::LinkType::References,
+                "supersedes" => crate::types::LinkType::Supersedes,
+                _ => continue,
+            };
+
+            let strength: f64 = link_row.get(2)?;
+            let reason: String = link_row.get(3)?;
+            let created_at_str: String = link_row.get(4)?;
+            let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
+                .map_err(|e| MnemosyneError::Other(format!("Invalid timestamp: {}", e)))?
+                .with_timezone(&chrono::Utc);
+
+            links.push(crate::types::MemoryLink {
+                target_id,
+                link_type,
+                strength: strength as f32,
+                reason,
+                created_at,
+            });
+        }
+
+        memory.links = links;
+        Ok(memory)
     }
 
     async fn update_memory(&self, memory: &MemoryNote) -> Result<()> {
-        todo!("Implement in Phase 2")
+        debug!("Updating memory: {}", memory.id);
+
+        let conn = self.get_conn()?;
+        let tx = conn.transaction().await?;
+
+        tx.execute(
+            r#"
+            UPDATE memories SET
+                updated_at = ?,
+                content = ?,
+                summary = ?,
+                keywords = ?,
+                tags = ?,
+                context = ?,
+                importance = ?,
+                confidence = ?,
+                related_files = ?,
+                related_entities = ?,
+                is_archived = ?,
+                superseded_by = ?,
+                embedding = ?
+            WHERE id = ?
+            "#,
+            params![
+                Utc::now().to_rfc3339(),
+                memory.content.clone(),
+                memory.summary.clone(),
+                serde_json::to_string(&memory.keywords)?,
+                serde_json::to_string(&memory.tags)?,
+                memory.context.clone(),
+                memory.importance as i64,
+                memory.confidence as f64,
+                serde_json::to_string(&memory.related_files)?,
+                serde_json::to_string(&memory.related_entities)?,
+                if memory.is_archived { 1i64 } else { 0i64 },
+                memory.superseded_by.map(|id| id.to_string()),
+                libsql::Value::Null, // Embedding update in Phase 3
+                memory.id.to_string(),
+            ],
+        )
+        .await?;
+
+        // Delete and re-insert links
+        tx.execute(
+            "DELETE FROM memory_links WHERE source_id = ?",
+            params![memory.id.to_string()],
+        )
+        .await?;
+
+        for link in &memory.links {
+            tx.execute(
+                r#"
+                INSERT INTO memory_links (source_id, target_id, link_type, strength, reason, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                "#,
+                params![
+                    memory.id.to_string(),
+                    link.target_id.to_string(),
+                    serde_json::to_value(&link.link_type)?.as_str().unwrap(),
+                    link.strength as f64,
+                    link.reason.clone(),
+                    link.created_at.to_rfc3339(),
+                ],
+            )
+            .await?;
+        }
+
+        tx.commit().await?;
+
+        self.log_audit(
+            "update",
+            Some(memory.id),
+            serde_json::json!({"importance": memory.importance}),
+        )
+        .await?;
+
+        Ok(())
     }
 
     async fn archive_memory(&self, id: MemoryId) -> Result<()> {
-        todo!("Implement in Phase 2")
+        debug!("Archiving memory: {}", id);
+
+        let conn = self.get_conn()?;
+
+        conn.execute(
+            r#"
+            UPDATE memories
+            SET is_archived = 1, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            "#,
+            params![id.to_string()],
+        )
+        .await?;
+
+        self.log_audit("archive", Some(id), serde_json::json!({}))
+            .await?;
+
+        Ok(())
     }
 
     async fn vector_search(
