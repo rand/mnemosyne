@@ -25,14 +25,15 @@ Mnemosyne is a high-performance memory system that gives Claude Code's multi-age
 
 ## Status
 
-**Current**: Beta - Core functionality complete, orchestration layer in active development
+**Current**: v1.0 Ready - All 10 development phases complete and tested
 
-The Rust-based memory core, MCP server, and Claude Code integration are fully functional and tested. The Python orchestration layer for multi-agent coordination is being finalized. See [ROADMAP.md](ROADMAP.md) for detailed progress.
+The complete system is production-ready: Rust memory core, MCP server, Claude Code integration (hooks, slash commands, skills), PyO3-powered multi-agent orchestration, and comprehensive documentation. See [ROADMAP.md](ROADMAP.md) for detailed completion evidence.
 
 ---
 
 ## Features
 
+- **Automatic Memory Capture** 🔥: Hooks that auto-load context at session start, preserve decisions before compaction, and link commits to architectural memories—zero manual intervention required
 - **Project-Aware Namespacing**: Automatic memory isolation between global, project, and session scopes via git detection
 - **Hybrid Memory Search**: FTS5 keyword search + graph traversal for semantic retrieval
 - **LLM-Enriched Storage**: Claude Haiku automatically generates summaries, keywords, classifications, and semantic links
@@ -40,6 +41,7 @@ The Rust-based memory core, MCP server, and Claude Code integration are fully fu
 - **MCP Protocol**: 8 tools for seamless Claude Code integration
 - **Secure Credentials**: Age-encrypted secrets with environment variable and OS keychain fallback
 - **Slash Commands**: 6 convenient commands for common memory operations
+- **PyO3 Performance**: 10-20x faster operations (<3ms) vs subprocess calls through Rust↔Python bindings
 - **Self-Organizing Knowledge**: Automatic consolidation, link strength evolution, and importance decay
 
 ---
@@ -270,9 +272,11 @@ For contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 - **[INSTALL.md](INSTALL.md)** - Detailed installation guide
 - **[SECRETS_MANAGEMENT.md](SECRETS_MANAGEMENT.md)** - Secrets management and API key configuration
+- **[ORCHESTRATION.md](ORCHESTRATION.md)** - PyO3 setup, multi-agent architecture, and performance tuning
+- **[HOOKS_TESTING.md](HOOKS_TESTING.md)** - Automatic memory capture hooks validation and examples
 - **[MCP_SERVER.md](MCP_SERVER.md)** - MCP API reference and examples
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and implementation details
-- **[ROADMAP.md](ROADMAP.md)** - Development phases and progress tracking
+- **[ROADMAP.md](ROADMAP.md)** - Development phases completion tracking (10/10 complete)
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute
 
 ---

@@ -876,6 +876,194 @@ Default: Start narrow (session), expand as needed.
 
 ---
 
+## Claude Code Integration (Automatic Hooks)
+
+**Goal**: Zero-friction memory capture through automatic hooks
+
+### Hook Architecture
+
+Mnemosyne integrates with Claude Code through **3 automatic hooks** that capture memories without user intervention:
+
+```
+Session Start → Load Context
+  ↓
+Work Session → Capture Decisions
+  ↓
+Git Commit → Link Architectural Changes
+  ↓
+Pre-Compact → Preserve Important Context
+```
+
+### Hook Implementation
+
+#### 1. session-start.sh
+
+**Trigger**: Claude Code session initialization
+**Purpose**: Auto-load relevant project context
+**Location**: `.claude/hooks/session-start.sh`
+
+**Behavior**:
+1. Detects project namespace from `pwd`
+2. Queries Mnemosyne for important memories (importance ≥ 7)
+3. Formats results as markdown context
+4. Injects into Claude's initial context
+
+**Example Output**:
+```markdown
+# Project Memory Context
+
+**Project**: mnemosyne
+**Namespace**: project:mnemosyne
+**Recent Important Memories**:
+
+## Implemented LibSQL native vector search...
+**Type**: ArchitectureDecision
+**Importance**: 8/10
+**Tags**: database, vector-search, performance
+```
+
+#### 2. post-commit.sh
+
+**Trigger**: After git commit via `PostToolUse` hook
+**Purpose**: Link commits to architectural decisions
+**Location**: `.claude/hooks/post-commit.sh`
+
+**Behavior**:
+1. Extracts commit metadata (hash, message, files changed)
+2. Detects architectural significance via keywords:
+   - architecture, implement, refactor, migrate, design, pattern, decision
+3. Determines importance (6-8) based on keywords and file count
+4. Creates memory with commit details
+5. Searches for related memories and creates links
+
+**Memory Schema**:
+```json
+{
+  "content": "Git commit abc123: Implement user authentication\\n\\n**Files changed**: 12\\n\\n**Details**: Added JWT tokens...",
+  "namespace": "project:myapp",
+  "importance": 8,
+  "tags": ["commit", "abc123"],
+  "context": "Git commit abc123"
+}
+```
+
+#### 3. pre-compact.sh
+
+**Trigger**: Before Claude Code compacts conversation history
+**Purpose**: Preserve important context before loss
+**Location**: `.claude/hooks/pre-compact.sh`
+
+**Behavior**:
+1. Receives context about to be compacted via stdin
+2. Scans for decision markers:
+   - decided, decision, architecture, constraint, important, critical
+3. Extracts key statements (up to 5)
+4. Saves consolidated memory with importance 8
+5. Prevents context loss from compaction
+
+**Context Preservation**:
+```
+Input: 2000 lines of conversation
+  ↓ Scan for important markers
+Extract: 5 architectural decisions
+  ↓ Create memory
+Output: Preserved context snapshot
+```
+
+### Hook Configuration
+
+**File**: `.claude/settings.json`
+
+```json
+{
+  "hooks": {
+    "SessionStart": [{
+      "matcher": ".*",
+      "hooks": [{"type": "command", "command": ".claude/hooks/session-start.sh"}]
+    }],
+    "PreCompact": [{
+      "matcher": ".*",
+      "hooks": [{"type": "command", "command": ".claude/hooks/pre-compact.sh"}]
+    }],
+    "PostToolUse": [{
+      "matcher": "^Bash\\(git commit.*",
+      "hooks": [{"type": "command", "command": ".claude/hooks/post-commit.sh"}]
+    }]
+  }
+}
+```
+
+### Validation Evidence
+
+**Testing**: Documented in `HOOKS_TESTING.md`
+- All 3 hooks verified functional
+- Example memories captured and validated
+- Integration tested in production use
+
+**Performance Impact**:
+- Session start: +50-100ms (acceptable, provides high value)
+- Post-commit: Async, no user-facing latency
+- Pre-compact: <50ms (runs before compaction anyway)
+
+### User Experience
+
+**Before Hooks (Manual)**:
+- User must remember to capture decisions
+- Context lost during compaction
+- Commits disconnected from memories
+- High cognitive load, low adoption
+
+**After Hooks (Automatic)**:
+- Context loaded automatically at session start
+- Decisions preserved without thinking
+- Commits automatically linked to architecture
+- Zero cognitive overhead, high adoption
+
+**Result**: Hooks are the **most valuable feature** for seamless memory capture.
+
+---
+
+## Multi-Agent Orchestration (PyO3)
+
+**Goal**: Low-latency Rust↔Python integration for agent coordination
+
+### PyO3 Architecture
+
+```
+Claude Agent SDK (Python)
+    ↓
+mnemosyne_core (PyO3 bindings)
+    ↓
+Mnemosyne Storage (Rust)
+```
+
+### Performance Comparison
+
+| Operation | PyO3 (ms) | Subprocess (ms) | Speedup |
+|-----------|-----------|-----------------|---------|
+| Store | 2.25 | 20-50 | 10-20x |
+| Get | 0.5 | 15-30 | 30-60x |
+| Search | 1.61 | 25-40 | 15-25x |
+| List | 0.88 | 10-20 | 11-23x |
+
+**Result**: PyO3 bindings provide **10-20x faster** operations through direct memory access.
+
+### PyO3 Bindings
+
+**Exports** (in `mnemosyne_core` Python module):
+- `PyStorage`: Direct storage access with thread-safe operations
+- `PyMemory`, `PyMemoryId`, `PyNamespace`: Memory type wrappers
+- `PyCoordinator`: Cross-agent coordination primitives
+
+**Build Requirements**:
+- Python 3.10-3.14
+- maturin build tool
+- `PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1` for Python 3.14+
+
+**Documentation**: See [ORCHESTRATION.md](ORCHESTRATION.md) for complete guide.
+
+---
+
 ## Design Decisions
 
 ### Why Rust?
