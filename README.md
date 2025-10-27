@@ -169,7 +169,7 @@ flowchart TD
         Server[MCP Server<br/>8 OODA Tools]
 
         subgraph Services["Core Services"]
-            Storage[(Storage Layer<br/>SQLite + FTS5)]
+            Storage[(Storage Layer<br/>LibSQL/Turso + Native Vectors)]
             LLM[LLM Service<br/>Claude Haiku]
             NS[Namespace<br/>Git-aware]
         end
@@ -211,7 +211,7 @@ flowchart TD
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| **Storage Layer** | SQLite + FTS5 | Hybrid search (keyword + graph traversal) |
+| **Storage Layer** | LibSQL/Turso + FTS5 | Native vector search, hybrid retrieval (keyword + graph) |
 | **LLM Service** | Claude Haiku | Auto-generates summaries, tags, semantic links |
 | **Namespace Detector** | Git-aware | Project context (global/project/session) |
 | **MCP Server** | Rust + Tokio | 8 OODA-aligned tools via JSON-RPC |
@@ -225,9 +225,9 @@ For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
 ### Prerequisites
 
 - Rust 1.75+
-- SQLite 3.43+
+- LibSQL (bundled via libsql crate)
 - Anthropic API key (for LLM operations)
-- Python 3.10+ (for orchestration layer)
+- Python 3.10+ (for orchestration layer, optional)
 
 ### Build
 
