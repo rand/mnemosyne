@@ -43,30 +43,42 @@ These tests validate actual Claude Agent SDK integration with real API calls.
 
 #### Prerequisites
 
-1. **Verify API key is in keychain**:
+1. **Verify API key is accessible**:
 ```bash
 ./target/debug/mnemosyne config show-key
 # Should show: ✓ API key configured: sk-ant-a...
+# This checks the secure system (age encrypted file → OS keychain → env var)
 ```
 
-2. **Export API key to environment**:
+2. **Run tests with secure key access** (recommended):
 ```bash
-# Get key from keychain (macOS)
-export ANTHROPIC_API_KEY=$(security find-generic-password -s "mnemosyne-memory-system" -a "anthropic-api-key" -w)
+# The mnemosyne binary will automatically access the key securely
+# No need to export to environment
+pytest tests/orchestration/ -v
+```
+
+3. **Alternative: Export to environment** (for CI/CD or manual testing):
+```bash
+# Option A: Export directly (most secure for CI/CD)
+export ANTHROPIC_API_KEY="sk-ant-your-key-here"
+
+# Option B: Get from mnemosyne secure system (requires jq for parsing)
+export ANTHROPIC_API_KEY=$(./target/debug/mnemosyne config show-key --format json 2>/dev/null | jq -r '.key')
 
 # Verify export
 if [ -n "$ANTHROPIC_API_KEY" ]; then
     echo "✓ API key exported (${#ANTHROPIC_API_KEY} characters)"
 else
-    echo "✗ API key not exported - check keychain access"
+    echo "✗ API key not available"
 fi
 ```
 
-3. **Alternative: Direct export** (if keychain command fails):
-```bash
-# Manually copy from: ./target/debug/mnemosyne config show-key
-export ANTHROPIC_API_KEY="sk-ant-your-full-key-here"
-```
+**Note**: The secure system automatically checks (in priority order):
+1. `ANTHROPIC_API_KEY` environment variable
+2. Age-encrypted file: `~/.config/mnemosyne/secrets.age`
+3. OS keychain (macOS/Windows/Linux)
+
+For most use cases, just ensure `mnemosyne config show-key` works and the tests will access the key securely.
 
 #### Running Integration Tests
 
@@ -225,18 +237,24 @@ pytest tests/orchestration/test_integration.py::TestEndToEndWorkflow -v
 
 ## Troubleshooting
 
-### Issue: API key not accessible from shell
+### Issue: API key not accessible
 
-**Symptom**: `security find-generic-password` returns error
+**Symptom**: `mnemosyne config show-key` returns "No API key found"
 
 **Solution**:
 ```bash
-# Use Rust CLI to display masked key, then copy manually
-./target/debug/mnemosyne config show-key
+# Set the key using the secure system
+./target/debug/mnemosyne config set-key
+# This will prompt for your key and encrypt it with age
 
-# Export manually
-export ANTHROPIC_API_KEY="sk-ant-[copy-from-above]"
+# Or export to environment (for CI/CD)
+export ANTHROPIC_API_KEY="sk-ant-your-key-here"
+
+# Verify it's accessible
+./target/debug/mnemosyne config show-key
 ```
+
+**Priority order**: The system checks env var → age file → OS keychain. For most users, `mnemosyne config set-key` is the recommended approach.
 
 ---
 

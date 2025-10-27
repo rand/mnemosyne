@@ -3,8 +3,21 @@
 
 set -e
 
-# Get API key from keychain
-export ANTHROPIC_API_KEY=$(security find-generic-password -s "mnemosyne-memory-system" -a "anthropic-api-key" -w 2>/dev/null)
+# Check if API key is available (uses secure system: env → age file → keychain)
+# The mnemosyne binary will automatically find the key, but we verify it's accessible
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    # Check if mnemosyne config can access the key
+    if ! cargo run -q -- config show-key >/dev/null 2>&1; then
+        echo "Error: No API key found"
+        echo "Set key with: mnemosyne config set-key"
+        echo "Or: export ANTHROPIC_API_KEY=sk-ant-..."
+        exit 1
+    fi
+    # Don't export the key - let mnemosyne access it securely
+    echo "✓ API key accessible via mnemosyne secure system"
+else
+    echo "✓ ANTHROPIC_API_KEY found in environment"
+fi
 
 # Activate virtual environment
 source .venv/bin/activate
