@@ -12,14 +12,15 @@ PROJECT_NAME="$(basename "$PROJECT_DIR")"
 echo "🧠 Mnemosyne: Loading memory context for $PROJECT_NAME" >&2
 
 # Get mnemosyne binary path
-MNEMOSYNE_BIN="${PROJECT_DIR}/target/release/mnemosyne"
-if [ ! -f "$MNEMOSYNE_BIN" ]; then
+# Try installed binary first, fall back to local build
+if command -v mnemosyne &> /dev/null; then
+    MNEMOSYNE_BIN="mnemosyne"
+elif [ -f "${PROJECT_DIR}/target/release/mnemosyne" ]; then
+    MNEMOSYNE_BIN="${PROJECT_DIR}/target/release/mnemosyne"
+elif [ -f "${PROJECT_DIR}/target/debug/mnemosyne" ]; then
     MNEMOSYNE_BIN="${PROJECT_DIR}/target/debug/mnemosyne"
-fi
-
-# If mnemosyne not built, provide instructions
-if [ ! -f "$MNEMOSYNE_BIN" ]; then
-    echo "ℹ️  Mnemosyne not built yet. Run 'cargo build --release' to enable memory features." >&2
+else
+    echo "ℹ️  Mnemosyne not installed. Install with './install.sh' or build with 'cargo build --release'" >&2
     exit 0
 fi
 

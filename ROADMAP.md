@@ -41,7 +41,7 @@ This document tracks the detailed implementation phases and progress for Mnemosy
   - Immutable audit logging
 - [x] Database migrations (sqlx)
 - [x] CLI framework with clap
-- [x] All tests passing (27 tests)
+- [x] All tests passing (30+ tests)
 
 ---
 
@@ -268,7 +268,7 @@ Mnemosyne Storage (Rust)
   - Agent coordination test failures ✅ FIXED
   - Async/await issues in storage ✅ FIXED
 
-**Test Coverage**: 47 test cases created/validated
+**Test Coverage**: 45+ test cases created/validated
 
 **Test Results**: 84% pass rate on comprehensive validation
 

@@ -1,11 +1,9 @@
 //! Storage layer for Mnemosyne memory system
 //!
 //! Provides abstractions and implementations for persistent storage of memories,
-//! embeddings, links, and audit logs. Supports both SQLite (legacy) and LibSQL/Turso.
+//! embeddings, links, and audit logs.
 
 pub mod libsql;
-// Temporarily disabled during migration
-// pub mod sqlite;
 
 use crate::error::Result;
 use crate::types::{MemoryId, MemoryNote, Namespace, SearchResult};

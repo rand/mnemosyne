@@ -1,0 +1,35 @@
+# EditorConfig - Consistent coding styles across editors and IDEs
+# https://editorconfig.org
+
+root = true
+
+# Apply to all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Rust files
+[*.rs]
+indent_style = space
+indent_size = 4
+
+# Python files
+[*.py]
+indent_style = space
+indent_size = 4
+
+# Configuration files (TOML, YAML, JSON, Markdown)
+[*.{toml,yaml,yml,json,md}]
+indent_style = space
+indent_size = 2
+
+# Shell scripts
+[*.sh]
+indent_style = space
+indent_size = 2
+
+# Makefiles require tabs
+[Makefile]
+indent_style = tab

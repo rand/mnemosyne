@@ -55,6 +55,7 @@ keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "li
 
 # Python integration (PyO3)
 pyo3 = { version = "0.22", features = ["extension-module", "abi3"], optional = true }
+dirs = "6.0.0"
 
 [features]
 default = ["keyring-fallback"]

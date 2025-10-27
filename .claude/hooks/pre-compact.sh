@@ -13,12 +13,14 @@ NAMESPACE="project:${PROJECT_NAME}"
 echo "💾 Mnemosyne: Preserving context before compaction" >&2
 
 # Get mnemosyne binary path
-MNEMOSYNE_BIN="${PROJECT_DIR}/target/release/mnemosyne"
-if [ ! -f "$MNEMOSYNE_BIN" ]; then
+# Try installed binary first, fall back to local build
+if command -v mnemosyne &> /dev/null; then
+    MNEMOSYNE_BIN="mnemosyne"
+elif [ -f "${PROJECT_DIR}/target/release/mnemosyne" ]; then
+    MNEMOSYNE_BIN="${PROJECT_DIR}/target/release/mnemosyne"
+elif [ -f "${PROJECT_DIR}/target/debug/mnemosyne" ]; then
     MNEMOSYNE_BIN="${PROJECT_DIR}/target/debug/mnemosyne"
-fi
-
-if [ ! -f "$MNEMOSYNE_BIN" ]; then
+else
     echo "ℹ️  Mnemosyne not available. Skipping context preservation." >&2
     exit 0
 fi
