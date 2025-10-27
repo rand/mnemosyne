@@ -1,6 +1,6 @@
 [package]
 name = "mnemosyne"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Mnemosyne Contributors"]
 description = "Project-aware agentic memory system for Claude Code"
