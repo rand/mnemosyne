@@ -49,7 +49,7 @@ The Rust-based memory core, MCP server, and Claude Code integration are fully fu
 ### Installation
 
 ```bash
-./install.sh
+./scripts/install/install.sh
 ```
 
 This will build the Rust binary, initialize the database, configure your API key, and set up MCP integration with Claude Code.

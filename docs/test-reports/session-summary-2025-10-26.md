@@ -67,7 +67,7 @@ de7af9d Refactor: OptimizerAgent now uses Claude Agent SDK
 ### 2. Documentation Updates ✅
 
 **Updated Files**:
-1. **`multi-agent-design-spec.md`**:
+1. **`docs/specs/multi-agent-architecture.md`**:
    - Changed from "specification-driven" to "hybrid specification + implementation"
    - Documented that agents now use real Claude Agent SDK
    - Updated Section 1.3 with current architecture details
@@ -318,7 +318,7 @@ de7af9d Refactor: OptimizerAgent now uses Claude Agent SDK
 5. `pyproject.toml` - Restored dependencies, Python 3.10+ requirement, pytest markers
 6. `src/main.rs` - Fixed import path (mnemosyne → mnemosyne_core)
 7. `.gitignore` - Added Python patterns
-8. `multi-agent-design-spec.md` - Updated architecture section
+8. `docs/specs/multi-agent-architecture.md` - Updated architecture section
 9. `docs/gap-analysis.md` - Added P1-001, P2-001, Phase 4 completion
 
 ### Created

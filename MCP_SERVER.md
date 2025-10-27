@@ -375,10 +375,10 @@ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"mnemosyne.recall"
 
 ```bash
 # Simple one-shot test
-./test_simple.sh
+./scripts/testing/test_simple.sh
 
 # Python test suite
-python3 test_server.py
+python3 scripts/testing/test_server.py
 ```
 
 ## Implementation Status

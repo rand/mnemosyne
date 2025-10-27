@@ -122,9 +122,9 @@ pytest tests/orchestration/test_integration.py -v -m integration
 **Impact**: The multi-agent system now has real intelligence and can make context-aware decisions. This is a fundamental architectural improvement.
 
 **Related Documentation**:
-- `docs/multi-agent-refactoring-summary.md` - Complete refactoring details
+- `docs/design/multi-agent-refactoring-summary.md` - Complete refactoring details
 - `tests/orchestration/test_integration.py` - Comprehensive test suite
-- `multi-agent-design-spec.md` - Updated architecture section
+- `docs/specs/multi-agent-architecture.md` - Updated architecture section
 
 **Actual Effort**: 4 hours (investigation, refactoring all 4 agents, testing, documentation)
 

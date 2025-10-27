@@ -370,6 +370,6 @@ After test execution:
 
 - **Test Implementation**: `tests/orchestration/test_integration.py`
 - **Agent Implementations**: `src/orchestration/agents/*.py`
-- **Refactoring Summary**: `docs/multi-agent-refactoring-summary.md`
+- **Refactoring Summary**: `docs/design/multi-agent-refactoring-summary.md`
 - **Gap Analysis**: `docs/gap-analysis.md`
-- **Architecture**: `multi-agent-design-spec.md`
+- **Architecture**: `docs/specs/multi-agent-architecture.md`
