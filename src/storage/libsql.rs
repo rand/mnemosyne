@@ -9,7 +9,7 @@ use crate::types::{MemoryId, MemoryNote, Namespace, SearchResult};
 use async_trait::async_trait;
 use chrono::Utc;
 use libsql::{params, Builder, Connection, Database};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// LibSQL storage backend
 pub struct LibsqlStorage {
@@ -636,22 +636,159 @@ impl StorageBackend for LibsqlStorage {
         seed_ids: &[MemoryId],
         max_hops: usize,
     ) -> Result<Vec<MemoryNote>> {
-        todo!("Implement in Phase 2")
+        debug!("Graph traverse from {} seeds, max {} hops", seed_ids.len(), max_hops);
+
+        if seed_ids.is_empty() || max_hops == 0 {
+            return Ok(vec![]);
+        }
+
+        let seed_strings: Vec<String> = seed_ids.iter().map(|id| id.to_string()).collect();
+        let placeholders = seed_strings.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+
+        let sql = format!(
+            r#"
+            WITH RECURSIVE graph_walk(memory_id, depth) AS (
+                SELECT id, 0 FROM memories WHERE id IN ({placeholders})
+                UNION
+                SELECT
+                    CASE
+                        WHEN ml.source_id = gw.memory_id THEN ml.target_id
+                        ELSE ml.source_id
+                    END as memory_id,
+                    gw.depth + 1
+                FROM graph_walk gw
+                JOIN memory_links ml ON (
+                    ml.source_id = gw.memory_id OR ml.target_id = gw.memory_id
+                )
+                WHERE gw.depth < ?
+            )
+            SELECT DISTINCT m.*
+            FROM memories m
+            JOIN graph_walk gw ON m.id = gw.memory_id
+            WHERE m.is_archived = 0
+            ORDER BY gw.depth, m.importance DESC
+            "#,
+            placeholders = placeholders
+        );
+
+        let conn = self.get_conn()?;
+        let mut param_values: Vec<libsql::Value> = seed_strings
+            .iter()
+            .map(|s| libsql::Value::Text(s.clone()))
+            .collect();
+        param_values.push(libsql::Value::Integer(max_hops as i64));
+
+        let mut rows = conn.query(&sql, libsql::params_from_iter(param_values)).await?;
+
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            results.push(self.row_to_memory(&row).await?);
+        }
+
+        debug!("Graph traversal found {} memories", results.len());
+        Ok(results)
     }
 
     async fn find_consolidation_candidates(
         &self,
         namespace: Option<Namespace>,
     ) -> Result<Vec<(MemoryNote, MemoryNote)>> {
-        todo!("Implement in Phase 2")
+        debug!("Finding consolidation candidates (namespace: {:?})", namespace);
+
+        let conn = self.get_conn()?;
+        let sql = if namespace.is_some() {
+            "SELECT * FROM memories WHERE namespace = ? AND is_archived = 0 AND embedding IS NOT NULL LIMIT 100"
+        } else {
+            "SELECT * FROM memories WHERE is_archived = 0 AND embedding IS NOT NULL LIMIT 100"
+        };
+
+        let mut rows = if let Some(ns) = namespace {
+            let ns_json = serde_json::to_string(&ns)?;
+            conn.query(sql, params![ns_json]).await?
+        } else {
+            conn.query(sql, params![]).await?
+        };
+
+        let mut memories = Vec::new();
+        while let Some(row) = rows.next().await? {
+            memories.push(self.row_to_memory(&row).await?);
+        }
+
+        debug!("Found {} memories to compare for consolidation", memories.len());
+
+        let mut candidates = Vec::new();
+        let similarity_threshold = 0.85;
+
+        for i in 0..memories.len() {
+            if let Some(ref embedding_i) = memories[i].embedding {
+                let similar = self.vector_search(embedding_i, 5, None).await?;
+                for result in similar {
+                    if result.memory.id == memories[i].id {
+                        continue;
+                    }
+                    if result.score >= similarity_threshold {
+                        let should_add = memories
+                            .iter()
+                            .position(|m| m.id == result.memory.id)
+                            .map(|j| i < j)
+                            .unwrap_or(false);
+
+                        if should_add {
+                            debug!(
+                                "Consolidation candidate: {} <-> {} (similarity: {:.2})",
+                                memories[i].id, result.memory.id, result.score
+                            );
+                            candidates.push((memories[i].clone(), result.memory));
+                        }
+                    }
+                }
+            }
+        }
+
+        debug!("Found {} consolidation candidate pairs", candidates.len());
+        Ok(candidates)
     }
 
     async fn increment_access(&self, id: MemoryId) -> Result<()> {
-        todo!("Implement in Phase 2")
+        let conn = self.get_conn()?;
+        conn.execute(
+            r#"
+            UPDATE memories
+            SET access_count = access_count + 1,
+                last_accessed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            "#,
+            params![id.to_string()],
+        )
+        .await?;
+
+        Ok(())
     }
 
     async fn count_memories(&self, namespace: Option<Namespace>) -> Result<usize> {
-        todo!("Implement in Phase 2")
+        let conn = self.get_conn()?;
+        let (sql, params_vec) = if let Some(ns) = namespace {
+            let ns_str = serde_json::to_string(&ns)?;
+            (
+                "SELECT COUNT(*) FROM memories WHERE namespace = ? AND is_archived = 0",
+                vec![ns_str],
+            )
+        } else {
+            ("SELECT COUNT(*) FROM memories WHERE is_archived = 0", vec![])
+        };
+
+        let mut rows = if params_vec.is_empty() {
+            conn.query(sql, params![]).await?
+        } else {
+            conn.query(sql, params![params_vec[0].clone()]).await?
+        };
+
+        if let Some(row) = rows.next().await? {
+            let count: i64 = row.get(0)?;
+            Ok(count as usize)
+        } else {
+            Ok(0)
+        }
     }
 
     async fn hybrid_search(
@@ -661,7 +798,66 @@ impl StorageBackend for LibsqlStorage {
         max_results: usize,
         expand_graph: bool,
     ) -> Result<Vec<SearchResult>> {
-        todo!("Implement in Phase 2")
+        debug!("Hybrid search: {} (expand_graph: {})", query, expand_graph);
+
+        let keyword_results = self.keyword_search(query, namespace.clone()).await?;
+
+        if keyword_results.is_empty() {
+            debug!("No keyword matches found");
+            return Ok(vec![]);
+        }
+
+        let mut all_memories = std::collections::HashMap::new();
+
+        for result in keyword_results {
+            all_memories.insert(result.memory.id, (result.memory.clone(), 1.0, 0));
+        }
+
+        if expand_graph {
+            debug!("Expanding graph from {} seed memories", all_memories.len());
+            let seed_ids: Vec<_> = all_memories.keys().take(5).copied().collect();
+            let graph_memories = self.graph_traverse(&seed_ids, 2).await?;
+
+            for memory in graph_memories {
+                if !all_memories.contains_key(&memory.id) {
+                    all_memories.insert(memory.id, (memory, 0.3, 1));
+                }
+            }
+        }
+
+        let now = Utc::now();
+        let mut scored_results: Vec<_> = all_memories
+            .into_values()
+            .map(|(memory, keyword_score, depth)| {
+                let importance_score = memory.importance as f32 / 10.0;
+                let age_days = (now - memory.created_at).num_days() as f32;
+                let recency_score = (-age_days / 30.0).exp();
+                let graph_score = 1.0 / (1.0 + depth as f32);
+
+                let score = 0.5 * keyword_score
+                    + 0.2 * graph_score
+                    + 0.2 * importance_score
+                    + 0.1 * recency_score;
+
+                let match_reason = if keyword_score > 0.5 {
+                    format!("keyword_match (score: {:.2})", score)
+                } else {
+                    format!("graph_expansion (score: {:.2})", score)
+                };
+
+                SearchResult {
+                    memory,
+                    score,
+                    match_reason,
+                }
+            })
+            .collect();
+
+        scored_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        scored_results.truncate(max_results);
+
+        debug!("Hybrid search returned {} results", scored_results.len());
+        Ok(scored_results)
     }
 
     async fn list_memories(
@@ -670,6 +866,49 @@ impl StorageBackend for LibsqlStorage {
         limit: usize,
         sort_by: crate::storage::MemorySortOrder,
     ) -> Result<Vec<MemoryNote>> {
-        todo!("Implement in Phase 2")
+        use crate::storage::MemorySortOrder;
+
+        debug!("Listing memories (namespace: {:?}, limit: {}, sort: {:?})", namespace, limit, sort_by);
+
+        let conn = self.get_conn()?;
+        let order_clause = match sort_by {
+            MemorySortOrder::Recent => "created_at DESC",
+            MemorySortOrder::Importance => "importance DESC, created_at DESC",
+            MemorySortOrder::AccessCount => "access_count DESC, created_at DESC",
+        };
+
+        let (sql, params_vec) = if let Some(ns) = namespace {
+            let ns_str = serde_json::to_string(&ns)?;
+            (
+                format!(
+                    "SELECT * FROM memories WHERE namespace = ? AND is_archived = 0 ORDER BY {} LIMIT ?",
+                    order_clause
+                ),
+                vec![ns_str],
+            )
+        } else {
+            (
+                format!(
+                    "SELECT * FROM memories WHERE is_archived = 0 ORDER BY {} LIMIT ?",
+                    order_clause
+                ),
+                vec![],
+            )
+        };
+
+        let mut rows = if params_vec.is_empty() {
+            conn.query(&sql, params![limit as i64]).await?
+        } else {
+            conn.query(&sql, params![params_vec[0].clone(), limit as i64])
+                .await?
+        };
+
+        let mut memories = Vec::new();
+        while let Some(row) = rows.next().await? {
+            memories.push(self.row_to_memory(&row).await?);
+        }
+
+        debug!("Listed {} memories", memories.len());
+        Ok(memories)
     }
 }
