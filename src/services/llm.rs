@@ -413,6 +413,7 @@ SUPERSEDING_ID: <memory_id if SUPERSEDE, otherwise NONE>
             }],
         };
 
+        // Always use x-api-key header (OAuth tokens work with this header)
         let response = self
             .client
             .post("https://api.anthropic.com/v1/messages")
