@@ -60,7 +60,11 @@ pub use error::{MnemosyneError, Result};
 pub use mcp::{McpServer, ToolHandler};
 pub use namespace::{NamespaceDetector, ProjectMetadata};
 pub use services::{EmbeddingService, LlmConfig, LlmService};
-pub use storage::{sqlite::SqliteStorage, StorageBackend};
+pub use storage::{
+    libsql::{ConnectionMode, LibsqlStorage},
+    // sqlite::SqliteStorage, // Temporarily disabled during migration
+    StorageBackend,
+};
 pub use types::{
     ConsolidationDecision, LinkType, MemoryId, MemoryLink, MemoryNote, MemoryType, MemoryUpdates,
     Namespace, SearchQuery, SearchResult,
