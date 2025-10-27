@@ -277,13 +277,71 @@ impl ToolHandler {
             None
         };
 
-        // Perform hybrid search (keyword + graph)
+        // Perform enhanced hybrid search (keyword + vector + graph)
         let max_results = params.max_results.unwrap_or(10);
         let expand_graph = params.expand_graph.unwrap_or(true);
 
-        let mut results = self.storage
-            .hybrid_search(&params.query, namespace, max_results, expand_graph)
+        // Phase 1: Keyword + graph search
+        let keyword_results = self.storage
+            .hybrid_search(&params.query, namespace.clone(), max_results * 2, expand_graph)
             .await?;
+
+        // Phase 2: Vector similarity search
+        debug!("Generating query embedding for vector search");
+        let query_embedding = self.embeddings.generate_embedding(&params.query).await?;
+        let vector_results = self.storage
+            .vector_search(&query_embedding, max_results * 2, namespace.clone())
+            .await?;
+
+        // Phase 3: Merge and re-rank results
+        let mut memory_scores = std::collections::HashMap::new();
+
+        // Add keyword results with 40% weight
+        for result in keyword_results {
+            memory_scores
+                .entry(result.memory.id)
+                .or_insert((result.memory.clone(), vec![]))
+                .1
+                .push(("keyword", result.score * 0.4));
+        }
+
+        // Add vector results with 30% weight
+        for result in vector_results {
+            memory_scores
+                .entry(result.memory.id)
+                .or_insert((result.memory.clone(), vec![]))
+                .1
+                .push(("vector", result.score * 0.3));
+        }
+
+        // Compute final scores
+        let mut results: Vec<_> = memory_scores
+            .into_iter()
+            .map(|(id, (memory, score_components))| {
+                let total_score: f32 = score_components.iter().map(|(_, s)| s).sum();
+                let match_reason = score_components
+                    .iter()
+                    .map(|(method, score)| format!("{}: {:.2}", method, score))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                crate::types::SearchResult {
+                    memory,
+                    score: total_score,
+                    match_reason: format!("hybrid ({})", match_reason),
+                }
+            })
+            .collect();
+
+        // Sort by score descending
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        // Limit results
+        results.truncate(max_results);
 
         // Filter by minimum importance if specified
         if let Some(min_importance) = params.min_importance {
@@ -301,7 +359,7 @@ impl ToolHandler {
             "results": results,
             "query": params.query,
             "count": results.len(),
-            "method": "hybrid_search (keyword + graph)"
+            "method": "hybrid_search (keyword 40% + vector 30% + graph)"
         }))
     }
 
