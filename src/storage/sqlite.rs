@@ -45,7 +45,12 @@ impl SqliteStorage {
 
         info!("SQLite connection established");
 
-        Ok(Self { pool })
+        let storage = Self { pool };
+
+        // Automatically run migrations on new database
+        storage.run_migrations().await?;
+
+        Ok(storage)
     }
 
     /// Run database migrations

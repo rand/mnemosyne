@@ -375,10 +375,10 @@ echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"mnemosyne.recall"
 
 ```bash
 # Simple one-shot test
-./test_simple.sh
+./scripts/testing/test_simple.sh
 
 # Python test suite
-python3 test_server.py
+python3 scripts/testing/test_server.py
 ```
 
 ## Implementation Status
@@ -397,28 +397,31 @@ python3 test_server.py
 ## Architecture
 
 ```
-┌─────────────────┐
-│  Claude Code    │
-└────────┬────────┘
-         │ JSON-RPC 2.0
-         │ (stdio)
-┌────────▼────────┐
-│   MCP Server    │
-│  ┌───────────┐  │
-│  │ Protocol  │  │ (JSON-RPC)
-│  ├───────────┤  │
-│  │  Server   │  │ (Async stdio)
-│  ├───────────┤  │
-│  │  Tools    │  │ (8 OODA tools)
-│  └─────┬─────┘  │
-└────────┼────────┘
+┌──────────────────┐
+│   Claude Code    │
+└────────┬─────────┘
          │
-    ┌────▼─────┬──────────┐
-    │          │          │
-┌───▼────┐ ┌──▼────┐ ┌──▼────┐
-│Storage │ │  LLM  │ │Config │
-│Backend │ │Service│ │Manager│
-└────────┘ └───────┘ └───────┘
+         │ JSON-RPC 2.0 (stdio)
+         │
+┌────────▼─────────┐
+│   MCP Server     │
+│  ┌────────────┐  │
+│  │  Protocol  │  │  (JSON-RPC)
+│  ├────────────┤  │
+│  │   Server   │  │  (Async stdio)
+│  ├────────────┤  │
+│  │   Tools    │  │  (8 OODA tools)
+│  └──────┬─────┘  │
+└─────────┼────────┘
+          │
+    ┌─────┼─────┬─────────┐
+    │     │     │         │
+┌───▼────┐ ┌───▼─────┐ ┌─▼────────┐
+│Storage │ │   LLM   │ │ Config   │
+│Backend │ │ Service │ │ Manager  │
+└────────┘ └─────────┘ └──────────┘
+                │
+         (Namespace Detector)
 ```
 
 ## Next Steps

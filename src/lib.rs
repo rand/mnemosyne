@@ -50,6 +50,10 @@ pub mod services;
 pub mod storage;
 pub mod types;
 
+// Python bindings (PyO3) - only available with "python" feature
+#[cfg(feature = "python")]
+pub mod python_bindings;
+
 // Re-export commonly used types
 pub use config::ConfigManager;
 pub use error::{MnemosyneError, Result};

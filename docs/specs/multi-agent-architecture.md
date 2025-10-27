@@ -41,11 +41,12 @@ This specification defines a multi-agent orchestration system for Claude Code th
 
 ### 1.2 Design Principles
 
-**Specification-Driven Architecture**:
+**Hybrid Specification + Implementation Architecture**:
 - Behavior defined in markdown/YAML specifications
-- Claude interprets specifications to exhibit agent behaviors
-- Minimal compiled code required (only enforcement hooks in JavaScript)
-- Python implementations optional, provided as stubs
+- Claude interprets specifications for high-level workflows
+- **Python implementations use Claude Agent SDK** for real intelligence
+- All 4 agents (Orchestrator, Optimizer, Reviewer, Executor) use `ClaudeSDKClient`
+- Enforcement hooks in JavaScript for deterministic validation
 
 **Modular Composition**:
 - Skills are atomic, focused, composable units (<500 lines guideline)
@@ -67,13 +68,28 @@ This specification defines a multi-agent orchestration system for Claude Code th
 - Suggest alternatives constructively
 - Block on critical unknowns
 
-### 1.3 Non-Goals
+### 1.3 Implementation Architecture (Updated October 2025)
 
-- ❌ Full Python implementation of all agent logic (stubs sufficient)
-- ❌ Real-time agent process orchestration (declarative, not imperative)
-- ❌ Complex distributed systems infrastructure
-- ❌ Machine learning models for agent behavior
-- ❌ GUI or web interface (CLI and Claude Code integration only)
+**Critical Change**: The system now uses **real Claude Agent SDK implementations** rather than stubs.
+
+✅ **Current Architecture**:
+- All 4 agents use `ClaudeSDKClient` from `claude-agent-sdk>=0.1.0`
+- Agents maintain real conversation context and make intelligent decisions
+- Tool access (Read, Write, Edit, Bash, Glob, Grep) for Executor
+- View-only tools (Read, Glob, Grep) for Orchestrator, Optimizer, Reviewer
+- Session lifecycle management with async context managers
+- Message storage in PyStorage for persistence
+
+❌ **Non-Goals**:
+- Complex distributed systems infrastructure
+- Machine learning models for agent behavior
+- GUI or web interface (CLI and Claude Code integration only)
+
+**Rationale**: Real Claude agents provide:
+- Intelligent decision-making for orchestration, optimization, and review
+- Context-aware responses to complex scenarios
+- Tool usage for file inspection and validation
+- Adaptive behavior based on task requirements
 
 ---
 
@@ -85,36 +101,35 @@ This specification defines a multi-agent orchestration system for Claude Code th
 ┌─────────────────────────────────────────────────────────────────┐
 │                          CLAUDE.md                              │
 │              (Master Specification & Orchestration)             │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-                 ┌───────────────┼───────────────┐
-                 │               │               │
-                 ▼               ▼               ▼
-        ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-        │   Skills    │  │  Commands   │  │   Hooks     │
-        │  (.claude/  │  │  (.claude/  │  │ (.claude/   │
-        │   skills/)  │  │  commands/) │  │  hooks/)    │
-        └─────────────┘  └─────────────┘  └─────────────┘
-               │                │                 │
-               │                │                 │
-               └────────┬───────┴─────────┬───────┘
-                        │                 │
-                        ▼                 ▼
-              ┌──────────────────────────────────┐
-              │     Claude Code Runtime          │
-              │  - Interprets specifications     │
-              │  - Executes hooks               │
-              │  - Loads skills as needed       │
-              │  - Triggers slash commands      │
-              └──────────────────────────────────┘
-                        │
-                        ▼
-              ┌──────────────────────────────────┐
-              │    External Integrations         │
-              │  - Beads (bd) for work tracking  │
-              │  - Git for version control       │
-              │  - File system for artifacts     │
-              └──────────────────────────────────┘
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                ┌───────────────┼───────────────┐
+                │               │               │
+                ▼               ▼               ▼
+       ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+       │   Skills    │  │  Commands   │  │   Hooks     │
+       │  (.claude/  │  │  (.claude/  │  │  (.claude/  │
+       │   skills/)  │  │  commands/) │  │   hooks/)   │
+       └──────┬──────┘  └──────┬──────┘  └──────┬──────┘
+              │                │                │
+              └────────────────┼────────────────┘
+                               │
+                               ▼
+              ┌────────────────────────────────┐
+              │    Claude Code Runtime         │
+              │  • Interprets specifications   │
+              │  • Executes hooks              │
+              │  • Loads skills as needed      │
+              │  • Triggers slash commands     │
+              └────────────────┬───────────────┘
+                               │
+                               ▼
+              ┌────────────────────────────────┐
+              │   External Integrations        │
+              │  • Beads (bd) work tracking    │
+              │  • Git version control         │
+              │  • File system artifacts       │
+              └────────────────────────────────┘
 ```
 
 ### 2.2 Four-Agent Model
