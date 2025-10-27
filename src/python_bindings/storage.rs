@@ -9,16 +9,16 @@ use pyo3::Bound;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::storage::{sqlite::SqliteStorage, MemorySortOrder, StorageBackend};
+use crate::storage::{libsql::{ConnectionMode, LibsqlStorage}, MemorySortOrder, StorageBackend};
 use crate::types::{MemoryNote, MemoryId, Namespace};
 
 /// Python wrapper for Mnemosyne storage.
 ///
-/// Thread-safe via Arc<Mutex<SqliteStorage>>. Async operations are converted
+/// Thread-safe via Arc<Mutex<LibsqlStorage>>. Async operations are converted
 /// to sync via tokio runtime for Python compatibility.
 #[pyclass]
 pub struct PyStorage {
-    inner: Arc<Mutex<SqliteStorage>>,
+    inner: Arc<Mutex<LibsqlStorage>>,
     runtime: tokio::runtime::Runtime,
 }
 
@@ -27,8 +27,9 @@ impl PyStorage {
     /// Create new storage instance.
     ///
     /// Args:
-    ///     db_path: Path to SQLite database (default: ~/.local/share/mnemosyne/mnemosyne.db)
+    ///     db_path: Path to LibSQL database (default: ~/.local/share/mnemosyne/mnemosyne.db)
     #[new]
+    #[pyo3(signature = (db_path=None))]
     fn new(db_path: Option<String>) -> PyResult<Self> {
         let runtime = tokio::runtime::Runtime::new()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
@@ -39,7 +40,7 @@ impl PyStorage {
         });
 
         let storage = runtime.block_on(async {
-            SqliteStorage::new(&db_path).await
+            LibsqlStorage::new(ConnectionMode::Local(db_path)).await
         }).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Ok(PyStorage {
@@ -100,6 +101,7 @@ impl PyStorage {
     ///
     /// Returns:
     ///     list[dict]: List of matching memories as dictionaries
+    #[pyo3(signature = (query, namespace=None, limit=None))]
     fn search(&self, query: String, namespace: Option<String>, limit: Option<usize>) -> PyResult<Vec<PyObject>> {
         let ns = namespace.as_ref().map(|s| parse_namespace(s))
             .transpose()
@@ -125,6 +127,7 @@ impl PyStorage {
     ///
     /// Returns:
     ///     list[dict]: List of recent memories
+    #[pyo3(signature = (namespace=None, limit=None))]
     fn list_recent(&self, namespace: Option<String>, limit: Option<usize>) -> PyResult<Vec<PyObject>> {
         let ns = namespace.as_ref().map(|s| parse_namespace(s))
             .transpose()
@@ -146,6 +149,7 @@ impl PyStorage {
     ///
     /// Returns:
     ///     dict: Statistics with keys: total_memories
+    #[pyo3(signature = (namespace=None))]
     fn get_stats(&self, namespace: Option<String>) -> PyResult<PyObject> {
         let ns = namespace.as_ref().map(|s| parse_namespace(s))
             .transpose()

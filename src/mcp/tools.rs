@@ -317,7 +317,7 @@ impl ToolHandler {
         // Compute final scores
         let mut results: Vec<_> = memory_scores
             .into_iter()
-            .map(|(id, (memory, score_components))| {
+            .map(|(_id, (memory, score_components))| {
                 let total_score: f32 = score_components.iter().map(|(_, s)| s).sum();
                 let match_reason = score_components
                     .iter()
