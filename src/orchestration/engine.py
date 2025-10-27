@@ -20,7 +20,7 @@ try:
     BINDINGS_AVAILABLE = True
 except ImportError:
     BINDINGS_AVAILABLE = False
-    print("Warning: PyO3 bindings not available. Install with: pip install mnemosyne-orchestration")
+    print("Warning: PyO3 bindings not available. Build with: maturin develop")
 
 from .context_monitor import LowLatencyContextMonitor, ContextState
 from .parallel_executor import ParallelExecutor, ExecutionPlan, SubTask
