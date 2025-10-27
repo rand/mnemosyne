@@ -579,10 +579,10 @@ impl StorageBackend for LibsqlStorage {
         conn.execute(
             r#"
             UPDATE memories
-            SET is_archived = 1, updated_at = CURRENT_TIMESTAMP
+            SET is_archived = 1, updated_at = ?
             WHERE id = ?
             "#,
-            params![id.to_string()],
+            params![Utc::now().to_rfc3339(), id.to_string()],
         )
         .await?;
 
