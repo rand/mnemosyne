@@ -8,7 +8,7 @@
 //! NOTE: These tests require ANTHROPIC_API_KEY to be set and are marked with #[ignore].
 //! Run with: cargo test --test integration -- --ignored
 
-use mnemosyne::{MemoryType, StorageBackend};
+use mnemosyne_core::{MemoryType, StorageBackend};
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
@@ -16,7 +16,7 @@ mod common;
 use common::{create_real_llm_service, create_test_storage, sample_memory};
 
 /// Shared LLM service instance - only accesses keychain once per test run
-static SHARED_LLM_SERVICE: Lazy<Option<Arc<mnemosyne::LlmService>>> = Lazy::new(|| {
+static SHARED_LLM_SERVICE: Lazy<Option<Arc<mnemosyne_core::LlmService>>> = Lazy::new(|| {
     match create_real_llm_service() {
         Some(llm) => {
             eprintln!("✓ LLM service initialized (keychain accessed once)");
@@ -32,7 +32,7 @@ static SHARED_LLM_SERVICE: Lazy<Option<Arc<mnemosyne::LlmService>>> = Lazy::new(
 });
 
 /// Helper to get LLM service or skip test
-fn get_llm_service_or_skip() -> Arc<mnemosyne::LlmService> {
+fn get_llm_service_or_skip() -> Arc<mnemosyne_core::LlmService> {
     match SHARED_LLM_SERVICE.as_ref() {
         Some(llm) => Arc::clone(llm),
         None => {
@@ -228,7 +228,7 @@ async fn test_consolidation_decision_merge() {
     println!("Consolidation decision: {:?}", decision);
 
     match decision {
-        mnemosyne::ConsolidationDecision::Merge { into, content } => {
+        mnemosyne_core::ConsolidationDecision::Merge { into, content } => {
             println!("Decision: Merge into {:?}", into);
             println!("Merged content length: {}", content.len());
             assert!(!content.is_empty(), "Merged content should not be empty");
@@ -237,7 +237,7 @@ async fn test_consolidation_decision_merge() {
                 "Should merge into one of the original memories"
             );
         }
-        mnemosyne::ConsolidationDecision::Supersede { kept, superseded } => {
+        mnemosyne_core::ConsolidationDecision::Supersede { kept, superseded } => {
             println!("Decision: Supersede - keep {:?}, archive {:?}", kept, superseded);
             assert!(
                 (kept == mem1.id && superseded == mem2.id)
@@ -245,7 +245,7 @@ async fn test_consolidation_decision_merge() {
                 "Supersede should reference both memories"
             );
         }
-        mnemosyne::ConsolidationDecision::KeepBoth => {
+        mnemosyne_core::ConsolidationDecision::KeepBoth => {
             println!("Decision: Keep both separate");
         }
     }
@@ -286,7 +286,7 @@ async fn test_consolidation_decision_keep_both() {
     // Note: LLM might decide any of the three options depending on its analysis
     // This test mainly verifies the API works correctly
     match decision {
-        mnemosyne::ConsolidationDecision::KeepBoth => {
+        mnemosyne_core::ConsolidationDecision::KeepBoth => {
             println!("Correctly decided to keep separate (expected for distinct memories)");
         }
         _ => {

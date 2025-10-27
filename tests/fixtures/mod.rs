@@ -1,7 +1,7 @@
 //! Test data fixtures and sample memories
 
 use chrono::{Duration, Utc};
-use mnemosyne::{MemoryId, MemoryNote, MemoryType, Namespace};
+use mnemosyne_core::{MemoryId, MemoryNote, MemoryType, Namespace};
 
 pub struct TestData {
     pub database_memories: Vec<MemoryNote>,

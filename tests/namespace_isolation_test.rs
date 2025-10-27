@@ -3,7 +3,7 @@
 //! Tests that memories are properly isolated by namespace and that
 //! the namespace hierarchy (Global -> Project -> Session) works correctly.
 
-use mnemosyne::{MemoryType, Namespace, StorageBackend};
+use mnemosyne_core::{MemoryType, Namespace, StorageBackend};
 
 mod common;
 use common::{create_test_storage, sample_memory};
@@ -173,7 +173,7 @@ async fn test_session_namespace_hierarchy() {
 
 #[tokio::test]
 async fn test_list_memories_by_namespace() {
-    use mnemosyne::storage::MemorySortOrder;
+    use mnemosyne_core::storage::MemorySortOrder;
 
     // Setup
     let storage = create_test_storage().await;

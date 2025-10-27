@@ -1,6 +1,6 @@
 //! Common test utilities and helpers
 
-use mnemosyne::{
+use mnemosyne_core::{
     ConfigManager, LlmConfig, LlmService, MemoryId, MemoryNote, MemoryType, Namespace,
     SqliteStorage,
 };
