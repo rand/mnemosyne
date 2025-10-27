@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/rand/mnemosyne/discussions
+    about: Ask questions, share ideas, and discuss with the community
+  - name: 📖 Documentation
+    url: https://github.com/rand/mnemosyne/blob/main/DOCUMENTATION.md
+    about: Browse complete documentation including guides, examples, and troubleshooting
+  - name: 🚀 Quick Start Guide
+    url: https://github.com/rand/mnemosyne/blob/main/QUICK_START.md
+    about: Get started with Mnemosyne in 5 minutes
+  - name: 🔧 Troubleshooting
+    url: https://github.com/rand/mnemosyne/blob/main/TROUBLESHOOTING.md
+    about: Find solutions to common issues and problems
