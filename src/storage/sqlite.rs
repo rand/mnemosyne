@@ -47,10 +47,39 @@ impl SqliteStorage {
 
         let storage = Self { pool };
 
+        // Load sqlite-vec extension for vector similarity search
+        storage.load_vector_extension().await?;
+
         // Automatically run migrations on new database
         storage.run_migrations().await?;
 
         Ok(storage)
+    }
+
+    /// Load sqlite-vec extension for vector similarity search
+    async fn load_vector_extension(&self) -> Result<()> {
+        // Note: sqlite-vec should be installed and accessible
+        // On macOS with Homebrew: brew install sqlite-vec
+        // The extension is typically at /opt/homebrew/lib/vec0.dylib
+
+        // Try to load the extension - it's optional for basic functionality
+        let result = sqlx::query("SELECT load_extension('vec0')")
+            .execute(&self.pool)
+            .await;
+
+        match result {
+            Ok(_) => {
+                info!("sqlite-vec extension loaded successfully");
+                Ok(())
+            }
+            Err(e) => {
+                warn!("Failed to load sqlite-vec extension: {}", e);
+                warn!("Vector search will not be available");
+                warn!("Install with: brew install sqlite-vec (macOS) or build from source");
+                // Don't fail - allow basic functionality without vector search
+                Ok(())
+            }
+        }
     }
 
     /// Run database migrations
@@ -146,37 +175,35 @@ impl SqliteStorage {
         })
     }
 
-    /// Get embedding for a memory
+    /// Get embedding for a memory from vec0 virtual table
     async fn get_embedding(&self, memory_id: MemoryId) -> Result<Vec<f32>> {
         let row = sqlx::query(
-            "SELECT embedding FROM memory_embeddings WHERE memory_id = ?",
+            "SELECT embedding FROM vec_memories WHERE memory_id = ?",
         )
         .bind(memory_id.to_string())
         .fetch_one(&self.pool)
         .await?;
 
-        let bytes: Vec<u8> = row.try_get("embedding")?;
-        Self::deserialize_embedding(&bytes)
+        let embedding_json: String = row.try_get("embedding")?;
+        let embedding: Vec<f32> = serde_json::from_str(&embedding_json)?;
+        Ok(embedding)
     }
 
-    /// Store embedding for a memory
+    /// Store embedding for a memory using vec0 virtual table
     async fn store_embedding(&self, memory_id: MemoryId, embedding: &[f32]) -> Result<()> {
-        let bytes = Self::serialize_embedding(embedding);
-        let dimension = embedding.len() as i32;
+        // Serialize embedding as JSON array for vec0
+        let embedding_json = serde_json::to_string(embedding)?;
 
         sqlx::query(
             r#"
-            INSERT INTO memory_embeddings (memory_id, embedding, dimension)
-            VALUES (?, ?, ?)
+            INSERT INTO vec_memories (memory_id, embedding)
+            VALUES (?, ?)
             ON CONFLICT(memory_id) DO UPDATE SET
-                embedding = excluded.embedding,
-                dimension = excluded.dimension,
-                created_at = CURRENT_TIMESTAMP
+                embedding = excluded.embedding
             "#,
         )
         .bind(memory_id.to_string())
-        .bind(bytes)
-        .bind(dimension)
+        .bind(embedding_json)
         .execute(&self.pool)
         .await?;
 
@@ -393,21 +420,79 @@ impl StorageBackend for SqliteStorage {
 
     async fn vector_search(
         &self,
-        _embedding: &[f32],
+        embedding: &[f32],
         limit: usize,
         namespace: Option<Namespace>,
     ) -> Result<Vec<SearchResult>> {
         debug!("Vector search (limit: {}, namespace: {:?})", limit, namespace);
 
-        // For now, return empty results
-        // TODO: Implement proper vector similarity search
-        // This requires either:
-        // 1. sqlite-vec extension
-        // 2. Manual cosine similarity calculation
-        // 3. External vector database
+        // Serialize query embedding as JSON array
+        let query_embedding = serde_json::to_string(embedding)?;
 
-        warn!("Vector search not yet fully implemented");
-        Ok(vec![])
+        // Build query with optional namespace filtering
+        let (sql, namespace_json) = if let Some(ref ns) = namespace {
+            let ns_json = serde_json::to_string(ns)?;
+            (
+                format!(
+                    r#"
+                    SELECT
+                        m.*,
+                        vec_distance_cosine(v.embedding, ?) as distance
+                    FROM vec_memories v
+                    JOIN memories m ON m.id = v.memory_id
+                    WHERE m.namespace = ?
+                      AND m.is_archived = 0
+                    ORDER BY distance ASC
+                    LIMIT {}
+                    "#,
+                    limit
+                ),
+                Some(ns_json),
+            )
+        } else {
+            (
+                format!(
+                    r#"
+                    SELECT
+                        m.*,
+                        vec_distance_cosine(v.embedding, ?) as distance
+                    FROM vec_memories v
+                    JOIN memories m ON m.id = v.memory_id
+                    WHERE m.is_archived = 0
+                    ORDER BY distance ASC
+                    LIMIT {}
+                    "#,
+                    limit
+                ),
+                None,
+            )
+        };
+
+        let mut query = sqlx::query(&sql).bind(&query_embedding);
+
+        if let Some(ns_json) = namespace_json {
+            query = query.bind(ns_json);
+        }
+
+        let rows = query.fetch_all(&self.pool).await?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            let distance: f32 = row.try_get("distance").unwrap_or(1.0);
+            let memory = self.row_to_memory(row).await?;
+
+            // Convert distance to similarity score (1.0 - distance)
+            // Cosine distance is [0, 2], so normalize to [0, 1]
+            let similarity = (1.0 - (distance / 2.0)).max(0.0).min(1.0);
+
+            results.push(SearchResult {
+                memory,
+                score: similarity,
+                match_reason: format!("Vector similarity: {:.2}", similarity),
+            });
+        }
+
+        Ok(results)
     }
 
     async fn keyword_search(

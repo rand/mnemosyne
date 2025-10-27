@@ -101,6 +101,7 @@ impl EmbeddingService {
             temperature: 0.3, // Low temperature for consistent extraction
         };
 
+        // Always use x-api-key header (OAuth tokens work with this header)
         let response = self
             .client
             .post("https://api.anthropic.com/v1/messages")
