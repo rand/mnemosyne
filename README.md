@@ -174,12 +174,20 @@ flowchart TD
     Storage -.->|FTS5 Search| Storage
     Storage -.->|Graph Traversal| Storage
 
-    style User fill:#bbdefb,stroke:#0d47a1,stroke-width:3px
-    style Claude fill:#e1bee7,stroke:#4a148c,stroke-width:3px
-    style Mnemosyne fill:#ffe0b2,stroke:#e65100,stroke-width:3px
-    style Protocol fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px
-    style Services fill:#e0e0e0,stroke:#212121,stroke-width:2px
-    style API fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+    style User fill:#bbdefb,stroke:#0d47a1,stroke-width:3px,color:#000
+    style Claude fill:#e1bee7,stroke:#4a148c,stroke-width:3px,color:#000
+    style Mnemosyne fill:#ffe0b2,stroke:#e65100,stroke-width:3px,color:#000
+    style Protocol fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px,color:#000
+    style Services fill:#e0e0e0,stroke:#212121,stroke-width:2px,color:#000
+    style API fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px,color:#000
+
+    style UI color:#000
+    style MCP color:#000
+    style Agents color:#000
+    style Server color:#000
+    style Storage color:#000
+    style LLM color:#000
+    style NS color:#000
 ```
 
 **Key Components**:

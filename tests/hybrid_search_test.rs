@@ -6,7 +6,7 @@
 //! - Weighted ranking (keyword, graph, importance, recency)
 //! - Recency decay
 
-use mnemosyne::{LinkType, MemoryLink, MemoryType, Namespace, StorageBackend};
+use mnemosyne_core::{LinkType, MemoryLink, MemoryType, Namespace, StorageBackend};
 
 mod common;
 use common::{create_test_storage, sample_memory};
