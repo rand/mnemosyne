@@ -44,14 +44,22 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 config = "0.13"
 clap = { version = "4.4", features = ["derive"] }
 async-trait = "0.1"
-keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native"] }
+
+# Built-in secrets management (no external tools needed)
+age = { version = "0.11", features = ["armor", "cli-common"] }
+secrecy = "0.10"
+directories = "5.0"
+
+# Optional keyring fallback for backward compatibility
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native"], optional = true }
 
 # Python integration (PyO3)
 pyo3 = { version = "0.22", features = ["extension-module", "abi3"], optional = true }
 
 [features]
-default = []
+default = ["keyring-fallback"]
 python = ["pyo3"]
+keyring-fallback = ["keyring"]
 
 [dev-dependencies]
 mockall = "0.12"

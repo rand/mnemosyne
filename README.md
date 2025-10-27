@@ -38,7 +38,7 @@ The Rust-based memory core, MCP server, and Claude Code integration are fully fu
 - **LLM-Enriched Storage**: Claude Haiku automatically generates summaries, keywords, classifications, and semantic links
 - **OODA Loop Integration**: Explicit Observe-Orient-Decide-Act cycles for humans and agents
 - **MCP Protocol**: 8 tools for seamless Claude Code integration
-- **Secure Credentials**: API keys stored in OS-native keychain (macOS/Windows/Linux)
+- **Secure Credentials**: Age-encrypted secrets with environment variable and OS keychain fallback
 - **Slash Commands**: 6 convenient commands for common memory operations
 - **Self-Organizing Knowledge**: Automatic consolidation, link strength evolution, and importance decay
 
@@ -62,13 +62,18 @@ Mnemosyne uses Claude Haiku for memory intelligence. Set up your Anthropic API k
 
 ```bash
 # Interactive setup (recommended)
-mnemosyne config set-key
+mnemosyne secrets init
+
+# Or set individual secrets
+mnemosyne secrets set ANTHROPIC_API_KEY
 
 # Or via environment variable
 export ANTHROPIC_API_KEY=sk-ant-api03-...
 ```
 
-Keys are securely stored in your OS keychain (macOS Keychain, Windows Credential Manager, or Linux Secret Service).
+Secrets are encrypted using [age](https://age-encryption.org/) and stored in `~/.config/mnemosyne/secrets.age`. Environment variables take priority (ideal for CI/CD), with OS keychain as an optional fallback.
+
+For detailed secrets management documentation, see [SECRETS_MANAGEMENT.md](SECRETS_MANAGEMENT.md).
 
 ### Basic Usage
 
@@ -243,13 +248,18 @@ maturin develop
 ### Test
 
 ```bash
-# Rust tests
-cargo test
-cargo test --doc
+# All tests (automatically skips LLM tests if no API key)
+./test-all.sh
 
-# Python tests (requires ANTHROPIC_API_KEY)
-pytest
-pytest -m "not integration"  # Skip LLM tests
+# Skip LLM tests even if API key is available
+./test-all.sh --skip-llm
+
+# Run only LLM tests (requires ANTHROPIC_API_KEY)
+./test-all.sh --llm-only
+
+# Or use cargo directly
+cargo test              # Regular tests
+cargo test -- --ignored # LLM tests (requires API key)
 ```
 
 For contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -259,6 +269,7 @@ For contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Documentation
 
 - **[INSTALL.md](INSTALL.md)** - Detailed installation guide
+- **[SECRETS_MANAGEMENT.md](SECRETS_MANAGEMENT.md)** - Secrets management and API key configuration
 - **[MCP_SERVER.md](MCP_SERVER.md)** - MCP API reference and examples
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and implementation details
 - **[ROADMAP.md](ROADMAP.md)** - Development phases and progress tracking
