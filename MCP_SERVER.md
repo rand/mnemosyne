@@ -397,28 +397,31 @@ python3 test_server.py
 ## Architecture
 
 ```
-┌─────────────────┐
-│  Claude Code    │
-└────────┬────────┘
-         │ JSON-RPC 2.0
-         │ (stdio)
-┌────────▼────────┐
-│   MCP Server    │
-│  ┌───────────┐  │
-│  │ Protocol  │  │ (JSON-RPC)
-│  ├───────────┤  │
-│  │  Server   │  │ (Async stdio)
-│  ├───────────┤  │
-│  │  Tools    │  │ (8 OODA tools)
-│  └─────┬─────┘  │
-└────────┼────────┘
+┌──────────────────┐
+│   Claude Code    │
+└────────┬─────────┘
          │
-    ┌────▼─────┬──────────┐
-    │          │          │
-┌───▼────┐ ┌──▼────┐ ┌──▼────┐
-│Storage │ │  LLM  │ │Config │
-│Backend │ │Service│ │Manager│
-└────────┘ └───────┘ └───────┘
+         │ JSON-RPC 2.0 (stdio)
+         │
+┌────────▼─────────┐
+│   MCP Server     │
+│  ┌────────────┐  │
+│  │  Protocol  │  │  (JSON-RPC)
+│  ├────────────┤  │
+│  │   Server   │  │  (Async stdio)
+│  ├────────────┤  │
+│  │   Tools    │  │  (8 OODA tools)
+│  └──────┬─────┘  │
+└─────────┼────────┘
+          │
+    ┌─────┼─────┬─────────┐
+    │     │     │         │
+┌───▼────┐ ┌───▼─────┐ ┌─▼────────┐
+│Storage │ │   LLM   │ │ Config   │
+│Backend │ │ Service │ │ Manager  │
+└────────┘ └─────────┘ └──────────┘
+                │
+         (Namespace Detector)
 ```
 
 ## Next Steps

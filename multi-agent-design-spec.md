@@ -101,36 +101,35 @@ This specification defines a multi-agent orchestration system for Claude Code th
 ┌─────────────────────────────────────────────────────────────────┐
 │                          CLAUDE.md                              │
 │              (Master Specification & Orchestration)             │
-└─────────────────────────────────────────────────────────────────┘
-                                 │
-                 ┌───────────────┼───────────────┐
-                 │               │               │
-                 ▼               ▼               ▼
-        ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-        │   Skills    │  │  Commands   │  │   Hooks     │
-        │  (.claude/  │  │  (.claude/  │  │ (.claude/   │
-        │   skills/)  │  │  commands/) │  │  hooks/)    │
-        └─────────────┘  └─────────────┘  └─────────────┘
-               │                │                 │
-               │                │                 │
-               └────────┬───────┴─────────┬───────┘
-                        │                 │
-                        ▼                 ▼
-              ┌──────────────────────────────────┐
-              │     Claude Code Runtime          │
-              │  - Interprets specifications     │
-              │  - Executes hooks               │
-              │  - Loads skills as needed       │
-              │  - Triggers slash commands      │
-              └──────────────────────────────────┘
-                        │
-                        ▼
-              ┌──────────────────────────────────┐
-              │    External Integrations         │
-              │  - Beads (bd) for work tracking  │
-              │  - Git for version control       │
-              │  - File system for artifacts     │
-              └──────────────────────────────────┘
+└───────────────────────────────┬─────────────────────────────────┘
+                                │
+                ┌───────────────┼───────────────┐
+                │               │               │
+                ▼               ▼               ▼
+       ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+       │   Skills    │  │  Commands   │  │   Hooks     │
+       │  (.claude/  │  │  (.claude/  │  │  (.claude/  │
+       │   skills/)  │  │  commands/) │  │   hooks/)   │
+       └──────┬──────┘  └──────┬──────┘  └──────┬──────┘
+              │                │                │
+              └────────────────┼────────────────┘
+                               │
+                               ▼
+              ┌────────────────────────────────┐
+              │    Claude Code Runtime         │
+              │  • Interprets specifications   │
+              │  • Executes hooks              │
+              │  • Loads skills as needed      │
+              │  • Triggers slash commands     │
+              └────────────────┬───────────────┘
+                               │
+                               ▼
+              ┌────────────────────────────────┐
+              │   External Integrations        │
+              │  • Beads (bd) work tracking    │
+              │  • Git version control         │
+              │  • File system artifacts       │
+              └────────────────────────────────┘
 ```
 
 ### 2.2 Four-Agent Model
