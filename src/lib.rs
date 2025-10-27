@@ -42,7 +42,9 @@
 //! }
 //! ```
 
+pub mod agents;
 pub mod config;
+pub mod embeddings;
 pub mod error;
 pub mod mcp;
 pub mod namespace;
@@ -56,11 +58,13 @@ pub mod types;
 pub mod python_bindings;
 
 // Re-export commonly used types
+pub use agents::{AgentMemoryView, AgentRole, CustomImportanceScorer, MemoryAccessControl};
 pub use config::ConfigManager;
+pub use embeddings::{cosine_similarity, EmbeddingService, RemoteEmbeddingService, VOYAGE_EMBEDDING_DIM};
 pub use error::{MnemosyneError, Result};
 pub use mcp::{McpServer, ToolHandler};
 pub use namespace::{NamespaceDetector, ProjectMetadata};
-pub use services::{EmbeddingService, LlmConfig, LlmService};
+pub use services::{LlmConfig, LlmService};
 pub use storage::{libsql::{ConnectionMode, LibsqlStorage}, StorageBackend};
 pub use types::{
     ConsolidationDecision, LinkType, MemoryId, MemoryLink, MemoryNote, MemoryType, MemoryUpdates,
