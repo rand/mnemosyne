@@ -167,6 +167,7 @@ impl Default for ConfigManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn test_config_manager_creation() {
@@ -175,6 +176,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_set_and_get_api_key() {
         let manager = ConfigManager::new().unwrap();
 
@@ -195,6 +197,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_env_var_takes_precedence() {
         // Clean up first to avoid interference from other tests
         env::remove_var("ANTHROPIC_API_KEY");
@@ -216,6 +219,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_has_api_key() {
         let manager = ConfigManager::new().unwrap();
         let _ = manager.delete_api_key();
