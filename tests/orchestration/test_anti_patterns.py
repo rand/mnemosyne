@@ -112,7 +112,7 @@ class TestAntiPatternDetection:
 
             config = OptimizerConfig(
                 agent_id="test_optimizer",
-                skills_dir="~/.claude/skills",
+                skills_dirs=["~/.claude/skills"],
                 max_skills_loaded=7
             )
 
