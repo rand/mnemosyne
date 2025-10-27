@@ -400,14 +400,14 @@ python3 scripts/testing/test_server.py
 flowchart TD
     User([User/Agent])
 
-    subgraph Claude["🎯 Claude Code"]
+    subgraph Claude["Claude Code"]
         UI[Slash Commands]
         Client[MCP Client]
     end
 
     Protocol{{JSON-RPC 2.0<br/>over stdio}}
 
-    subgraph Server["⚡ Mnemosyne MCP Server (Rust + Tokio)"]
+    subgraph Server["Mnemosyne MCP Server (Rust + Tokio)"]
         Handler[Protocol Handler]
         Router[Tool Router<br/>8 OODA Tools]
 
@@ -437,13 +437,13 @@ flowchart TD
     LLM --> API
     NS --> DB
 
-    style User fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
-    style Claude fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style Server fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style Services fill:#fafafa,stroke:#616161,stroke-width:1px
-    style Protocol fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style API fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
-    style DB fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    style User fill:#bbdefb,stroke:#0d47a1,stroke-width:3px
+    style Claude fill:#e1bee7,stroke:#4a148c,stroke-width:3px
+    style Server fill:#ffe0b2,stroke:#e65100,stroke-width:3px
+    style Services fill:#e0e0e0,stroke:#212121,stroke-width:2px
+    style Protocol fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px
+    style API fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+    style DB fill:#bbdefb,stroke:#0d47a1,stroke-width:3px
 ```
 
 **Communication**: JSON-RPC 2.0 over stdin/stdout for seamless integration with Claude Code.
