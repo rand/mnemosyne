@@ -15,7 +15,7 @@ The LibSQL migration has been **thoroughly tested and validated**. All critical 
 - ✅ Namespace isolation
 - ✅ Graph traversal
 - ✅ Data persistence
-- ⚠️  Vector search (requires Turso Cloud or special LibSQL build)
+- ✅ **Vector search with native F32_BLOB support** (works locally and on Turso Cloud)
 
 ---
 
@@ -25,19 +25,19 @@ The LibSQL migration has been **thoroughly tested and validated**. All critical 
 
 | Test Suite | Tests | Passed | Failed | Ignored | Duration |
 |------------|-------|--------|--------|---------|----------|
-| **Unit Tests** | 29 | 28 | 0 | 1 | 0.41s |
-| **E2E Integration** | 3 | 2 | 0 | 1 | 0.17s |
-| **Hybrid Search** | 8 | 8 | 0 | 0 | 0.32s |
-| **Namespace Isolation** | 8 | 8 | 0 | 0 | 0.23s |
+| **Unit Tests** | 29 | 28 | 0 | 1 | 0.50s |
+| **E2E Integration** | 3 | **3** | 0 | **0** | 0.25s |
+| **Hybrid Search** | 8 | 8 | 0 | 0 | 0.24s |
+| **Namespace Isolation** | 8 | 8 | 0 | 0 | 0.18s |
 | **LLM Enrichment** | 5 | 0 | 0 | 5 | 0.00s |
 | **Doc Tests** | 3 | 0 | 0 | 3 | 0.00s |
-| **TOTAL** | **56** | **46** | **0** | **10** | **~1.13s** |
+| **TOTAL** | **56** | **47** | **0** | **9** | **~1.17s** |
 
 ### Test Results
 
 ```
-✅ 46 tests PASSED (100% pass rate for non-ignored tests)
-⊝ 10 tests IGNORED (by design: require API keys or special features)
+✅ 47 tests PASSED (100% pass rate for non-ignored tests)
+⊝ 9 tests IGNORED (by design: require API keys)
 ❌ 0 tests FAILED
 ```
 

@@ -360,7 +360,8 @@ impl StorageBackend for LibsqlStorage {
         let tx = conn.transaction().await?;
 
         // Insert memory metadata including embedding column
-        tx.execute(
+        // Note: For F32_BLOB vectors, we use vector32(?) to convert JSON array to binary
+        let sql = if memory.embedding.is_some() {
             r#"
             INSERT INTO memories (
                 id, namespace, created_at, updated_at,
@@ -369,8 +370,23 @@ impl StorageBackend for LibsqlStorage {
                 related_files, related_entities,
                 access_count, last_accessed_at, expires_at,
                 is_archived, superseded_by, embedding_model, embedding
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            "#,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, vector32(?))
+            "#
+        } else {
+            r#"
+            INSERT INTO memories (
+                id, namespace, created_at, updated_at,
+                content, summary, keywords, tags, context,
+                memory_type, importance, confidence,
+                related_files, related_entities,
+                access_count, last_accessed_at, expires_at,
+                is_archived, superseded_by, embedding_model, embedding
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+            "#
+        };
+
+        tx.execute(
+            sql,
             params![
                 memory.id.to_string(),
                 serde_json::to_string(&memory.namespace)?,
@@ -392,7 +408,9 @@ impl StorageBackend for LibsqlStorage {
                 if memory.is_archived { 1i64 } else { 0i64 },
                 memory.superseded_by.map(|id| id.to_string()),
                 memory.embedding_model.clone(),
-                libsql::Value::Null // Embedding storage in Phase 3
+                memory.embedding.as_ref().map(|emb| {
+                    serde_json::to_string(emb).expect("Failed to serialize embedding")
+                })
             ],
         )
         .await?;
@@ -497,42 +515,83 @@ impl StorageBackend for LibsqlStorage {
         let conn = self.get_conn()?;
         let tx = conn.transaction().await?;
 
-        tx.execute(
-            r#"
-            UPDATE memories SET
-                updated_at = ?,
-                content = ?,
-                summary = ?,
-                keywords = ?,
-                tags = ?,
-                context = ?,
-                importance = ?,
-                confidence = ?,
-                related_files = ?,
-                related_entities = ?,
-                is_archived = ?,
-                superseded_by = ?,
-                embedding = ?
-            WHERE id = ?
-            "#,
-            params![
-                Utc::now().to_rfc3339(),
-                memory.content.clone(),
-                memory.summary.clone(),
-                serde_json::to_string(&memory.keywords)?,
-                serde_json::to_string(&memory.tags)?,
-                memory.context.clone(),
-                memory.importance as i64,
-                memory.confidence as f64,
-                serde_json::to_string(&memory.related_files)?,
-                serde_json::to_string(&memory.related_entities)?,
-                if memory.is_archived { 1i64 } else { 0i64 },
-                memory.superseded_by.map(|id| id.to_string()),
-                libsql::Value::Null, // Embedding update in Phase 3
-                memory.id.to_string(),
-            ],
-        )
-        .await?;
+        // Build SQL and params with or without embedding
+        if let Some(ref embedding) = memory.embedding {
+            // Update with embedding using vector32()
+            let embedding_json = serde_json::to_string(embedding)?;
+            tx.execute(
+                r#"
+                UPDATE memories SET
+                    updated_at = ?,
+                    content = ?,
+                    summary = ?,
+                    keywords = ?,
+                    tags = ?,
+                    context = ?,
+                    importance = ?,
+                    confidence = ?,
+                    related_files = ?,
+                    related_entities = ?,
+                    is_archived = ?,
+                    superseded_by = ?,
+                    embedding = vector32(?)
+                WHERE id = ?
+                "#,
+                params![
+                    Utc::now().to_rfc3339(),
+                    memory.content.clone(),
+                    memory.summary.clone(),
+                    serde_json::to_string(&memory.keywords)?,
+                    serde_json::to_string(&memory.tags)?,
+                    memory.context.clone(),
+                    memory.importance as i64,
+                    memory.confidence as f64,
+                    serde_json::to_string(&memory.related_files)?,
+                    serde_json::to_string(&memory.related_entities)?,
+                    if memory.is_archived { 1i64 } else { 0i64 },
+                    memory.superseded_by.map(|id| id.to_string()),
+                    embedding_json,
+                    memory.id.to_string(),
+                ],
+            )
+            .await?;
+        } else {
+            // Update without embedding
+            tx.execute(
+                r#"
+                UPDATE memories SET
+                    updated_at = ?,
+                    content = ?,
+                    summary = ?,
+                    keywords = ?,
+                    tags = ?,
+                    context = ?,
+                    importance = ?,
+                    confidence = ?,
+                    related_files = ?,
+                    related_entities = ?,
+                    is_archived = ?,
+                    superseded_by = ?
+                WHERE id = ?
+                "#,
+                params![
+                    Utc::now().to_rfc3339(),
+                    memory.content.clone(),
+                    memory.summary.clone(),
+                    serde_json::to_string(&memory.keywords)?,
+                    serde_json::to_string(&memory.tags)?,
+                    memory.context.clone(),
+                    memory.importance as i64,
+                    memory.confidence as f64,
+                    serde_json::to_string(&memory.related_files)?,
+                    serde_json::to_string(&memory.related_entities)?,
+                    if memory.is_archived { 1i64 } else { 0i64 },
+                    memory.superseded_by.map(|id| id.to_string()),
+                    memory.id.to_string(),
+                ],
+            )
+            .await?;
+        }
 
         // Delete and re-insert links
         tx.execute(
@@ -611,7 +670,7 @@ impl StorageBackend for LibsqlStorage {
                     keywords, tags, context, memory_type, importance, confidence,
                     related_files, related_entities, access_count, last_accessed_at,
                     expires_at, is_archived, superseded_by, embedding_model,
-                    vector_distance(embedding, vector(?), 'cosine') as distance
+                    vector_distance_cos(embedding, vector32(?)) as distance
                 FROM memories
                 WHERE embedding IS NOT NULL
                   AND is_archived = 0
@@ -629,7 +688,7 @@ impl StorageBackend for LibsqlStorage {
                     keywords, tags, context, memory_type, importance, confidence,
                     related_files, related_entities, access_count, last_accessed_at,
                     expires_at, is_archived, superseded_by, embedding_model,
-                    vector_distance(embedding, vector(?), 'cosine') as distance
+                    vector_distance_cos(embedding, vector32(?)) as distance
                 FROM memories
                 WHERE embedding IS NOT NULL
                   AND is_archived = 0
