@@ -50,7 +50,7 @@ We are committed to providing a welcoming and inclusive experience for everyone.
 ### Prerequisites
 
 - **Rust 1.75+**: Install via [rustup](https://rustup.rs/)
-- **SQLite 3.43+**: Usually pre-installed on macOS/Linux
+- **LibSQL**: Bundled via libsql crate (no separate installation needed)
 - **Git**: For version control
 - **Anthropic API Key**: For testing LLM features (optional for most development)
 
@@ -81,7 +81,7 @@ We are committed to providing a welcoming and inclusive experience for everyone.
 
 6. **Set up API key** (optional):
    ```bash
-   cargo run -- config set-key
+   cargo run -- secrets set ANTHROPIC_API_KEY
    ```
 
 ---
@@ -311,7 +311,7 @@ use mnemosyne::*;
 
 #[tokio::test]
 async fn test_storage_roundtrip() {
-    let storage = SqliteStorage::new(":memory:").await.unwrap();
+    let storage = LibsqlStorage::new(ConnectionMode::Memory).await.unwrap();
     let memory = MemoryNote::new("test");
 
     storage.store(&memory).await.unwrap();
@@ -361,7 +361,7 @@ open tarpaulin-report.html
    #[tokio::test]
    async fn test_with_cleanup() {
        let db = ":memory:";
-       let storage = SqliteStorage::new(db).await.unwrap();
+       let storage = LibsqlStorage::new(ConnectionMode::Memory).await.unwrap();
 
        // Test logic...
 
@@ -651,5 +651,5 @@ Thank you for contributing to Mnemosyne!
 
 ---
 
-**Version**: 0.1.0
-**Last Updated**: 2025-10-26
+**Version**: 1.0.0
+**Last Updated**: 2025-10-27

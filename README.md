@@ -2,9 +2,12 @@
 
 **Project-Aware Memory System for Claude Code**
 
-![Status](https://img.shields.io/badge/status-beta-yellow)
+![Version](https://img.shields.io/badge/version-1.0.0-green)
+![Status](https://img.shields.io/badge/status-stable-green)
 ![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Tests](https://img.shields.io/badge/tests-passing-green)
 
 ---
 
@@ -48,15 +51,17 @@ The complete system is production-ready: Rust memory core, MCP server, Claude Co
 
 ## Quick Start
 
-### Installation
+### One-Command Installation
 
 ```bash
 ./scripts/install/install.sh
 ```
 
-This will build the Rust binary, initialize the database, configure your API key, and set up MCP integration with Claude Code.
+This automated installer builds the Rust binary, initializes the database, configures your API key, and sets up MCP integration with Claude Code.
 
-For detailed installation options, see [INSTALL.md](INSTALL.md).
+**New to Mnemosyne?** See **[Quick Start Guide](QUICK_START.md)** for a 5-minute guided introduction.
+
+**Advanced setup?** See **[Installation Guide](INSTALL.md)** for detailed options.
 
 ### Configuration
 
@@ -273,14 +278,31 @@ For contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
 
-- **[INSTALL.md](INSTALL.md)** - Detailed installation guide
-- **[SECRETS_MANAGEMENT.md](SECRETS_MANAGEMENT.md)** - Secrets management and API key configuration
-- **[ORCHESTRATION.md](ORCHESTRATION.md)** - PyO3 setup, multi-agent architecture, and performance tuning
-- **[HOOKS_TESTING.md](HOOKS_TESTING.md)** - Automatic memory capture hooks validation and examples
-- **[MCP_SERVER.md](MCP_SERVER.md)** - MCP API reference and examples
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and implementation details
-- **[ROADMAP.md](ROADMAP.md)** - Development phases completion tracking (10/10 complete)
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute
+📚 **[Complete Documentation Index](DOCUMENTATION.md)** - Full documentation navigation and guides
+
+### Quick Links
+
+**Getting Started:**
+- 🚀 [Quick Start](QUICK_START.md) - Get running in 5 minutes
+- 📦 [Installation Guide](INSTALL.md) - Detailed setup instructions
+- 🏗️ [Architecture Overview](ARCHITECTURE_OVERVIEW.md) - How Mnemosyne works
+
+**User Guides:**
+- 📖 [Common Workflows](docs/guides/workflows.md) - Practical usage patterns
+- 🔧 [Troubleshooting](TROUBLESHOOTING.md) - Fix common issues
+- 🔐 [Secrets Management](SECRETS_MANAGEMENT.md) - API key configuration
+- 📡 [MCP API Reference](MCP_SERVER.md) - Tool documentation
+
+**Development:**
+- 🤝 [Contributing Guide](CONTRIBUTING.md) - How to contribute
+- 🏛️ [Architecture Deep Dive](ARCHITECTURE.md) - System internals
+- 🧪 [Hooks & Testing](HOOKS_TESTING.md) - Automated capture
+- 🗺️ [Roadmap](ROADMAP.md) - Project plans and v2.0 features
+
+**Reference:**
+- 📝 [Changelog](CHANGELOG.md) - Version history
+- ✅ [Audit Report](AUDIT_REPORT.md) - v1.0 quality assessment
+- 🔄 [Migration Guide](docs/guides/migration.md) - Upgrading between versions
 
 ---
 
@@ -305,6 +327,15 @@ For contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 | Database size | ~1MB per 1000 memories | ~800KB/1000 |
 
 See [ROADMAP.md](ROADMAP.md) for detailed performance targets and benchmarking plans.
+
+---
+
+## Getting Help
+
+- 📖 **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
+- 💬 **[GitHub Discussions](https://github.com/rand/mnemosyne/discussions)** - Questions and community support
+- 🐛 **[Issue Tracker](https://github.com/rand/mnemosyne/issues)** - Bug reports and feature requests
+- 📧 **[Contact](mailto:rand.arete@gmail.com)** - Direct support (48h response time)
 
 ---
 
