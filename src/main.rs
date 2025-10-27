@@ -6,7 +6,7 @@
 use clap::{Parser, Subcommand};
 use mnemosyne_core::{
     error::Result, ConfigManager, EmbeddingService, LlmConfig, LlmService, McpServer,
-    SqliteStorage, ToolHandler,
+    SqliteStorage, StorageBackend, ToolHandler,
 };
 use std::sync::Arc;
 use tracing::{info, Level};
@@ -77,6 +77,56 @@ enum Commands {
         /// Max concurrent agents (default: 4)
         #[arg(long, default_value = "4")]
         max_concurrent: u8,
+    },
+
+    /// Remember new information (store a memory)
+    Remember {
+        /// Content to remember
+        #[arg(short, long)]
+        content: String,
+
+        /// Namespace (e.g., "project:myapp" or "global")
+        #[arg(short, long, default_value = "global")]
+        namespace: String,
+
+        /// Importance (1-10)
+        #[arg(short, long, default_value = "5")]
+        importance: u8,
+
+        /// Additional context
+        #[arg(long)]
+        context: Option<String>,
+
+        /// Tags (comma-separated)
+        #[arg(short, long)]
+        tags: Option<String>,
+
+        /// Output format
+        #[arg(short, long, default_value = "text")]
+        format: String,
+    },
+
+    /// Recall memories (search and retrieve)
+    Recall {
+        /// Search query
+        #[arg(short, long)]
+        query: String,
+
+        /// Namespace filter
+        #[arg(short, long)]
+        namespace: Option<String>,
+
+        /// Maximum results
+        #[arg(short, long, default_value = "10")]
+        limit: usize,
+
+        /// Minimum importance (1-10)
+        #[arg(long)]
+        min_importance: Option<u8>,
+
+        /// Output format (text/json)
+        #[arg(short, long, default_value = "text")]
+        format: String,
     },
 }
 
@@ -324,6 +374,208 @@ if __name__ == "__main__":
                 eprintln!("{}", String::from_utf8_lossy(&output.stderr));
                 std::process::exit(1);
             }
+        }
+        Some(Commands::Remember {
+            content,
+            namespace,
+            importance,
+            context,
+            tags,
+            format,
+        }) => {
+            // Initialize storage and services
+            let db_path = "mnemosyne.db";
+            let storage = SqliteStorage::new(db_path).await?;
+
+            let llm = LlmService::with_default()?;
+            let embedding_service = {
+                let config = LlmConfig::default();
+                EmbeddingService::new(config.api_key.clone(), config)
+            };
+
+            // Parse namespace
+            let ns = if namespace.starts_with("project:") {
+                let project = namespace.strip_prefix("project:").unwrap();
+                mnemosyne_core::Namespace::Project { name: project.to_string() }
+            } else if namespace.starts_with("session:") {
+                let parts: Vec<&str> = namespace.strip_prefix("session:").unwrap().split('/').collect();
+                if parts.len() == 2 {
+                    mnemosyne_core::Namespace::Session {
+                        project: parts[0].to_string(),
+                        session_id: parts[1].to_string(),
+                    }
+                } else {
+                    mnemosyne_core::Namespace::Global
+                }
+            } else {
+                mnemosyne_core::Namespace::Global
+            };
+
+            // Enrich memory with LLM
+            let ctx = context.unwrap_or_else(|| "CLI input".to_string());
+            let mut memory = llm.enrich_memory(&content, &ctx).await?;
+
+            // Override with CLI parameters
+            memory.namespace = ns;
+            memory.importance = importance.clamp(1, 10);
+
+            // Add custom tags if provided
+            if let Some(tag_str) = tags {
+                let custom_tags: Vec<String> = tag_str
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                memory.tags.extend(custom_tags);
+            }
+
+            // Generate embedding
+            let embedding = embedding_service.generate_embedding(&memory.content).await?;
+            memory.embedding = Some(embedding);
+
+            // Store memory
+            storage.store_memory(&memory).await?;
+
+            // Output result
+            if format == "json" {
+                println!("{}", serde_json::json!({
+                    "id": memory.id.to_string(),
+                    "summary": memory.summary,
+                    "importance": memory.importance,
+                    "tags": memory.tags,
+                    "namespace": serde_json::to_string(&memory.namespace).unwrap_or_default()
+                }));
+            } else {
+                println!("✅ Memory saved");
+                println!("ID: {}", memory.id);
+                println!("Summary: {}", memory.summary);
+                println!("Importance: {}/10", memory.importance);
+                println!("Tags: {}", memory.tags.join(", "));
+            }
+
+            Ok(())
+        }
+        Some(Commands::Recall {
+            query,
+            namespace,
+            limit,
+            min_importance,
+            format,
+        }) => {
+            // Initialize storage and services
+            let db_path = "mnemosyne.db";
+            let storage = SqliteStorage::new(db_path).await?;
+
+            let embedding_service = {
+                let config = LlmConfig::default();
+                EmbeddingService::new(config.api_key.clone(), config)
+            };
+
+            // Parse namespace
+            let ns = namespace.as_ref().map(|ns_str| {
+                if ns_str.starts_with("project:") {
+                    let project = ns_str.strip_prefix("project:").unwrap();
+                    mnemosyne_core::Namespace::Project { name: project.to_string() }
+                } else if ns_str.starts_with("session:") {
+                    let parts: Vec<&str> = ns_str.strip_prefix("session:").unwrap().split('/').collect();
+                    if parts.len() == 2 {
+                        mnemosyne_core::Namespace::Session {
+                            project: parts[0].to_string(),
+                            session_id: parts[1].to_string(),
+                        }
+                    } else {
+                        mnemosyne_core::Namespace::Global
+                    }
+                } else {
+                    mnemosyne_core::Namespace::Global
+                }
+            });
+
+            // Perform hybrid search (keyword + vector + graph)
+            let keyword_results = storage.hybrid_search(&query, ns.clone(), limit * 2, true).await?;
+
+            // Vector search
+            let query_embedding = embedding_service.generate_embedding(&query).await?;
+            let vector_results = storage.vector_search(&query_embedding, limit * 2, ns.clone()).await?;
+
+            // Merge results
+            let mut memory_scores = std::collections::HashMap::new();
+
+            for result in keyword_results {
+                memory_scores
+                    .entry(result.memory.id)
+                    .or_insert((result.memory.clone(), vec![]))
+                    .1
+                    .push(result.score * 0.4);
+            }
+
+            for result in vector_results {
+                memory_scores
+                    .entry(result.memory.id)
+                    .or_insert((result.memory.clone(), vec![]))
+                    .1
+                    .push(result.score * 0.3);
+            }
+
+            let mut results: Vec<_> = memory_scores
+                .into_iter()
+                .map(|(_, (memory, scores))| {
+                    let total_score: f32 = scores.iter().sum();
+                    (memory, total_score)
+                })
+                .collect();
+
+            results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            results.truncate(limit);
+
+            // Filter by importance if specified
+            if let Some(min_imp) = min_importance {
+                results.retain(|(m, _)| m.importance >= min_imp);
+            }
+
+            // Output results
+            if format == "json" {
+                let json_results: Vec<_> = results
+                    .iter()
+                    .map(|(m, score)| {
+                        serde_json::json!({
+                            "id": m.id.to_string(),
+                            "summary": m.summary,
+                            "content": m.content,
+                            "importance": m.importance,
+                            "tags": m.tags,
+                            "memory_type": format!("{:?}", m.memory_type),
+                            "score": score,
+                            "namespace": serde_json::to_string(&m.namespace).unwrap_or_default()
+                        })
+                    })
+                    .collect();
+
+                println!("{}", serde_json::json!({
+                    "results": json_results,
+                    "count": json_results.len()
+                }));
+            } else {
+                if results.is_empty() {
+                    println!("No memories found matching '{}'", query);
+                } else {
+                    println!("Found {} memories:\n", results.len());
+                    for (i, (memory, score)) in results.iter().enumerate() {
+                        println!("{}. {} (score: {:.2}, importance: {}/10)",
+                            i + 1, memory.summary, score, memory.importance);
+                        println!("   ID: {}", memory.id);
+                        println!("   Tags: {}", memory.tags.join(", "));
+                        println!("   Content: {}\n",
+                            if memory.content.len() > 100 {
+                                format!("{}...", &memory.content[..100])
+                            } else {
+                                memory.content.clone()
+                            });
+                    }
+                }
+            }
+
+            Ok(())
         }
         None => {
             // Default: start MCP server
