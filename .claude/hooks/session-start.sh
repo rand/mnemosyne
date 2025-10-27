@@ -27,14 +27,16 @@ fi
 NAMESPACE="project:${PROJECT_NAME}"
 
 # Get recent important memories
+# Use broad query to find any important memories
 MEMORIES=$("$MNEMOSYNE_BIN" recall \
+    --query "memory OR project OR architecture OR implementation" \
     --namespace "$NAMESPACE" \
     --limit 5 \
     --min-importance 7 \
-    --format json 2>/dev/null || echo '{"memories": []}')
+    --format json 2>/dev/null || echo '{"results": []}')
 
 # Count memories
-MEMORY_COUNT=$(echo "$MEMORIES" | jq -r '.memories | length' 2>/dev/null || echo "0")
+MEMORY_COUNT=$(echo "$MEMORIES" | jq -r '.results | length' 2>/dev/null || echo "0")
 
 if [ "$MEMORY_COUNT" -gt 0 ]; then
     echo "📚 Loaded $MEMORY_COUNT important memories from $NAMESPACE" >&2
@@ -47,7 +49,7 @@ if [ "$MEMORY_COUNT" -gt 0 ]; then
     echo "**Recent Important Memories**:"
     echo ""
 
-    echo "$MEMORIES" | jq -r '.memories[] | "## \(.summary)\n\n**Type**: \(.memory_type)\n**Importance**: \(.importance)/10\n**Tags**: \(.tags | join(", "))\n\n\(.content)\n\n---\n"' 2>/dev/null || echo "Error formatting memories"
+    echo "$MEMORIES" | jq -r '.results[] | "## \(.summary)\n\n**Type**: \(.memory_type)\n**Importance**: \(.importance)/10\n**Tags**: \(.tags | join(", "))\n\n\(.content)\n\n---\n"' 2>/dev/null || echo "Error formatting memories"
 else
     echo "ℹ️  No important memories found for $NAMESPACE" >&2
     echo "📝 Use \`mnemosyne remember\` to capture architectural decisions and insights." >&2
