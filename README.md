@@ -98,6 +98,22 @@ mnemosyne.delete     - Archive a memory
 
 See [MCP_SERVER.md](MCP_SERVER.md) for API documentation and examples.
 
+### Skills Integration
+
+Mnemosyne leverages [cc-polymath](https://github.com/rand/cc-polymath) for comprehensive development knowledge:
+
+- **354 atomic skills** across 33+ categories automatically discovered based on task requirements
+- **5 Mnemosyne-specific skills** for memory system expertise (memory management, context preservation, Rust development, MCP protocol, discovery gateway)
+- **Progressive loading** - Optimizer agent loads only relevant skills per task (max 7 skills)
+- **Multi-path discovery** - Project-local skills (`.claude/skills/`) take priority over global cc-polymath skills
+- **Context efficient** - ~30% of context budget allocated to skills
+
+The Optimizer agent automatically discovers and loads relevant skills based on task analysis. Project-local Mnemosyne skills get a +10% relevance bonus to ensure project-specific knowledge is prioritized.
+
+**Skills locations**:
+- Project-local: `.claude/skills/` (5 Mnemosyne-specific skills)
+- Global: `~/.claude/plugins/cc-polymath/skills/` (354 comprehensive skills)
+
 ---
 
 ## How It Works

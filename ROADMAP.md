@@ -123,8 +123,17 @@ This document tracks the detailed implementation phases and progress for Mnemosy
 **Goal**: Claude Code multi-agent system integration
 
 **Completed**:
-- [x] Memory management skill (`~/.claude/skills/mnemosyne-memory-management.md`)
-- [x] Context preservation skill (`~/.claude/skills/mnemosyne-context-preservation.md`)
+- [x] **Skills Integration with cc-polymath**:
+  - Project-local skills (`.claude/skills/`):
+    - `mnemosyne-memory-management.md` - Memory operations and OODA loop
+    - `mnemosyne-context-preservation.md` - Context budgets and session handoffs
+    - `mnemosyne-rust-development.md` - Rust patterns specific to Mnemosyne
+    - `mnemosyne-mcp-protocol.md` - MCP server implementation
+    - `skill-mnemosyne-discovery.md` - Gateway for auto-discovery
+  - Global skills via [cc-polymath](https://github.com/rand/cc-polymath): 354 comprehensive skills
+  - Multi-path skill discovery in Optimizer agent
+  - Priority scoring (+10% for local skills)
+  - Context-efficient progressive loading (max 7 skills, 30% budget)
 - [x] Slash commands (6 commands in `.claude/commands/`)
   - `/memory-store` - Store new memories
   - `/memory-search` - Hybrid search with formatted output

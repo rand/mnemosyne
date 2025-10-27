@@ -91,10 +91,43 @@ flowchart TD
 
 **Layer Responsibilities**:
 - **Multi-Agent System**: Orchestrates work, optimizes context, validates quality, executes tasks
+- **Mnemosyne Skills**: Project-specific knowledge and patterns (5 atomic skills)
 - **MCP Protocol**: JSON-RPC 2.0 communication over stdio
 - **MCP Server**: Routes 8 OODA-aligned tools, handles requests
 - **Core Services**: Storage (SQLite + FTS5), LLM enrichment (Claude Haiku), namespace detection (Git)
 - **Database**: Persistent storage with full-text search and graph capabilities
+
+### Skills Integration
+
+**Multi-Path Skill Discovery**: The Optimizer agent discovers and loads relevant skills from two sources:
+
+1. **Project-Local Skills** (`.claude/skills/`):
+   - `mnemosyne-memory-management.md` - Memory operations and OODA loop
+   - `mnemosyne-context-preservation.md` - Context budgets and session handoffs
+   - `mnemosyne-rust-development.md` - Rust patterns specific to Mnemosyne
+   - `mnemosyne-mcp-protocol.md` - MCP server implementation
+   - `skill-mnemosyne-discovery.md` - Gateway for auto-discovery
+
+2. **Global Skills** (`~/.claude/plugins/cc-polymath/skills/`):
+   - 354 comprehensive skills across 33+ categories
+   - Automatically discovered based on task requirements
+   - Covers Rust, API design, testing, databases, and more
+
+**Discovery Process**:
+1. Optimizer analyzes task requirements
+2. Scans both directories (recursive for cc-polymath subdirectories)
+3. Scores relevance using Claude analysis
+4. Applies +10% bonus to project-local skills (priority)
+5. Deduplicates by skill name (local overrides global)
+6. Loads top 7 most relevant skills
+7. Allocates 30% of context budget to loaded skills
+
+**Benefits**:
+- Zero skill duplication across projects
+- Project-specific expertise prioritized
+- Access to comprehensive global knowledge
+- Context-efficient progressive loading
+- Automatic updates from cc-polymath
 
 ---
 
