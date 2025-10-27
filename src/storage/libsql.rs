@@ -11,6 +11,50 @@ use chrono::Utc;
 use libsql::{params, Builder, Connection, Database};
 use tracing::{debug, info};
 
+/// Parse SQL file into individual statements, handling multi-line constructs like triggers
+fn parse_sql_statements(sql: &str) -> Vec<String> {
+    let mut statements = Vec::new();
+    let mut current = String::new();
+    let mut depth: i32 = 0; // Track BEGIN/END nesting depth
+
+    for line in sql.lines() {
+        let trimmed = line.trim();
+
+        // Skip comment-only and empty lines when not building a statement
+        if current.is_empty() && (trimmed.is_empty() || trimmed.starts_with("--")) {
+            continue;
+        }
+
+        // Add line to current statement
+        if !current.is_empty() {
+            current.push('\n');
+        }
+        current.push_str(line);
+
+        // Track BEGIN/END depth for triggers
+        let upper = trimmed.to_uppercase();
+        if upper.starts_with("BEGIN") || upper.contains(" BEGIN") {
+            depth += 1;
+        }
+        if upper.starts_with("END") {
+            depth = depth.saturating_sub(1);
+        }
+
+        // Statement is complete when we hit ; and depth is 0
+        if trimmed.ends_with(';') && depth == 0 {
+            statements.push(current.clone());
+            current.clear();
+        }
+    }
+
+    // Add any remaining statement
+    if !current.trim().is_empty() {
+        statements.push(current);
+    }
+
+    statements
+}
+
 /// LibSQL storage backend
 pub struct LibsqlStorage {
     db: Database,
@@ -123,11 +167,51 @@ impl LibsqlStorage {
         // Get a connection for migrations
         let conn = self.get_conn()?;
 
-        // Use libsql_migration with dir feature
-        let migrations_path = std::path::PathBuf::from("./migrations/libsql");
-        libsql_migration::dir::migrate(&conn, migrations_path)
-            .await
-            .map_err(|e| MnemosyneError::Migration(format!("Failed to apply migrations: {}", e)))?;
+        // Manually run migrations for better control
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let migrations_path = std::path::PathBuf::from(manifest_dir)
+            .join("migrations")
+            .join("libsql");
+
+        debug!("Migrations path: {:?}", migrations_path);
+
+        // Read and execute migration files in order
+        let migration_files = vec!["001_initial_schema.sql", "002_add_indexes.sql"];
+
+        for migration_file in migration_files {
+            let file_path = migrations_path.join(migration_file);
+            debug!("Executing migration: {:?}", file_path);
+
+            let sql = std::fs::read_to_string(&file_path)
+                .map_err(|e| {
+                    MnemosyneError::Migration(format!(
+                        "Failed to read migration file {}: {}",
+                        migration_file, e
+                    ))
+                })?;
+
+            // Execute the migration SQL
+            // Parse SQL statements properly, handling multi-line statements like triggers
+            let statements = parse_sql_statements(&sql);
+            debug!("Parsed {} statements from {}", statements.len(), migration_file);
+            for (i, statement) in statements.iter().enumerate() {
+                let statement = statement.trim();
+                if !statement.is_empty() {
+                    debug!("Executing statement {}/{}", i+1, statements.len());
+                    conn.execute(statement, params![]).await.map_err(|e| {
+                        MnemosyneError::Migration(format!(
+                            "Failed to execute statement #{} in {}: {}\nStatement: {}",
+                            i+1,
+                            migration_file,
+                            e,
+                            &statement[..statement.len().min(300)]
+                        ))
+                    })?;
+                }
+            }
+
+            info!("Executed migration: {}", migration_file);
+        }
 
         info!("Database migrations completed");
         Ok(())

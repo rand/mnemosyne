@@ -1,22 +1,24 @@
 //! Common test utilities and helpers
 
 use mnemosyne_core::{
-    ConfigManager, LlmConfig, LlmService, MemoryId, MemoryNote, MemoryType, Namespace,
-    SqliteStorage,
+    ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig, LlmService, MemoryId, MemoryNote,
+    MemoryType, Namespace,
 };
 use std::sync::Arc;
 use tempfile::TempDir;
+use uuid;
 
-/// Create an in-memory SQLite storage for testing
-pub async fn create_test_storage() -> SqliteStorage {
-    let storage = SqliteStorage::new(":memory:")
+/// Create an in-memory LibSQL storage for testing
+pub async fn create_test_storage() -> LibsqlStorage {
+    // Use a temporary file instead of :memory: because libSQL's :memory: mode
+    // creates isolated databases per connection, so migrations wouldn't persist
+    let temp_file = format!("/tmp/mnemosyne_test_{}.db", uuid::Uuid::new_v4());
+    let storage = LibsqlStorage::new(ConnectionMode::Local(temp_file.clone()))
         .await
         .expect("Failed to create test storage");
 
-    storage
-        .run_migrations()
-        .await
-        .expect("Failed to run migrations");
+    // Clean up temp file on drop would be ideal, but for now tests are fast enough
+    // that OS cleanup is fine
 
     storage
 }

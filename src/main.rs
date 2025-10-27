@@ -5,8 +5,8 @@
 
 use clap::{Parser, Subcommand};
 use mnemosyne_core::{
-    error::Result, ConfigManager, EmbeddingService, LlmConfig, LlmService, McpServer,
-    SqliteStorage, StorageBackend, ToolHandler,
+    error::Result, ConfigManager, ConnectionMode, EmbeddingService, LibsqlStorage, LlmConfig,
+    LlmService, McpServer, StorageBackend, ToolHandler,
 };
 use std::sync::Arc;
 use tracing::{info, Level};
@@ -177,7 +177,8 @@ async fn main() -> Result<()> {
             // Initialize storage
             // TODO: Make database path configurable
             let db_path = "mnemosyne.db";
-            let storage = SqliteStorage::new(db_path).await?;
+            let storage =
+                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
 
             // Initialize LLM service (will error on first use if no API key)
             let llm = match LlmService::with_default() {
@@ -385,7 +386,8 @@ if __name__ == "__main__":
         }) => {
             // Initialize storage and services
             let db_path = "mnemosyne.db";
-            let storage = SqliteStorage::new(db_path).await?;
+            let storage =
+                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
 
             let llm = LlmService::with_default()?;
             let embedding_service = {
@@ -464,7 +466,8 @@ if __name__ == "__main__":
         }) => {
             // Initialize storage and services
             let db_path = "mnemosyne.db";
-            let storage = SqliteStorage::new(db_path).await?;
+            let storage =
+                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
 
             let embedding_service = {
                 let config = LlmConfig::default();
@@ -592,7 +595,8 @@ if __name__ == "__main__":
 
             // Initialize storage
             let db_path = "mnemosyne.db";
-            let storage = SqliteStorage::new(db_path).await?;
+            let storage =
+                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
 
             // Initialize LLM service (will error on first use if no API key)
             let llm = match LlmService::with_default() {
