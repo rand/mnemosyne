@@ -514,7 +514,70 @@ impl StorageBackend for LibsqlStorage {
         limit: usize,
         namespace: Option<Namespace>,
     ) -> Result<Vec<SearchResult>> {
-        todo!("Implement in Phase 3")
+        debug!("Vector search (limit: {}, namespace: {:?})", limit, namespace);
+
+        let conn = self.get_conn()?;
+        let query_embedding = serde_json::to_string(embedding)?;
+
+        let sql = if namespace.is_some() {
+            format!(
+                r#"
+                SELECT
+                    id, namespace, created_at, updated_at, content, summary,
+                    keywords, tags, context, memory_type, importance, confidence,
+                    related_files, related_entities, access_count, last_accessed_at,
+                    expires_at, is_archived, superseded_by, embedding_model,
+                    vector_distance(embedding, vector(?), 'cosine') as distance
+                FROM memories
+                WHERE embedding IS NOT NULL
+                  AND is_archived = 0
+                  AND namespace = ?
+                ORDER BY distance ASC
+                LIMIT {}
+                "#,
+                limit
+            )
+        } else {
+            format!(
+                r#"
+                SELECT
+                    id, namespace, created_at, updated_at, content, summary,
+                    keywords, tags, context, memory_type, importance, confidence,
+                    related_files, related_entities, access_count, last_accessed_at,
+                    expires_at, is_archived, superseded_by, embedding_model,
+                    vector_distance(embedding, vector(?), 'cosine') as distance
+                FROM memories
+                WHERE embedding IS NOT NULL
+                  AND is_archived = 0
+                ORDER BY distance ASC
+                LIMIT {}
+                "#,
+                limit
+            )
+        };
+
+        let mut rows = if let Some(ref ns) = namespace {
+            let ns_json = serde_json::to_string(ns)?;
+            conn.query(&sql, params![query_embedding, ns_json]).await?
+        } else {
+            conn.query(&sql, params![query_embedding]).await?
+        };
+
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let distance: f64 = row.get(20)?;
+            let memory = self.row_to_memory(&row).await?;
+            let similarity = (1.0 - (distance as f32 / 2.0)).max(0.0).min(1.0);
+
+            results.push(SearchResult {
+                memory,
+                score: similarity,
+                match_reason: format!("Vector similarity: {:.2}", similarity),
+            });
+        }
+
+        debug!("Vector search returned {} results", results.len());
+        Ok(results)
     }
 
     async fn keyword_search(
@@ -522,7 +585,50 @@ impl StorageBackend for LibsqlStorage {
         query: &str,
         namespace: Option<Namespace>,
     ) -> Result<Vec<SearchResult>> {
-        todo!("Implement in Phase 2")
+        debug!("Keyword search: {} (namespace: {:?})", query, namespace);
+
+        let namespace_filter = namespace.map(|ns| serde_json::to_string(&ns).unwrap());
+
+        let sql = if namespace_filter.is_some() {
+            r#"
+            SELECT m.* FROM memories m
+            WHERE m.rowid IN (
+                SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
+            )
+            AND m.namespace = ?
+            AND m.is_archived = 0
+            LIMIT 20
+            "#
+        } else {
+            r#"
+            SELECT m.* FROM memories m
+            WHERE m.rowid IN (
+                SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
+            )
+            AND m.is_archived = 0
+            LIMIT 20
+            "#
+        };
+
+        let conn = self.get_conn()?;
+        let mut rows = if let Some(ns) = namespace_filter {
+            conn.query(sql, params![query, ns]).await?
+        } else {
+            conn.query(sql, params![query]).await?
+        };
+
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let memory = self.row_to_memory(&row).await?;
+            results.push(SearchResult {
+                memory,
+                score: 0.8,
+                match_reason: "keyword_match".to_string(),
+            });
+        }
+
+        debug!("Keyword search found {} results", results.len());
+        Ok(results)
     }
 
     async fn graph_traverse(
