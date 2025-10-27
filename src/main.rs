@@ -8,9 +8,29 @@ use mnemosyne_core::{
     error::Result, ConfigManager, ConnectionMode, EmbeddingService, LibsqlStorage, LlmConfig,
     LlmService, McpServer, StorageBackend, ToolHandler,
 };
+use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{info, Level};
 use tracing_subscriber;
+
+/// Get the default database path using XDG_DATA_HOME standard
+fn get_default_db_path() -> PathBuf {
+    dirs::data_local_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("mnemosyne")
+        .join("mnemosyne.db")
+}
+
+/// Get the database path from CLI arg, env var, or default
+fn get_db_path(cli_path: Option<String>) -> String {
+    cli_path
+        .or_else(|| std::env::var("MNEMOSYNE_DB_PATH").ok())
+        .unwrap_or_else(|| {
+            get_default_db_path()
+                .to_string_lossy()
+                .to_string()
+        })
+}
 
 #[derive(Parser)]
 #[command(name = "mnemosyne")]
@@ -22,6 +42,10 @@ struct Cli {
     /// Set log level
     #[arg(short, long, default_value = "info")]
     log_level: String,
+
+    /// Database path (overrides MNEMOSYNE_DB_PATH env var and default)
+    #[arg(long)]
+    db_path: Option<String>,
 }
 
 #[derive(Subcommand)]
@@ -208,11 +232,17 @@ async fn main() -> Result<()> {
             // Initialize configuration
             let _config_manager = ConfigManager::new()?;
 
-            // Initialize storage
-            // TODO: Make database path configurable
-            let db_path = "mnemosyne.db";
+            // Initialize storage with configured database path
+            let db_path = get_db_path(cli.db_path.clone());
+            info!("Using database: {}", db_path);
+
+            // Ensure parent directory exists
+            if let Some(parent) = PathBuf::from(&db_path).parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
             let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
+                LibsqlStorage::new(ConnectionMode::Local(db_path)).await?;
 
             // Initialize LLM service (will error on first use if no API key)
             let llm = match LlmService::with_default() {
@@ -251,9 +281,25 @@ async fn main() -> Result<()> {
 
             Ok(())
         }
-        Some(Commands::Init { database: _ }) => {
+        Some(Commands::Init { database }) => {
             info!("Initializing database...");
-            eprintln!("Database initialization not yet implemented");
+
+            // Use provided database path or fall back to global/default
+            let db_path = database.or_else(|| cli.db_path.clone())
+                .unwrap_or_else(|| get_default_db_path().to_string_lossy().to_string());
+
+            info!("Database path: {}", db_path);
+
+            // Create parent directory if it doesn't exist
+            if let Some(parent) = PathBuf::from(&db_path).parent() {
+                std::fs::create_dir_all(parent)?;
+                info!("Created directory: {}", parent.display());
+            }
+
+            // Initialize storage (this will create the database and run migrations)
+            let _storage = LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
+
+            println!("✓ Database initialized: {}", db_path);
             Ok(())
         }
         Some(Commands::Export { output, namespace: _ }) => {

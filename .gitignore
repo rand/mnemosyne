@@ -9,4 +9,3 @@ __pycache__/
 .DS_Store
 test_output*.log
 /tmp/
-mnemosyne.db
