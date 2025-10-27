@@ -46,30 +46,30 @@ Mnemosyne is a high-performance, project-aware agentic memory system implemented
 │                    MCP Server (stdio)                       │
 │  ┌────────────────────────────────────────────────────┐    │
 │  │         Request Handler & Tool Router              │    │
-│  └─────────────────┬──────────────────────────────────┘    │
-└────────────────────┼─────────────────────────────────────────┘
-                     │
-          ┌──────────┴──────────┐
-          │                     │
-┌─────────▼──────────┐ ┌───────▼──────────┐
-│  Memory Manager    │ │  LLM Services    │
-│                    │ │                  │
-│ • Lifecycle        │ │ • Note Builder   │
-│ • Orchestration    │ │ • Link Analyzer  │
-│ • Namespaces       │ │ • Consolidator   │
-│ • Background Tasks │ │ • Embeddings     │
-└─────────┬──────────┘ └───────┬──────────┘
-          │                    │
-          └──────────┬─────────┘
-                     │
-          ┌──────────▼──────────┐
-          │   Storage Layer     │
-          │                     │
-          │ • Vector Store      │
-          │ • Graph Store       │
-          │ • Metadata Store    │
-          │ • Audit Log         │
-          └─────────────────────┘
+│  └─────────────────────┬──────────────────────────────┘    │
+└────────────────────────┼─────────────────────────────────────┘
+                         │
+            ┌────────────┼────────────┐
+            │            │            │
+┌───────────▼──────────┐ │ ┌─────────▼──────────┐
+│   Memory Manager     │ │ │   LLM Services     │
+│                      │ │ │                    │
+│  • Lifecycle         │ │ │  • Note Builder    │
+│  • Orchestration     │ │ │  • Link Analyzer   │
+│  • Namespaces        │ │ │  • Consolidator    │
+│  • Background Tasks  │ │ │  • Embeddings      │
+└───────────┬──────────┘ │ └─────────┬──────────┘
+            │            │           │
+            └────────────┼───────────┘
+                         │
+            ┌────────────▼────────────┐
+            │    Storage Layer        │
+            │                         │
+            │  • Vector Store         │
+            │  • Graph Store          │
+            │  • Metadata Store       │
+            │  • Audit Log            │
+            └─────────────────────────┘
 ```
 
 ### 1.2 Layer Responsibilities
