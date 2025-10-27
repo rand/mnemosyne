@@ -8,14 +8,18 @@
 // - importance: Importance recalibration based on usage
 // - links: Link strength decay for untraversed connections
 // - archival: Automatic archival of unused memories
-// - consolidation: Duplicate detection and merging (requires vector search)
+// - consolidation: Duplicate detection and merging (requires vector search - Stream 1)
 
+pub mod archival;
 pub mod config;
-pub mod scheduler;
+pub mod consolidation;
 pub mod importance;
 pub mod links;
-pub mod archival;
-// consolidation will be added after Stream 1 completes
+pub mod scheduler;
 
-pub use config::{EvolutionConfig, JobConfig};
-pub use scheduler::{BackgroundScheduler, EvolutionJob, JobReport, JobError};
+pub use archival::ArchivalJob;
+pub use config::{ConfigError, EvolutionConfig, JobConfig};
+pub use consolidation::ConsolidationJob;
+pub use importance::ImportanceRecalibrator;
+pub use links::LinkDecayJob;
+pub use scheduler::{BackgroundScheduler, EvolutionJob, JobError, JobReport, JobRun, JobStatus, SchedulerError};
