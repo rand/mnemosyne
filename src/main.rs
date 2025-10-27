@@ -5,7 +5,8 @@
 
 use clap::{Parser, Subcommand};
 use mnemosyne_core::{
-    error::Result, ConfigManager, LlmConfig, LlmService, McpServer, SqliteStorage, ToolHandler,
+    error::Result, ConfigManager, EmbeddingService, LlmConfig, LlmService, McpServer,
+    SqliteStorage, ToolHandler,
 };
 use std::sync::Arc;
 use tracing::{info, Level};
@@ -150,8 +151,14 @@ async fn main() -> Result<()> {
                 }
             };
 
+            // Initialize embedding service (shares API key with LLM)
+            let embeddings = {
+                let config = LlmConfig::default();
+                Arc::new(EmbeddingService::new(config.api_key.clone(), config))
+            };
+
             // Initialize tool handler
-            let tool_handler = ToolHandler::new(Arc::new(storage), llm);
+            let tool_handler = ToolHandler::new(Arc::new(storage), llm, embeddings);
 
             // Create and run server
             let server = McpServer::new(tool_handler);
@@ -351,8 +358,14 @@ if __name__ == "__main__":
                 }
             };
 
+            // Initialize embedding service (shares API key with LLM)
+            let embeddings = {
+                let config = LlmConfig::default();
+                Arc::new(EmbeddingService::new(config.api_key.clone(), config))
+            };
+
             // Initialize tool handler
-            let tool_handler = ToolHandler::new(Arc::new(storage), llm);
+            let tool_handler = ToolHandler::new(Arc::new(storage), llm, embeddings);
 
             // Create and run server
             let server = McpServer::new(tool_handler);

@@ -7,7 +7,7 @@
 //! - ACT: update, delete
 
 use crate::error::Result;
-use crate::services::LlmService;
+use crate::services::{EmbeddingService, LlmService};
 use crate::storage::StorageBackend;
 use crate::types::{MemoryId, Namespace};
 use serde::{Deserialize, Serialize};
@@ -32,12 +32,21 @@ pub struct Tool {
 pub struct ToolHandler {
     storage: Arc<dyn StorageBackend>,
     llm: Arc<LlmService>,
+    embeddings: Arc<EmbeddingService>,
 }
 
 impl ToolHandler {
     /// Create a new tool handler
-    pub fn new(storage: Arc<dyn StorageBackend>, llm: Arc<LlmService>) -> Self {
-        Self { storage, llm }
+    pub fn new(
+        storage: Arc<dyn StorageBackend>,
+        llm: Arc<LlmService>,
+        embeddings: Arc<EmbeddingService>,
+    ) -> Self {
+        Self {
+            storage,
+            llm,
+            embeddings,
+        }
     }
 
     /// Get list of all available tools
@@ -448,7 +457,15 @@ impl ToolHandler {
             memory.importance = importance.clamp(1, 10);
         }
 
-        // Store memory
+        // Auto-generate embedding for vector search
+        debug!("Generating embedding for memory: {}", memory.id);
+        let embedding = self
+            .embeddings
+            .generate_embedding(&memory.content)
+            .await?;
+        memory.embedding = Some(embedding);
+
+        // Store memory (with embedding)
         self.storage.store_memory(&memory).await?;
 
         Ok(serde_json::json!({
