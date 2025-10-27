@@ -9,7 +9,7 @@ Responsibilities:
 - Dynamically discover and load relevant skills from filesystem
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Any
 from pathlib import Path
 
@@ -20,13 +20,17 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 class OptimizerConfig:
     """Configuration for Optimizer agent."""
     agent_id: str = "optimizer"
-    skills_dir: str = "~/.claude/skills"
+    skills_dirs: List[str] = field(default_factory=lambda: [
+        ".claude/skills",                          # Project-local skills
+        "~/.claude/plugins/cc-polymath/skills"     # Global cc-polymath skills
+    ])
     context_budget_critical: float = 0.40  # 40% for critical context
     context_budget_skills: float = 0.30    # 30% for skills
     context_budget_project: float = 0.20   # 20% for project files
     context_budget_general: float = 0.10   # 10% for general
     max_skills_loaded: int = 7
     skill_relevance_threshold: float = 0.60
+    prioritize_local_skills: bool = True   # Give project-local skills +10% score bonus
     # Claude Agent SDK configuration
     allowed_tools: Optional[List[str]] = None
     permission_mode: str = "default"  # Optimizer reads to analyze, doesn't edit
@@ -39,6 +43,8 @@ class SkillMatch:
     relevance_score: float
     keywords: List[str]
     categories: List[str]
+    source_dir: str  # Which skills directory this came from
+    is_local: bool  # True if from project-local directory
 
 
 class OptimizerAgent:
@@ -164,35 +170,45 @@ Provide reasoning for your optimization decisions."""
 
     async def _discover_skills(self, task_description: str) -> List[SkillMatch]:
         """
-        Discover relevant skills from filesystem using Claude's analysis.
+        Discover relevant skills from multiple directories using Claude's analysis.
 
         Process:
         1. Ask Claude to analyze task and identify needed domains/expertise
-        2. Scan skills/ directory for matches
+        2. Scan all configured skill directories for matches
         3. Ask Claude to score relevance (not just keyword matching)
-        4. Return top matches
+        4. Apply priority bonus to project-local skills
+        5. Deduplicate by skill name (local overrides global)
+        6. Return top matches
         """
-        skills_dir = Path(self.config.skills_dir).expanduser()
-        if not skills_dir.exists():
+        # Validate at least one skills directory exists
+        valid_dirs = []
+        for dir_str in self.config.skills_dirs:
+            skills_dir = Path(dir_str).expanduser()
+            if skills_dir.exists() and skills_dir.is_dir():
+                valid_dirs.append(skills_dir)
+
+        if not valid_dirs:
             return []
 
         # Ask Claude to analyze task and identify needed skills
+        skills_dirs_str = ", ".join(str(d) for d in valid_dirs)
         discovery_prompt = f"""Analyze this task and identify relevant skills/expertise needed:
 
 **Task**: {task_description}
 
-**Skills Directory**: {self.config.skills_dir}
+**Skills Directories**: {skills_dirs_str}
 
 Please:
-1. Identify domains and expertise areas needed (e.g., "rust", "api-design", "testing")
+1. Identify domains and expertise areas needed (e.g., "rust", "api-design", "testing", "mnemosyne")
 2. List specific keywords to search for in skill files
 3. Rank importance of each domain (0-100)
 4. Suggest skill categories to prioritize
 
 Available skills are in markdown files like:
-- skill-rust-memory-management.md
-- skill-api-rest-design.md
-- skill-testing-integration.md
+- mnemosyne-memory-management.md (project-specific)
+- skill-rust-memory-management.md (from cc-polymath)
+- skill-api-rest-design.md (from cc-polymath)
+- skill-testing-integration.md (from cc-polymath)
 
 Provide structured analysis."""
 
@@ -206,22 +222,47 @@ Provide structured analysis."""
         # Extract keywords from Claude's analysis
         keywords = self._extract_keywords_from_analysis(analysis_responses, task_description)
 
-        # Scan skill files
+        # Scan skill files across all directories
         matches: List[SkillMatch] = []
-        for skill_file in skills_dir.glob("*.md"):
-            if skill_file.name.startswith("_"):
-                continue  # Skip index files
+        seen_skill_names: Dict[str, SkillMatch] = {}  # For deduplication
 
-            # Ask Claude to score relevance for promising skills
-            score = await self._score_skill_relevance(skill_file, keywords, task_description)
+        for idx, skills_dir in enumerate(valid_dirs):
+            is_local = (idx == 0)  # First directory is project-local
 
-            if score >= self.config.skill_relevance_threshold:
-                matches.append(SkillMatch(
-                    skill_path=str(skill_file),
-                    relevance_score=score,
-                    keywords=keywords,
-                    categories=self._extract_categories(skill_file.name)
-                ))
+            # Recursively find all .md files (cc-polymath has subdirectories)
+            for skill_file in skills_dir.rglob("*.md"):
+                skill_name = skill_file.name
+
+                if skill_name.startswith("_"):
+                    continue  # Skip index files
+
+                # Skip if we've already seen this skill name and current is not local
+                if skill_name in seen_skill_names:
+                    if not is_local:
+                        continue  # Global skills don't override
+                    # Local skill overrides global - remove global version
+                    old_match = seen_skill_names[skill_name]
+                    if old_match in matches:
+                        matches.remove(old_match)
+
+                # Ask Claude to score relevance for promising skills
+                score = await self._score_skill_relevance(skill_file, keywords, task_description)
+
+                # Apply priority bonus for local skills
+                if is_local and self.config.prioritize_local_skills:
+                    score = min(1.0, score * 1.10)  # +10% bonus, capped at 1.0
+
+                if score >= self.config.skill_relevance_threshold:
+                    match = SkillMatch(
+                        skill_path=str(skill_file),
+                        relevance_score=score,
+                        keywords=keywords,
+                        categories=self._extract_categories(skill_name),
+                        source_dir=str(skills_dir),
+                        is_local=is_local
+                    )
+                    matches.append(match)
+                    seen_skill_names[skill_name] = match
 
         # Sort by relevance and limit
         matches.sort(key=lambda m: m.relevance_score, reverse=True)
@@ -229,14 +270,17 @@ Provide structured analysis."""
 
         # Update coordinator metrics
         self.coordinator.set_metric("skill_count", len(top_matches))
+        local_count = sum(1 for m in top_matches if m.is_local)
+        self.coordinator.set_metric("local_skill_count", local_count)
 
         # Cache loaded skills
         for match in top_matches:
             self._loaded_skills[match.skill_path] = match
 
         # Store skill discovery in memory
+        skill_sources = f"{local_count} local, {len(top_matches) - local_count} global"
         self.storage.store({
-            "content": f"Loaded {len(top_matches)} skills for task: {task_description[:100]}",
+            "content": f"Loaded {len(top_matches)} skills ({skill_sources}) for task: {task_description[:100]}",
             "namespace": f"project:agent-{self.config.agent_id}",
             "importance": 7,
             "tags": ["skill-discovery", "optimization"]
