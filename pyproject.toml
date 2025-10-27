@@ -27,5 +27,6 @@ features = ["python"]
 [tool.pytest.ini_options]
 markers = [
     "integration: Integration tests that require ANTHROPIC_API_KEY (deselect with '-m \"not integration\"')",
+    "slow: Slow-running tests that can be skipped for quick validation",
 ]
 asyncio_mode = "auto"
