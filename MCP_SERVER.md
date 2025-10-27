@@ -396,33 +396,59 @@ python3 scripts/testing/test_server.py
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph claude["Claude Code"]
+        ui[User Interface<br/>Slash commands]
+        client[MCP Client<br/>JSON-RPC]
+    end
+
+    subgraph mcp["Mnemosyne MCP Server (Rust + Tokio)"]
+        protocol[Protocol Handler<br/>JSON-RPC 2.0]
+        server[Async Server<br/>stdio I/O]
+        tools[Tool Router<br/>8 OODA tools]
+
+        storage[Storage Backend<br/>SQLite + FTS5]
+        llm[LLM Service<br/>Claude Haiku]
+        config[Config Manager<br/>Keychain]
+        ns[Namespace Detector<br/>Git-aware]
+    end
+
+    api[("Anthropic API")]
+    db[(SQLite Database<br/>FTS5 + Graph)]
+
+    ui --> client
+    client -->|JSON-RPC<br/>stdio| protocol
+    protocol --> server
+    server --> tools
+
+    tools --> storage
+    tools --> llm
+    tools --> ns
+    tools --> config
+
+    storage --> db
+    llm --> api
+    ns --> db
+
+    classDef claudeStyle fill:#e1f5ff,stroke:#0066cc
+    classDef mcpStyle fill:#fff4e6,stroke:#ff9800
+    classDef serviceStyle fill:#f0f0f0,stroke:#666
+    classDef externalStyle fill:#e8f5e9,stroke:#4caf50
+
+    class ui,client claudeStyle
+    class protocol,server,tools mcpStyle
+    class storage,llm,config,ns serviceStyle
+    class api,db externalStyle
 ```
-┌──────────────────┐
-│   Claude Code    │
-└────────┬─────────┘
-         │
-         │ JSON-RPC 2.0 (stdio)
-         │
-┌────────▼─────────┐
-│   MCP Server     │
-│  ┌────────────┐  │
-│  │  Protocol  │  │  (JSON-RPC)
-│  ├────────────┤  │
-│  │   Server   │  │  (Async stdio)
-│  ├────────────┤  │
-│  │   Tools    │  │  (8 OODA tools)
-│  └──────┬─────┘  │
-└─────────┼────────┘
-          │
-    ┌─────┼─────┬─────────┐
-    │     │     │         │
-┌───▼────┐ ┌───▼─────┐ ┌─▼────────┐
-│Storage │ │   LLM   │ │ Config   │
-│Backend │ │ Service │ │ Manager  │
-└────────┘ └─────────┘ └──────────┘
-                │
-         (Namespace Detector)
-```
+
+**Protocol**: JSON-RPC 2.0 over stdin/stdout for seamless Claude Code integration.
+
+**8 OODA Tools**:
+- **Observe**: `recall` (search), `list` (browse)
+- **Orient**: `graph` (relationships), `context` (project state)
+- **Decide**: `remember` (store), `consolidate` (merge)
+- **Act**: `update` (modify), `delete` (archive)
 
 ## Next Steps
 

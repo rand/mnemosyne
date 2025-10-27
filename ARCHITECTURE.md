@@ -32,34 +32,49 @@ Mnemosyne is a high-performance, project-aware agentic memory system built in Ru
 
 ### System Diagram
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Claude Code Environment                   │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │         Multi-Agent Orchestration System              │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │  │
-│  │  │Orchestrator │  │ Optimizer   │  │  Reviewer   │  │  │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘  │  │
-│  │  ┌─────────────┐                                     │  │
-│  │  │  Executor   │  (with mnemosyne skills)            │  │
-│  │  └─────────────┘                                     │  │
-│  └─────────────────────────┬─────────────────────────────┘  │
-└──────────────────────────┼───────────────────────────────────┘
-                           │
-                           │ JSON-RPC 2.0 over stdio (MCP)
-                           │
-              ┌────────────▼────────────┐
-              │   Mnemosyne Server      │
-              │    (Rust + Tokio)       │
-              └────────────┬────────────┘
-                           │
-         ┌─────────────────┼─────────────────┐
-         │                 │                 │
-    ┌────▼─────┐     ┌────▼─────┐     ┌────▼─────┐
-    │ Storage  │     │   LLM    │     │Namespace │
-    │ (SQLite) │     │ (Claude) │     │ Detector │
-    │  +FTS5   │     │  Haiku   │     │          │
-    └──────────┘     └──────────┘     └──────────┘
+```mermaid
+graph TB
+    subgraph claude["Claude Code Environment"]
+        subgraph agents["Multi-Agent Orchestration System"]
+            orch[Orchestrator<br/>Workflow coordination]
+            opt[Optimizer<br/>Context management]
+            rev[Reviewer<br/>Quality validation]
+            exec[Executor<br/>Task execution]
+        end
+        skills[Mnemosyne Skills<br/>Memory operations]
+    end
+
+    subgraph mnemosyne["Mnemosyne Server (Rust + Tokio)"]
+        mcp[MCP Server<br/>JSON-RPC 2.0]
+
+        storage[Storage Layer<br/>SQLite + FTS5]
+        llm[LLM Service<br/>Claude Haiku]
+        ns[Namespace Detector<br/>Git-aware]
+    end
+
+    api[("Anthropic API")]
+    db[(SQLite Database)]
+
+    agents -->|Load skills| skills
+    skills -->|MCP tools<br/>stdio| mcp
+
+    mcp --> storage
+    mcp --> llm
+    mcp --> ns
+
+    storage --> db
+    llm --> api
+    ns --> db
+
+    classDef agentStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef serverStyle fill:#fff9c4,stroke:#f57c00,stroke-width:2px
+    classDef serviceStyle fill:#f5f5f5,stroke:#616161
+    classDef externalStyle fill:#e8f5e9,stroke:#388e3c
+
+    class orch,opt,rev,exec,skills agentStyle
+    class mcp serverStyle
+    class storage,llm,ns serviceStyle
+    class api,db externalStyle
 ```
 
 ---
@@ -251,72 +266,121 @@ All errors implement `std::error::Error` and can be converted via `From` traits.
 
 ### 1. Memory Creation Flow
 
-```
-User/Agent → mnemosyne.remember
-    ↓
-Tool Handler validates input
-    ↓
-Namespace Detector determines context
-    ↓
-LLM Service enriches content
-    ├── Generate summary
-    ├── Extract keywords
-    ├── Assign tags
-    ├── Classify type
-    └── Score importance
-    ↓
-LLM Service generates links
-    ├── Find candidate memories
-    ├── Detect relationships
-    ├── Assign link types
-    └── Score strengths
-    ↓
-Storage Layer persists
-    ├── Insert memory row
-    ├── Update FTS5 index
-    └── Create link rows
-    ↓
-Response with MemoryId
+```mermaid
+sequenceDiagram
+    actor User as User/Agent
+    participant MCP as MCP Server
+    participant NS as Namespace Detector
+    participant LLM as LLM Service
+    participant API as Anthropic API
+    participant Store as Storage Layer
+    database DB as SQLite
+
+    User->>+MCP: mnemosyne.remember(content, context)
+    MCP->>MCP: Validate input
+
+    MCP->>+NS: Detect namespace
+    NS->>NS: Find git root
+    NS->>NS: Parse CLAUDE.md
+    NS-->>-MCP: Namespace (project/session)
+
+    MCP->>+LLM: Enrich content
+    LLM->>+API: Request enrichment
+    Note over API: Generate summary<br/>Extract keywords<br/>Assign tags<br/>Classify type<br/>Score importance
+    API-->>-LLM: Enrichment data
+    LLM-->>-MCP: Enriched memory note
+
+    MCP->>+LLM: Generate semantic links
+    LLM->>Store: Find candidate memories
+    Store-->>LLM: Similar memories
+    LLM->>+API: Analyze relationships
+    Note over API: Detect relationships<br/>Assign link types<br/>Score strengths
+    API-->>-LLM: Link specifications
+    LLM-->>-MCP: Memory links
+
+    MCP->>+Store: Persist memory
+    Store->>DB: INSERT memory row
+    Store->>DB: UPDATE FTS5 index
+    Store->>DB: INSERT link rows
+    Store-->>-MCP: MemoryId
+
+    MCP-->>-User: Success + MemoryId
 ```
 
 ### 2. Memory Retrieval Flow
 
-```
-User/Agent → mnemosyne.recall
-    ↓
-Tool Handler validates query
-    ↓
-Storage Layer searches
-    ├── Keyword search (FTS5)
-    ├── Filter by namespace
-    ├── Filter by type/tags
-    └── Sort by relevance/importance
-    ↓
-Storage Layer expands graph
-    ├── Follow links (optional)
-    ├── Recursive CTE traversal
-    └── Respect max_depth
-    ↓
-Response with ranked results
+```mermaid
+sequenceDiagram
+    actor User as User/Agent
+    participant MCP as MCP Server
+    participant Store as Storage Layer
+    database DB as SQLite
+    database FTS as FTS5 Index
+
+    User->>+MCP: mnemosyne.recall(query, filters)
+    MCP->>MCP: Validate query
+
+    MCP->>+Store: Search memories
+    Store->>FTS: Keyword search
+    FTS-->>Store: Matching memory IDs
+    Store->>DB: Filter by namespace
+    Store->>DB: Filter by type/tags
+    Store->>DB: Sort by relevance
+
+    alt Graph expansion enabled
+        Store->>DB: Recursive CTE query
+        Note over DB: Follow semantic links<br/>Max depth: 2 hops<br/>Collect related memories
+        DB-->>Store: Graph neighbors
+        Store->>Store: Merge & rank results
+    end
+
+    Store->>Store: Apply scoring
+    Note over Store: 50% keyword match<br/>20% graph proximity<br/>20% importance<br/>10% recency
+
+    Store-->>-MCP: Ranked results
+
+    MCP-->>-User: Memory list + metadata
 ```
 
 ### 3. Context Building Flow
 
-```
-Session Start
-    ↓
-Namespace Detector
-    ├── Find git root
-    ├── Parse CLAUDE.md
-    └── Generate session ID
-    ↓
-mnemosyne.context
-    ├── Get recent memories
-    ├── Get important memories
-    ├── Build memory graph
-    └── Aggregate metadata
-    ↓
-Context payload for agents
+```mermaid
+sequenceDiagram
+    actor Agent as Multi-Agent System
+    participant MCP as MCP Server
+    participant NS as Namespace Detector
+    participant Store as Storage Layer
+    database DB as SQLite
+
+    Note over Agent: Session Start
+
+    Agent->>+MCP: mnemosyne.context()
+
+    MCP->>+NS: Detect project context
+    NS->>NS: Find git root
+    NS->>NS: Parse CLAUDE.md
+    NS->>NS: Generate session ID
+    NS-->>-MCP: Project + Session namespace
+
+    par Recent memories
+        MCP->>Store: Query recent (7 days)
+        Store->>DB: SELECT ORDER BY created_at
+        Store-->>MCP: Recent memories
+    and Important memories
+        MCP->>Store: Query important (score >= 8)
+        Store->>DB: SELECT WHERE importance >= 8
+        Store-->>MCP: High-importance memories
+    and Memory graph
+        MCP->>Store: Get graph overview
+        Store->>DB: Recursive CTE (depth=1)
+        Store-->>MCP: Connected memories
+    end
+
+    MCP->>MCP: Aggregate context
+    Note over MCP: Merge results<br/>Remove duplicates<br/>Calculate statistics
+
+    MCP-->>-Agent: Context payload
+    Note over Agent: • Project metadata<br/>• Recent work<br/>• Key decisions<br/>• Knowledge graph
 ```
 
 ---
