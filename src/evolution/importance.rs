@@ -8,7 +8,8 @@
 //
 // Uses exponential decay with 30-day half-life for recency.
 
-use super::scheduler::{EvolutionJob, JobConfig, JobError, JobReport};
+use super::config::JobConfig;
+use super::scheduler::{EvolutionJob, JobError, JobReport};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use std::time::{Duration, Instant};
