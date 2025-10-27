@@ -276,10 +276,9 @@ async fn test_e2e_complete_workflow() {
 }
 
 #[tokio::test]
-#[ignore] // Ignore by default - vector functions may not be available in local LibSQL builds
 async fn test_e2e_vector_search_with_embeddings() {
     println!("\n=== E2E Test: Vector Search with Embeddings ===\n");
-    println!("NOTE: This test requires LibSQL with vector support (Turso Cloud or local build with vector features)");
+    println!("Testing LibSQL native vector search with F32_BLOB embeddings");
 
     let db_path = format!("/tmp/e2e_vector_test_{}.db", uuid::Uuid::new_v4());
     println!("Creating storage at: {}", db_path);
