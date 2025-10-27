@@ -397,58 +397,69 @@ python3 scripts/testing/test_server.py
 ## Architecture
 
 ```mermaid
-graph TB
-    subgraph claude["Claude Code"]
-        ui[User Interface<br/>Slash commands]
-        client[MCP Client<br/>JSON-RPC]
+flowchart TD
+    User([User/Agent])
+
+    subgraph Claude["🎯 Claude Code"]
+        UI[Slash Commands]
+        Client[MCP Client]
     end
 
-    subgraph mcp["Mnemosyne MCP Server (Rust + Tokio)"]
-        protocol[Protocol Handler<br/>JSON-RPC 2.0]
-        server[Async Server<br/>stdio I/O]
-        tools[Tool Router<br/>8 OODA tools]
+    Protocol{{JSON-RPC 2.0<br/>over stdio}}
 
-        storage[Storage Backend<br/>SQLite + FTS5]
-        llm[LLM Service<br/>Claude Haiku]
-        config[Config Manager<br/>Keychain]
-        ns[Namespace Detector<br/>Git-aware]
+    subgraph Server["⚡ Mnemosyne MCP Server (Rust + Tokio)"]
+        Handler[Protocol Handler]
+        Router[Tool Router<br/>8 OODA Tools]
+
+        subgraph Services["Core Services"]
+            Storage[(Storage<br/>SQLite + FTS5)]
+            LLM[LLM Service<br/>Claude Haiku]
+            Config[Config Manager<br/>OS Keychain]
+            NS[Namespace<br/>Git-aware]
+        end
     end
 
-    api[("Anthropic API")]
-    db[(SQLite Database<br/>FTS5 + Graph)]
+    API[/Anthropic API\]
+    DB[(Database<br/>FTS5 + Graph)]
 
-    ui --> client
-    client -->|JSON-RPC<br/>stdio| protocol
-    protocol --> server
-    server --> tools
+    User --> UI
+    UI --> Client
+    Client <--> Protocol
+    Protocol <--> Handler
+    Handler --> Router
 
-    tools --> storage
-    tools --> llm
-    tools --> ns
-    tools --> config
+    Router --> Storage
+    Router --> LLM
+    Router --> Config
+    Router --> NS
 
-    storage --> db
-    llm --> api
-    ns --> db
+    Storage <--> DB
+    LLM --> API
+    NS --> DB
 
-    classDef claudeStyle fill:#e1f5ff,stroke:#0066cc
-    classDef mcpStyle fill:#fff4e6,stroke:#ff9800
-    classDef serviceStyle fill:#f0f0f0,stroke:#666
-    classDef externalStyle fill:#e8f5e9,stroke:#4caf50
-
-    class ui,client claudeStyle
-    class protocol,server,tools mcpStyle
-    class storage,llm,config,ns serviceStyle
-    class api,db externalStyle
+    style User fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    style Claude fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style Server fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style Services fill:#fafafa,stroke:#616161,stroke-width:1px
+    style Protocol fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style API fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style DB fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
 ```
 
-**Protocol**: JSON-RPC 2.0 over stdin/stdout for seamless Claude Code integration.
+**Communication**: JSON-RPC 2.0 over stdin/stdout for seamless integration with Claude Code.
 
-**8 OODA Tools**:
-- **Observe**: `recall` (search), `list` (browse)
-- **Orient**: `graph` (relationships), `context` (project state)
-- **Decide**: `remember` (store), `consolidate` (merge)
-- **Act**: `update` (modify), `delete` (archive)
+**8 OODA-Aligned Tools**:
+
+| Phase | Tool | Purpose |
+|-------|------|---------|
+| **Observe** | `recall` | Search memories by query |
+| **Observe** | `list` | Browse memories by filters |
+| **Orient** | `graph` | Explore semantic relationships |
+| **Orient** | `context` | Load full project context |
+| **Decide** | `remember` | Store new memory with enrichment |
+| **Decide** | `consolidate` | Merge/supersede duplicate memories |
+| **Act** | `update` | Modify existing memory |
+| **Act** | `delete` | Archive memory (soft delete) |
 
 ## Next Steps
 

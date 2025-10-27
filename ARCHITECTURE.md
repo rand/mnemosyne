@@ -33,49 +33,57 @@ Mnemosyne is a high-performance, project-aware agentic memory system built in Ru
 ### System Diagram
 
 ```mermaid
-graph TB
-    subgraph claude["Claude Code Environment"]
-        subgraph agents["Multi-Agent Orchestration System"]
-            orch[Orchestrator<br/>Workflow coordination]
-            opt[Optimizer<br/>Context management]
-            rev[Reviewer<br/>Quality validation]
-            exec[Executor<br/>Task execution]
+flowchart TD
+    subgraph Claude["🎯 Claude Code Environment"]
+        direction LR
+        Orch[Orchestrator]
+        Opt[Optimizer]
+        Rev[Reviewer]
+        Exec[Executor]
+        Skills[Mnemosyne Skills]
+    end
+
+    Protocol{{MCP Protocol<br/>JSON-RPC over stdio}}
+
+    subgraph Mnemosyne["⚡ Mnemosyne Server (Rust + Tokio)"]
+        MCP[MCP Server<br/>Tool Router]
+
+        subgraph Core["Core Services"]
+            Storage[(Storage<br/>SQLite + FTS5)]
+            LLM[LLM Service<br/>Claude Haiku]
+            NS[Namespace<br/>Git-aware]
         end
-        skills[Mnemosyne Skills<br/>Memory operations]
     end
 
-    subgraph mnemosyne["Mnemosyne Server (Rust + Tokio)"]
-        mcp[MCP Server<br/>JSON-RPC 2.0]
+    API[/Anthropic API\]
+    DB[(Database<br/>FTS5 + Graph)]
 
-        storage[Storage Layer<br/>SQLite + FTS5]
-        llm[LLM Service<br/>Claude Haiku]
-        ns[Namespace Detector<br/>Git-aware]
-    end
+    Orch & Opt & Rev & Exec --> Skills
+    Skills <--> Protocol
+    Protocol <--> MCP
 
-    api[("Anthropic API")]
-    db[(SQLite Database)]
+    MCP --> Storage
+    MCP --> LLM
+    MCP --> NS
 
-    agents -->|Load skills| skills
-    skills -->|MCP tools<br/>stdio| mcp
+    Storage <--> DB
+    LLM --> API
+    NS --> DB
 
-    mcp --> storage
-    mcp --> llm
-    mcp --> ns
-
-    storage --> db
-    llm --> api
-    ns --> db
-
-    classDef agentStyle fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
-    classDef serverStyle fill:#fff9c4,stroke:#f57c00,stroke-width:2px
-    classDef serviceStyle fill:#f5f5f5,stroke:#616161
-    classDef externalStyle fill:#e8f5e9,stroke:#388e3c
-
-    class orch,opt,rev,exec,skills agentStyle
-    class mcp serverStyle
-    class storage,llm,ns serviceStyle
-    class api,db externalStyle
+    style Claude fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style Mnemosyne fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style Core fill:#fafafa,stroke:#616161,stroke-width:1px
+    style Protocol fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style API fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
+    style DB fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
 ```
+
+**Layer Responsibilities**:
+- **Multi-Agent System**: Orchestrates work, optimizes context, validates quality, executes tasks
+- **MCP Protocol**: JSON-RPC 2.0 communication over stdio
+- **MCP Server**: Routes 8 OODA-aligned tools, handles requests
+- **Core Services**: Storage (SQLite + FTS5), LLM enrichment (Claude Haiku), namespace detection (Git)
+- **Database**: Persistent storage with full-text search and graph capabilities
 
 ---
 
@@ -268,6 +276,7 @@ All errors implement `std::error::Error` and can be converted via `From` traits.
 
 ```mermaid
 sequenceDiagram
+    autonumber
     actor User as User/Agent
     participant MCP as MCP Server
     participant NS as Namespace Detector
@@ -277,110 +286,145 @@ sequenceDiagram
     database DB as SQLite
 
     User->>+MCP: mnemosyne.remember(content, context)
-    MCP->>MCP: Validate input
+    Note right of MCP: Validate input format
 
-    MCP->>+NS: Detect namespace
-    NS->>NS: Find git root
-    NS->>NS: Parse CLAUDE.md
-    NS-->>-MCP: Namespace (project/session)
+    rect rgb(240, 240, 255)
+        Note over MCP,NS: Step 1: Namespace Detection
+        MCP->>+NS: Detect namespace
+        NS->>NS: Find git root
+        NS->>NS: Parse CLAUDE.md
+        NS-->>-MCP: project/session namespace
+    end
 
-    MCP->>+LLM: Enrich content
-    LLM->>+API: Request enrichment
-    Note over API: Generate summary<br/>Extract keywords<br/>Assign tags<br/>Classify type<br/>Score importance
-    API-->>-LLM: Enrichment data
-    LLM-->>-MCP: Enriched memory note
+    rect rgb(255, 245, 230)
+        Note over MCP,API: Step 2: LLM Enrichment
+        MCP->>+LLM: Enrich content
+        LLM->>+API: Request enrichment
+        Note right of API: • Generate summary<br/>• Extract keywords<br/>• Assign tags<br/>• Classify type<br/>• Score importance
+        API-->>-LLM: Enrichment data
+        LLM-->>-MCP: Enriched memory note
+    end
 
-    MCP->>+LLM: Generate semantic links
-    LLM->>Store: Find candidate memories
-    Store-->>LLM: Similar memories
-    LLM->>+API: Analyze relationships
-    Note over API: Detect relationships<br/>Assign link types<br/>Score strengths
-    API-->>-LLM: Link specifications
-    LLM-->>-MCP: Memory links
+    rect rgb(255, 245, 230)
+        Note over MCP,API: Step 3: Semantic Linking
+        MCP->>+LLM: Generate semantic links
+        LLM->>Store: Find similar memories
+        Store-->>LLM: Candidate memories
+        LLM->>+API: Analyze relationships
+        Note right of API: • Detect relationships<br/>• Assign link types<br/>• Score strengths
+        API-->>-LLM: Link specifications
+        LLM-->>-MCP: Memory links
+    end
 
-    MCP->>+Store: Persist memory
-    Store->>DB: INSERT memory row
-    Store->>DB: UPDATE FTS5 index
-    Store->>DB: INSERT link rows
-    Store-->>-MCP: MemoryId
+    rect rgb(230, 255, 230)
+        Note over MCP,DB: Step 4: Persist to Database
+        MCP->>+Store: Persist memory
+        Store->>DB: INSERT memory row
+        Store->>DB: UPDATE FTS5 index
+        Store->>DB: INSERT link rows
+        DB-->>Store: Success
+        Store-->>-MCP: MemoryId
+    end
 
-    MCP-->>-User: Success + MemoryId
+    MCP-->>-User: ✓ Success + MemoryId
 ```
 
 ### 2. Memory Retrieval Flow
 
 ```mermaid
 sequenceDiagram
+    autonumber
     actor User as User/Agent
     participant MCP as MCP Server
     participant Store as Storage Layer
-    database DB as SQLite
     database FTS as FTS5 Index
+    database DB as SQLite
 
     User->>+MCP: mnemosyne.recall(query, filters)
-    MCP->>MCP: Validate query
+    Note right of MCP: Validate query format
 
-    MCP->>+Store: Search memories
-    Store->>FTS: Keyword search
-    FTS-->>Store: Matching memory IDs
-    Store->>DB: Filter by namespace
-    Store->>DB: Filter by type/tags
-    Store->>DB: Sort by relevance
-
-    alt Graph expansion enabled
-        Store->>DB: Recursive CTE query
-        Note over DB: Follow semantic links<br/>Max depth: 2 hops<br/>Collect related memories
-        DB-->>Store: Graph neighbors
-        Store->>Store: Merge & rank results
+    rect rgb(240, 240, 255)
+        Note over MCP,FTS: Step 1: Keyword Search
+        MCP->>+Store: Search memories
+        Store->>FTS: Full-text search
+        FTS-->>Store: Matching memory IDs
+        Store->>DB: Filter by namespace
+        Store->>DB: Filter by type/tags
+        DB-->>Store: Filtered results
     end
 
-    Store->>Store: Apply scoring
-    Note over Store: 50% keyword match<br/>20% graph proximity<br/>20% importance<br/>10% recency
+    alt Graph expansion enabled
+        rect rgb(255, 245, 230)
+            Note over Store,DB: Step 2: Graph Traversal
+            Store->>DB: Recursive CTE query
+            Note right of DB: • Follow semantic links<br/>• Max depth: 2 hops<br/>• Collect neighbors
+            DB-->>Store: Related memories
+            Store->>Store: Merge with keyword results
+        end
+    end
 
-    Store-->>-MCP: Ranked results
+    rect rgb(230, 255, 230)
+        Note over Store: Step 3: Hybrid Scoring
+        Store->>Store: Calculate scores
+        Note right of Store: • 50% keyword match<br/>• 20% graph proximity<br/>• 20% importance<br/>• 10% recency
+        Store->>Store: Sort by final score
+        Store-->>-MCP: Ranked memory list
+    end
 
-    MCP-->>-User: Memory list + metadata
+    MCP-->>-User: ✓ Memories + metadata
 ```
 
 ### 3. Context Building Flow
 
 ```mermaid
 sequenceDiagram
+    autonumber
     actor Agent as Multi-Agent System
     participant MCP as MCP Server
     participant NS as Namespace Detector
     participant Store as Storage Layer
     database DB as SQLite
 
-    Note over Agent: Session Start
+    Note over Agent: 🚀 Session Start
 
     Agent->>+MCP: mnemosyne.context()
 
-    MCP->>+NS: Detect project context
-    NS->>NS: Find git root
-    NS->>NS: Parse CLAUDE.md
-    NS->>NS: Generate session ID
-    NS-->>-MCP: Project + Session namespace
-
-    par Recent memories
-        MCP->>Store: Query recent (7 days)
-        Store->>DB: SELECT ORDER BY created_at
-        Store-->>MCP: Recent memories
-    and Important memories
-        MCP->>Store: Query important (score >= 8)
-        Store->>DB: SELECT WHERE importance >= 8
-        Store-->>MCP: High-importance memories
-    and Memory graph
-        MCP->>Store: Get graph overview
-        Store->>DB: Recursive CTE (depth=1)
-        Store-->>MCP: Connected memories
+    rect rgb(240, 240, 255)
+        Note over MCP,NS: Step 1: Project Detection
+        MCP->>+NS: Detect project context
+        NS->>NS: Find git root
+        NS->>NS: Parse CLAUDE.md
+        NS->>NS: Generate session ID
+        NS-->>-MCP: project + session namespace
     end
 
-    MCP->>MCP: Aggregate context
-    Note over MCP: Merge results<br/>Remove duplicates<br/>Calculate statistics
+    rect rgb(255, 245, 230)
+        Note over MCP,DB: Step 2: Parallel Context Queries
+        par Recent memories
+            MCP->>Store: Query recent (7 days)
+            Store->>DB: ORDER BY created_at DESC
+            Store-->>MCP: Recent memories
+        and Important memories
+            MCP->>Store: Query important (≥8)
+            Store->>DB: WHERE importance >= 8
+            Store-->>MCP: High-value memories
+        and Memory graph
+            MCP->>Store: Get graph overview
+            Store->>DB: Recursive CTE (depth=1)
+            Store-->>MCP: Connected memories
+        end
+    end
 
-    MCP-->>-Agent: Context payload
-    Note over Agent: • Project metadata<br/>• Recent work<br/>• Key decisions<br/>• Knowledge graph
+    rect rgb(230, 255, 230)
+        Note over MCP: Step 3: Context Assembly
+        MCP->>MCP: Merge all results
+        MCP->>MCP: Remove duplicates
+        MCP->>MCP: Calculate statistics
+        Note right of MCP: • Total memories<br/>• Coverage metrics<br/>• Link density
+    end
+
+    MCP-->>-Agent: ✓ Context payload
+    Note right of Agent: Ready with:<br/>• Project metadata<br/>• Recent work<br/>• Key decisions<br/>• Knowledge graph
 ```
 
 ---

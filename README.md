@@ -137,47 +137,59 @@ FEEDBACK → Link strength evolution, importance decay
 ## Architecture
 
 ```mermaid
-C4Container
-    title Mnemosyne System Architecture
+flowchart TD
+    User([Developer/Agent])
 
-    Person(user, "Developer/Agent", "Uses Claude Code")
+    subgraph Claude["🎯 Claude Code"]
+        UI[Slash Commands<br/>/memory-store, /memory-search, ...]
+        MCP[MCP Client]
+        Agents[Multi-Agent System<br/>Orchestrator • Optimizer<br/>Reviewer • Executor]
+    end
 
-    Container_Boundary(claude, "Claude Code") {
-        Container(ui, "User Interface", "CLI", "Slash commands")
-        Container(mcp_client, "MCP Client", "JSON-RPC", "Tool invocation")
-        Container(agents, "Multi-Agent System", "Python", "Orchestrator, Optimizer, Reviewer, Executor")
-    }
+    Protocol{{MCP Protocol<br/>JSON-RPC over stdio}}
 
-    Container_Boundary(mnemosyne, "Mnemosyne Server (Rust + Tokio)") {
-        Container(mcp_server, "MCP Server", "JSON-RPC", "8 OODA-aligned tools")
-        Container(storage, "Storage Layer", "SQLite + FTS5", "Hybrid search & graph")
-        Container(llm, "LLM Service", "Claude Haiku", "Memory enrichment")
-        Container(namespace, "Namespace Detector", "Git-aware", "Project context")
-    }
+    subgraph Mnemosyne["⚡ Mnemosyne Server (Rust + Tokio)"]
+        Server[MCP Server<br/>8 OODA Tools]
 
-    System_Ext(api, "Anthropic API", "Claude Haiku endpoint")
+        subgraph Services["Core Services"]
+            Storage[(Storage Layer<br/>SQLite + FTS5)]
+            LLM[LLM Service<br/>Claude Haiku]
+            NS[Namespace Detector<br/>Git + CLAUDE.md]
+        end
+    end
 
-    Rel(user, ui, "Uses", "Slash commands")
-    Rel(ui, mcp_client, "Invokes", "Function calls")
-    Rel(mcp_client, mcp_server, "Calls tools", "JSON-RPC/stdio")
-    Rel(agents, mcp_server, "Queries memories", "MCP tools")
+    API[/Anthropic API\]
 
-    Rel(mcp_server, storage, "Persists/retrieves", "CRUD + search")
-    Rel(mcp_server, llm, "Enriches", "Summaries, tags, links")
-    Rel(mcp_server, namespace, "Detects context", "Git root, CLAUDE.md")
+    User --> UI
+    UI --> MCP
+    Agents --> MCP
+    MCP <--> Protocol
+    Protocol <--> Server
 
-    Rel(llm, api, "Requests enrichment", "HTTPS")
-    Rel(storage, storage, "FTS5 keyword search")
-    Rel(storage, storage, "Graph traversal")
+    Server --> Storage
+    Server --> LLM
+    Server --> NS
 
-    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+    LLM --> API
+    Storage -.->|FTS5 Search| Storage
+    Storage -.->|Graph Traversal| Storage
+
+    style User fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    style Claude fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style Mnemosyne fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    style Protocol fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style Services fill:#fafafa,stroke:#616161,stroke-width:1px
+    style API fill:#e8f5e9,stroke:#388e3c,stroke-width:2px
 ```
 
-**Key Features**:
-- **Hybrid Search**: FTS5 keyword + graph traversal for semantic retrieval
-- **LLM Enrichment**: Auto-generates summaries, keywords, tags, and semantic links
-- **Project-Aware**: Automatic namespacing (global/project/session) via git detection
-- **OODA Integration**: 8 tools aligned to Observe-Orient-Decide-Act loops
+**Key Components**:
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Storage Layer** | SQLite + FTS5 | Hybrid search (keyword + graph traversal) |
+| **LLM Service** | Claude Haiku | Auto-generates summaries, tags, semantic links |
+| **Namespace Detector** | Git-aware | Project context (global/project/session) |
+| **MCP Server** | Rust + Tokio | 8 OODA-aligned tools via JSON-RPC |
 
 For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
