@@ -1377,6 +1377,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serial_test",
+ "sqlite-vec",
  "sqlx",
  "tempfile",
  "thiserror",
@@ -2466,6 +2467,15 @@ checksum = "7bba3a93db0cc4f7bdece8bb09e77e2e785c20bfebf79eb8340ed80708048790"
 dependencies = [
  "nom",
  "unicode_categories",
+]
+
+[[package]]
+name = "sqlite-vec"
+version = "0.1.7-alpha.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2388d9b97b32baa48a059df2f15a9bb49217fa1f9fb076e98c89e8fc02c8f2c4"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

@@ -398,9 +398,22 @@ impl ToolHandler {
             }
         }
 
-        // Optionally fetch linked memories
-        if include_links {
-            // TODO: Fetch linked memories
+        // Optionally fetch linked memories via graph traversal
+        if include_links && !memories.is_empty() {
+            // Use graph traversal to get linked memories (1-hop)
+            let seed_ids: Vec<MemoryId> = memories.iter().map(|m| m.id).collect();
+            match self.storage.graph_traverse(&seed_ids, 1).await {
+                Ok(linked) => {
+                    // Add linked memories that aren't already in the result set
+                    for linked_memory in linked {
+                        if !memories.iter().any(|m| m.id == linked_memory.id) {
+                            memories.push(linked_memory);
+                        }
+                    }
+                    debug!("Context expanded to {} memories with links", memories.len());
+                }
+                Err(e) => warn!("Failed to fetch linked memories: {}", e),
+            }
         }
 
         Ok(serde_json::json!({
