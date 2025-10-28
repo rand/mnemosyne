@@ -674,7 +674,21 @@ if __name__ == "__main__":
                     }
                     Err(e) => {
                         // LLM enrichment failed - fall back to basic memory
-                        warn!("LLM enrichment failed: {}, storing memory without enrichment", e);
+                        // Log specific error type for better debugging
+                        match &e {
+                            mnemosyne_core::MnemosyneError::AuthenticationError(_) => {
+                                warn!("LLM enrichment failed (invalid API key): {}, storing memory without enrichment", e);
+                            }
+                            mnemosyne_core::MnemosyneError::RateLimitExceeded(_) => {
+                                warn!("LLM enrichment failed (rate limit): {}, storing memory without enrichment", e);
+                            }
+                            mnemosyne_core::MnemosyneError::NetworkError(_) => {
+                                warn!("LLM enrichment failed (network error): {}, storing memory without enrichment", e);
+                            }
+                            _ => {
+                                warn!("LLM enrichment failed: {}, storing memory without enrichment", e);
+                            }
+                        }
 
                         use mnemosyne_core::MemoryNote;
                         use mnemosyne_core::types::MemoryId;

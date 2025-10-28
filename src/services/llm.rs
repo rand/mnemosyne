@@ -423,15 +423,38 @@ SUPERSEDING_ID: <memory_id if SUPERSEDE, otherwise NONE>
             .json(&request)
             .send()
             .await
-            .map_err(|e| MnemosyneError::Http(e))?;
+            .map_err(|e| {
+                // Map reqwest errors to appropriate MnemosyneError types
+                if e.is_timeout() || e.is_connect() {
+                    MnemosyneError::NetworkError(format!("Network connection failed: {}", e))
+                } else {
+                    MnemosyneError::Http(e)
+                }
+            })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            return Err(MnemosyneError::LlmApi(format!(
-                "API request failed with status {}: {}",
-                status, error_text
-            )));
+
+            // Return specific error types based on HTTP status code
+            return Err(match status.as_u16() {
+                401 | 403 => MnemosyneError::AuthenticationError(format!(
+                    "Invalid or missing API key (status {}): {}",
+                    status, error_text
+                )),
+                429 => MnemosyneError::RateLimitExceeded(format!(
+                    "API rate limit exceeded: {}",
+                    error_text
+                )),
+                500..=599 => MnemosyneError::NetworkError(format!(
+                    "LLM service unavailable (status {}): {}",
+                    status, error_text
+                )),
+                _ => MnemosyneError::LlmApi(format!(
+                    "API request failed with status {}: {}",
+                    status, error_text
+                )),
+            });
         }
 
         let api_response: AnthropicResponse = response
