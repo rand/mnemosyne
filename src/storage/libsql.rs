@@ -151,6 +151,9 @@ impl LibsqlStorage {
 
         let storage = Self { db };
 
+        // Verify database health before running migrations
+        storage.verify_database_health().await?;
+
         // Run migrations
         storage.run_migrations().await?;
 
@@ -205,6 +208,51 @@ impl LibsqlStorage {
         };
 
         Self::new(mode).await
+    }
+
+    /// Verify database health before operations
+    async fn verify_database_health(&self) -> Result<()> {
+        let conn = self.get_conn()?;
+
+        // Test 1: Basic query to detect corruption
+        let test_query = "SELECT 1";
+        conn.query(test_query, params![])
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!(
+                    "Database corruption detected or invalid database file: {}",
+                    e
+                ))
+            })?;
+
+        // Test 2: Check if database is writable
+        // Try to create a test table and drop it
+        let write_test = r#"
+            CREATE TABLE IF NOT EXISTS _health_check (id INTEGER PRIMARY KEY);
+            DROP TABLE IF EXISTS _health_check;
+        "#;
+
+        if let Err(e) = conn.execute_batch(write_test).await {
+            // Check if it's a read-only error
+            let error_msg = e.to_string().to_lowercase();
+            if error_msg.contains("read") && error_msg.contains("only")
+                || error_msg.contains("readonly")
+                || error_msg.contains("permission")
+            {
+                return Err(MnemosyneError::Database(format!(
+                    "Database is read-only or lacks write permissions: {}",
+                    e
+                )));
+            }
+            // Other write errors
+            return Err(MnemosyneError::Database(format!(
+                "Database write test failed: {}",
+                e
+            )));
+        }
+
+        debug!("Database health check passed");
+        Ok(())
     }
 
     /// Run database migrations
