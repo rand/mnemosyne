@@ -223,8 +223,8 @@ echo "========================================"
 
 OUTPUT6=$("$BIN" recall --query "" --namespace "project:ecommerce" --limit 3 2>&1)
 
-# Count results (heuristic)
-RESULT_COUNT=$(echo "$OUTPUT6" | grep -cE '[0-9]{4}-[0-9]{2}-[0-9]{2}|Importance:' || echo "0")
+# Count results (heuristic) - count numbered list items (1., 2., 3., etc.)
+RESULT_COUNT=$(echo "$OUTPUT6" | grep -cE '^\s*[0-9]+\.\s+' || echo "0")
 
 if [ "$RESULT_COUNT" -le 3 ]; then
     echo -e "${GREEN}[PASS]${NC} Limit parameter respected (showing $RESULT_COUNT <= 3)"
