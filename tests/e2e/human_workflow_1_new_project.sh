@@ -66,7 +66,7 @@ echo "Running: mnemosyne remember ..."
 
 OUTPUT1=$("$BIN" remember --content "$CONTENT1" --namespace "project:mnemosyne" --importance 8 2>&1)
 
-if echo "$OUTPUT1" | grep -q "stored successfully\|Stored memory"; then
+if echo "$OUTPUT1" | grep -qi "stored successfully\|Stored memory\|Memory saved"; then
     echo -e "${GREEN}[PASS]${NC} Memory stored successfully"
     ((PASSED++))
 
@@ -99,7 +99,7 @@ echo ""
 
 OUTPUT2=$("$BIN" remember --content "$CONTENT2" --namespace "project:mnemosyne" --importance 8 2>&1)
 
-if echo "$OUTPUT2" | grep -q "stored successfully\|Stored memory"; then
+if echo "$OUTPUT2" | grep -qi "stored successfully\|Stored memory\|Memory saved"; then
     echo -e "${GREEN}[PASS]${NC} Memory stored successfully"
     ((PASSED++))
 
@@ -122,7 +122,7 @@ echo ""
 
 OUTPUT3=$("$BIN" remember --content "$CONTENT3" --namespace "project:mnemosyne" --importance 7 2>&1)
 
-if echo "$OUTPUT3" | grep -q "stored successfully\|Stored memory"; then
+if echo "$OUTPUT3" | grep -qi "stored successfully\|Stored memory\|Memory saved"; then
     echo -e "${GREEN}[PASS]${NC} Memory stored successfully"
     ((PASSED++))
 else
