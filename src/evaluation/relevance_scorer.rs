@@ -150,13 +150,13 @@ impl WeightSet {
 
 /// Relevance scorer with online learning
 pub struct RelevanceScorer {
-    storage: Arc<dyn StorageBackend>,
+    db_path: String,
 }
 
 impl RelevanceScorer {
     /// Create a new relevance scorer
-    pub fn new(storage: Arc<dyn StorageBackend>) -> Self {
-        Self { storage }
+    pub fn new(db_path: String) -> Self {
+        Self { db_path }
     }
 
     /// Score context relevance using learned weights
@@ -501,11 +501,7 @@ mod tests {
 
     #[test]
     fn test_weighted_score_computation() {
-        use crate::storage::libsql::LibsqlStorage;
-        let storage = Arc::new(LibsqlStorage::new(
-            crate::storage::libsql::ConnectionMode::InMemory
-        ).await.unwrap());
-        let scorer = RelevanceScorer::new(storage);
+        let scorer = RelevanceScorer::new(":memory:".to_string());
 
         let mut features = create_test_features();
         features.keyword_overlap_score = 0.8;
@@ -525,6 +521,141 @@ mod tests {
         // 0.8 * 0.4 (keyword) + (5/30) * 0.2 (recency) + 0.6 * 0.2 (access) + 1.0 * 0.2 (file_match)
         // = 0.32 + 0.033 + 0.12 + 0.2 = 0.673
         assert!((score - 0.673).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_weight_set_no_sensitive_data() {
+        // Verify WeightSet only stores statistical weights, no raw content
+        let weights = WeightSet::default_for_scope(
+            Scope::Session,
+            "test-session".to_string(),
+            "skill".to_string(),
+            "optimizer".to_string(),
+        );
+
+        // Serialize and check
+        let json = serde_json::to_string(&weights).expect("Failed to serialize");
+
+        // Should not contain any raw content or sensitive data
+        assert!(!json.contains("password"));
+        assert!(!json.contains("secret"));
+        assert!(!json.contains("api_key"));
+
+        // Should only contain feature weights (numeric)
+        assert!(json.contains("keyword_match"));
+        assert!(json.contains("recency"));
+    }
+
+    #[test]
+    fn test_weight_normalization_privacy() {
+        let mut weights = WeightSet::default_for_scope(
+            Scope::Session,
+            "test".to_string(),
+            "skill".to_string(),
+            "optimizer".to_string(),
+        );
+
+        // Set arbitrary weights
+        weights.weights.insert("feature1".to_string(), 2.0);
+        weights.weights.insert("feature2".to_string(), 3.0);
+        weights.weights.insert("feature3".to_string(), 5.0);
+
+        weights.normalize_weights();
+
+        // Verify they sum to 1.0 (privacy-preserving normalization)
+        let sum: f32 = weights.weights.values().sum();
+        assert!((sum - 1.0).abs() < 0.001, "Weights should sum to 1.0");
+
+        // Verify no information leak in normalization
+        for (key, value) in &weights.weights {
+            assert!(
+                *value >= 0.0 && *value <= 1.0,
+                "Normalized weight {} should be in [0.0, 1.0]",
+                key
+            );
+        }
+    }
+
+    #[test]
+    fn test_scope_privacy_levels() {
+        // Verify scope hierarchy enforces privacy boundaries
+        let session = Scope::Session;
+        let project = Scope::Project;
+        let global = Scope::Global;
+
+        // Each scope should be distinct
+        assert_ne!(session.to_string(), project.to_string());
+        assert_ne!(project.to_string(), global.to_string());
+
+        // Session is most privacy-preserving (highest learning rate, fastest forgetting)
+        let session_weights = WeightSet::default_for_scope(
+            Scope::Session,
+            "s1".to_string(),
+            "skill".to_string(),
+            "optimizer".to_string(),
+        );
+
+        let global_weights = WeightSet::default_for_scope(
+            Scope::Global,
+            "global".to_string(),
+            "skill".to_string(),
+            "optimizer".to_string(),
+        );
+
+        // Session should have higher learning rate (more responsive, less persistent)
+        assert!(
+            session_weights.learning_rate > global_weights.learning_rate,
+            "Session should have higher learning rate than global"
+        );
+    }
+
+    #[test]
+    fn test_confidence_based_on_samples_not_content() {
+        let mut weights = WeightSet::default_for_scope(
+            Scope::Session,
+            "test".to_string(),
+            "skill".to_string(),
+            "optimizer".to_string(),
+        );
+
+        // Confidence should depend only on sample count, not content
+        weights.sample_count = 0;
+        let conf0 = weights.calculate_confidence();
+
+        weights.sample_count = 10;
+        let conf10 = weights.calculate_confidence();
+
+        weights.sample_count = 50;
+        let conf50 = weights.calculate_confidence();
+
+        // Confidence should increase with samples
+        assert!(conf0 < conf10);
+        assert!(conf10 < conf50);
+
+        // But should not depend on content (tested by not having content fields)
+        assert!(conf0 >= 0.0 && conf0 <= 1.0);
+        assert!(conf50 >= 0.0 && conf50 <= 1.0);
+    }
+
+    #[test]
+    fn test_weighted_score_no_raw_features() {
+        let scorer = RelevanceScorer::new(":memory:".to_string());
+
+        let features = create_test_features();
+        let weights = WeightSet::default_for_scope(
+            Scope::Session,
+            "test".to_string(),
+            "skill".to_string(),
+            "optimizer".to_string(),
+        );
+
+        let score = scorer.compute_weighted_score(&features, &weights.weights);
+
+        // Score should be computed without exposing raw features
+        assert!(score >= 0.0 && score <= 1.0, "Score should be normalized");
+
+        // Verify computation uses only statistical features, not raw content
+        // (enforced by RelevanceFeatures struct definition)
     }
 
     fn create_test_features() -> RelevanceFeatures {

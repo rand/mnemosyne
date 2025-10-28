@@ -13,8 +13,8 @@ Mnemosyne's multi-agent orchestration system provides **10-20x faster** storage 
 Claude Agent SDK (Python)
     ↓
 mnemosyne_core (PyO3 bindings)
-    ↓
-Mnemosyne Storage (Rust)
+    ├─→ Storage (Rust) - Memory operations
+    └─→ Evaluation (Rust) - Privacy-preserving learning
 ```
 
 **Key Performance Metrics**:
@@ -22,6 +22,13 @@ Mnemosyne Storage (Rust)
 - List operations: **0.88ms** average (<1ms target achieved!)
 - Search operations: **1.61ms** average
 - **Result: 10-20x performance improvement**
+
+**Privacy-Preserving Evaluation**:
+- Adaptive context relevance learning
+- Local-only storage (.mnemosyne/project.db, gitignored)
+- Statistical features only, no raw content
+- Graceful degradation when disabled
+- See [EVALUATION.md](EVALUATION.md) and [docs/PRIVACY.md](docs/PRIVACY.md)
 
 ---
 
