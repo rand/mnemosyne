@@ -78,38 +78,151 @@ pub enum ConnectionMode {
 }
 
 impl LibsqlStorage {
-    /// Create a new LibSQL storage backend
+    /// Validate database file before opening
+    ///
+    /// Checks:
+    /// 1. Database file exists (for local SQLite paths)
+    /// 2. Database is not corrupted (basic SQLite header check)
+    /// 3. File is readable
+    ///
+    /// # Arguments
+    /// * `db_path` - Path to the database file
+    /// * `must_exist` - If true, error if database doesn't exist. If false, skip existence check.
+    ///
+    /// # Returns
+    /// * `Ok(true)` if database exists and is valid
+    /// * `Ok(false)` if database doesn't exist and must_exist=false
+    /// * `Err(MnemosyneError)` with actionable message if validation fails
+    fn validate_database_file(db_path: &str, must_exist: bool) -> Result<bool> {
+        use std::fs;
+        use std::path::Path;
+
+        let path = Path::new(db_path);
+
+        // Check if database file exists
+        if !path.exists() {
+            if must_exist {
+                return Err(MnemosyneError::Database(format!(
+                    "Database file not found at '{}'. Please run 'mnemosyne init' first or check your DATABASE_URL configuration.",
+                    db_path
+                )));
+            } else {
+                // Database doesn't exist, but that's ok - caller will create it
+                return Ok(false);
+            }
+        }
+
+        // Database exists - validate it's a valid SQLite database
+        // SQLite files start with "SQLite format 3\0" (16 bytes)
+        match fs::read(path) {
+            Ok(bytes) => {
+                if bytes.len() < 16 {
+                    return Err(MnemosyneError::Database(format!(
+                        "Database file at '{}' is corrupted or invalid (file too small). Please delete it and run 'mnemosyne init' to reinitialize.",
+                        db_path
+                    )));
+                }
+
+                let header = &bytes[0..16];
+                let expected_header = b"SQLite format 3\0";
+
+                if header != expected_header {
+                    return Err(MnemosyneError::Database(format!(
+                        "Database file at '{}' is corrupted or not a valid SQLite database. Please delete it and run 'mnemosyne init' to reinitialize.",
+                        db_path
+                    )));
+                }
+
+                debug!("Database file validation passed: {}", db_path);
+                Ok(true)
+            }
+            Err(e) => {
+                // Check if it's a permission error
+                let error_msg = e.to_string();
+                if error_msg.contains("permission") || error_msg.contains("Permission") {
+                    Err(MnemosyneError::Database(format!(
+                        "Cannot read database file at '{}': Permission denied. Please check file permissions.",
+                        db_path
+                    )))
+                } else {
+                    Err(MnemosyneError::Database(format!(
+                        "Cannot read database file at '{}': {}. The file may be corrupted or inaccessible.",
+                        db_path, e
+                    )))
+                }
+            }
+        }
+    }
+
+    /// Create a new LibSQL storage backend with validation
     ///
     /// # Arguments
     /// * `mode` - Connection mode (local, in-memory, remote, or replica)
+    /// * `create_if_missing` - If true, create database if it doesn't exist. If false, error on missing database.
     ///
     /// # Example
     /// ```ignore
-    /// // Local file
-    /// let storage = LibsqlStorage::new(ConnectionMode::Local("mnemosyne.db".into())).await?;
+    /// // Normal use (database must exist)
+    /// let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local("mnemosyne.db".into()), false).await?;
     ///
-    /// // In-memory (testing)
-    /// let storage = LibsqlStorage::new(ConnectionMode::InMemory).await?;
-    ///
-    /// // Remote (Turso Cloud)
-    /// let storage = LibsqlStorage::new(ConnectionMode::Remote {
-    ///     url: "libsql://your-db.turso.io".into(),
-    ///     token: "your-token".into(),
-    /// }).await?;
+    /// // Init mode (create if missing)
+    /// let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local("mnemosyne.db".into()), true).await?;
     /// ```
-    pub async fn new(mode: ConnectionMode) -> Result<Self> {
-        info!("Connecting to LibSQL database: {:?}", mode);
+    pub async fn new_with_validation(mode: ConnectionMode, create_if_missing: bool) -> Result<Self> {
+        info!("Connecting to LibSQL database: {:?} (create_if_missing: {})", mode, create_if_missing);
+
+        // Validate database before connecting (for local paths only)
+        match &mode {
+            ConnectionMode::Local(ref path) => {
+                // Validate database file
+                let exists = Self::validate_database_file(path, !create_if_missing)?;
+
+                // If creating and doesn't exist, check parent directory
+                if create_if_missing && !exists {
+                    if let Some(parent) = std::path::Path::new(path).parent() {
+                        if !parent.exists() {
+                            return Err(MnemosyneError::Database(format!(
+                                "Database directory '{}' does not exist. Please create it first.",
+                                parent.display()
+                            )));
+                        }
+                    }
+                }
+            }
+            ConnectionMode::EmbeddedReplica { ref path, .. } => {
+                // Validate replica database file
+                let exists = Self::validate_database_file(path, !create_if_missing)?;
+
+                // If creating and doesn't exist, check parent directory
+                if create_if_missing && !exists {
+                    if let Some(parent) = std::path::Path::new(path).parent() {
+                        if !parent.exists() {
+                            return Err(MnemosyneError::Database(format!(
+                                "Database directory '{}' does not exist. Please create it first.",
+                                parent.display()
+                            )));
+                        }
+                    }
+                }
+            }
+            ConnectionMode::InMemory | ConnectionMode::Remote { .. } => {
+                // Skip validation for in-memory and remote databases
+                // Remote validation happens server-side
+            }
+        }
 
         let db = match mode {
             ConnectionMode::Local(ref path) => {
-                // Create parent directory if needed
-                if let Some(parent) = std::path::Path::new(path).parent() {
-                    std::fs::create_dir_all(parent).map_err(|e| {
-                        MnemosyneError::Database(format!(
-                            "Failed to create database directory {}: {}",
-                            parent.display(), e
-                        ))
-                    })?;
+                // Create parent directory only if create_if_missing is true
+                if create_if_missing {
+                    if let Some(parent) = std::path::Path::new(path).parent() {
+                        std::fs::create_dir_all(parent).map_err(|e| {
+                            MnemosyneError::Database(format!(
+                                "Failed to create database directory {}: {}",
+                                parent.display(), e
+                            ))
+                        })?;
+                    }
                 }
 
                 Builder::new_local(path)
@@ -130,14 +243,16 @@ impl LibsqlStorage {
                     .map_err(|e| MnemosyneError::Database(format!("Failed to create remote database: {}", e)))?
             }
             ConnectionMode::EmbeddedReplica { ref path, ref url, ref token } => {
-                // Create parent directory if needed
-                if let Some(parent) = std::path::Path::new(path).parent() {
-                    std::fs::create_dir_all(parent).map_err(|e| {
-                        MnemosyneError::Database(format!(
-                            "Failed to create replica directory {}: {}",
-                            parent.display(), e
-                        ))
-                    })?;
+                // Create parent directory only if create_if_missing is true
+                if create_if_missing {
+                    if let Some(parent) = std::path::Path::new(path).parent() {
+                        std::fs::create_dir_all(parent).map_err(|e| {
+                            MnemosyneError::Database(format!(
+                                "Failed to create replica directory {}: {}",
+                                parent.display(), e
+                            ))
+                        })?;
+                    }
                 }
 
                 Builder::new_remote_replica(path, url.clone(), token.clone())
@@ -172,6 +287,26 @@ impl LibsqlStorage {
         }
 
         Ok(storage)
+    }
+
+    /// Create a new LibSQL storage backend
+    ///
+    /// Default behavior: creates database if parent directory exists, fails if parent doesn't exist.
+    /// This provides a balance between convenience and security.
+    ///
+    /// # Arguments
+    /// * `mode` - Connection mode (local, in-memory, remote, or replica)
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Normal use (creates database if parent directory exists)
+    /// let storage = LibsqlStorage::new(ConnectionMode::Local("mnemosyne.db".into())).await?;
+    /// ```
+    pub async fn new(mode: ConnectionMode) -> Result<Self> {
+        // Default behavior: create if parent directory exists (convenient but safe)
+        // Use new_with_validation(..., true) for unconditional creation (init mode)
+        // Use new_with_validation(..., false) for strict validation (must exist)
+        Self::new_with_validation(mode, true).await
     }
 
     /// Create a new local file-based storage (convenience method)
