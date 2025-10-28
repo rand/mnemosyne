@@ -51,6 +51,9 @@ pub struct LauncherConfig {
     /// Load context at session start (default: true)
     pub load_context_on_start: bool,
 
+    /// Context loading configuration
+    pub context_config: context::ContextLoadConfig,
+
     /// Permission mode for Claude Code (default: "default")
     pub permission_mode: String,
 
@@ -70,6 +73,7 @@ impl Default for LauncherConfig {
             mnemosyne_namespace: None,
             mnemosyne_db_path: None,
             load_context_on_start: true,
+            context_config: context::ContextLoadConfig::default(),
             permission_mode: "default".to_string(),
             model: "sonnet".to_string(),
             enable_hooks: true,
@@ -104,21 +108,82 @@ impl ClaudeCodeLauncher {
         info!("Launching orchestrated Claude Code session");
         debug!("Configuration: {:?}", self.config);
 
-        // Generate configurations
-        let agent_config = self.generate_agent_config()?;
-        let mcp_config = self.generate_mcp_config()?;
+        // STEP 1: Initialize storage backend FIRST (eager initialization)
+        let db_path = self.config.mnemosyne_db_path.clone()
+            .unwrap_or_else(|| get_default_db_path());
+
+        let storage = match crate::storage::libsql::LibsqlStorage::new(
+            crate::storage::libsql::ConnectionMode::Local(db_path.clone())
+        ).await {
+            Ok(s) => {
+                info!("Storage initialized: {}", db_path);
+                std::sync::Arc::new(s)
+            }
+            Err(e) => {
+                warn!("Could not initialize storage for context loading: {}", e);
+                warn!("Launching without startup context");
+                return self.launch_without_context().await;
+            }
+        };
+
+        // STEP 2: Generate startup context with timeout protection
         let startup_prompt = if self.config.load_context_on_start {
-            self.generate_startup_context().await?
+            match tokio::time::timeout(
+                std::time::Duration::from_millis(500),
+                self.generate_startup_context_with_storage(storage.clone())
+            ).await {
+                Ok(Ok(context)) => {
+                    info!("Loaded startup context ({} bytes)", context.len());
+                    debug!("Context preview: {}...", &context.chars().take(100).collect::<String>());
+                    context
+                }
+                Ok(Err(e)) => {
+                    warn!("Context loading failed: {}", e);
+                    String::new()
+                }
+                Err(_) => {
+                    warn!("Context loading timed out (>500ms)");
+                    String::new()
+                }
+            }
         } else {
+            debug!("Context loading disabled by configuration");
             String::new()
         };
 
-        // Build command arguments
+        // STEP 3: Generate agent and MCP configurations
+        let agent_config = self.generate_agent_config()?;
+        let mcp_config = self.generate_mcp_config()?;
+
+        // STEP 4: Build command arguments
         let args = self.build_command_args(&agent_config, &mcp_config, &startup_prompt);
 
-        debug!("Launching Claude Code with args: {:?}", args);
+        debug!("Launching Claude Code with {} bytes of startup context", startup_prompt.len());
 
-        // Execute Claude Code (replaces current process)
+        // STEP 5: Execute Claude Code (replaces current process)
+        let status = Command::new(&self.claude_binary)
+            .args(&args)
+            .status()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to launch Claude Code: {}", e)))?;
+
+        if !status.success() {
+            return Err(MnemosyneError::Other(format!(
+                "Claude Code exited with status: {:?}",
+                status.code()
+            )));
+        }
+
+        Ok(())
+    }
+
+    /// Launch without context (fallback for storage errors)
+    async fn launch_without_context(&self) -> Result<()> {
+        info!("Launching without startup context");
+
+        let agent_config = self.generate_agent_config()?;
+        let mcp_config = self.generate_mcp_config()?;
+        let args = self.build_command_args(&agent_config, &mcp_config, &String::new());
+
         let status = Command::new(&self.claude_binary)
             .args(&args)
             .status()
@@ -154,11 +219,20 @@ impl ClaudeCodeLauncher {
         generator.generate_config()
     }
 
-    /// Generate startup context prompt
-    async fn generate_startup_context(&self) -> Result<String> {
-        // For now, return empty string - will implement in Phase 2
-        // TODO: Implement context loading from memory system
-        Ok(String::new())
+    /// Generate startup context prompt with storage backend
+    async fn generate_startup_context_with_storage(
+        &self,
+        storage: std::sync::Arc<dyn crate::storage::StorageBackend>,
+    ) -> Result<String> {
+        let namespace = self.config.mnemosyne_namespace.clone()
+            .unwrap_or_else(|| detect_namespace());
+
+        let loader = context::ContextLoader::new(storage);
+
+        loader.generate_startup_prompt(
+            &namespace,
+            &self.config.context_config
+        ).await
     }
 
     /// Build command-line arguments for Claude Code
