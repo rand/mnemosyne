@@ -636,11 +636,9 @@ if __name__ == "__main__":
             let storage =
                 LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
 
-            let llm = LlmService::with_default()?;
-            let embedding_service = {
-                let config = LlmConfig::default();
-                EmbeddingService::new(config.api_key.clone(), config)
-            };
+            // Check if API key is available for LLM enrichment
+            let llm_config = LlmConfig::default();
+            let has_api_key = !llm_config.api_key.is_empty();
 
             // Parse namespace
             let ns = if namespace.starts_with("project:") {
@@ -660,11 +658,48 @@ if __name__ == "__main__":
                 mnemosyne_core::Namespace::Global
             };
 
-            // Enrich memory with LLM
-            let ctx = context.unwrap_or_else(|| "CLI input".to_string());
-            let mut memory = llm.enrich_memory(&content, &ctx).await?;
+            // Create or enrich memory
+            let mut memory = if has_api_key {
+                // Enrich memory with LLM
+                let llm = LlmService::new(llm_config.clone())?;
+                let ctx = context.unwrap_or_else(|| "CLI input".to_string());
+                llm.enrich_memory(&content, &ctx).await?
+            } else {
+                // Create basic memory without LLM enrichment
+                debug!("Creating basic memory without LLM enrichment - no API key");
+                use mnemosyne_core::MemoryNote;
+                use mnemosyne_core::types::MemoryId;
 
-            // Override with CLI parameters
+                let now = chrono::Utc::now();
+                let ctx = context.unwrap_or_else(|| "CLI input".to_string());
+
+                MemoryNote {
+                    id: MemoryId::new(),
+                    namespace: ns.clone(),
+                    created_at: now,
+                    updated_at: now,
+                    content: content.clone(),
+                    summary: content.chars().take(100).collect::<String>(),
+                    keywords: Vec::new(),
+                    tags: Vec::new(),
+                    context: ctx,
+                    memory_type: mnemosyne_core::MemoryType::Insight,
+                    importance: importance.clamp(1, 10),
+                    confidence: 0.5,
+                    links: Vec::new(),
+                    related_files: Vec::new(),
+                    related_entities: Vec::new(),
+                    access_count: 0,
+                    last_accessed_at: now,
+                    expires_at: None,
+                    is_archived: false,
+                    superseded_by: None,
+                    embedding: None,
+                    embedding_model: String::new(),
+                }
+            };
+
+            // Override with CLI parameters (in case LLM set different values)
             memory.namespace = ns;
             memory.importance = importance.clamp(1, 10);
 
@@ -678,9 +713,16 @@ if __name__ == "__main__":
                 memory.tags.extend(custom_tags);
             }
 
-            // Generate embedding
-            let embedding = embedding_service.generate_embedding(&memory.content).await?;
-            memory.embedding = Some(embedding);
+            // Generate embedding if API key available
+            if has_api_key {
+                let embedding_service = EmbeddingService::new(llm_config.api_key.clone(), llm_config);
+                match embedding_service.generate_embedding(&memory.content).await {
+                    Ok(embedding) => memory.embedding = Some(embedding),
+                    Err(_) => {
+                        debug!("Failed to generate embedding, storing without it");
+                    }
+                }
+            }
 
             // Store memory
             storage.store_memory(&memory).await?;
