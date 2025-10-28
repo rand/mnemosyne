@@ -96,6 +96,18 @@ pub enum MnemosyneError {
     #[error("Resource already exists: {0}")]
     AlreadyExists(String),
 
+    /// Permission denied for access control
+    #[error("Permission denied: {0}")]
+    PermissionDenied(String),
+
+    /// Access control operation failed
+    #[error("Access control error: {0}")]
+    AccessControl(String),
+
+    /// Audit log operation failed
+    #[error("Audit log error: {0}")]
+    AuditLog(String),
+
     /// Generic error with context
     #[error("{0}")]
     Other(String),

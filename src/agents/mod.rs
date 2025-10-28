@@ -29,7 +29,9 @@ pub mod memory_view;
 pub mod prefetcher;
 
 // Re-export commonly used types
-pub use access_control::{MemoryAccessControl, ModificationLog, ModificationType};
+pub use access_control::{
+    MemoryAccessControl, MemoryMetadata, MemoryUpdates, ModificationLog, ModificationType,
+};
 pub use importance_scorer::{CustomImportanceScorer, ImportanceWeights};
 pub use memory_view::{AgentMemoryView, AgentRole};
 pub use prefetcher::{MemoryPrefetcher, PrefetchMetrics, PrefetchTrigger};

@@ -23,9 +23,14 @@ tokio-util = { version = "0.7", features = ["codec"] }
 libsql = { version = "0.9", features = ["core", "replication", "sync"] }
 libsql_migration = { version = "0.2", features = ["dir"] }
 
+# Vector search (dual storage approach)
+rusqlite = { version = "0.31", features = ["bundled", "vtab"] }
+sqlite-vec = "0.1.1"
+
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+toml = "0.8"
 
 # LLM Integration
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }

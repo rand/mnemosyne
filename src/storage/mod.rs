@@ -4,6 +4,7 @@
 //! embeddings, links, and audit logs.
 
 pub mod libsql;
+pub mod vectors;
 
 use crate::error::Result;
 use crate::types::{MemoryId, MemoryNote, Namespace, SearchResult};

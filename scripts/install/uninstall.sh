@@ -28,6 +28,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 DEFAULT_BIN_DIR="${HOME}/.local/bin"
 BIN_DIR="${DEFAULT_BIN_DIR}"
 PURGE=false
@@ -171,8 +172,8 @@ show_removal_plan() {
     fi
 
     # Project MCP config
-    if [ -f "${SCRIPT_DIR}/.claude/mcp_config.json" ]; then
-        echo "  ${BOLD}✓${NC} Project MCP config: ${SCRIPT_DIR}/.claude/mcp_config.json"
+    if [ -f "${PROJECT_ROOT}/.claude/mcp_config.json" ]; then
+        echo "  ${BOLD}✓${NC} Project MCP config: ${PROJECT_ROOT}/.claude/mcp_config.json"
     else
         echo "  ${YELLOW}-${NC} Project MCP config: (not found)"
     fi
@@ -192,8 +193,8 @@ show_removal_plan() {
 
     # Database
     local db_files=()
-    if [ -f "${SCRIPT_DIR}/mnemosyne.db" ]; then
-        db_files+=("${SCRIPT_DIR}/mnemosyne.db")
+    if [ -f "${PROJECT_ROOT}/mnemosyne.db" ]; then
+        db_files+=("${PROJECT_ROOT}/mnemosyne.db")
     fi
     if [ -f "${HOME}/.mnemosyne/mnemosyne.db" ]; then
         db_files+=("${HOME}/.mnemosyne/mnemosyne.db")
@@ -255,8 +256,8 @@ remove_database() {
     local db_files=()
 
     # Find all database files
-    if [ -f "${SCRIPT_DIR}/mnemosyne.db" ]; then
-        db_files+=("${SCRIPT_DIR}/mnemosyne.db")
+    if [ -f "${PROJECT_ROOT}/mnemosyne.db" ]; then
+        db_files+=("${PROJECT_ROOT}/mnemosyne.db")
     fi
     if [ -f "${HOME}/.mnemosyne/mnemosyne.db" ]; then
         db_files+=("${HOME}/.mnemosyne/mnemosyne.db")
@@ -332,7 +333,7 @@ remove_mcp_config() {
     print_header "Removing MCP configuration"
 
     # Project-level config
-    local project_mcp="${SCRIPT_DIR}/.claude/mcp_config.json"
+    local project_mcp="${PROJECT_ROOT}/.claude/mcp_config.json"
     if [ -f "$project_mcp" ]; then
         # Create backup
         local backup_file="${project_mcp}.backup.$(date +%Y%m%d_%H%M%S)"
@@ -442,9 +443,9 @@ print_summary() {
     fi
 
     # Check for any remaining files
-    if [ -f "${SCRIPT_DIR}/mnemosyne.db" ] || [ -f "${HOME}/.mnemosyne/mnemosyne.db" ]; then
+    if [ -f "${PROJECT_ROOT}/mnemosyne.db" ] || [ -f "${HOME}/.mnemosyne/mnemosyne.db" ]; then
         echo "Remaining files:"
-        [ -f "${SCRIPT_DIR}/mnemosyne.db" ] && echo "  - ${SCRIPT_DIR}/mnemosyne.db"
+        [ -f "${PROJECT_ROOT}/mnemosyne.db" ] && echo "  - ${PROJECT_ROOT}/mnemosyne.db"
         [ -f "${HOME}/.mnemosyne/mnemosyne.db" ] && echo "  - ${HOME}/.mnemosyne/mnemosyne.db"
         echo ""
     fi

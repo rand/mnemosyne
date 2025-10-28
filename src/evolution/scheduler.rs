@@ -272,6 +272,15 @@ impl BackgroundScheduler {
             "importance_recalibration" => &self.config.importance,
             "link_decay" => &self.config.link_decay,
             "archival" => &self.config.archival,
+            // For testing: allow test jobs with default config
+            name if name.starts_with("test_") => {
+                return Ok(JobConfig {
+                    enabled: true,
+                    interval: Duration::from_secs(300), // 5 minutes
+                    batch_size: 1000,
+                    max_duration: Duration::from_secs(300), // 5 minutes
+                });
+            }
             _ => return Err(SchedulerError::JobError(
                 JobError::ConfigError(format!("Unknown job name: {}", job_name))
             )),

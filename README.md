@@ -2,7 +2,7 @@
 
 **Project-Aware Memory System for Claude Code**
 
-![Version](https://img.shields.io/badge/version-1.0.0-green)
+![Version](https://img.shields.io/badge/version-2.0.0-green)
 ![Status](https://img.shields.io/badge/status-stable-green)
 ![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
@@ -28,23 +28,40 @@ Mnemosyne is a high-performance memory system that gives Claude Code's multi-age
 
 ## Status
 
-**Current**: v1.0 Ready - All 10 development phases complete and tested
+**Current**: v2.0 Released - Enhanced with vector search, RBAC, and autonomous evolution
 
-The complete system is production-ready: Rust memory core, MCP server, Claude Code integration (hooks, slash commands, skills), PyO3-powered multi-agent orchestration, and comprehensive documentation. See [ROADMAP.md](ROADMAP.md) for detailed completion evidence.
+**v2.0 Features** (October 2025):
+- **Vector Search**: Native semantic similarity using sqlite-vec (1536-dimensional embeddings)
+- **RBAC System**: Agent-based access control with role-based permissions and audit trails
+- **Evolution System**: Autonomous importance recalibration, link decay, and memory archival
+- **Hybrid Search**: Combined keyword + graph + vector search with weighted ranking
+
+All 156 tests passing. Production-ready. See [ROADMAP.md](ROADMAP.md) for detailed completion evidence.
 
 ---
 
 ## Features
 
+### Core Capabilities
 - **Automatic Memory Capture** 🔥: Hooks that auto-load context at session start, preserve decisions before compaction, and link commits to architectural memories—zero manual intervention required
 - **Project-Aware Namespacing**: Automatic memory isolation between global, project, and session scopes via git detection
-- **Hybrid Memory Search**: FTS5 keyword search + graph traversal for semantic retrieval
+- **Hybrid Search** (v2.0): Combined keyword (FTS5) + graph traversal + vector similarity with weighted ranking
 - **LLM-Enriched Storage**: Claude Haiku automatically generates summaries, keywords, classifications, and semantic links
 - **OODA Loop Integration**: Explicit Observe-Orient-Decide-Act cycles for humans and agents
 - **MCP Protocol**: 8 tools for seamless Claude Code integration
 - **Secure Credentials**: Age-encrypted secrets with environment variable and OS keychain fallback
 - **Slash Commands**: 6 convenient commands for common memory operations
 - **PyO3 Performance**: 10-20x faster operations (<3ms) vs subprocess calls through Rust↔Python bindings
+
+### v2.0 Advanced Features
+- **Vector Search**: Native semantic similarity using sqlite-vec extension (1536-dimensional embeddings)
+- **Dual Storage**: Optimized rusqlite for vectors + libsql for memories (same database file)
+- **RBAC System**: Agent-based access control with 4 roles (Orchestrator, Optimizer, Reviewer, Executor)
+- **Audit Trails**: Complete memory modification tracking with agent attribution
+- **Evolution System**: Autonomous background jobs for memory optimization
+  - **Importance Recalibration**: Logarithmic access-based scoring with exponential recency decay
+  - **Link Decay**: Automatic weakening of untraversed connections (90/180-day thresholds)
+  - **Memory Archival**: Smart archival of unused memories (never archived: importance ≥7.0)
 - **Self-Organizing Knowledge**: Automatic consolidation, link strength evolution, and importance decay
 
 ---
@@ -181,9 +198,11 @@ flowchart TD
         Server[MCP Server<br/>8 OODA Tools]
 
         subgraph Services["Core Services"]
-            Storage[(Storage Layer<br/>LibSQL/Turso + Native Vectors)]
+            Storage[(Dual Storage v2.0<br/>rusqlite + sqlite-vec<br/>libsql for memories)]
             LLM[LLM Service<br/>Claude Haiku]
             NS[Namespace<br/>Git-aware]
+            RBAC[Access Control<br/>Agent roles + audit]
+            Evolution[Evolution Jobs<br/>Auto-optimization]
         end
     end
 

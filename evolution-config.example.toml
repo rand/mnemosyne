@@ -1,0 +1,59 @@
+# Mnemosyne Evolution Configuration Example
+#
+# This file configures the background evolution jobs that automatically
+# optimize the memory system without user intervention.
+
+# Enable or disable all evolution jobs globally
+enabled = true
+
+# Consolidation Job
+# Detects and merges duplicate memories using vector similarity and keyword overlap
+[consolidation]
+enabled = true
+# Run daily (86400 seconds = 24 hours)
+interval = 86400
+# Process up to 100 memories per run
+batch_size = 100
+# Maximum 5 minutes per run
+max_duration = 300
+
+# Importance Recalibration Job
+# Adjusts memory importance scores based on access patterns, recency, and links
+[importance]
+enabled = true
+# Run weekly (604800 seconds = 7 days)
+interval = 604800
+# Process up to 1000 memories per run
+batch_size = 1000
+# Maximum 5 minutes per run
+max_duration = 300
+
+# Link Decay Job
+# Weakens untraversed links over time, removes very weak links
+[link_decay]
+enabled = true
+# Run weekly (604800 seconds = 7 days)
+interval = 604800
+# Process up to 1000 links per run
+batch_size = 1000
+# Maximum 5 minutes per run
+max_duration = 300
+
+# Archival Job
+# Archives unused memories based on importance and access patterns
+[archival]
+enabled = true
+# Run monthly (2592000 seconds = 30 days)
+interval = 2592000
+# Process up to 500 memories per run
+batch_size = 500
+# Maximum 5 minutes per run
+max_duration = 300
+
+# Notes:
+# - Jobs only run when the system is idle (no active queries in last 5 minutes)
+# - All operations are non-destructive (archival is reversible, consolidation keeps audit trail)
+# - Minimum interval: 1 hour (3600 seconds)
+# - Maximum interval: No limit (but monthly/yearly intervals recommended)
+# - Batch sizes: 1-10000 (recommended: 100-1000)
+# - Max duration: 1-30 minutes (60-1800 seconds)
