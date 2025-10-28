@@ -429,7 +429,8 @@ impl ToolHandler {
         let max_hops = params.max_hops.unwrap_or(2);
 
         // Call storage graph traversal
-        let memories = self.storage.graph_traverse(&seed_ids, max_hops).await?;
+        // Note: MCP graph tool doesn't filter by namespace for exploratory traversal
+        let memories = self.storage.graph_traverse(&seed_ids, max_hops, None).await?;
 
         Ok(serde_json::json!({
             "memories": memories,
@@ -469,7 +470,7 @@ impl ToolHandler {
         if include_links && !memories.is_empty() {
             // Use graph traversal to get linked memories (1-hop)
             let seed_ids: Vec<MemoryId> = memories.iter().map(|m| m.id).collect();
-            match self.storage.graph_traverse(&seed_ids, 1).await {
+            match self.storage.graph_traverse(&seed_ids, 1, None).await {
                 Ok(linked) => {
                     // Add linked memories that aren't already in the result set
                     for linked_memory in linked {
