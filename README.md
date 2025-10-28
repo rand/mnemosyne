@@ -188,7 +188,7 @@ Mnemosyne's evaluation system helps the Optimizer agent learn which context is m
 - ✅ **Hashed Tasks**: SHA256 hash of task descriptions (16 chars only)
 - ✅ **Limited Keywords**: Max 10 generic keywords, no sensitive terms
 - ✅ **Statistical Features**: Only computed metrics stored, never raw content
-- ✅ **No Network Calls**: Uses existing Anthropic API calls, no separate requests
+- ✅ **No Additional Network Calls**: Uses existing Anthropic API calls, no separate requests
 - ✅ **Graceful Degradation**: System works perfectly when disabled
 
 **How It Works**:
