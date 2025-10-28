@@ -102,9 +102,20 @@ impl SqliteVectorStorage {
         let embedding_json = serde_json::to_string(embedding)
             .map_err(|e| MnemosyneError::Other(format!("Failed to serialize embedding: {}", e)))?;
 
+        // Virtual tables don't support INSERT OR REPLACE, so delete first if exists
         self.conn
             .execute(
-                "INSERT OR REPLACE INTO memory_vectors (memory_id, embedding)
+                "DELETE FROM memory_vectors WHERE memory_id = ?",
+                rusqlite::params![id],
+            )
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to delete existing vector: {}", e))
+            })?;
+
+        // Then insert the new vector
+        self.conn
+            .execute(
+                "INSERT INTO memory_vectors (memory_id, embedding)
                  VALUES (?, vec_f32(?))",
                 rusqlite::params![id, embedding_json],
             )
