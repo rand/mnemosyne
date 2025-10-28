@@ -84,6 +84,7 @@ agentic_workflow_1_orchestrator.sh
 agentic_workflow_2_optimizer.sh
 agentic_workflow_3_reviewer.sh
 agentic_workflow_4_executor.sh
+agentic_workflow_5_evaluation_learning.sh
 "
 
 # Failure scenarios
