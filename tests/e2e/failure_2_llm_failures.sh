@@ -37,7 +37,7 @@ unset ANTHROPIC_API_KEY
 
 # Try to create memory without API key
 NO_KEY_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Test memory without API key" \
+    --content "Test memory without API key" \
     --namespace "project:test" --importance 7 2>&1 || echo "NO_KEY_ERROR")
 
 NO_KEY_EXIT=$?
@@ -77,7 +77,7 @@ export ANTHROPIC_API_KEY="sk-ant-invalid-test-key-12345"
 
 # Try to create memory with invalid key
 INVALID_KEY_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Test memory with invalid API key" \
+    --content "Test memory with invalid API key" \
     --namespace "project:test" --importance 7 2>&1 || echo "INVALID_KEY_ERROR")
 
 INVALID_KEY_EXIT=$?
@@ -110,7 +110,7 @@ print_cyan "Testing graceful degradation when enrichment fails..."
 # Create memory that should trigger enrichment
 # Note: This test validates that if enrichment fails, memory is still stored
 DEGRADED_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Important decision: Using microservices architecture for scalability" \
+    --content "Important decision: Using microservices architecture for scalability" \
     --namespace "project:test" --importance 8 2>&1 || echo "")
 
 sleep 2
@@ -134,7 +134,7 @@ print_cyan "Testing LLM timeout handling..."
 START_TIME=$(date +%s)
 
 TIMEOUT_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" timeout 60 "$BIN" remember \
-    "Test memory for timeout validation - this should not hang indefinitely" \
+    --content "Test memory for timeout validation - this should not hang indefinitely" \
     --namespace "project:test" --importance 7 2>&1 || echo "TIMEOUT_ERROR")
 
 END_TIME=$(date +%s)
@@ -158,7 +158,7 @@ print_cyan "Testing handling of incomplete LLM responses..."
 COMPLEX_CONTENT="Memory with special characters: @#\$%^&*() and unicode: 你好世界 émojis: 🚀🎯"
 
 PARTIAL_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "$COMPLEX_CONTENT" \
+    --content "$COMPLEX_CONTENT" \
     --namespace "project:test" --importance 6 2>&1 || echo "")
 
 sleep 2
@@ -185,7 +185,7 @@ RATE_LIMIT_ERRORS=0
 
 for i in {1..5}; do
     RAPID_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-        "Rapid memory creation test $i - testing rate limit handling" \
+        --content "Rapid memory creation test $i - testing rate limit handling" \
         --namespace "project:ratelimit" --importance 6 2>&1 || echo "RAPID_ERROR_$i")
 
     if echo "$RAPID_OUTPUT" | grep -qi "rate.*limit\|429\|too.*many.*requests"; then
@@ -225,7 +225,7 @@ print_cyan "Testing LLM fallback behavior..."
 # even when enrichment might fail
 
 FALLBACK_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Fallback test: This memory should be stored even if enrichment fails" \
+    --content "Fallback test: This memory should be stored even if enrichment fails" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
 sleep 2
@@ -247,7 +247,7 @@ print_cyan "Testing handling of empty LLM responses..."
 # System should handle this gracefully
 
 EMPTY_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "" \
+    --content "" \
     --namespace "project:test" --importance 5 2>&1 || echo "EMPTY_ERROR")
 
 EMPTY_EXIT=$?
@@ -270,7 +270,7 @@ print_cyan "Testing error recovery after LLM failures..."
 
 # Create memory after all the error scenarios above
 RECOVERY_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Recovery test: System should work normally after previous errors" \
+    --content "Recovery test: System should work normally after previous errors" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
 sleep 2
@@ -290,7 +290,7 @@ print_cyan "Testing enrichment metadata integrity..."
 
 # Create memory and verify that enrichment metadata (if present) is valid
 METADATA_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Metadata test: Architectural decision to use event-driven architecture" \
+    --content "Metadata test: Architectural decision to use event-driven architecture" \
     --namespace "project:test" --importance 8 2>&1 || echo "")
 
 sleep 2
