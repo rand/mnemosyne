@@ -58,9 +58,11 @@ impl LocalEmbeddingService {
 
         // Create initialization options
         let show_progress = config.show_download_progress;
+        let cache_dir = config.cache_dir.clone();
         let mut init_options = InitOptions::default();
         init_options.model_name = embedding_model;
         init_options.show_download_progress = show_progress;
+        init_options.cache_dir = cache_dir;
 
         // Load model in blocking task (may download if not cached)
         let model = task::spawn_blocking(move || {
