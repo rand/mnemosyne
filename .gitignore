@@ -5,7 +5,13 @@ __pycache__/
 .venv/
 *.so
 .pytest_cache/
+
+# Mnemosyne databases and runtime data
 *.db
+*.db-wal
+*.db-shm
+.mnemosyne/
+
 .DS_Store
 test_output*.log
 /tmp/
