@@ -8,17 +8,34 @@ use mnemosyne_core::agents::{
 };
 use mnemosyne_core::storage::libsql::LibsqlStorage;
 use mnemosyne_core::types::{MemoryType, Namespace};
+use mnemosyne_core::StorageBackend; // Trait methods needed for Arc<LibsqlStorage>
 use std::sync::Arc;
 use tempfile::tempdir;
 
-/// Helper to create test storage
-async fn create_test_storage() -> LibsqlStorage {
+/// Test fixture containing both storage and temp directory
+///
+/// The TempDir must outlive the storage to keep the database file alive.
+struct TestFixture {
+    storage: Arc<LibsqlStorage>,
+    _temp_dir: tempfile::TempDir, // Keep alive for test duration
+}
+
+/// Helper to create test storage with proper lifetime management
+///
+/// Returns both storage and temp directory. The temp directory must be kept
+/// alive for the duration of the test to prevent database file deletion.
+async fn create_test_storage() -> TestFixture {
     let temp_dir = tempdir().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test_rbac.db");
 
-    LibsqlStorage::new_local(db_path.to_str().unwrap())
+    let storage = LibsqlStorage::new_local(db_path.to_str().unwrap())
         .await
-        .expect("Failed to create storage")
+        .expect("Failed to create storage");
+
+    TestFixture {
+        storage: Arc::new(storage),
+        _temp_dir: temp_dir,
+    }
 }
 
 /// Helper to create test metadata
@@ -41,8 +58,8 @@ fn create_test_metadata() -> MemoryMetadata {
 
 #[tokio::test]
 async fn test_agent_can_create_memory() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage.clone()));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     let metadata = create_test_metadata();
     let result = access_control
@@ -53,15 +70,15 @@ async fn test_agent_can_create_memory() {
     let memory_id = result.unwrap();
 
     // Verify memory was created
-    let memory = storage.get_memory(memory_id).await;
+    let memory = fixture.storage.get_memory(memory_id).await;
     assert!(memory.is_ok());
     assert_eq!(memory.unwrap().content, "Test memory content");
 }
 
 #[tokio::test]
 async fn test_agent_can_update_own_memory() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage.clone()));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     // Create a memory
     let metadata = create_test_metadata();
@@ -82,7 +99,7 @@ async fn test_agent_can_update_own_memory() {
     assert!(result.is_ok(), "Agent should be able to update own memory");
 
     // Verify updates were applied
-    let memory = storage.get_memory(memory_id).await.unwrap();
+    let memory = fixture.storage.get_memory(memory_id).await.unwrap();
     assert_eq!(memory.content, "Updated content");
     assert_eq!(memory.summary, "Updated summary");
     assert_eq!(memory.importance, 9);
@@ -90,8 +107,8 @@ async fn test_agent_can_update_own_memory() {
 
 #[tokio::test]
 async fn test_agent_can_delete_own_memory() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage.clone()));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     // Create a memory
     let metadata = create_test_metadata();
@@ -105,7 +122,7 @@ async fn test_agent_can_delete_own_memory() {
     assert!(result.is_ok(), "Agent should be able to delete own memory");
 
     // Verify memory was archived
-    let memory = storage.get_memory(memory_id).await;
+    let memory = fixture.storage.get_memory(memory_id).await;
     // Memory should be archived, not deleted
     assert!(memory.is_ok());
     assert!(memory.unwrap().is_archived);
@@ -113,8 +130,8 @@ async fn test_agent_can_delete_own_memory() {
 
 #[tokio::test]
 async fn test_agent_can_archive_own_memory() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage.clone()));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     // Create a memory
     let metadata = create_test_metadata();
@@ -128,14 +145,14 @@ async fn test_agent_can_archive_own_memory() {
     assert!(result.is_ok(), "Agent should be able to archive own memory");
 
     // Verify memory was archived
-    let memory = storage.get_memory(memory_id).await.unwrap();
+    let memory = fixture.storage.get_memory(memory_id).await.unwrap();
     assert!(memory.is_archived);
 }
 
 #[tokio::test]
 async fn test_default_visibility_executor() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, fixture.storage);
 
     let visibility = access_control.default_visibility();
 
@@ -146,8 +163,8 @@ async fn test_default_visibility_executor() {
 
 #[tokio::test]
 async fn test_default_visibility_orchestrator() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Orchestrator, Arc::new(storage));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Orchestrator, fixture.storage);
 
     let visibility = access_control.default_visibility();
 
@@ -158,8 +175,8 @@ async fn test_default_visibility_orchestrator() {
 
 #[tokio::test]
 async fn test_default_visibility_optimizer() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Optimizer, Arc::new(storage));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Optimizer, fixture.storage);
 
     let visibility = access_control.default_visibility();
 
@@ -170,8 +187,8 @@ async fn test_default_visibility_optimizer() {
 
 #[tokio::test]
 async fn test_default_visibility_reviewer() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Reviewer, Arc::new(storage));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Reviewer, fixture.storage);
 
     let visibility = access_control.default_visibility();
 
@@ -182,8 +199,8 @@ async fn test_default_visibility_reviewer() {
 
 #[tokio::test]
 async fn test_custom_visibility_override() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, fixture.storage);
 
     // Create memory with custom visibility
     let mut metadata = create_test_metadata();
@@ -211,8 +228,8 @@ async fn test_admin_mode_with_env_var() {
     // Set admin mode
     std::env::set_var("MNEMOSYNE_ADMIN_MODE", "1");
 
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, fixture.storage);
 
     assert!(access_control.is_admin(), "Admin mode should be detected");
 
@@ -231,8 +248,8 @@ async fn test_admin_mode_with_human_user() {
     // Set human user
     std::env::set_var("MNEMOSYNE_USER", "human");
 
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, fixture.storage);
 
     assert!(
         access_control.is_admin(),
@@ -248,8 +265,8 @@ async fn test_admin_mode_with_human_user() {
 
 #[tokio::test]
 async fn test_update_memory_tracks_changes() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage.clone()));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     // Create a memory
     let metadata = create_test_metadata();
@@ -273,7 +290,7 @@ async fn test_update_memory_tracks_changes() {
     assert!(result.is_ok(), "Update should succeed");
 
     // Verify all changes were applied
-    let memory = storage.get_memory(memory_id).await.unwrap();
+    let memory = fixture.storage.get_memory(memory_id).await.unwrap();
     assert_eq!(memory.content, "New content");
     assert_eq!(memory.summary, "New summary");
     assert_eq!(memory.importance, 10);
@@ -284,8 +301,8 @@ async fn test_update_memory_tracks_changes() {
 
 #[tokio::test]
 async fn test_partial_updates() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage.clone()));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     // Create a memory
     let metadata = create_test_metadata();
@@ -294,7 +311,7 @@ async fn test_partial_updates() {
         .await
         .expect("Failed to create memory");
 
-    let original_memory = storage.get_memory(memory_id).await.unwrap();
+    let original_memory = fixture.storage.get_memory(memory_id).await.unwrap();
 
     // Update only importance
     let updates = MemoryUpdates {
@@ -308,7 +325,7 @@ async fn test_partial_updates() {
         .expect("Update should succeed");
 
     // Verify only importance changed
-    let updated_memory = storage.get_memory(memory_id).await.unwrap();
+    let updated_memory = fixture.storage.get_memory(memory_id).await.unwrap();
     assert_eq!(updated_memory.importance, 10);
     assert_eq!(updated_memory.content, original_memory.content);
     assert_eq!(updated_memory.summary, original_memory.summary);
@@ -317,10 +334,10 @@ async fn test_partial_updates() {
 
 #[tokio::test]
 async fn test_memory_type_filtering_by_agent_role() {
-    let storage = create_test_storage().await;
+    let fixture = create_test_storage().await;
 
     // Executor creates a CodePattern memory
-    let executor_ac = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage.clone()));
+    let executor_ac = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
     let mut metadata = create_test_metadata();
     metadata.memory_type = MemoryType::CodePattern;
     executor_ac
@@ -329,7 +346,7 @@ async fn test_memory_type_filtering_by_agent_role() {
         .expect("Failed to create");
 
     // Orchestrator creates an ArchitectureDecision memory
-    let orchestrator_ac = MemoryAccessControl::new(AgentRole::Orchestrator, Arc::new(storage.clone()));
+    let orchestrator_ac = MemoryAccessControl::new(AgentRole::Orchestrator, Arc::clone(&fixture.storage));
     metadata.memory_type = MemoryType::ArchitectureDecision;
     orchestrator_ac
         .create_memory("Architecture decision", metadata)
@@ -337,12 +354,12 @@ async fn test_memory_type_filtering_by_agent_role() {
         .expect("Failed to create");
 
     // Test agent views see appropriate types
-    let executor_view = AgentMemoryView::new(AgentRole::Executor, storage.clone());
+    let executor_view = AgentMemoryView::new(AgentRole::Executor, Arc::clone(&fixture.storage));
     let executor_types = executor_view.role().memory_types();
     assert!(executor_types.contains(&MemoryType::CodePattern));
     assert!(!executor_types.contains(&MemoryType::ArchitectureDecision));
 
-    let orchestrator_view = AgentMemoryView::new(AgentRole::Orchestrator, storage.clone());
+    let orchestrator_view = AgentMemoryView::new(AgentRole::Orchestrator, Arc::clone(&fixture.storage));
     let orchestrator_types = orchestrator_view.role().memory_types();
     assert!(orchestrator_types.contains(&MemoryType::ArchitectureDecision));
     assert!(!orchestrator_types.contains(&MemoryType::CodePattern));
@@ -350,12 +367,12 @@ async fn test_memory_type_filtering_by_agent_role() {
 
 #[tokio::test]
 async fn test_multiple_agents_different_memories() {
-    let storage = create_test_storage().await;
+    let fixture = create_test_storage().await;
 
     // Different agents create memories
-    let executor = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage.clone()));
-    let reviewer = MemoryAccessControl::new(AgentRole::Reviewer, Arc::new(storage.clone()));
-    let optimizer = MemoryAccessControl::new(AgentRole::Optimizer, Arc::new(storage.clone()));
+    let executor = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
+    let reviewer = MemoryAccessControl::new(AgentRole::Reviewer, Arc::clone(&fixture.storage));
+    let optimizer = MemoryAccessControl::new(AgentRole::Optimizer, Arc::clone(&fixture.storage));
 
     let executor_meta = MemoryMetadata {
         memory_type: MemoryType::CodePattern,
@@ -416,25 +433,25 @@ async fn test_multiple_agents_different_memories() {
         .expect("Failed to create");
 
     // Verify all memories were created
-    assert!(storage.get_memory(executor_id).await.is_ok());
-    assert!(storage.get_memory(reviewer_id).await.is_ok());
-    assert!(storage.get_memory(optimizer_id).await.is_ok());
+    assert!(fixture.storage.get_memory(executor_id).await.is_ok());
+    assert!(fixture.storage.get_memory(reviewer_id).await.is_ok());
+    assert!(fixture.storage.get_memory(optimizer_id).await.is_ok());
 }
 
 #[tokio::test]
 async fn test_get_agent_role() {
-    let storage = create_test_storage().await;
+    let fixture = create_test_storage().await;
 
-    let executor = MemoryAccessControl::new(AgentRole::Executor, storage.clone());
+    let executor = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
     assert_eq!(executor.agent(), AgentRole::Executor);
 
-    let reviewer = MemoryAccessControl::new(AgentRole::Reviewer, Arc::new(storage.clone()));
+    let reviewer = MemoryAccessControl::new(AgentRole::Reviewer, Arc::clone(&fixture.storage));
     assert_eq!(reviewer.agent(), AgentRole::Reviewer);
 
-    let optimizer = MemoryAccessControl::new(AgentRole::Optimizer, Arc::new(storage.clone()));
+    let optimizer = MemoryAccessControl::new(AgentRole::Optimizer, Arc::clone(&fixture.storage));
     assert_eq!(optimizer.agent(), AgentRole::Optimizer);
 
-    let orchestrator = MemoryAccessControl::new(AgentRole::Orchestrator, Arc::new(storage));
+    let orchestrator = MemoryAccessControl::new(AgentRole::Orchestrator, fixture.storage);
     assert_eq!(orchestrator.agent(), AgentRole::Orchestrator);
 }
 
@@ -442,8 +459,8 @@ async fn test_get_agent_role() {
 async fn test_audit_trail_placeholder() {
     // This test verifies the audit trail API exists and returns correctly
     // Actual implementation will be added when storage backend supports it
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, fixture.storage);
 
     let metadata = create_test_metadata();
     let memory_id = access_control
@@ -465,8 +482,8 @@ async fn test_audit_trail_placeholder() {
 async fn test_modification_stats_placeholder() {
     // This test verifies the modification stats API exists
     // Actual implementation will be added when storage backend supports it
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, fixture.storage);
 
     let stats = access_control
         .get_modification_stats()
@@ -479,8 +496,8 @@ async fn test_modification_stats_placeholder() {
 
 #[tokio::test]
 async fn test_different_namespaces() {
-    let storage = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage));
+    let fixture = create_test_storage().await;
+    let access_control = MemoryAccessControl::new(AgentRole::Executor, fixture.storage);
 
     // Create memories in different namespaces
     let global_meta = MemoryMetadata {
