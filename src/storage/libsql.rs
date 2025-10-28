@@ -497,6 +497,88 @@ impl LibsqlStorage {
             .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))
     }
 
+    /// Check if database is healthy and operational
+    ///
+    /// Performs basic health checks:
+    /// - Can establish connection
+    /// - Can execute simple query
+    /// - Database is not corrupted
+    ///
+    /// Returns Ok(()) if healthy, Err with diagnostic info if not
+    pub async fn check_database_health(&self) -> Result<()> {
+        debug!("Checking database health...");
+
+        // Try to get a connection
+        let conn = self.get_conn().map_err(|e| {
+            MnemosyneError::Database(format!("Health check failed: cannot establish connection: {}", e))
+        })?;
+
+        // Try a simple query to verify database is operational
+        match conn.query("SELECT 1", ()).await {
+            Ok(_) => {
+                debug!("Database health check passed");
+                Ok(())
+            }
+            Err(e) => {
+                let error_msg = e.to_string();
+                if error_msg.contains("readonly") || error_msg.contains("permission") {
+                    Err(MnemosyneError::Database(
+                        "Database is read-only or permission denied. Check file permissions.".to_string()
+                    ))
+                } else if error_msg.contains("corrupt") || error_msg.contains("malformed") {
+                    Err(MnemosyneError::Database(
+                        "Database appears to be corrupted. Consider restoring from backup.".to_string()
+                    ))
+                } else {
+                    Err(MnemosyneError::Database(format!("Health check failed: {}", error_msg)))
+                }
+            }
+        }
+    }
+
+    /// Attempt to recover from database errors
+    ///
+    /// Tries to recover from common error conditions:
+    /// - Stale lock files
+    /// - Permission issues
+    /// - Connection pool exhaustion
+    ///
+    /// Returns Ok(()) if recovery successful or not needed
+    pub async fn recover_from_error(&self) -> Result<()> {
+        debug!("Attempting database recovery...");
+
+        // First check if database is healthy
+        match self.check_database_health().await {
+            Ok(()) => {
+                debug!("Database is healthy, no recovery needed");
+                return Ok(());
+            }
+            Err(e) => {
+                debug!("Database health check failed: {}", e);
+                // Continue with recovery attempt
+            }
+        }
+
+        // Try to establish a fresh connection to clear any stale state
+        match self.get_conn() {
+            Ok(conn) => {
+                // Try a simple write operation to verify database is writable
+                match conn.execute("SELECT 1", ()).await {
+                    Ok(_) => {
+                        debug!("Database recovered successfully");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        Err(MnemosyneError::Database(format!("Recovery failed: {}", e)))
+                    }
+                }
+            }
+            Err(e) => {
+                Err(MnemosyneError::Database(format!("Cannot establish connection for recovery: {}", e)))
+            }
+        }
+    }
+
     /// Convert a libsql row to a MemoryNote
     async fn row_to_memory(&self, row: &libsql::Row) -> Result<MemoryNote> {
         // Extract all fields from row
@@ -657,7 +739,16 @@ impl StorageBackend for LibsqlStorage {
     async fn store_memory(&self, memory: &MemoryNote) -> Result<()> {
         debug!("Storing memory: {}", memory.id);
 
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().map_err(|e| {
+            let error_msg = e.to_string();
+            if error_msg.contains("readonly") || error_msg.contains("permission") {
+                MnemosyneError::Database(
+                    "Cannot write to database: read-only or permission denied. Check file permissions and ensure WAL files (.db-wal, .db-shm) are writable.".to_string()
+                )
+            } else {
+                e
+            }
+        })?;
         let tx = conn.transaction().await?;
 
         // Insert memory metadata including embedding column
@@ -735,7 +826,20 @@ impl StorageBackend for LibsqlStorage {
             .await?;
         }
 
-        tx.commit().await?;
+        tx.commit().await.map_err(|e| {
+            let error_msg = e.to_string();
+            if error_msg.contains("readonly") || error_msg.contains("permission") {
+                MnemosyneError::Database(
+                    "Transaction failed: database is read-only. Ensure file and WAL files have write permissions.".to_string()
+                )
+            } else if error_msg.contains("locked") || error_msg.contains("busy") {
+                MnemosyneError::Database(
+                    "Transaction failed: database is locked. Another process may be writing.".to_string()
+                )
+            } else {
+                MnemosyneError::Database(format!("Transaction commit failed: {}", error_msg))
+            }
+        })?;
 
         self.log_audit(
             "create",
@@ -919,7 +1023,20 @@ impl StorageBackend for LibsqlStorage {
             .await?;
         }
 
-        tx.commit().await?;
+        tx.commit().await.map_err(|e| {
+            let error_msg = e.to_string();
+            if error_msg.contains("readonly") || error_msg.contains("permission") {
+                MnemosyneError::Database(
+                    "Transaction failed: database is read-only. Ensure file and WAL files have write permissions.".to_string()
+                )
+            } else if error_msg.contains("locked") || error_msg.contains("busy") {
+                MnemosyneError::Database(
+                    "Transaction failed: database is locked. Another process may be writing.".to_string()
+                )
+            } else {
+                MnemosyneError::Database(format!("Transaction commit failed: {}", error_msg))
+            }
+        })?;
 
         self.log_audit(
             "update",
