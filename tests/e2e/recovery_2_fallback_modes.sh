@@ -181,7 +181,7 @@ print_cyan "Testing importance value fallback..."
 
 # Test with boundary value (should work)
 IMP_FALLBACK=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Importance fallback test with default value" \
+    --content "Importance fallback test with default value" \
     --namespace "project:test" --importance 5 2>&1 || echo "")
 
 sleep 2
@@ -269,7 +269,7 @@ print_cyan "Testing metadata generation fallback..."
 export ANTHROPIC_API_KEY="sk-invalid-metadata-test"
 
 METADATA_FALLBACK=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Important: System should generate metadata even without LLM" \
+    --content "Important: System should generate metadata even without LLM" \
     --namespace "project:test" --importance 8 2>&1 || echo "")
 
 # Restore API key (if it was set)
@@ -325,7 +325,7 @@ print_cyan "Testing retry mechanisms with fallback..."
 # Simulate operation that might require retry
 
 RETRY_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Retry fallback test - operations should retry before giving up" \
+    --content "Retry fallback test - operations should retry before giving up" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
 sleep 2
@@ -351,7 +351,7 @@ print_cyan "Testing multi-level fallback chains..."
 
 # Test that at least one level works
 CHAIN_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Multi-level fallback chain test" \
+    --content "Multi-level fallback chain test" \
     --namespace "project:test" --importance 6 2>&1 || echo "")
 
 sleep 2
@@ -408,7 +408,7 @@ if [ -n "$OLD_API_KEY" ]; then
 fi
 
 NORMAL_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Normal mode recovery test after fallback" \
+    --content "Normal mode recovery test after fallback" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
 sleep 2

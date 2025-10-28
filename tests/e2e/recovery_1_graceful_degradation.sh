@@ -74,7 +74,7 @@ chmod 444 "$READONLY_DB"
 
 # Try to write (should fail gracefully)
 WRITE_OUTPUT=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" remember \
-    "New memory in read-only database" \
+    --content "New memory in read-only database" \
     --namespace "project:test" --importance 7 2>&1) || WRITE_EXIT=$?
 : ${WRITE_EXIT:=0}
 
@@ -232,7 +232,7 @@ print_cyan "Testing automatic recovery mechanisms..."
 # Create memory after previous stress tests - system should have recovered
 
 RECOVERY_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Automatic recovery test - system should recover from previous stress" \
+    --content "Automatic recovery test - system should recover from previous stress" \
     --namespace "project:test" --importance 8 2>&1 || echo "")
 
 sleep 2
