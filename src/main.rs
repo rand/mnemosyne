@@ -12,7 +12,7 @@ use mnemosyne_core::{
 use mnemosyne_core::services::embeddings::EmbeddingService;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{debug, info, Level};
+use tracing::{debug, info, warn, Level};
 use tracing_subscriber;
 
 /// Get the default database path using XDG_DATA_HOME standard
@@ -663,10 +663,50 @@ if __name__ == "__main__":
 
             // Create or enrich memory
             let mut memory = if has_api_key {
-                // Enrich memory with LLM
+                // Try to enrich memory with LLM, but fall back if it fails
                 let llm = LlmService::new(llm_config.clone())?;
                 let ctx = context.unwrap_or_else(|| "CLI input".to_string());
-                llm.enrich_memory(&content, &ctx).await?
+
+                match llm.enrich_memory(&content, &ctx).await {
+                    Ok(enriched_memory) => {
+                        debug!("Memory enriched successfully with LLM");
+                        enriched_memory
+                    }
+                    Err(e) => {
+                        // LLM enrichment failed - fall back to basic memory
+                        warn!("LLM enrichment failed: {}, storing memory without enrichment", e);
+
+                        use mnemosyne_core::MemoryNote;
+                        use mnemosyne_core::types::MemoryId;
+
+                        let now = chrono::Utc::now();
+
+                        MemoryNote {
+                            id: MemoryId::new(),
+                            namespace: ns.clone(),
+                            created_at: now,
+                            updated_at: now,
+                            content: content.clone(),
+                            summary: content.chars().take(100).collect::<String>(),
+                            keywords: Vec::new(),
+                            tags: Vec::new(),
+                            context: ctx.clone(),
+                            memory_type: mnemosyne_core::MemoryType::Insight,
+                            importance: importance.clamp(1, 10),
+                            confidence: 0.5,
+                            links: Vec::new(),
+                            related_files: Vec::new(),
+                            related_entities: Vec::new(),
+                            access_count: 0,
+                            last_accessed_at: now,
+                            expires_at: None,
+                            is_archived: false,
+                            superseded_by: None,
+                            embedding: None,
+                            embedding_model: String::new(),
+                        }
+                    }
+                }
             } else {
                 // Create basic memory without LLM enrichment
                 debug!("Creating basic memory without LLM enrichment - no API key");
