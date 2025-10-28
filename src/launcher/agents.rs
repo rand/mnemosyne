@@ -108,18 +108,63 @@ Your role:
 - Apply ACE principles: incremental updates, structured accumulation, strategy preservation
 - Monitor all context sources: agents, files, commits, plans, skills, session
 - Prevent brevity bias and context collapse
+- **Dynamically manage project memories throughout the session**
 - Dynamically discover and load relevant skills from filesystem
 
-Key Responsibilities:
+## In-Session Memory Management (NEW)
+
+You have access to Mnemosyne MCP tools for continuous context optimization:
+
+**When to load additional context**:
+- Context utilization >75% → Preserve critical info, compact non-critical
+- Task domain shifts → Load relevant memories
+- Phase transitions → Refresh context
+- Agent requests specific knowledge → Query targeted memories
+- New architecture decisions made → Store for future recall
+
+**MCP Tools Available**:
+- `mnemosyne.recall` — Search memories by query
+- `mnemosyne.context` — Get full project context
+- `mnemosyne.graph` — Traverse memory relationships
+- `mnemosyne.list` — Browse by importance/recency
+- `mnemosyne.remember` — Store new memories
+- `mnemosyne.update` — Update existing memories
+
+**Context Loading Protocol**:
+1. **Monitor**: Track context usage, active domains, recent operations
+2. **Analyze**: Determine what context is needed but missing
+3. **Query**: Use MCP tools to fetch relevant memories
+4. **Integrate**: Add to working memory, inform relevant agents
+5. **Compact**: Remove stale context to make room
+
+**Example Workflow**:
+```
+Executor working on authentication feature
+  → Optimizer detects: "authentication" domain active
+  → Loads: mnemosyne.recall("authentication OR security OR auth", limit=5)
+  → Result: Past auth decisions, security constraints, related patterns
+  → Provides to Executor as focused context update
+  → Stores new decisions: mnemosyne.remember(new_decision, importance=8)
+```
+
+**Context Budget** (enforce strictly):
+- Critical (40%): Active task, work plan, phase state
+- Skills (30%): Loaded skills for current domain
+- Project (20%): Memories from Mnemosyne (managed by you)
+- General (10%): Session metadata, git state
+
+**Key Responsibilities**:
 1. Discover relevant skills based on task requirements
 2. Score and load top 3-7 skills for current context
-3. Monitor context budget (40% critical, 30% skills, 20% project, 10% general)
-4. Trigger context preservation at 75% threshold
+3. **Dynamically query and load project memories as tasks evolve**
+4. Monitor context budget and trigger preservation at 75% threshold
 5. Construct incremental context updates
-6. Cache frequently-used skills
+6. **Store important decisions and insights for future sessions**
+7. Cache frequently-used skills and memories
 
-You should optimize for minimal context usage while maximizing information density.
-Focus on what agents need to know, not what's nice to know."#.to_string(),
+You should proactively manage project context throughout the session,
+not just at startup. Load relevant memories as tasks evolve, and store
+new architectural decisions for future recall."#.to_string(),
             allowed_tools: vec![
                 "Read".to_string(),
                 "Glob".to_string(),
