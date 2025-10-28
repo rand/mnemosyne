@@ -622,6 +622,34 @@ impl LibsqlStorage {
 
         Ok(())
     }
+
+    /// Escape FTS5 query string to handle special characters
+    ///
+    /// FTS5 treats certain characters as operators:
+    /// - Hyphen (-) is treated as MINUS operator
+    /// - NOT, OR, AND are boolean operators
+    /// - Parentheses affect query parsing
+    ///
+    /// To treat these literally, we wrap terms in double quotes.
+    /// Internal quotes are escaped by doubling them.
+    fn escape_fts5_query(term: &str) -> String {
+        // Check if term contains FTS5 special characters
+        let needs_escaping = term.contains('-')
+            || term.contains('(')
+            || term.contains(')')
+            || term.contains('"')
+            || term.to_lowercase().contains(" not ")
+            || term.to_lowercase().contains(" and ")
+            || term.to_lowercase().contains(" or ");
+
+        if needs_escaping {
+            // Escape internal quotes by doubling them
+            let escaped = term.replace('"', "\"\"");
+            format!("\"{}\"", escaped)
+        } else {
+            term.to_string()
+        }
+    }
 }
 
 #[async_trait]
@@ -1008,13 +1036,15 @@ impl StorageBackend for LibsqlStorage {
         // Convert multi-word queries to OR logic for FTS5
         // "database architecture" -> "database OR architecture"
         // This matches user expectations: show results containing ANY of the search terms
+        // Each term is escaped to handle hyphens and other FTS5 special characters
         let fts_query = if query.contains(' ') {
             query
                 .split_whitespace()
-                .collect::<Vec<&str>>()
+                .map(|term| Self::escape_fts5_query(term))
+                .collect::<Vec<String>>()
                 .join(" OR ")
         } else {
-            query.to_string()
+            Self::escape_fts5_query(query)
         };
 
         // Handle empty query - return all memories in namespace (no FTS5)
