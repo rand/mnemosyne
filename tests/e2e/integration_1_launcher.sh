@@ -118,8 +118,8 @@ print_cyan "Testing context loading for startup..."
 create_tiered_memories "$BIN" "$TEST_DB" 5 5 5 "project:testapp"
 
 # Query what would be loaded (importance >= 7, limit 10)
-CONTEXT_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
-    --namespace "project:testapp" --limit 10 --sort importance 2>&1 || echo "")
+CONTEXT_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
+    --namespace "project:testapp" --limit 10  2>&1 || echo "")
 
 if [ "${#CONTEXT_OUTPUT}" -gt 0 ]; then
     CONTEXT_SIZE=${#CONTEXT_OUTPUT}
@@ -139,7 +139,7 @@ fi
 
 # Verify context loading is fast enough (<500ms)
 START_TIME=$(date +%s%N)
-DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
+DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
     --namespace "project:testapp" --limit 10 > /dev/null 2>&1
 END_TIME=$(date +%s%N)
 
@@ -195,7 +195,7 @@ MISSING_DB_URL="sqlite://$MISSING_DB"
 # Try to query non-existent database
 # Should fail gracefully, not crash
 set +e  # Allow command to fail
-DATABASE_URL="$MISSING_DB_URL" "$BIN" list --namespace "project:test" > /dev/null 2>&1
+DATABASE_URL="$MISSING_DB_URL" "$BIN" recall --query "" --namespace "project:test" > /dev/null 2>&1
 EXIT_CODE=$?
 set -e
 
@@ -237,8 +237,8 @@ create_memory "$BIN" "$TEST_DB" "Global memory" "global" 8 > /dev/null 2>&1
 sleep 1
 
 # Query each namespace
-OUTPUT_A=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list --namespace "project:projecta" 2>&1 || echo "")
-OUTPUT_B=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list --namespace "project:projectb" 2>&1 || echo "")
+OUTPUT_A=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" --namespace "project:projecta" 2>&1 || echo "")
+OUTPUT_B=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" --namespace "project:projectb" 2>&1 || echo "")
 
 # Verify namespace isolation
 if echo "$OUTPUT_A" | grep -qi "Project A" && ! echo "$OUTPUT_A" | grep -qi "Project B"; then
@@ -269,7 +269,7 @@ DATABASE_URL="$EAGER_DB_URL" "$BIN" remember "Init memory" \
     --namespace "project:eager" --importance 8 > /dev/null 2>&1
 
 # Immediately query (no delay)
-IMMEDIATE_OUTPUT=$(DATABASE_URL="$EAGER_DB_URL" "$BIN" list \
+IMMEDIATE_OUTPUT=$(DATABASE_URL="$EAGER_DB_URL" "$BIN" recall --query "" \
     --namespace "project:eager" 2>&1 || echo "")
 
 if echo "$IMMEDIATE_OUTPUT" | grep -qi "Init memory"; then
@@ -289,7 +289,7 @@ print_cyan "Testing timeout protection..."
 # We can test that queries complete within reasonable time
 
 START=$(date +%s%N)
-DATABASE_URL="sqlite://$TEST_DB" "$BIN" list --namespace "project:testapp" --limit 5 > /dev/null 2>&1
+DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" --namespace "project:testapp" --limit 5 > /dev/null 2>&1
 END=$(date +%s%N)
 
 QUERY_TIME=$(( (END - START) / 1000000 ))

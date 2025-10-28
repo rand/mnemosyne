@@ -141,7 +141,7 @@ echo ""
 # Allow time for indexing
 sleep 1
 
-OUTPUT4=$("$BIN" search "database architecture" --namespace "project:mnemosyne" 2>&1)
+OUTPUT4=$("$BIN" recall --query "database architecture" --namespace "project:mnemosyne" 2>&1)
 
 if echo "$OUTPUT4" | grep -qi "sqlite\|database"; then
     echo -e "${GREEN}[PASS]${NC} Search returned relevant results"
@@ -159,7 +159,7 @@ echo "========================================"
 echo "Test 5: List All Memories"
 echo "========================================"
 
-OUTPUT5=$("$BIN" list --namespace "project:mnemosyne" 2>&1)
+OUTPUT5=$("$BIN" recall --query "" --namespace "project:mnemosyne" 2>&1)
 
 # Count lines that look like memory entries (heuristic: contain importance or dates)
 MEMORY_COUNT=$(echo "$OUTPUT5" | grep -cE '[0-9]{4}-[0-9]{2}-[0-9]{2}|Importance:' || echo "0")

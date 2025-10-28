@@ -43,7 +43,7 @@ LATENCIES=()
 
 for i in $(seq 1 $ITERATIONS); do
     START=$(date +%s%N)
-    DATABASE_URL="sqlite://$TEST_DB" "$BIN" search "database" \
+    DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "database" \
         --namespace "project:perftest" > /dev/null 2>&1
     END=$(date +%s%N)
 
@@ -150,8 +150,8 @@ CONTEXT_LATENCIES=()
 
 for i in $(seq 1 $CONTEXT_ITERATIONS); do
     START=$(date +%s%N)
-    DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
-        --namespace "project:contexttest" --limit 10 --sort importance > /dev/null 2>&1
+    DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
+        --namespace "project:contexttest" --limit 10  > /dev/null 2>&1
     END=$(date +%s%N)
 
     CONTEXT_LAT=$(( (END - START) / 1000000 ))
@@ -194,7 +194,7 @@ LIST_LATENCIES=()
 
 for i in $(seq 1 $LIST_ITERATIONS); do
     START=$(date +%s%N)
-    DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
+    DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
         --namespace "project:perftest" --limit 20 > /dev/null 2>&1
     END=$(date +%s%N)
 
@@ -284,7 +284,7 @@ START_CONCURRENT=$(date +%s%N)
 
 for i in $(seq 1 $CONCURRENT_QUERIES); do
     (
-        DATABASE_URL="sqlite://$TEST_DB" "$BIN" search "database" \
+        DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "database" \
             --namespace "project:perftest" > /dev/null 2>&1
     ) &
 done
@@ -328,7 +328,7 @@ sleep 3  # Allow indexing to complete
 
 # Measure search performance at scale
 START_SCALE=$(date +%s%N)
-DATABASE_URL="sqlite://$SCALE_TEST_DB" "$BIN" search "memory" \
+DATABASE_URL="sqlite://$SCALE_TEST_DB" "$BIN" recall --query "memory" \
     --namespace "project:scaletest" --limit 10 > /dev/null 2>&1
 END_SCALE=$(date +%s%N)
 
