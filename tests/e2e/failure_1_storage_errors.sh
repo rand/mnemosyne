@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail  # Removed -e to allow test failures
 
 # E2E Test: Failure 1 - Storage Errors
 #
@@ -36,10 +36,8 @@ NONEXISTENT_DB="/tmp/does_not_exist_$(date +%s).db"
 NONEXISTENT_URL="sqlite://$NONEXISTENT_DB"
 
 # Try to list memories from non-existent database
-set +e
 OUTPUT=$(DATABASE_URL="$NONEXISTENT_URL" "$BIN" recall --query "" --namespace "project:test" 2>&1 || echo "ERROR_EXPECTED")
 EXIT_CODE=$?
-set -e
 
 # Should fail gracefully (non-zero exit code)
 if [ "$EXIT_CODE" -ne 0 ]; then
@@ -69,10 +67,8 @@ DATABASE_URL="sqlite://$CORRUPT_DB" "$BIN" remember "Valid memory" \
 dd if=/dev/urandom of="$CORRUPT_DB" bs=1024 count=1 conv=notrunc > /dev/null 2>&1
 
 # Try to query corrupted database
-set +e
 CORRUPT_OUTPUT=$(DATABASE_URL="sqlite://$CORRUPT_DB" "$BIN" recall --query "" --namespace "project:test" 2>&1 || echo "CORRUPT_ERROR")
 CORRUPT_EXIT=$?
-set -e
 
 if [ "$CORRUPT_EXIT" -ne 0 ]; then
     pass "Corrupted database detected and rejected"
@@ -102,10 +98,8 @@ LOCKER_PID=$!
 sleep 1  # Give locker time to acquire lock
 
 # Try to write while locked
-set +e
 LOCKED_OUTPUT=$(timeout 3 bash -c "DATABASE_URL='sqlite://$LOCKED_DB' '$BIN' remember 'Locked test' --namespace 'project:test' --importance 7 2>&1 || echo 'LOCKED_ERROR'")
 LOCKED_EXIT=$?
-set -e
 
 # Should timeout or fail gracefully
 if [ "$LOCKED_EXIT" -ne 0 ]; then
@@ -133,11 +127,9 @@ DATABASE_URL="sqlite://$READONLY_DB" "$BIN" remember "Read-only test" \
 chmod 444 "$READONLY_DB"
 
 # Try to write (should fail)
-set +e
 READONLY_OUTPUT=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" remember "Should fail" \
     --namespace "project:test" --importance 7 2>&1 || echo "READONLY_ERROR")
 READONLY_EXIT=$?
-set -e
 
 if [ "$READONLY_EXIT" -ne 0 ]; then
     pass "Read-only database write rejected"
@@ -146,10 +138,8 @@ else
 fi
 
 # But reads should still work
-set +e
 READONLY_READ=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" recall --query "" --namespace "project:test" 2>&1 || echo "")
 READ_EXIT=$?
-set -e
 
 if [ "$READ_EXIT" -eq 0 ] && echo "$READONLY_READ" | grep -qi "Read-only test"; then
     pass "Read-only database still allows reads"
@@ -169,11 +159,9 @@ print_cyan "Testing behavior with invalid database paths..."
 INVALID_DB="/nonexistent_dir/subdir/invalid.db"
 INVALID_URL="sqlite://$INVALID_DB"
 
-set +e
 INVALID_OUTPUT=$(DATABASE_URL="$INVALID_URL" "$BIN" remember "Should fail" \
     --namespace "project:test" --importance 7 2>&1 || echo "INVALID_PATH_ERROR")
 INVALID_EXIT=$?
-set -e
 
 if [ "$INVALID_EXIT" -ne 0 ]; then
     pass "Invalid database path rejected gracefully"
@@ -194,11 +182,9 @@ DISKSPACE_DB=$(create_test_db "diskspace")
 # Try to write very large memory (should be limited or chunked)
 LARGE_CONTENT=$(printf 'X%.0s' {1..100000})  # 100KB content
 
-set +e
 LARGE_OUTPUT=$(DATABASE_URL="sqlite://$DISKSPACE_DB" "$BIN" remember "$LARGE_CONTENT" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 LARGE_EXIT=$?
-set -e
 
 if [ "$LARGE_EXIT" -eq 0 ]; then
     pass "Large memory content handled (100KB)"
@@ -262,10 +248,8 @@ DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" remember "Before error" \
 chmod 444 "$RECOVERY_DB"
 
 # Try to write (will fail)
-set +e
 DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" remember "During error" \
     --namespace "project:test" --importance 7 > /dev/null 2>&1
-set -e
 
 # Restore write permissions (simulate recovery)
 chmod 644 "$RECOVERY_DB"
@@ -302,11 +286,9 @@ print_cyan "Testing launcher behavior without database..."
 # Test that context loading query fails gracefully
 MISSING_DB="/tmp/missing_launcher_$(date +%s).db"
 
-set +e
 CONTEXT_OUTPUT=$(DATABASE_URL="sqlite://$MISSING_DB" "$BIN" recall --query "" \
     --namespace "project:test" --limit 10 2>&1 || echo "")
 CONTEXT_EXIT=$?
-set -e
 
 if [ "$CONTEXT_EXIT" -ne 0 ]; then
     pass "Context loading fails gracefully with missing database"
@@ -321,16 +303,12 @@ print_cyan "Testing error message helpfulness..."
 # Try various error conditions and check for helpful messages
 
 # Invalid namespace format
-set +e
 INVALID_NS_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
     --namespace "invalid::format::here" 2>&1 || echo "")
-set -e
 
 # Invalid importance
-set +e
 INVALID_IMP_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember "Test" \
     --namespace "project:test" --importance 99 2>&1 || echo "")
-set -e
 
 # Check if error messages are actionable
 ERROR_QUALITY=0
