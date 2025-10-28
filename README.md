@@ -13,7 +13,7 @@
 
 ## What is Mnemosyne?
 
-Mnemosyne solves a critical problem in AI-assisted development: **memory loss across sessions**. When you restart Claude Code, your AI assistant forgets everything—past decisions, discovered patterns, project context, and hard-won insights.
+Mnemosyne solves a critical problem in AI-assisted development: **memory loss across sessions**. When you restart Claude Code, your AI assistant forgets everything – past decisions, discovered patterns, project context, and hard-won insights.
 
 Mnemosyne is a high-performance memory system that gives Claude Code a multi-agent orchestration system with persistent semantic memory across sessions. It automatically captures, enriches, and retrieves memories so your AI assistant learns and improves over time, just like a human teammate would.
 
