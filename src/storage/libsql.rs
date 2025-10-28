@@ -137,6 +137,19 @@ impl LibsqlStorage {
         Ok(storage)
     }
 
+    /// Create a new local file-based storage (convenience method)
+    ///
+    /// # Arguments
+    /// * `path` - Path to the database file
+    ///
+    /// # Example
+    /// ```ignore
+    /// let storage = LibsqlStorage::new_local("mnemosyne.db").await?;
+    /// ```
+    pub async fn new_local(path: &str) -> Result<Self> {
+        Self::new(ConnectionMode::Local(path.to_string())).await
+    }
+
     /// Create from string path (backward compatibility)
     ///
     /// Parses database path and creates appropriate connection mode:
