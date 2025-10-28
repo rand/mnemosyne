@@ -100,10 +100,10 @@ sleep 1  # Give locker time to acquire lock
 # Try to write while locked
 if ! command -v timeout &> /dev/null; then
     warn "timeout command not available, skipping detailed lock test"
-    LOCKED_OUTPUT=$(DATABASE_URL="sqlite://$LOCKED_DB" "$BIN" remember "Locked test" --namespace "project:test" --importance 7 2>&1 || echo "LOCKED_ERROR")
+    LOCKED_OUTPUT=$(DATABASE_URL="sqlite://$LOCKED_DB" "$BIN" remember --content "Locked test" --namespace "project:test" --importance 7 2>&1 || echo "LOCKED_ERROR")
     LOCKED_EXIT=$?
 else
-    LOCKED_OUTPUT=$(timeout 3 bash -c "DATABASE_URL='sqlite://$LOCKED_DB' '$BIN' remember 'Locked test' --namespace 'project:test' --importance 7 2>&1 || echo 'LOCKED_ERROR'")
+    LOCKED_OUTPUT=$(timeout 3 bash -c "DATABASE_URL='sqlite://$LOCKED_DB' '$BIN' remember --content 'Locked test' --namespace 'project:test' --importance 7 2>&1 || echo 'LOCKED_ERROR'")
     LOCKED_EXIT=$?
 fi
 
