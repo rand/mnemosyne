@@ -127,6 +127,32 @@ mnemosyne.delete     - Archive a memory
 
 See [MCP_SERVER.md](MCP_SERVER.md) for API documentation and examples.
 
+### Orchestrated Sessions (Default)
+
+**New in v2.0**: Running `mnemosyne` without any commands launches an orchestrated Claude Code session with full multi-agent coordination:
+
+```bash
+# Launch orchestrated Claude Code session (default)
+mnemosyne
+
+# Start MCP server only (no Claude Code session)
+mnemosyne --serve
+```
+
+**Orchestrated sessions include**:
+- **4 Active Agents**: Orchestrator (coordinator), Optimizer (context optimization), Reviewer (quality gates), Executor (primary work agent)
+- **Automatic Mnemosyne Integration**: MCP server runs in background with proper agent roles
+- **Context Loading**: High-importance memories loaded at session start
+- **Namespace Detection**: Auto-detects project from git repository
+- **Sub-Agent Spawning**: Executor can spawn parallel sub-agents for independent work
+
+This is the recommended way to use Mnemosyne - it provides the full multi-agent orchestration experience with seamless memory integration.
+
+**Use `mnemosyne --serve` when**:
+- Integrating with external tools that expect a standalone MCP server
+- Running in CI/CD pipelines
+- You want manual control over Claude Code session startup
+
 ### Skills Integration
 
 Mnemosyne leverages [cc-polymath](https://github.com/rand/cc-polymath) for comprehensive development knowledge:

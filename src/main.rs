@@ -5,7 +5,7 @@
 
 use clap::{Parser, Subcommand};
 use mnemosyne_core::{
-    error::Result, ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig,
+    error::Result, launcher, ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig,
     LlmService, McpServer, StorageBackend, ToolHandler,
 };
 // Use the v1.0 embedding service for backward compatibility
@@ -34,12 +34,72 @@ fn get_db_path(cli_path: Option<String>) -> String {
         })
 }
 
+/// Start MCP server in stdio mode
+async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
+    info!("Starting MCP server...");
+
+    // Initialize configuration
+    let _config_manager = ConfigManager::new()?;
+
+    // Initialize storage with configured database path
+    let db_path = get_db_path(db_path_arg);
+    info!("Using database: {}", db_path);
+
+    // Ensure parent directory exists
+    if let Some(parent) = PathBuf::from(&db_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let storage = LibsqlStorage::new(ConnectionMode::Local(db_path)).await?;
+
+    // Initialize LLM service (will error on first use if no API key)
+    let llm = match LlmService::with_default() {
+        Ok(service) => {
+            info!("LLM service initialized successfully");
+            Arc::new(service)
+        }
+        Err(_) => {
+            info!("LLM service not configured (ANTHROPIC_API_KEY not set)");
+            info!("Tools requiring LLM will return errors until configured");
+            info!("Configure with: mnemosyne config set-key");
+
+            // Create a dummy service - it will error on use
+            // This allows the server to start for basic operations
+            Arc::new(LlmService::new(LlmConfig {
+                api_key: String::new(),
+                model: "claude-3-5-haiku-20241022".to_string(),
+                max_tokens: 1024,
+                temperature: 0.7,
+            })?)
+        }
+    };
+
+    // Initialize embedding service (shares API key with LLM)
+    let embeddings = {
+        let config = LlmConfig::default();
+        Arc::new(EmbeddingService::new(config.api_key.clone(), config))
+    };
+
+    // Initialize tool handler
+    let tool_handler = ToolHandler::new(Arc::new(storage), llm, embeddings);
+
+    // Create and run server
+    let server = McpServer::new(tool_handler);
+    server.run().await?;
+
+    Ok(())
+}
+
 #[derive(Parser)]
 #[command(name = "mnemosyne")]
 #[command(about = "Project-aware agentic memory system for Claude Code", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
+
+    /// Start MCP server only (don't launch Claude Code session)
+    #[arg(long)]
+    serve: bool,
 
     /// Set log level
     #[arg(short, long, default_value = "info")]
@@ -227,61 +287,15 @@ async fn main() -> Result<()> {
 
     info!("Mnemosyne v{} starting...", env!("CARGO_PKG_VERSION"));
 
+    // Handle --serve flag (start MCP server without Claude Code)
+    if cli.serve && cli.command.is_none() {
+        info!("Starting MCP server (--serve mode)...");
+        return start_mcp_server(cli.db_path).await;
+    }
+
     match cli.command {
         Some(Commands::Serve) => {
-            info!("Starting MCP server...");
-
-            // Initialize configuration
-            let _config_manager = ConfigManager::new()?;
-
-            // Initialize storage with configured database path
-            let db_path = get_db_path(cli.db_path.clone());
-            info!("Using database: {}", db_path);
-
-            // Ensure parent directory exists
-            if let Some(parent) = PathBuf::from(&db_path).parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-
-            let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path)).await?;
-
-            // Initialize LLM service (will error on first use if no API key)
-            let llm = match LlmService::with_default() {
-                Ok(service) => {
-                    info!("LLM service initialized successfully");
-                    Arc::new(service)
-                }
-                Err(_) => {
-                    info!("LLM service not configured (ANTHROPIC_API_KEY not set)");
-                    info!("Tools requiring LLM will return errors until configured");
-                    info!("Configure with: mnemosyne config set-key");
-
-                    // Create a dummy service - it will error on use
-                    // This allows the server to start for basic operations
-                    Arc::new(LlmService::new(LlmConfig {
-                        api_key: String::new(),
-                        model: "claude-3-5-haiku-20241022".to_string(),
-                        max_tokens: 1024,
-                        temperature: 0.7,
-                    })?)
-                }
-            };
-
-            // Initialize embedding service (shares API key with LLM)
-            let embeddings = {
-                let config = LlmConfig::default();
-                Arc::new(EmbeddingService::new(config.api_key.clone(), config))
-            };
-
-            // Initialize tool handler
-            let tool_handler = ToolHandler::new(Arc::new(storage), llm, embeddings);
-
-            // Create and run server
-            let server = McpServer::new(tool_handler);
-            server.run().await?;
-
-            Ok(())
+            start_mcp_server(cli.db_path).await
         }
         Some(Commands::Init { database }) => {
             info!("Initializing database...");
@@ -793,53 +807,14 @@ if __name__ == "__main__":
             Ok(())
         }
         None => {
-            // Default: start MCP server
-            info!("Starting MCP server (default)...");
+            // Default: launch orchestrated Claude Code session
+            info!("Launching orchestrated Claude Code session...");
 
-            // Initialize configuration
-            let _config_manager = ConfigManager::new()?;
+            // Get database path
+            let db_path = get_db_path(cli.db_path);
 
-            // Initialize storage
-            let db_path = "mnemosyne.db";
-            let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
-
-            // Initialize LLM service (will error on first use if no API key)
-            let llm = match LlmService::with_default() {
-                Ok(service) => {
-                    info!("LLM service initialized successfully");
-                    Arc::new(service)
-                }
-                Err(_) => {
-                    info!("LLM service not configured (ANTHROPIC_API_KEY not set)");
-                    info!("Tools requiring LLM will return errors until configured");
-                    info!("Configure with: mnemosyne config set-key");
-
-                    // Create a dummy service - it will error on use
-                    // This allows the server to start for basic operations
-                    Arc::new(LlmService::new(LlmConfig {
-                        api_key: String::new(),
-                        model: "claude-3-5-haiku-20241022".to_string(),
-                        max_tokens: 1024,
-                        temperature: 0.7,
-                    })?)
-                }
-            };
-
-            // Initialize embedding service (shares API key with LLM)
-            let embeddings = {
-                let config = LlmConfig::default();
-                Arc::new(EmbeddingService::new(config.api_key.clone(), config))
-            };
-
-            // Initialize tool handler
-            let tool_handler = ToolHandler::new(Arc::new(storage), llm, embeddings);
-
-            // Create and run server
-            let server = McpServer::new(tool_handler);
-            server.run().await?;
-
-            Ok(())
+            // Launch orchestrated session
+            launcher::launch_orchestrated_session(Some(db_path)).await
         }
     }
 }

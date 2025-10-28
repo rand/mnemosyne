@@ -44,9 +44,11 @@
 
 pub mod agents;
 pub mod config;
+pub mod daemon;
 pub mod embeddings;
 pub mod error;
 pub mod evolution;
+pub mod launcher;
 pub mod mcp;
 pub mod namespace;
 pub mod secrets;
