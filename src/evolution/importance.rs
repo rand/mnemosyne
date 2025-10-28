@@ -8,7 +8,8 @@
 //
 // Uses exponential decay with 30-day half-life for recency.
 
-use super::scheduler::{EvolutionJob, JobConfig, JobError, JobReport};
+use super::config::JobConfig;
+use super::scheduler::{EvolutionJob, JobError, JobReport};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use std::time::{Duration, Instant};
@@ -50,6 +51,8 @@ impl ImportanceRecalibrator {
     /// - 10+ accesses/day → 1.0
     /// - 1 access/day → 0.5
     /// - <0.3 accesses/day → 0.3 (floor)
+    ///
+    /// Uses logarithmic scaling: 0.5 + log10(accesses_per_day) * 0.5
     fn access_factor(&self, memory: &MemoryData) -> f32 {
         if memory.access_count == 0 {
             return 0.3; // Minimum score for never-accessed
@@ -58,8 +61,9 @@ impl ImportanceRecalibrator {
         let days_since_creation = memory.days_since_creation().max(1.0);
         let accesses_per_day = memory.access_count as f32 / days_since_creation;
 
-        // Scale to 0-1, with floor at 0.3
-        (accesses_per_day / 10.0).clamp(0.3, 1.0)
+        // Logarithmic scale: log10(1) = 0 → 0.5, log10(10) = 1 → 1.0
+        let log_scale = 0.5 + (accesses_per_day.max(0.1).log10() * 0.5);
+        log_scale.clamp(0.3, 1.0)
     }
 
     /// Calculate recency factor (0-1 scale)

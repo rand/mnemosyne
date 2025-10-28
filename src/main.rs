@@ -5,9 +5,11 @@
 
 use clap::{Parser, Subcommand};
 use mnemosyne_core::{
-    error::Result, ConfigManager, ConnectionMode, EmbeddingService, LibsqlStorage, LlmConfig,
+    error::Result, ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig,
     LlmService, McpServer, StorageBackend, ToolHandler,
 };
+// Use the v1.0 embedding service for backward compatibility
+use mnemosyne_core::services::embeddings::EmbeddingService;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{info, Level};
