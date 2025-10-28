@@ -31,8 +31,8 @@ section "Test 1: Missing API Key"
 
 print_cyan "Testing behavior with no ANTHROPIC_API_KEY..."
 
-# Temporarily unset API key
-OLD_API_KEY="$ANTHROPIC_API_KEY"
+# Temporarily unset API key (use :- to handle unset variable with set -u)
+OLD_API_KEY="${ANTHROPIC_API_KEY:-}"
 unset ANTHROPIC_API_KEY
 
 # Try to create memory without API key
@@ -42,8 +42,10 @@ NO_KEY_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
 
 NO_KEY_EXIT=$?
 
-# Restore API key
-export ANTHROPIC_API_KEY="$OLD_API_KEY"
+# Restore API key (if it was set)
+if [ -n "$OLD_API_KEY" ]; then
+    export ANTHROPIC_API_KEY="$OLD_API_KEY"
+fi
 
 # System should either:
 # 1. Fail gracefully with clear error message
