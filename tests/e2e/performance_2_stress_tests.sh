@@ -101,7 +101,7 @@ CONCURRENT_START=$(date +%s)
 # Launch 50 concurrent operations
 for i in {1..50}; do
     (DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-        "Concurrent stress test $i" \
+        --content "Concurrent stress test $i" \
         --namespace "project:concurrent" --importance 6 > /dev/null 2>&1) &
 done
 
@@ -132,7 +132,7 @@ SUSTAINED_ERRORS=0
 
 for i in {1..100}; do
     LOAD_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-        "Sustained load test $i" \
+        --content "Sustained load test $i" \
         --namespace "project:sustained" --importance 5 2>&1 || echo "LOAD_ERROR")
 
     if echo "$LOAD_OUTPUT" | grep -qi "LOAD_ERROR"; then
@@ -237,7 +237,7 @@ LOCK_ERRORS=0
 
 for i in {1..30}; do
     (DATABASE_URL="sqlite://$LOCK_TEST_DB" "$BIN" remember \
-        "Lock contention test $i" \
+        --content "Lock contention test $i" \
         --namespace "project:test" --importance 6 2>&1 || echo "LOCK_ERROR") &
 done
 
@@ -263,7 +263,7 @@ print_cyan "Testing query performance with database under load..."
 # Create load
 for i in {1..10}; do
     (DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-        "Background load $i" \
+        --content "Background load $i" \
         --namespace "project:background" --importance 5 > /dev/null 2>&1) &
 done
 
@@ -378,7 +378,7 @@ print_cyan "Testing system recovery after stress tests..."
 
 # After all stress, system should still work normally
 RECOVERY_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Recovery test after stress - system should work normally" \
+    --content "Recovery test after stress - system should work normally" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
 sleep 2

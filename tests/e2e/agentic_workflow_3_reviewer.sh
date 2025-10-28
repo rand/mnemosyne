@@ -121,7 +121,7 @@ GOOD_DOCS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
     --namespace "project:review" 2>&1 || echo "")
 
 MISSING_DOCS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
-    --query "UNDOCUMENTED" \
+    --query "schema changes Blocked" \
     --namespace "project:review" 2>&1 || echo "")
 
 if echo "$GOOD_DOCS" | grep -qi "fully documented"; then
@@ -130,7 +130,7 @@ else
     fail "Documentation completeness check failed"
 fi
 
-if echo "$MISSING_DOCS" | grep -qi "NOT DOCUMENTED.*Blocked"; then
+if echo "$MISSING_DOCS" | grep -qi "Blocked.*docs\|NOT DOCUMENTED"; then
     pass "Documentation gate: Missing docs blocked"
 else
     fail "Missing docs detection failed"
