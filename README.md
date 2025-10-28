@@ -31,7 +31,7 @@ Mnemosyne is a high-performance memory system that gives Claude Code a multi-age
 **Current**: v2.0 Released - Enhanced with vector search, RBAC, and autonomous evolution
 
 **v2.0 Features** (October 2025):
-- **Vector Search**: Native semantic similarity using sqlite-vec (1536-dimensional embeddings)
+- **Local Vector Search**: Semantic similarity with fastembed + sqlite-vec (768-dim local embeddings, no external API calls)
 - **RBAC System**: Agent-based access control with role-based permissions and audit trails
 - **Evolution System**: Autonomous importance recalibration, link decay, and memory archival
 - **Hybrid Search**: Combined keyword + graph + vector search with weighted ranking
@@ -52,8 +52,8 @@ Mnemosyne is a high-performance memory system that gives Claude Code a multi-age
 - **PyO3 Performance**: 10-20x faster operations (<3ms) vs subprocess calls through Rust↔Python bindings
 
 ### v2.0 Advanced Features
-- **Vector Search**: Native semantic similarity using sqlite-vec extension (1536-dimensional embeddings)
-- **Dual Storage**: Optimized rusqlite for vectors + libsql for memories (same database file)
+- **Local Vector Search**: Semantic similarity with fastembed (nomic-embed-text-v1.5, 768-dim) + sqlite-vec extension
+- **Global Model Cache**: Shared embedding models at `~/.cache/mnemosyne/models/` (~140MB, reused across projects)
 - **RBAC System**: Agent-based access control with 4 roles (Orchestrator, Optimizer, Reviewer, Executor)
 - **Audit Trails**: Complete memory modification tracking with agent attribution
 - **Evolution System**: Autonomous background jobs for memory optimization
@@ -115,7 +115,7 @@ Or use MCP tools programmatically:
 
 ```
 mnemosyne.remember   - Store a memory with LLM enrichment
-mnemosyne.recall     - Hybrid search (keyword + graph)
+mnemosyne.recall     - Hybrid search (keyword + graph + vector)
 mnemosyne.list       - List memories with sorting
 mnemosyne.graph      - Get memory graph for context
 mnemosyne.context    - Get full project context
@@ -125,6 +125,23 @@ mnemosyne.delete     - Archive a memory
 ```
 
 See [MCP_SERVER.md](MCP_SERVER.md) for API documentation and examples.
+
+**CLI Embedding Management**:
+
+```bash
+# Generate embeddings for all memories (enables vector search)
+mnemosyne embed --all --progress
+
+# Generate embeddings for specific namespace
+mnemosyne embed --namespace "project:myapp"
+
+# Manage embedding models
+mnemosyne models list      # List available models
+mnemosyne models info      # Show cache info
+mnemosyne models clear     # Clear model cache (~140MB)
+```
+
+For detailed vector search documentation, see [VECTOR_SEARCH.md](docs/VECTOR_SEARCH.md).
 
 ### Orchestrated Sessions (Default)
 
@@ -309,7 +326,7 @@ flowchart TD
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| **Storage Layer** | LibSQL/Turso + FTS5 | Native vector search, hybrid retrieval (keyword + graph) |
+| **Storage Layer** | LibSQL/Turso + FTS5 + sqlite-vec | Local vector search (fastembed), hybrid retrieval (keyword + graph + vector) |
 | **LLM Service** | Claude Haiku | Auto-generates summaries, tags, semantic links |
 | **Namespace Detector** | Git-aware | Project context (global/project/session) |
 | **MCP Server** | Rust + Tokio | 8 OODA-aligned tools via JSON-RPC |
