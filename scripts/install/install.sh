@@ -33,6 +33,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 DEFAULT_BIN_DIR="${HOME}/.local/bin"
 BIN_DIR="${DEFAULT_BIN_DIR}"
 SKIP_API_KEY=false
@@ -170,7 +171,7 @@ check_prerequisites() {
 build_binary() {
     print_header "Building Mnemosyne (release mode)"
 
-    cd "$SCRIPT_DIR"
+    cd "$PROJECT_ROOT"
 
     if ! cargo build --release; then
         print_error "Failed to build Mnemosyne"
@@ -196,7 +197,7 @@ install_binary() {
     fi
 
     # Copy binary
-    if ! cp -f "${SCRIPT_DIR}/target/release/mnemosyne" "${BIN_DIR}/mnemosyne"; then
+    if ! cp -f "${PROJECT_ROOT}/target/release/mnemosyne" "${BIN_DIR}/mnemosyne"; then
         print_error "Failed to copy binary to $BIN_DIR"
         exit 1
     fi
@@ -363,7 +364,7 @@ configure_mcp() {
     else
         # Project-level configuration
         if prompt_yes_no "Configure MCP for this project?" "y"; then
-            local mcp_file="${SCRIPT_DIR}/.claude/mcp_config.json"
+            local mcp_file="${PROJECT_ROOT}/.claude/mcp_config.json"
             merge_mcp_config "$mcp_file"
         fi
 
@@ -435,9 +436,9 @@ print_next_steps() {
     fi
 
     echo "For more information:"
-    echo "  - README: ${SCRIPT_DIR}/README.md"
-    echo "  - Installation guide: ${SCRIPT_DIR}/INSTALL.md"
-    echo "  - MCP server docs: ${SCRIPT_DIR}/MCP_SERVER.md"
+    echo "  - README: ${PROJECT_ROOT}/README.md"
+    echo "  - Installation guide: ${PROJECT_ROOT}/INSTALL.md"
+    echo "  - MCP server docs: ${PROJECT_ROOT}/MCP_SERVER.md"
     echo ""
 }
 
