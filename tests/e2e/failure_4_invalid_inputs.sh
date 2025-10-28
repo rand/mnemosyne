@@ -274,7 +274,7 @@ print_cyan "Testing boundary values..."
 # Test importance boundaries
 for imp in 0 10; do
     BOUNDARY_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-        "Boundary test importance $imp" \
+        --content "Boundary test importance $imp" \
         --namespace "project:test" --importance $imp 2>&1 || echo "")
 
     sleep 1
