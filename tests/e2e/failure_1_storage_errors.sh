@@ -36,8 +36,13 @@ NONEXISTENT_DB="/tmp/does_not_exist_$(date +%s).db"
 NONEXISTENT_URL="sqlite://$NONEXISTENT_DB"
 
 # Try to list memories from non-existent database
-OUTPUT=$(DATABASE_URL="$NONEXISTENT_URL" "$BIN" recall --query "" --namespace "project:test" 2>&1 || echo "ERROR_EXPECTED")
-EXIT_CODE=$?
+OUTPUT=$(DATABASE_URL="$NONEXISTENT_URL" "$BIN" recall --query "" --namespace "project:test" 2>&1) || EXIT_CODE=$?
+: ${EXIT_CODE:=0}
+
+# Append marker if errored (for validation)
+if [ "$EXIT_CODE" -ne 0 ]; then
+    OUTPUT="${OUTPUT}"$'\n'"ERROR_EXPECTED"
+fi
 
 # Should fail gracefully (non-zero exit code)
 if [ "$EXIT_CODE" -ne 0 ]; then
@@ -67,8 +72,13 @@ DATABASE_URL="sqlite://$CORRUPT_DB" "$BIN" remember --content "Valid memory" \
 dd if=/dev/urandom of="$CORRUPT_DB" bs=1024 count=1 conv=notrunc > /dev/null 2>&1
 
 # Try to query corrupted database
-CORRUPT_OUTPUT=$(DATABASE_URL="sqlite://$CORRUPT_DB" "$BIN" recall --query "" --namespace "project:test" 2>&1 || echo "CORRUPT_ERROR")
-CORRUPT_EXIT=$?
+CORRUPT_OUTPUT=$(DATABASE_URL="sqlite://$CORRUPT_DB" "$BIN" recall --query "" --namespace "project:test" 2>&1) || CORRUPT_EXIT=$?
+: ${CORRUPT_EXIT:=0}
+
+# Append marker if errored (for validation)
+if [ "$CORRUPT_EXIT" -ne 0 ]; then
+    CORRUPT_OUTPUT="${CORRUPT_OUTPUT}"$'\n'"CORRUPT_ERROR"
+fi
 
 if [ "$CORRUPT_EXIT" -ne 0 ]; then
     pass "Corrupted database detected and rejected"
@@ -100,11 +110,19 @@ sleep 1  # Give locker time to acquire lock
 # Try to write while locked
 if ! command -v timeout &> /dev/null; then
     warn "timeout command not available, skipping detailed lock test"
-    LOCKED_OUTPUT=$(DATABASE_URL="sqlite://$LOCKED_DB" "$BIN" remember --content "Locked test" --namespace "project:test" --importance 7 2>&1 || echo "LOCKED_ERROR")
-    LOCKED_EXIT=$?
+    LOCKED_OUTPUT=$(DATABASE_URL="sqlite://$LOCKED_DB" "$BIN" remember --content "Locked test" --namespace "project:test" --importance 7 2>&1) || LOCKED_EXIT=$?
+    : ${LOCKED_EXIT:=0}
+    # Append marker if errored (for validation)
+    if [ "$LOCKED_EXIT" -ne 0 ]; then
+        LOCKED_OUTPUT="${LOCKED_OUTPUT}"$'\n'"LOCKED_ERROR"
+    fi
 else
-    LOCKED_OUTPUT=$(timeout 3 bash -c "DATABASE_URL='sqlite://$LOCKED_DB' '$BIN' remember --content 'Locked test' --namespace 'project:test' --importance 7 2>&1 || echo 'LOCKED_ERROR'")
-    LOCKED_EXIT=$?
+    LOCKED_OUTPUT=$(timeout 3 bash -c "DATABASE_URL='sqlite://$LOCKED_DB' '$BIN' remember --content 'Locked test' --namespace 'project:test' --importance 7 2>&1") || LOCKED_EXIT=$?
+    : ${LOCKED_EXIT:=0}
+    # Append marker if errored (for validation)
+    if [ "$LOCKED_EXIT" -ne 0 ]; then
+        LOCKED_OUTPUT="${LOCKED_OUTPUT}"$'\n'"LOCKED_ERROR"
+    fi
 fi
 
 # Should timeout or fail gracefully
@@ -134,8 +152,13 @@ chmod 444 "$READONLY_DB"
 
 # Try to write (should fail)
 READONLY_OUTPUT=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" remember --content "Should fail" \
-    --namespace "project:test" --importance 7 2>&1 || echo "READONLY_ERROR")
-READONLY_EXIT=$?
+    --namespace "project:test" --importance 7 2>&1) || READONLY_EXIT=$?
+: ${READONLY_EXIT:=0}
+
+# Append marker if errored (for validation)
+if [ "$READONLY_EXIT" -ne 0 ]; then
+    READONLY_OUTPUT="${READONLY_OUTPUT}"$'\n'"READONLY_ERROR"
+fi
 
 if [ "$READONLY_EXIT" -ne 0 ]; then
     pass "Read-only database write rejected"
@@ -144,8 +167,8 @@ else
 fi
 
 # But reads should still work
-READONLY_READ=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" recall --query "" --namespace "project:test" 2>&1 || echo "")
-READ_EXIT=$?
+READONLY_READ=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" recall --query "" --namespace "project:test" 2>&1) || READ_EXIT=$?
+: ${READ_EXIT:=0}
 
 if [ "$READ_EXIT" -eq 0 ] && echo "$READONLY_READ" | grep -qi "Read-only test"; then
     pass "Read-only database still allows reads"
@@ -166,8 +189,13 @@ INVALID_DB="/nonexistent_dir/subdir/invalid.db"
 INVALID_URL="sqlite://$INVALID_DB"
 
 INVALID_OUTPUT=$(DATABASE_URL="$INVALID_URL" "$BIN" remember --content "Should fail" \
-    --namespace "project:test" --importance 7 2>&1 || echo "INVALID_PATH_ERROR")
-INVALID_EXIT=$?
+    --namespace "project:test" --importance 7 2>&1) || INVALID_EXIT=$?
+: ${INVALID_EXIT:=0}
+
+# Append marker if errored (for validation)
+if [ "$INVALID_EXIT" -ne 0 ]; then
+    INVALID_OUTPUT="${INVALID_OUTPUT}"$'\n'"INVALID_PATH_ERROR"
+fi
 
 if [ "$INVALID_EXIT" -ne 0 ]; then
     pass "Invalid database path rejected gracefully"
@@ -189,8 +217,8 @@ DISKSPACE_DB=$(create_test_db "diskspace")
 LARGE_CONTENT=$(printf 'X%.0s' {1..100000})  # 100KB content
 
 LARGE_OUTPUT=$(DATABASE_URL="sqlite://$DISKSPACE_DB" "$BIN" remember --content "$LARGE_CONTENT" \
-    --namespace "project:test" --importance 7 2>&1 || echo "")
-LARGE_EXIT=$?
+    --namespace "project:test" --importance 7 2>&1) || LARGE_EXIT=$?
+: ${LARGE_EXIT:=0}
 
 if [ "$LARGE_EXIT" -eq 0 ]; then
     pass "Large memory content handled (100KB)"
@@ -296,8 +324,8 @@ print_cyan "Testing launcher behavior without database..."
 MISSING_DB="/tmp/missing_launcher_$(date +%s).db"
 
 CONTEXT_OUTPUT=$(DATABASE_URL="sqlite://$MISSING_DB" "$BIN" recall --query "" \
-    --namespace "project:test" --limit 10 2>&1 || echo "")
-CONTEXT_EXIT=$?
+    --namespace "project:test" --limit 10 2>&1) || CONTEXT_EXIT=$?
+: ${CONTEXT_EXIT:=0}
 
 if [ "$CONTEXT_EXIT" -ne 0 ]; then
     pass "Context loading fails gracefully with missing database"
