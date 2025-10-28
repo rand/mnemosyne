@@ -36,7 +36,7 @@ export ANTHROPIC_API_KEY="sk-invalid-for-testing"
 
 # System should still be able to store memories (degraded mode)
 DEGRADED_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Critical system memory - must be stored even without enrichment" \
+    --content "Critical system memory - must be stored even without enrichment" \
     --namespace "project:test" --importance 9 2>&1 || echo "")
 
 # Restore API key (if it was set)
@@ -112,7 +112,7 @@ print_cyan "Testing system with partial feature availability..."
 # Test: Store memory, then retrieve it (basic functionality)
 
 BASIC_STORE=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Basic functionality test - core features should always work" \
+    --content "Basic functionality test - core features should always work" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
 sleep 2

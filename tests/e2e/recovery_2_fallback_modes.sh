@@ -36,7 +36,7 @@ export ANTHROPIC_API_KEY="sk-invalid-fallback-test"
 
 # System should fall back to basic metadata generation
 FALLBACK_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Architectural decision: Using PostgreSQL for primary database" \
+    --content "Architectural decision: Using PostgreSQL for primary database" \
     --namespace "project:test" --importance 8 2>&1 || echo "")
 
 # Restore API key (if it was set)
