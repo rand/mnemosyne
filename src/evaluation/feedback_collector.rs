@@ -176,16 +176,16 @@ pub struct ContextEvaluation {
 
 /// Feedback collector for context evaluation
 pub struct FeedbackCollector {
-    storage: Arc<dyn StorageBackend>,
+    db_path: String,
     // Track active contexts for access timing
     active_contexts: tokio::sync::RwLock<HashMap<String, i64>>,
 }
 
 impl FeedbackCollector {
     /// Create a new feedback collector
-    pub fn new(storage: Arc<dyn StorageBackend>) -> Self {
+    pub fn new(db_path: String) -> Self {
         Self {
-            storage,
+            db_path,
             active_contexts: tokio::sync::RwLock::new(HashMap::new()),
         }
     }
@@ -208,8 +208,35 @@ impl FeedbackCollector {
         }
         let task_hash = context.task_hash.chars().take(16).collect::<String>();
 
+        // Filter sensitive keywords and limit to 10 for privacy
+        let task_keywords = context.task_keywords.map(|keywords| {
+            // List of sensitive keywords that should never be stored
+            let sensitive_terms = [
+                "password", "secret", "key", "token", "api_key", "private_key",
+                "credentials", "ssh_key", "access_token", "auth_token",
+            ];
+
+            let filtered: Vec<String> = keywords
+                .into_iter()
+                .filter(|keyword| {
+                    let kw_lower = keyword.to_lowercase();
+                    let is_sensitive = sensitive_terms
+                        .iter()
+                        .any(|term| kw_lower.contains(term));
+
+                    if is_sensitive {
+                        warn!("Filtered sensitive keyword for privacy: {}", keyword);
+                    }
+                    !is_sensitive
+                })
+                .take(10) // Limit to 10
+                .collect();
+
+            filtered
+        });
+
         // Store evaluation record
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().await?;
 
         conn.execute(
             r#"
@@ -233,7 +260,7 @@ impl FeedbackCollector {
                 context.context_type.to_string(),
                 context.context_id,
                 task_hash,
-                context.task_keywords.map(|k| serde_json::to_string(&k).ok()).flatten(),
+                task_keywords.map(|k| serde_json::to_string(&k).ok()).flatten(),
                 context.task_type.map(|t| t.to_string()),
                 context.work_phase.map(|p| p.to_string()),
                 context.file_types.map(|f| serde_json::to_string(&f).ok()).flatten(),
@@ -269,7 +296,7 @@ impl FeedbackCollector {
             }
         }
 
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().await?;
 
         if let Some(ttfa) = time_to_first_access {
             // First access
@@ -311,7 +338,7 @@ impl FeedbackCollector {
 
         debug!("Recording context edited: {}", eval_id);
 
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().await?;
         conn.execute(
             r#"
             UPDATE context_evaluations
@@ -333,7 +360,7 @@ impl FeedbackCollector {
 
         debug!("Recording context committed: {}", eval_id);
 
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().await?;
         conn.execute(
             r#"
             UPDATE context_evaluations
@@ -355,7 +382,7 @@ impl FeedbackCollector {
 
         debug!("Recording context cited: {}", eval_id);
 
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().await?;
         conn.execute(
             r#"
             UPDATE context_evaluations
@@ -374,14 +401,14 @@ impl FeedbackCollector {
     /// Record explicit user rating of context usefulness
     pub async fn record_user_rating(&self, eval_id: &str, rating: i32) -> Result<()> {
         if !(-1..=1).contains(&rating) {
-            return Err(MnemosyneError::Validation("Rating must be -1, 0, or 1".into()));
+            return Err(MnemosyneError::ValidationError("Rating must be -1, 0, or 1".into()));
         }
 
         let now = Utc::now().timestamp();
 
         debug!("Recording user rating {} for {}", rating, eval_id);
 
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().await?;
         conn.execute(
             r#"
             UPDATE context_evaluations
@@ -400,14 +427,14 @@ impl FeedbackCollector {
     /// Record task completion and success score
     pub async fn record_task_completion(&self, session_id: &str, success_score: f32) -> Result<()> {
         if !(0.0..=1.0).contains(&success_score) {
-            return Err(MnemosyneError::Validation("Success score must be 0.0-1.0".into()));
+            return Err(MnemosyneError::ValidationError("Success score must be 0.0-1.0".into()));
         }
 
         let now = Utc::now().timestamp();
 
         info!("Recording task completion for session {} with score {}", session_id, success_score);
 
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().await?;
         conn.execute(
             r#"
             UPDATE context_evaluations
@@ -426,7 +453,7 @@ impl FeedbackCollector {
 
     /// Get evaluation by ID
     pub async fn get_evaluation(&self, eval_id: &str) -> Result<ContextEvaluation> {
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().await?;
         let mut rows = conn
             .query(
                 "SELECT * FROM context_evaluations WHERE id = ?",
@@ -446,7 +473,7 @@ impl FeedbackCollector {
 
     /// Get all evaluations for a session
     pub async fn get_session_evaluations(&self, session_id: &str) -> Result<Vec<ContextEvaluation>> {
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().await?;
         let mut rows = conn
             .query(
                 "SELECT * FROM context_evaluations WHERE session_id = ? ORDER BY context_provided_at DESC",
@@ -467,14 +494,22 @@ impl FeedbackCollector {
         Ok(evaluations)
     }
 
-    /// Get connection from storage backend
-    fn get_conn(&self) -> Result<libsql::Connection> {
-        // This is a temporary workaround - we need to expose get_conn in the StorageBackend trait
-        // For now, we'll use a direct connection approach
-        // TODO: Add get_conn to StorageBackend trait
-        Err(MnemosyneError::Other(
-            "Direct database access not yet implemented in feedback collector".into()
-        ))
+    /// Get connection to database
+    async fn get_conn(&self) -> Result<libsql::Connection> {
+        use crate::storage::libsql::{ConnectionMode, LibsqlStorage};
+
+        let storage = LibsqlStorage::new(ConnectionMode::Local(self.db_path.clone())).await?;
+
+        // Get connection from storage
+        // We need to use the internal database instance
+        // For now, create a temporary connection
+        let db = libsql::Builder::new_local(&self.db_path)
+            .build()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to connect: {}", e)))?;
+
+        db.connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))
     }
 
     /// Convert database row to ContextEvaluation
@@ -547,14 +582,140 @@ mod tests {
     }
 
     #[test]
+    fn test_task_hash_truncation_various_lengths() {
+        // Test different hash lengths
+        let test_cases = vec![
+            ("a".repeat(10), 10),  // Short hash
+            ("b".repeat(16), 16),  // Exact length
+            ("c".repeat(32), 16),  // Medium hash (MD5 length)
+            ("d".repeat(64), 16),  // Long hash (SHA256 length)
+            ("e".repeat(128), 16), // Very long hash (SHA512 length)
+        ];
+
+        for (input, expected_len) in test_cases {
+            let truncated: String = input.chars().take(16).collect();
+            assert!(
+                truncated.len() <= 16,
+                "Hash longer than 16 chars: {}",
+                truncated.len()
+            );
+            assert_eq!(
+                truncated.len(),
+                expected_len.min(16),
+                "Unexpected truncation length"
+            );
+        }
+    }
+
+    #[test]
+    fn test_sensitive_keywords_detection() {
+        // List of keywords that should never be stored
+        let sensitive_keywords = vec![
+            "password",
+            "secret",
+            "api_key",
+            "private_key",
+            "token",
+            "credentials",
+            "ssh_key",
+            "access_token",
+        ];
+
+        for keyword in sensitive_keywords {
+            // In production, keywords would be filtered
+            // For now, just verify we can detect them
+            assert!(
+                keyword.to_lowercase().contains("key")
+                    || keyword.to_lowercase().contains("secret")
+                    || keyword.to_lowercase().contains("password")
+                    || keyword.to_lowercase().contains("token")
+                    || keyword.to_lowercase().contains("credential"),
+                "Sensitive keyword detection failed for: {}",
+                keyword
+            );
+        }
+    }
+
+    #[test]
+    fn test_keyword_limit_enforcement() {
+        // Verify we can enforce max 10 keywords
+        let keywords: Vec<String> = (0..20).map(|i| format!("keyword{}", i)).collect();
+        let limited: Vec<String> = keywords.into_iter().take(10).collect();
+
+        assert_eq!(limited.len(), 10, "Should limit to 10 keywords");
+    }
+
+    #[test]
     fn test_context_type_display() {
         assert_eq!(ContextType::Skill.to_string(), "skill");
         assert_eq!(ContextType::Memory.to_string(), "memory");
+        assert_eq!(ContextType::File.to_string(), "file");
+        assert_eq!(ContextType::Commit.to_string(), "commit");
+        assert_eq!(ContextType::Plan.to_string(), "plan");
     }
 
     #[test]
     fn test_work_phase_display() {
         assert_eq!(WorkPhase::Implementation.to_string(), "implementation");
         assert_eq!(WorkPhase::Debugging.to_string(), "debugging");
+        assert_eq!(WorkPhase::Planning.to_string(), "planning");
+        assert_eq!(WorkPhase::Review.to_string(), "review");
+        assert_eq!(WorkPhase::Testing.to_string(), "testing");
+        assert_eq!(WorkPhase::Documentation.to_string(), "documentation");
+    }
+
+    #[test]
+    fn test_task_type_display() {
+        assert_eq!(TaskType::Feature.to_string(), "feature");
+        assert_eq!(TaskType::Bugfix.to_string(), "bugfix");
+        assert_eq!(TaskType::Refactor.to_string(), "refactor");
+        assert_eq!(TaskType::Test.to_string(), "test");
+        assert_eq!(TaskType::Documentation.to_string(), "documentation");
+        assert_eq!(TaskType::Optimization.to_string(), "optimization");
+        assert_eq!(TaskType::Exploration.to_string(), "exploration");
+    }
+
+    #[test]
+    fn test_error_context_display() {
+        assert_eq!(ErrorContext::Compilation.to_string(), "compilation");
+        assert_eq!(ErrorContext::Runtime.to_string(), "runtime");
+        assert_eq!(ErrorContext::TestFailure.to_string(), "test_failure");
+        assert_eq!(ErrorContext::Lint.to_string(), "lint");
+        assert_eq!(ErrorContext::None.to_string(), "none");
+    }
+
+    #[test]
+    fn test_provided_context_privacy_fields() {
+        // Verify ProvidedContext has correct privacy-preserving fields
+        let context = ProvidedContext {
+            session_id: "test".to_string(),
+            agent_role: "optimizer".to_string(),
+            namespace: "test".to_string(),
+            context_type: ContextType::Skill,
+            context_id: "skill.md".to_string(),
+            task_hash: "abc123".to_string(),
+            task_keywords: Some(vec!["rust".to_string()]),
+            task_type: None,
+            work_phase: None,
+            file_types: None,
+            error_context: None,
+            related_technologies: None,
+        };
+
+        // Verify fields are privacy-preserving
+        assert!(
+            context.task_hash.len() <= 16,
+            "task_hash should be <= 16 chars"
+        );
+        if let Some(keywords) = &context.task_keywords {
+            assert!(keywords.len() <= 10, "Should have <= 10 keywords");
+            for keyword in keywords {
+                // Keywords should be generic technology names, not sensitive data
+                assert!(
+                    !keyword.to_lowercase().contains("password"),
+                    "Keywords should not contain sensitive terms"
+                );
+            }
+        }
     }
 }

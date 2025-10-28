@@ -6,16 +6,17 @@
 //! - RelevanceScorer: Score context and update weights
 
 use crate::evaluation::{
-    ContextEvaluation, ContextType, ErrorContext, FeedbackCollector, FeatureExtractor,
-    ProvidedContext, RelevanceFeatures, RelevanceScorer, Scope, TaskType, WeightSet,
-    WorkPhase,
+    FeedbackCollector, FeatureExtractor, RelevanceScorer,
 };
-use crate::storage::libsql::{ConnectionMode, LibsqlStorage};
+use crate::evaluation::feedback_collector::{
+    ContextEvaluation, ContextType, ErrorContext, ProvidedContext, TaskType, WorkPhase,
+};
+use crate::evaluation::feature_extractor::RelevanceFeatures;
+use crate::evaluation::relevance_scorer::{Scope, WeightSet};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 /// Python wrapper for FeedbackCollector
 #[pyclass(name = "FeedbackCollector")]
@@ -28,17 +29,7 @@ impl PyFeedbackCollector {
     /// Create a new feedback collector
     #[new]
     fn new(db_path: String) -> PyResult<Self> {
-        let runtime = tokio::runtime::Runtime::new()
-            .map_err(|e| PyValueError::new_err(format!("Failed to create runtime: {}", e)))?;
-
-        let storage = runtime.block_on(async {
-            LibsqlStorage::new(ConnectionMode::Local(db_path))
-                .await
-                .map_err(|e| PyValueError::new_err(format!("Failed to connect to database: {}", e)))
-        })?;
-
-        let collector = FeedbackCollector::new(Arc::new(storage));
-
+        let collector = FeedbackCollector::new(db_path);
         Ok(Self { collector })
     }
 
@@ -154,17 +145,7 @@ impl PyFeatureExtractor {
     /// Create a new feature extractor
     #[new]
     fn new(db_path: String) -> PyResult<Self> {
-        let runtime = tokio::runtime::Runtime::new()
-            .map_err(|e| PyValueError::new_err(format!("Failed to create runtime: {}", e)))?;
-
-        let storage = runtime.block_on(async {
-            LibsqlStorage::new(ConnectionMode::Local(db_path))
-                .await
-                .map_err(|e| PyValueError::new_err(format!("Failed to connect to database: {}", e)))
-        })?;
-
-        let extractor = FeatureExtractor::new(Arc::new(storage));
-
+        let extractor = FeatureExtractor::new(db_path);
         Ok(Self { extractor })
     }
 
@@ -199,17 +180,7 @@ impl PyRelevanceScorer {
     /// Create a new relevance scorer
     #[new]
     fn new(db_path: String) -> PyResult<Self> {
-        let runtime = tokio::runtime::Runtime::new()
-            .map_err(|e| PyValueError::new_err(format!("Failed to create runtime: {}", e)))?;
-
-        let storage = runtime.block_on(async {
-            LibsqlStorage::new(ConnectionMode::Local(db_path))
-                .await
-                .map_err(|e| PyValueError::new_err(format!("Failed to connect to database: {}", e)))
-        })?;
-
-        let scorer = RelevanceScorer::new(Arc::new(storage));
-
+        let scorer = RelevanceScorer::new(db_path);
         Ok(Self { scorer })
     }
 

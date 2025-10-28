@@ -7,7 +7,22 @@ Responsibilities:
 - Monitor all context sources: agents, files, commits, plans, beads, skills, session
 - Prevent brevity bias and context collapse
 - Dynamically discover and load relevant skills from filesystem
-- Learn context relevance over time using evaluation system
+- Learn context relevance over time using privacy-preserving evaluation system
+
+Privacy-Preserving Evaluation:
+The Optimizer agent uses an evaluation system to learn which context (skills, memories,
+files) is most relevant over time. The system is designed with privacy as a core constraint:
+
+- Local-Only Storage: All data in .mnemosyne/project.db (gitignored)
+- Hashed Tasks: SHA256 hash of task descriptions (16 chars only)
+- Limited Keywords: Max 10 generic keywords, no sensitive terms
+- Statistical Features: Only computed metrics stored, never raw content
+- No Network Calls: Uses existing Anthropic API calls, no separate requests
+- Graceful Degradation: System works perfectly when disabled
+
+For complete privacy documentation, see:
+- docs/PRIVACY.md (formal privacy guarantees)
+- EVALUATION.md (technical details and examples)
 """
 
 from dataclasses import dataclass, field
@@ -28,7 +43,25 @@ except ImportError:
 
 @dataclass
 class OptimizerConfig:
-    """Configuration for Optimizer agent."""
+    """
+    Configuration for Optimizer agent.
+
+    Evaluation System Privacy:
+    The evaluation system learns context relevance over time using privacy-preserving
+    design. When enabled (default), it:
+    - Stores data locally in .mnemosyne/project.db (gitignored)
+    - Hashes task descriptions (SHA256, 16 chars only)
+    - Extracts max 10 generic keywords, no sensitive terms
+    - Stores only statistical features (keyword overlap scores, recency, etc.)
+    - Makes no network calls beyond existing Anthropic API usage
+    - Works perfectly when disabled (falls back to basic keyword matching)
+
+    To disable evaluation:
+    - Set enable_evaluation=False
+    - Or set environment variable: MNEMOSYNE_DISABLE_EVALUATION=1
+
+    For complete privacy documentation, see docs/PRIVACY.md
+    """
     agent_id: str = "optimizer"
     skills_dirs: List[str] = field(default_factory=lambda: [
         ".claude/skills",                          # Project-local skills
@@ -44,8 +77,8 @@ class OptimizerConfig:
     # Claude Agent SDK configuration
     allowed_tools: Optional[List[str]] = None
     permission_mode: str = "default"  # Optimizer reads to analyze, doesn't edit
-    # Evaluation system configuration
-    enable_evaluation: bool = True
+    # Evaluation system configuration (privacy-preserving)
+    enable_evaluation: bool = True  # Enable adaptive learning (local-only, privacy-preserving)
     db_path: Optional[str] = None  # Use default if None (.mnemosyne/project.db or ~/.local/share/mnemosyne/mnemosyne.db)
 
 

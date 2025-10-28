@@ -40,6 +40,14 @@ Welcome to the Mnemosyne documentation! This page organizes all documentation by
   Quick reference for Claude Code slash commands.
   **Time**: 2 minutes | **Audience**: Claude Code users
 
+- **[Privacy Policy](docs/PRIVACY.md)** 🔒
+  Formal privacy guarantees for evaluation system: local-only storage, hashed tasks, statistical features.
+  **Time**: 15 minutes | **Audience**: Privacy-conscious users
+
+- **[Evaluation System](EVALUATION.md)** 🎓
+  Technical details for adaptive context learning: hierarchical learning, online algorithms, examples.
+  **Time**: 20 minutes | **Audience**: Power users, contributors
+
 ---
 
 ## 🔧 Configuration
