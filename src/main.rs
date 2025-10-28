@@ -28,6 +28,24 @@ fn get_db_path(cli_path: Option<String>) -> String {
     cli_path
         .or_else(|| std::env::var("MNEMOSYNE_DB_PATH").ok())
         .or_else(|| {
+            // Check DATABASE_URL for test compatibility
+            std::env::var("DATABASE_URL").ok().and_then(|url| {
+                // Strip sqlite:// prefix if present
+                if url.starts_with("sqlite://") {
+                    let path = url.strip_prefix("sqlite://").unwrap().to_string();
+                    if !path.is_empty() {
+                        Some(path)
+                    } else {
+                        None
+                    }
+                } else if !url.is_empty() && url != ":memory:" && !url.starts_with("libsql://") {
+                    Some(url)
+                } else {
+                    None
+                }
+            })
+        })
+        .or_else(|| {
             // Check for project-specific database in .mnemosyne/
             let project_db = PathBuf::from(".mnemosyne").join("project.db");
             if project_db.exists() {
