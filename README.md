@@ -142,11 +142,21 @@ mnemosyne --serve
 **Orchestrated sessions include**:
 - **4 Active Agents**: Orchestrator (coordinator), Optimizer (context optimization), Reviewer (quality gates), Executor (primary work agent)
 - **Automatic Mnemosyne Integration**: MCP server runs in background with proper agent roles
-- **Context Loading**: High-importance memories loaded at session start
+- **Intelligent Context Loading**: Three-layer context strategy
+  - **Pre-launch**: Top 10 high-importance memories (≥7) loaded before Claude starts
+  - **Post-launch**: Session start hook displays context in chat
+  - **In-session**: Optimizer dynamically loads memories as tasks evolve
 - **Namespace Detection**: Auto-detects project from git repository
 - **Sub-Agent Spawning**: Executor can spawn parallel sub-agents for independent work
 
-This is the recommended way to use Mnemosyne - it provides the full multi-agent orchestration experience with seamless memory integration.
+This is the recommended way to use Mnemosyne - it provides the full multi-agent orchestration experience with seamless memory integration and intelligent context management.
+
+**Context Loading Details**:
+- **Pre-launch context**: Loaded in <200ms, ~10KB, memories with importance ≥7
+- **Graceful degradation**: Session launches even if context loading fails
+- **Timeout protection**: 500ms hard limit, never blocks session start
+- **Budget-aware**: Respects 20% context allocation (~10KB of ~50KB total)
+- **Format**: Natural language markdown optimized for LLM consumption
 
 **Use `mnemosyne --serve` when**:
 - Integrating with external tools that expect a standalone MCP server
