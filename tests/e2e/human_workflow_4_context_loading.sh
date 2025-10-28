@@ -257,7 +257,8 @@ LIMIT_OUTPUT=$(DATABASE_URL="$LIMIT_DATABASE_URL" "$BIN" recall --query "" \
 
 # Count results by counting numbered entries (e.g., "1.", "2.", etc.)
 # This is more reliable than counting content matches which may appear multiple times per entry
-RESULT_COUNT=$(echo "$LIMIT_OUTPUT" | grep -cE '^[0-9]+\.' || echo "0")
+# Note: grep -c always outputs a number, so no fallback needed
+RESULT_COUNT=$(echo "$LIMIT_OUTPUT" | grep -cE '^[0-9]+\.' || true)
 
 echo "Results with limit=10: $RESULT_COUNT entries"
 
