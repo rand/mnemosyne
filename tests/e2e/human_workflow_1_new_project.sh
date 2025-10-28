@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail  # Removed -e to allow test failures
 
 # E2E Test: Human Workflow 1 - New Project Setup
 #
@@ -64,9 +64,9 @@ echo "Content: $CONTENT1"
 echo ""
 echo "Running: mnemosyne remember ..."
 
-OUTPUT1=$("$BIN" remember "$CONTENT1" --namespace "project:mnemosyne" --importance 8 2>&1)
+OUTPUT1=$("$BIN" remember --content "$CONTENT1" --namespace "project:mnemosyne" --importance 8 2>&1)
 
-if echo "$OUTPUT1" | grep -q "stored successfully\|Stored memory"; then
+if echo "$OUTPUT1" | grep -qi "stored successfully\|Stored memory\|Memory saved"; then
     echo -e "${GREEN}[PASS]${NC} Memory stored successfully"
     ((PASSED++))
 
@@ -97,9 +97,9 @@ CONTENT2="API design: REST with JSON for simplicity, versioned endpoints (/v1/),
 echo "Content: $CONTENT2"
 echo ""
 
-OUTPUT2=$("$BIN" remember "$CONTENT2" --namespace "project:mnemosyne" --importance 8 2>&1)
+OUTPUT2=$("$BIN" remember --content "$CONTENT2" --namespace "project:mnemosyne" --importance 8 2>&1)
 
-if echo "$OUTPUT2" | grep -q "stored successfully\|Stored memory"; then
+if echo "$OUTPUT2" | grep -qi "stored successfully\|Stored memory\|Memory saved"; then
     echo -e "${GREEN}[PASS]${NC} Memory stored successfully"
     ((PASSED++))
 
@@ -120,9 +120,9 @@ CONTENT3="Performance constraint: Search must complete in <200ms for typical que
 echo "Content: $CONTENT3"
 echo ""
 
-OUTPUT3=$("$BIN" remember "$CONTENT3" --namespace "project:mnemosyne" --importance 7 2>&1)
+OUTPUT3=$("$BIN" remember --content "$CONTENT3" --namespace "project:mnemosyne" --importance 7 2>&1)
 
-if echo "$OUTPUT3" | grep -q "stored successfully\|Stored memory"; then
+if echo "$OUTPUT3" | grep -qi "stored successfully\|Stored memory\|Memory saved"; then
     echo -e "${GREEN}[PASS]${NC} Memory stored successfully"
     ((PASSED++))
 else
@@ -141,7 +141,7 @@ echo ""
 # Allow time for indexing
 sleep 1
 
-OUTPUT4=$("$BIN" search "database architecture" --namespace "project:mnemosyne" 2>&1)
+OUTPUT4=$("$BIN" recall --query "database architecture" --namespace "project:mnemosyne" 2>&1)
 
 if echo "$OUTPUT4" | grep -qi "sqlite\|database"; then
     echo -e "${GREEN}[PASS]${NC} Search returned relevant results"
@@ -159,7 +159,7 @@ echo "========================================"
 echo "Test 5: List All Memories"
 echo "========================================"
 
-OUTPUT5=$("$BIN" list --namespace "project:mnemosyne" 2>&1)
+OUTPUT5=$("$BIN" recall --query "" --namespace "project:mnemosyne" 2>&1)
 
 # Count lines that look like memory entries (heuristic: contain importance or dates)
 MEMORY_COUNT=$(echo "$OUTPUT5" | grep -cE '[0-9]{4}-[0-9]{2}-[0-9]{2}|Importance:' || echo "0")

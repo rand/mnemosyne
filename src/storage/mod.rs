@@ -45,6 +45,7 @@ pub trait StorageBackend: Send + Sync {
         &self,
         seed_ids: &[MemoryId],
         max_hops: usize,
+        namespace: Option<Namespace>,
     ) -> Result<Vec<MemoryNote>>;
 
     /// Find consolidation candidates (similar memories)

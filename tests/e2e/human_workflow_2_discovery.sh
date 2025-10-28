@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail  # Removed -e to allow test failures
 
 # E2E Test: Human Workflow 2 - Memory Discovery & Reuse
 #
@@ -61,27 +61,27 @@ echo "========================================"
 echo "Creating sample memories..."
 
 # Memory 1: Database decision
-"$BIN" remember "Chose PostgreSQL for main database - ACID guarantees, JSON support, excellent performance" \
+"$BIN" remember --content "Chose PostgreSQL for main database - ACID guarantees, JSON support, excellent performance" \
     --namespace "project:ecommerce" --importance 8 > /dev/null 2>&1
 
 # Memory 2: Caching decision
-"$BIN" remember "Using Redis for session caching and rate limiting - fast in-memory operations, TTL support" \
+"$BIN" remember --content "Using Redis for session caching and rate limiting - fast in-memory operations, TTL support" \
     --namespace "project:ecommerce" --importance 7 > /dev/null 2>&1
 
 # Memory 3: API pattern
-"$BIN" remember "REST API with versioning (/v1/), pagination via cursor, standard HTTP codes" \
+"$BIN" remember --content "REST API with versioning (/v1/), pagination via cursor, standard HTTP codes" \
     --namespace "project:ecommerce" --importance 7 > /dev/null 2>&1
 
 # Memory 4: Bug fix
-"$BIN" remember "Fixed race condition in cart checkout - wrapped HashMap in Arc<RwLock>, added transaction isolation" \
+"$BIN" remember --content "Fixed race condition in cart checkout - wrapped HashMap in Arc<RwLock>, added transaction isolation" \
     --namespace "project:ecommerce" --importance 6 > /dev/null 2>&1
 
 # Memory 5: Performance optimization
-"$BIN" remember "Optimized product search with FTS5 full-text indexing - reduced query time from 800ms to 50ms" \
+"$BIN" remember --content "Optimized product search with FTS5 full-text indexing - reduced query time from 800ms to 50ms" \
     --namespace "project:ecommerce" --importance 7 > /dev/null 2>&1
 
 # Memory 6: Different project
-"$BIN" remember "Blog platform uses SQLite - embedded database, simpler deployment for small sites" \
+"$BIN" remember --content "Blog platform uses SQLite - embedded database, simpler deployment for small sites" \
     --namespace "project:blog" --importance 5 > /dev/null 2>&1
 
 echo -e "${GREEN}[SETUP]${NC} Created 6 sample memories (5 ecommerce, 1 blog)"
@@ -98,7 +98,7 @@ echo "Query: 'database'"
 echo ""
 
 START_TIME=$(date +%s%N)
-OUTPUT1=$("$BIN" search "database" --namespace "project:ecommerce" 2>&1)
+OUTPUT1=$("$BIN" recall --query "database" --namespace "project:ecommerce" 2>&1)
 END_TIME=$(date +%s%N)
 ELAPSED_MS=$(( (END_TIME - START_TIME) / 1000000 ))
 
@@ -130,7 +130,7 @@ echo "========================================"
 echo "Query: 'performance optimization'"
 echo ""
 
-OUTPUT2=$("$BIN" search "performance optimization" --namespace "project:ecommerce" 2>&1)
+OUTPUT2=$("$BIN" recall --query "performance optimization" --namespace "project:ecommerce" 2>&1)
 
 if echo "$OUTPUT2" | grep -qi "FTS5\|search\|50ms"; then
     echo -e "${GREEN}[PASS]${NC} Search returned performance optimization memory"
@@ -156,7 +156,7 @@ echo "Running $ITERATIONS searches to measure average performance..."
 
 for i in $(seq 1 $ITERATIONS); do
     START=$(date +%s%N)
-    "$BIN" search "API REST" --namespace "project:ecommerce" > /dev/null 2>&1
+    "$BIN" recall --query "API REST" --namespace "project:ecommerce" > /dev/null 2>&1
     END=$(date +%s%N)
     ITER_MS=$(( (END - START) / 1000000 ))
     TOTAL_MS=$(( TOTAL_MS + ITER_MS ))
@@ -180,7 +180,7 @@ echo "========================================"
 echo "Test 4: Result Ranking (High Importance First)"
 echo "========================================"
 
-OUTPUT4=$("$BIN" list --namespace "project:ecommerce" --sort importance 2>&1)
+OUTPUT4=$("$BIN" recall --query "" --namespace "project:ecommerce"  2>&1)
 
 # Check if results are sorted by importance
 if echo "$OUTPUT4" | head -5 | grep -q "PostgreSQL\|8\|importance: 8"; then
@@ -200,7 +200,7 @@ echo "========================================"
 echo "Query: 'database' (all namespaces)"
 echo ""
 
-OUTPUT5=$("$BIN" search "database" 2>&1)
+OUTPUT5=$("$BIN" recall --query "database" 2>&1)
 
 # Should find both ecommerce and blog mentions
 FOUND_POSTGRES=$(echo "$OUTPUT5" | grep -c "PostgreSQL\|Postgres" || echo "0")
@@ -221,10 +221,10 @@ echo "========================================"
 echo "Test 6: List with Filtering"
 echo "========================================"
 
-OUTPUT6=$("$BIN" list --namespace "project:ecommerce" --limit 3 2>&1)
+OUTPUT6=$("$BIN" recall --query "" --namespace "project:ecommerce" --limit 3 2>&1)
 
-# Count results (heuristic)
-RESULT_COUNT=$(echo "$OUTPUT6" | grep -cE '[0-9]{4}-[0-9]{2}-[0-9]{2}|Importance:' || echo "0")
+# Count results (heuristic) - count numbered list items (1., 2., 3., etc.)
+RESULT_COUNT=$(echo "$OUTPUT6" | grep -cE '^\s*[0-9]+\.\s+' || echo "0")
 
 if [ "$RESULT_COUNT" -le 3 ]; then
     echo -e "${GREEN}[PASS]${NC} Limit parameter respected (showing $RESULT_COUNT <= 3)"

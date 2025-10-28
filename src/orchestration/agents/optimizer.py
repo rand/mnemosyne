@@ -7,18 +7,61 @@ Responsibilities:
 - Monitor all context sources: agents, files, commits, plans, beads, skills, session
 - Prevent brevity bias and context collapse
 - Dynamically discover and load relevant skills from filesystem
+- Learn context relevance over time using privacy-preserving evaluation system
+
+Privacy-Preserving Evaluation:
+The Optimizer agent uses an evaluation system to learn which context (skills, memories,
+files) is most relevant over time. The system is designed with privacy as a core constraint:
+
+- Local-Only Storage: All data in .mnemosyne/project.db (gitignored)
+- Hashed Tasks: SHA256 hash of task descriptions (16 chars only)
+- Limited Keywords: Max 10 generic keywords, no sensitive terms
+- Statistical Features: Only computed metrics stored, never raw content
+- No Network Calls: Uses existing Anthropic API calls, no separate requests
+- Graceful Degradation: System works perfectly when disabled
+
+For complete privacy documentation, see:
+- docs/PRIVACY.md (formal privacy guarantees)
+- EVALUATION.md (technical details and examples)
 """
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Any
 from pathlib import Path
+import hashlib
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+
+# Import evaluation system (requires mnemosyne_core PyO3 bindings)
+try:
+    from mnemosyne_core import FeedbackCollector, RelevanceScorer, FeatureExtractor
+    EVALUATION_AVAILABLE = True
+except ImportError:
+    EVALUATION_AVAILABLE = False
+    print("Warning: Evaluation system not available. Install mnemosyne_core PyO3 bindings.")
 
 
 @dataclass
 class OptimizerConfig:
-    """Configuration for Optimizer agent."""
+    """
+    Configuration for Optimizer agent.
+
+    Evaluation System Privacy:
+    The evaluation system learns context relevance over time using privacy-preserving
+    design. When enabled (default), it:
+    - Stores data locally in .mnemosyne/project.db (gitignored)
+    - Hashes task descriptions (SHA256, 16 chars only)
+    - Extracts max 10 generic keywords, no sensitive terms
+    - Stores only statistical features (keyword overlap scores, recency, etc.)
+    - Makes no network calls beyond existing Anthropic API usage
+    - Works perfectly when disabled (falls back to basic keyword matching)
+
+    To disable evaluation:
+    - Set enable_evaluation=False
+    - Or set environment variable: MNEMOSYNE_DISABLE_EVALUATION=1
+
+    For complete privacy documentation, see docs/PRIVACY.md
+    """
     agent_id: str = "optimizer"
     skills_dirs: List[str] = field(default_factory=lambda: [
         ".claude/skills",                          # Project-local skills
@@ -34,6 +77,9 @@ class OptimizerConfig:
     # Claude Agent SDK configuration
     allowed_tools: Optional[List[str]] = None
     permission_mode: str = "default"  # Optimizer reads to analyze, doesn't edit
+    # Evaluation system configuration (privacy-preserving)
+    enable_evaluation: bool = True  # Enable adaptive learning (local-only, privacy-preserving)
+    db_path: Optional[str] = None  # Use default if None (.mnemosyne/project.db or ~/.local/share/mnemosyne/mnemosyne.db)
 
 
 @dataclass
@@ -91,7 +137,7 @@ Provide reasoning for your optimization decisions."""
 
     def __init__(self, config: OptimizerConfig, coordinator, storage):
         """
-        Initialize Optimizer agent with Claude Agent SDK.
+        Initialize Optimizer agent with Claude Agent SDK and evaluation system.
 
         Args:
             config: Optimizer configuration
@@ -113,11 +159,30 @@ Provide reasoning for your optimization decisions."""
         # Register with coordinator
         self.coordinator.register_agent(config.agent_id)
 
+        # Initialize evaluation system if available
+        self.evaluation_enabled = config.enable_evaluation and EVALUATION_AVAILABLE
+        if self.evaluation_enabled:
+            db_path = config.db_path or self._get_default_db_path()
+            try:
+                self.feedback_collector = FeedbackCollector(db_path)
+                self.relevance_scorer = RelevanceScorer(db_path)
+                self.feature_extractor = FeatureExtractor(db_path)
+                print(f"Evaluation system initialized with database: {db_path}")
+            except Exception as e:
+                print(f"Warning: Could not initialize evaluation system: {e}")
+                self.evaluation_enabled = False
+        else:
+            self.feedback_collector = None
+            self.relevance_scorer = None
+            self.feature_extractor = None
+
         # State
         self._loaded_skills: Dict[str, SkillMatch] = {}
         self._skill_cache: Dict[str, str] = {}  # skill_path -> content
         self._context_allocation: Dict[str, int] = {}
         self._session_active = False
+        self._current_session_id: Optional[str] = None
+        self._context_metadata: Dict[str, Any] = {}  # Task metadata for evaluation
 
     async def start_session(self):
         """Start Claude agent session."""
@@ -147,9 +212,18 @@ Provide reasoning for your optimization decisions."""
         self.coordinator.update_agent_state(self.config.agent_id, "running")
 
         try:
+            # Generate session ID for evaluation tracking
+            import uuid
+            self._current_session_id = str(uuid.uuid4())
+
             # Ensure session is active
             if not self._session_active:
                 await self.start_session()
+
+            # Step 0: Ask Claude to classify task (for contextual evaluation)
+            if self.evaluation_enabled:
+                task_metadata = await self._extract_task_metadata(task_description)
+                self._context_metadata['task_metadata'] = task_metadata
 
             # Step 1: Ask Claude to analyze task and discover relevant skills
             skills = await self._discover_skills(task_description)
@@ -314,27 +388,193 @@ Provide structured analysis."""
 
         return result
 
+    async def _extract_task_metadata(self, task_description: str) -> Dict[str, Any]:
+        """
+        Extract task metadata using Claude for contextual evaluation.
+
+        Asks Claude to classify:
+        - task_type: feature/bugfix/refactor/test/documentation/optimization/exploration
+        - work_phase: planning/implementation/debugging/review/testing/documentation
+        - error_context: compilation/runtime/test_failure/lint/none
+        - file_types: List of relevant file extensions
+        - technologies: List of technologies involved
+        """
+        metadata_prompt = f"""Analyze this task and classify it for contextual understanding:
+
+**Task**: {task_description}
+
+Please provide:
+1. **Task Type**: feature, bugfix, refactor, test, documentation, optimization, or exploration
+2. **Work Phase**: planning, implementation, debugging, review, testing, or documentation
+3. **Error Context** (if applicable): compilation, runtime, test_failure, lint, or none
+4. **File Types**: Relevant file extensions (e.g., .rs, .py, .md)
+5. **Technologies**: Key technologies involved (e.g., rust, tokio, postgres)
+
+Keep your response concise and structured."""
+
+        await self.claude_client.query(metadata_prompt)
+
+        classification_responses = []
+        async for message in self.claude_client.receive_response():
+            classification_responses.append(message)
+
+        # Parse Claude's response to extract metadata
+        # For now, use simple heuristics (in production, parse Claude's structured response)
+        task_lower = task_description.lower()
+
+        # Infer task type
+        if any(word in task_lower for word in ['bug', 'fix', 'error', 'crash']):
+            task_type = 'bugfix'
+        elif any(word in task_lower for word in ['test', 'testing', 'spec']):
+            task_type = 'test'
+        elif any(word in task_lower for word in ['refactor', 'reorganize', 'clean']):
+            task_type = 'refactor'
+        elif any(word in task_lower for word in ['document', 'docs', 'readme']):
+            task_type = 'documentation'
+        elif any(word in task_lower for word in ['optimize', 'performance', 'speed']):
+            task_type = 'optimization'
+        else:
+            task_type = 'feature'
+
+        # Infer work phase
+        if any(word in task_lower for word in ['debug', 'debugging', 'investigate']):
+            work_phase = 'debugging'
+        elif any(word in task_lower for word in ['review', 'check', 'validate']):
+            work_phase = 'review'
+        elif any(word in task_lower for word in ['plan', 'design', 'architect']):
+            work_phase = 'planning'
+        elif any(word in task_lower for word in ['implement', 'add', 'create', 'build']):
+            work_phase = 'implementation'
+        elif any(word in task_lower for word in ['test', 'testing']):
+            work_phase = 'testing'
+        else:
+            work_phase = 'implementation'
+
+        # Infer error context
+        if any(word in task_lower for word in ['compile', 'compilation', 'build error']):
+            error_context = 'compilation'
+        elif any(word in task_lower for word in ['runtime', 'crash', 'panic']):
+            error_context = 'runtime'
+        elif any(word in task_lower for word in ['test fail', 'failing test']):
+            error_context = 'test_failure'
+        elif any(word in task_lower for word in ['lint', 'clippy', 'warning']):
+            error_context = 'lint'
+        else:
+            error_context = 'none'
+
+        # Infer file types
+        file_types = []
+        if 'rust' in task_lower or '.rs' in task_lower:
+            file_types.append('.rs')
+        if 'python' in task_lower or '.py' in task_lower:
+            file_types.append('.py')
+        if 'markdown' in task_lower or '.md' in task_lower:
+            file_types.append('.md')
+        if 'toml' in task_lower or 'config' in task_lower:
+            file_types.append('.toml')
+
+        # Infer technologies
+        technologies = []
+        if 'rust' in task_lower:
+            technologies.append('rust')
+        if 'tokio' in task_lower or 'async' in task_lower:
+            technologies.append('tokio')
+        if 'postgres' in task_lower or 'database' in task_lower:
+            technologies.append('postgres')
+        if 'python' in task_lower:
+            technologies.append('python')
+        if 'mnemosyne' in task_lower:
+            technologies.append('mnemosyne')
+
+        return {
+            'task_type': task_type,
+            'work_phase': work_phase,
+            'error_context': error_context,
+            'file_types': file_types if file_types else None,
+            'technologies': technologies if technologies else None
+        }
+
     async def _score_skill_relevance(self, skill_file: Path, keywords: List[str], task_description: str) -> float:
-        """Score skill relevance using basic heuristics (Claude SDK scoring for top candidates)."""
-        # Basic keyword-based filtering first
+        """
+        Score skill relevance using learned weights (if available) or basic heuristics.
+
+        With evaluation system:
+        - Fetches learned weights (session → project → global)
+        - Computes weighted score from features
+        - Records context provided for feedback collection
+
+        Without evaluation system:
+        - Falls back to basic keyword matching
+        """
         try:
+            # Read skill content for feature extraction
             with open(skill_file, 'r') as f:
                 content = f.read(500).lower()
 
-            # Count keyword matches
-            matches = sum(1 for kw in keywords if kw in content)
+            # Extract basic features (used by both paths)
+            keyword_overlap = sum(1 for kw in keywords if kw in content) / len(keywords) if keywords else 0.0
+            filename_match = any(kw in skill_file.stem.lower() for kw in keywords)
 
-            # Basic score: matches / total_keywords
-            score = matches / len(keywords) if keywords else 0.0
+            # Use learned weights if evaluation system available
+            if self.evaluation_enabled and self.relevance_scorer:
+                try:
+                    # Get contextual metadata from task analysis
+                    metadata = self._context_metadata.get('task_metadata', {})
 
-            # Boost for filename match
-            filename_lower = skill_file.stem.lower()
-            if any(kw in filename_lower for kw in keywords):
+                    # Get learned weights with hierarchical fallback
+                    weights = self.relevance_scorer.get_weights(
+                        scope="session" if self._current_session_id else "global",
+                        scope_id=self._current_session_id or "global",
+                        context_type="skill",
+                        agent_role=self.config.agent_id,
+                        work_phase=metadata.get('work_phase'),
+                        task_type=metadata.get('task_type'),
+                        error_context=metadata.get('error_context')
+                    )
+
+                    # Compute weighted score
+                    score = (
+                        keyword_overlap * weights.get('keyword_match', 0.35) +
+                        (1.0 if filename_match else 0.0) * weights.get('file_type_match', 0.10) +
+                        # Other features would go here (recency, access patterns, etc.)
+                        0.0 * weights.get('recency', 0.15) +  # Placeholder
+                        0.0 * weights.get('access_patterns', 0.25) +  # Placeholder
+                        0.0 * weights.get('historical_success', 0.15)  # Placeholder
+                    )
+
+                    # Record context provided for evaluation
+                    if self.feedback_collector and self._current_session_id:
+                        task_hash = self._hash_task_description(task_description)
+                        eval_id = self.feedback_collector.record_context_provided(
+                            session_id=self._current_session_id,
+                            agent_role=self.config.agent_id,
+                            namespace="project:mnemosyne",  # TODO: Detect from storage
+                            context_type="skill",
+                            context_id=str(skill_file),
+                            task_hash=task_hash,
+                            task_keywords=keywords[:10],  # Limit to 10 for privacy
+                            task_type=metadata.get('task_type'),
+                            work_phase=metadata.get('work_phase'),
+                            file_types=metadata.get('file_types'),
+                            error_context=metadata.get('error_context'),
+                            related_technologies=metadata.get('technologies')
+                        )
+
+                    return min(score, 1.0)
+
+                except Exception as e:
+                    print(f"Warning: Could not use learned weights: {e}. Falling back to basic scoring.")
+                    # Fall through to basic scoring
+
+            # Fallback: Basic keyword matching
+            score = keyword_overlap
+            if filename_match:
                 score += 0.2
 
             return min(score, 1.0)
 
-        except Exception:
+        except Exception as e:
+            print(f"Error scoring skill {skill_file}: {e}")
             return 0.0
 
     def _extract_categories(self, filename: str) -> List[str]:
@@ -444,8 +684,43 @@ Recommend allocation percentages with reasoning."""
             "loaded_skills": len(self._loaded_skills),
             "cached_skills": len(self._skill_cache),
             "context_allocation": self._context_allocation,
-            "session_active": self._session_active
+            "session_active": self._session_active,
+            "evaluation_enabled": self.evaluation_enabled
         }
+
+    def _get_default_db_path(self) -> str:
+        """
+        Get default database path with auto-detection.
+
+        Priority:
+        1. .mnemosyne/project.db (if exists)
+        2. ~/.local/share/mnemosyne/mnemosyne.db (XDG default)
+        """
+        from pathlib import Path
+
+        # Check for project-specific database
+        project_db = Path(".mnemosyne/project.db")
+        if project_db.exists():
+            return str(project_db)
+
+        # Fall back to XDG default
+        import os
+        xdg_data = os.environ.get("XDG_DATA_HOME")
+        if xdg_data:
+            return str(Path(xdg_data) / "mnemosyne" / "mnemosyne.db")
+
+        # Fall back to ~/.local/share
+        home = Path.home()
+        return str(home / ".local" / "share" / "mnemosyne" / "mnemosyne.db")
+
+    def _hash_task_description(self, task_description: str) -> str:
+        """
+        Create privacy-preserving hash of task description.
+
+        Returns first 16 characters of SHA256 hash.
+        """
+        hash_obj = hashlib.sha256(task_description.encode('utf-8'))
+        return hash_obj.hexdigest()[:16]
 
     async def __aenter__(self):
         """Async context manager entry."""

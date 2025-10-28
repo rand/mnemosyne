@@ -78,31 +78,154 @@ pub enum ConnectionMode {
 }
 
 impl LibsqlStorage {
-    /// Create a new LibSQL storage backend
+    /// Validate database file before opening
+    ///
+    /// Checks:
+    /// 1. Database file exists (for local SQLite paths)
+    /// 2. Database is not corrupted (basic SQLite header check)
+    /// 3. File is readable
+    ///
+    /// # Arguments
+    /// * `db_path` - Path to the database file
+    /// * `must_exist` - If true, error if database doesn't exist. If false, skip existence check.
+    ///
+    /// # Returns
+    /// * `Ok(true)` if database exists and is valid
+    /// * `Ok(false)` if database doesn't exist and must_exist=false
+    /// * `Err(MnemosyneError)` with actionable message if validation fails
+    fn validate_database_file(db_path: &str, must_exist: bool) -> Result<bool> {
+        use std::fs;
+        use std::path::Path;
+
+        let path = Path::new(db_path);
+
+        // Check if database file exists
+        if !path.exists() {
+            if must_exist {
+                return Err(MnemosyneError::Database(format!(
+                    "Database file not found at '{}'. Please run 'mnemosyne init' first or check your DATABASE_URL configuration.",
+                    db_path
+                )));
+            } else {
+                // Database doesn't exist, but that's ok - caller will create it
+                return Ok(false);
+            }
+        }
+
+        // Database exists - validate it's a valid SQLite database
+        // SQLite files start with "SQLite format 3\0" (16 bytes)
+        match fs::read(path) {
+            Ok(bytes) => {
+                if bytes.len() < 16 {
+                    return Err(MnemosyneError::Database(format!(
+                        "Database file at '{}' is corrupted or invalid (file too small). Please delete it and run 'mnemosyne init' to reinitialize.",
+                        db_path
+                    )));
+                }
+
+                let header = &bytes[0..16];
+                let expected_header = b"SQLite format 3\0";
+
+                if header != expected_header {
+                    return Err(MnemosyneError::Database(format!(
+                        "Database file at '{}' is corrupted or not a valid SQLite database. Please delete it and run 'mnemosyne init' to reinitialize.",
+                        db_path
+                    )));
+                }
+
+                debug!("Database file validation passed: {}", db_path);
+                Ok(true)
+            }
+            Err(e) => {
+                // Check if it's a permission error
+                let error_msg = e.to_string();
+                if error_msg.contains("permission") || error_msg.contains("Permission") {
+                    Err(MnemosyneError::Database(format!(
+                        "Cannot read database file at '{}': Permission denied. Please check file permissions.",
+                        db_path
+                    )))
+                } else {
+                    Err(MnemosyneError::Database(format!(
+                        "Cannot read database file at '{}': {}. The file may be corrupted or inaccessible.",
+                        db_path, e
+                    )))
+                }
+            }
+        }
+    }
+
+    /// Create a new LibSQL storage backend with validation
     ///
     /// # Arguments
     /// * `mode` - Connection mode (local, in-memory, remote, or replica)
+    /// * `create_if_missing` - If true, create database if it doesn't exist. If false, error on missing database.
     ///
     /// # Example
     /// ```ignore
-    /// // Local file
-    /// let storage = LibsqlStorage::new(ConnectionMode::Local("mnemosyne.db".into())).await?;
+    /// // Normal use (database must exist)
+    /// let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local("mnemosyne.db".into()), false).await?;
     ///
-    /// // In-memory (testing)
-    /// let storage = LibsqlStorage::new(ConnectionMode::InMemory).await?;
-    ///
-    /// // Remote (Turso Cloud)
-    /// let storage = LibsqlStorage::new(ConnectionMode::Remote {
-    ///     url: "libsql://your-db.turso.io".into(),
-    ///     token: "your-token".into(),
-    /// }).await?;
+    /// // Init mode (create if missing)
+    /// let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local("mnemosyne.db".into()), true).await?;
     /// ```
-    pub async fn new(mode: ConnectionMode) -> Result<Self> {
-        info!("Connecting to LibSQL database: {:?}", mode);
+    pub async fn new_with_validation(mode: ConnectionMode, create_if_missing: bool) -> Result<Self> {
+        info!("Connecting to LibSQL database: {:?} (create_if_missing: {})", mode, create_if_missing);
+
+        // Validate database before connecting (for local paths only)
+        match &mode {
+            ConnectionMode::Local(ref path) => {
+                // Validate database file
+                let exists = Self::validate_database_file(path, !create_if_missing)?;
+
+                // If creating and doesn't exist, check parent directory
+                if create_if_missing && !exists {
+                    if let Some(parent) = std::path::Path::new(path).parent() {
+                        if !parent.exists() {
+                            return Err(MnemosyneError::Database(format!(
+                                "Database directory '{}' does not exist. Please create it first.",
+                                parent.display()
+                            )));
+                        }
+                    }
+                }
+            }
+            ConnectionMode::EmbeddedReplica { ref path, .. } => {
+                // Validate replica database file
+                let exists = Self::validate_database_file(path, !create_if_missing)?;
+
+                // If creating and doesn't exist, check parent directory
+                if create_if_missing && !exists {
+                    if let Some(parent) = std::path::Path::new(path).parent() {
+                        if !parent.exists() {
+                            return Err(MnemosyneError::Database(format!(
+                                "Database directory '{}' does not exist. Please create it first.",
+                                parent.display()
+                            )));
+                        }
+                    }
+                }
+            }
+            ConnectionMode::InMemory | ConnectionMode::Remote { .. } => {
+                // Skip validation for in-memory and remote databases
+                // Remote validation happens server-side
+            }
+        }
 
         let db = match mode {
-            ConnectionMode::Local(path) => {
-                Builder::new_local(&path)
+            ConnectionMode::Local(ref path) => {
+                // Create parent directory only if create_if_missing is true
+                if create_if_missing {
+                    if let Some(parent) = std::path::Path::new(path).parent() {
+                        std::fs::create_dir_all(parent).map_err(|e| {
+                            MnemosyneError::Database(format!(
+                                "Failed to create database directory {}: {}",
+                                parent.display(), e
+                            ))
+                        })?;
+                    }
+                }
+
+                Builder::new_local(path)
                     .build()
                     .await
                     .map_err(|e| MnemosyneError::Database(format!("Failed to create local database: {}", e)))?
@@ -113,14 +236,26 @@ impl LibsqlStorage {
                     .await
                     .map_err(|e| MnemosyneError::Database(format!("Failed to create in-memory database: {}", e)))?
             }
-            ConnectionMode::Remote { url, token } => {
-                Builder::new_remote(url, token)
+            ConnectionMode::Remote { ref url, ref token } => {
+                Builder::new_remote(url.clone(), token.clone())
                     .build()
                     .await
                     .map_err(|e| MnemosyneError::Database(format!("Failed to create remote database: {}", e)))?
             }
-            ConnectionMode::EmbeddedReplica { path, url, token } => {
-                Builder::new_remote_replica(&path, url, token)
+            ConnectionMode::EmbeddedReplica { ref path, ref url, ref token } => {
+                // Create parent directory only if create_if_missing is true
+                if create_if_missing {
+                    if let Some(parent) = std::path::Path::new(path).parent() {
+                        std::fs::create_dir_all(parent).map_err(|e| {
+                            MnemosyneError::Database(format!(
+                                "Failed to create replica directory {}: {}",
+                                parent.display(), e
+                            ))
+                        })?;
+                    }
+                }
+
+                Builder::new_remote_replica(path, url.clone(), token.clone())
                     .build()
                     .await
                     .map_err(|e| MnemosyneError::Database(format!("Failed to create embedded replica: {}", e)))?
@@ -131,10 +266,49 @@ impl LibsqlStorage {
 
         let storage = Self { db };
 
+        // Verify database health before running migrations
+        storage.verify_database_health().await?;
+
         // Run migrations
         storage.run_migrations().await?;
 
+        // Verify database file exists for local modes
+        match &mode {
+            ConnectionMode::Local(path) | ConnectionMode::EmbeddedReplica { path, .. } => {
+                if !std::path::Path::new(path).exists() {
+                    return Err(MnemosyneError::Database(format!(
+                        "Database file not created after initialization: {}",
+                        path
+                    )));
+                }
+                debug!("Verified database file exists: {}", path);
+            }
+            _ => {} // In-memory and remote don't have local files
+        }
+
         Ok(storage)
+    }
+
+    /// Create a new LibSQL storage backend
+    ///
+    /// Default behavior: requires database to exist (secure by default).
+    /// Returns clear error if database not found or corrupted.
+    ///
+    /// For explicit database creation, use `new_with_validation(..., true)`.
+    ///
+    /// # Arguments
+    /// * `mode` - Connection mode (local, in-memory, remote, or replica)
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Normal use (requires database to exist)
+    /// let storage = LibsqlStorage::new(ConnectionMode::Local("mnemosyne.db".into())).await?;
+    /// ```
+    pub async fn new(mode: ConnectionMode) -> Result<Self> {
+        // Default behavior: database must exist (secure by default, clear errors)
+        // This prevents accidental database creation and ensures explicit initialization
+        // Use new_with_validation(..., true) for database creation (init/serve commands)
+        Self::new_with_validation(mode, false).await
     }
 
     /// Create a new local file-based storage (convenience method)
@@ -173,12 +347,68 @@ impl LibsqlStorage {
         Self::new(mode).await
     }
 
+    /// Verify database health before operations
+    async fn verify_database_health(&self) -> Result<()> {
+        let conn = self.get_conn()?;
+
+        // Test 1: Basic query to detect corruption
+        let test_query = "SELECT 1";
+        conn.query(test_query, params![])
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!(
+                    "Database corruption detected or invalid database file: {}",
+                    e
+                ))
+            })?;
+
+        // Test 2: Check if database is writable
+        // Try to create a test table and drop it
+        let write_test = r#"
+            CREATE TABLE IF NOT EXISTS _health_check (id INTEGER PRIMARY KEY);
+            DROP TABLE IF EXISTS _health_check;
+        "#;
+
+        if let Err(e) = conn.execute_batch(write_test).await {
+            // Check if it's a read-only error
+            let error_msg = e.to_string().to_lowercase();
+            if error_msg.contains("read") && error_msg.contains("only")
+                || error_msg.contains("readonly")
+                || error_msg.contains("permission")
+            {
+                return Err(MnemosyneError::Database(format!(
+                    "Database is read-only or lacks write permissions: {}",
+                    e
+                )));
+            }
+            // Other write errors
+            return Err(MnemosyneError::Database(format!(
+                "Database write test failed: {}",
+                e
+            )));
+        }
+
+        debug!("Database health check passed");
+        Ok(())
+    }
+
     /// Run database migrations
     pub async fn run_migrations(&self) -> Result<()> {
         info!("Running database migrations...");
 
         // Get a connection for migrations
         let conn = self.get_conn()?;
+
+        // Create migrations tracking table if it doesn't exist
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS _migrations_applied (
+                migration_name TEXT PRIMARY KEY,
+                applied_at INTEGER NOT NULL
+            )",
+            params![]
+        ).await.map_err(|e| {
+            MnemosyneError::Migration(format!("Failed to create migrations table: {}", e))
+        })?;
 
         // Manually run migrations for better control
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -189,9 +419,30 @@ impl LibsqlStorage {
         debug!("Migrations path: {:?}", migrations_path);
 
         // Read and execute migration files in order
-        let migration_files = vec!["001_initial_schema.sql", "002_add_indexes.sql"];
+        // Only run core migrations for now
+        // Advanced migrations (006-009) require SQLite extensions (vec0) that need to be loaded first
+        let migration_files = vec![
+            "001_initial_schema.sql",
+            "002_add_indexes.sql",
+        ];
 
         for migration_file in migration_files {
+            // Check if migration already applied
+            let mut rows = conn.query(
+                "SELECT COUNT(*) FROM _migrations_applied WHERE migration_name = ?",
+                params![migration_file],
+            ).await?;
+
+            let already_applied = if let Some(row) = rows.next().await? {
+                row.get::<i64>(0).unwrap_or(0)
+            } else {
+                0
+            };
+
+            if already_applied > 0 {
+                debug!("Skipping already applied migration: {}", migration_file);
+                continue;
+            }
             let file_path = migrations_path.join(migration_file);
             debug!("Executing migration: {:?}", file_path);
 
@@ -223,6 +474,15 @@ impl LibsqlStorage {
                 }
             }
 
+            // Record migration as applied
+            let now = Utc::now().timestamp();
+            conn.execute(
+                "INSERT INTO _migrations_applied (migration_name, applied_at) VALUES (?, ?)",
+                params![migration_file, now]
+            ).await.map_err(|e| {
+                MnemosyneError::Migration(format!("Failed to record migration: {}", e))
+            })?;
+
             info!("Executed migration: {}", migration_file);
         }
 
@@ -235,6 +495,118 @@ impl LibsqlStorage {
         self.db
             .connect()
             .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))
+    }
+
+    /// Check if database is healthy and operational
+    ///
+    /// Performs basic health checks:
+    /// - Can establish connection
+    /// - Can execute simple query
+    /// - Database is not corrupted
+    ///
+    /// Returns Ok(()) if healthy, Err with diagnostic info if not
+    pub async fn check_database_health(&self) -> Result<()> {
+        debug!("Checking database health...");
+
+        // Try to get a connection
+        let conn = self.get_conn().map_err(|e| {
+            MnemosyneError::Database(format!("Health check failed: cannot establish connection: {}", e))
+        })?;
+
+        // Try a simple query to verify database is operational
+        match conn.query("SELECT 1", ()).await {
+            Ok(_) => {
+                debug!("Database health check passed");
+                Ok(())
+            }
+            Err(e) => {
+                let error_msg = e.to_string();
+                if error_msg.contains("readonly") || error_msg.contains("permission") {
+                    Err(MnemosyneError::Database(
+                        "Database is read-only or permission denied. Check file permissions.".to_string()
+                    ))
+                } else if error_msg.contains("corrupt") || error_msg.contains("malformed") {
+                    Err(MnemosyneError::Database(
+                        "Database appears to be corrupted. Consider restoring from backup.".to_string()
+                    ))
+                } else {
+                    Err(MnemosyneError::Database(format!("Health check failed: {}", error_msg)))
+                }
+            }
+        }
+    }
+
+    /// Attempt to recover from database errors
+    ///
+    /// Tries to recover from common error conditions:
+    /// - Stale lock files
+    /// - Permission issues
+    /// - Connection pool exhaustion
+    ///
+    /// Returns Ok(()) if recovery successful or not needed
+    pub async fn recover_from_error(&self) -> Result<()> {
+        debug!("Attempting database recovery...");
+
+        // First check if database is healthy
+        match self.check_database_health().await {
+            Ok(()) => {
+                debug!("Database is healthy, no recovery needed");
+                return Ok(());
+            }
+            Err(e) => {
+                debug!("Database health check failed: {}, attempting recovery", e);
+                // Continue with recovery attempt
+            }
+        }
+
+        // Get a fresh connection for recovery operations
+        let conn = self.get_conn().map_err(|e| {
+            MnemosyneError::Database(format!("Cannot establish connection for recovery: {}", e))
+        })?;
+
+        // Step 1: Try to checkpoint WAL to clear pending writes
+        debug!("Attempting WAL checkpoint to recover from stale state...");
+        match conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", ()).await {
+            Ok(_) => {
+                info!("WAL checkpoint successful - database recovered");
+                return Ok(());
+            }
+            Err(e) => {
+                debug!("WAL checkpoint failed: {}, trying alternative recovery", e);
+            }
+        }
+
+        // Step 2: Try to reinitialize WAL mode
+        debug!("Attempting to reinitialize WAL mode...");
+        match conn.execute("PRAGMA journal_mode=WAL", ()).await {
+            Ok(_) => {
+                info!("WAL mode reinitialized - database recovered");
+
+                // Verify recovery with a simple query
+                match conn.execute("SELECT 1", ()).await {
+                    Ok(_) => {
+                        debug!("Database is now operational after recovery");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        Err(MnemosyneError::Database(format!(
+                            "Recovery partially successful but database still not operational: {}. \
+                            Manual intervention may be required: delete .db-wal and .db-shm files.",
+                            e
+                        )))
+                    }
+                }
+            }
+            Err(e) => {
+                Err(MnemosyneError::Database(format!(
+                    "Recovery failed: {}. Manual intervention required: \
+                    1. Check file permissions on database and WAL files (.db-wal, .db-shm) \
+                    2. If permissions are correct, delete stale WAL files and retry \
+                    3. As a last resort, restore from backup",
+                    e
+                )))
+            }
+        }
     }
 
     /// Convert a libsql row to a MemoryNote
@@ -362,6 +734,34 @@ impl LibsqlStorage {
 
         Ok(())
     }
+
+    /// Escape FTS5 query string to handle special characters
+    ///
+    /// FTS5 treats certain characters as operators:
+    /// - Hyphen (-) is treated as MINUS operator
+    /// - NOT, OR, AND are boolean operators
+    /// - Parentheses affect query parsing
+    ///
+    /// To treat these literally, we wrap terms in double quotes.
+    /// Internal quotes are escaped by doubling them.
+    fn escape_fts5_query(term: &str) -> String {
+        // Check if term contains FTS5 special characters
+        let needs_escaping = term.contains('-')
+            || term.contains('(')
+            || term.contains(')')
+            || term.contains('"')
+            || term.to_lowercase().contains(" not ")
+            || term.to_lowercase().contains(" and ")
+            || term.to_lowercase().contains(" or ");
+
+        if needs_escaping {
+            // Escape internal quotes by doubling them
+            let escaped = term.replace('"', "\"\"");
+            format!("\"{}\"", escaped)
+        } else {
+            term.to_string()
+        }
+    }
 }
 
 #[async_trait]
@@ -369,7 +769,16 @@ impl StorageBackend for LibsqlStorage {
     async fn store_memory(&self, memory: &MemoryNote) -> Result<()> {
         debug!("Storing memory: {}", memory.id);
 
-        let conn = self.get_conn()?;
+        let conn = self.get_conn().map_err(|e| {
+            let error_msg = e.to_string();
+            if error_msg.contains("readonly") || error_msg.contains("permission") {
+                MnemosyneError::Database(
+                    "Cannot write to database: read-only or permission denied. Check file permissions and ensure WAL files (.db-wal, .db-shm) are writable.".to_string()
+                )
+            } else {
+                e
+            }
+        })?;
         let tx = conn.transaction().await?;
 
         // Insert memory metadata including embedding column
@@ -447,7 +856,20 @@ impl StorageBackend for LibsqlStorage {
             .await?;
         }
 
-        tx.commit().await?;
+        tx.commit().await.map_err(|e| {
+            let error_msg = e.to_string();
+            if error_msg.contains("readonly") || error_msg.contains("permission") {
+                MnemosyneError::Database(
+                    "Transaction failed: database is read-only. Ensure file and WAL files have write permissions.".to_string()
+                )
+            } else if error_msg.contains("locked") || error_msg.contains("busy") {
+                MnemosyneError::Database(
+                    "Transaction failed: database is locked. Another process may be writing.".to_string()
+                )
+            } else {
+                MnemosyneError::Database(format!("Transaction commit failed: {}", error_msg))
+            }
+        })?;
 
         self.log_audit(
             "create",
@@ -631,7 +1053,20 @@ impl StorageBackend for LibsqlStorage {
             .await?;
         }
 
-        tx.commit().await?;
+        tx.commit().await.map_err(|e| {
+            let error_msg = e.to_string();
+            if error_msg.contains("readonly") || error_msg.contains("permission") {
+                MnemosyneError::Database(
+                    "Transaction failed: database is read-only. Ensure file and WAL files have write permissions.".to_string()
+                )
+            } else if error_msg.contains("locked") || error_msg.contains("busy") {
+                MnemosyneError::Database(
+                    "Transaction failed: database is locked. Another process may be writing.".to_string()
+                )
+            } else {
+                MnemosyneError::Database(format!("Transaction commit failed: {}", error_msg))
+            }
+        })?;
 
         self.log_audit(
             "update",
@@ -745,32 +1180,73 @@ impl StorageBackend for LibsqlStorage {
 
         let namespace_filter = namespace.map(|ns| serde_json::to_string(&ns).unwrap());
 
-        let sql = if namespace_filter.is_some() {
-            r#"
-            SELECT m.* FROM memories m
-            WHERE m.rowid IN (
-                SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
-            )
-            AND m.namespace = ?
-            AND m.is_archived = 0
-            LIMIT 20
-            "#
+        // Convert multi-word queries to OR logic for FTS5
+        // "database architecture" -> "database OR architecture"
+        // This matches user expectations: show results containing ANY of the search terms
+        // Each term is escaped to handle hyphens and other FTS5 special characters
+        let fts_query = if query.contains(' ') {
+            query
+                .split_whitespace()
+                .map(|term| Self::escape_fts5_query(term))
+                .collect::<Vec<String>>()
+                .join(" OR ")
         } else {
-            r#"
-            SELECT m.* FROM memories m
-            WHERE m.rowid IN (
-                SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
-            )
-            AND m.is_archived = 0
-            LIMIT 20
-            "#
+            Self::escape_fts5_query(query)
         };
 
+        // Handle empty query - return all memories in namespace (no FTS5)
         let conn = self.get_conn()?;
-        let mut rows = if let Some(ns) = namespace_filter {
-            conn.query(sql, params![query, ns]).await?
+        let mut rows = if query.trim().is_empty() {
+            // Empty query: list all memories (filtered by namespace if provided)
+            let sql = if namespace_filter.is_some() {
+                r#"
+                SELECT * FROM memories
+                WHERE namespace = ? AND is_archived = 0
+                ORDER BY importance DESC, created_at DESC
+                LIMIT 20
+                "#
+            } else {
+                r#"
+                SELECT * FROM memories
+                WHERE is_archived = 0
+                ORDER BY importance DESC, created_at DESC
+                LIMIT 20
+                "#
+            };
+
+            if let Some(ref ns) = namespace_filter {
+                conn.query(sql, params![ns.clone()]).await?
+            } else {
+                conn.query(sql, params![]).await?
+            }
         } else {
-            conn.query(sql, params![query]).await?
+            // Non-empty query: use FTS5 full-text search with OR logic
+            let sql = if namespace_filter.is_some() {
+                r#"
+                SELECT m.* FROM memories m
+                WHERE m.rowid IN (
+                    SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
+                )
+                AND m.namespace = ?
+                AND m.is_archived = 0
+                LIMIT 20
+                "#
+            } else {
+                r#"
+                SELECT m.* FROM memories m
+                WHERE m.rowid IN (
+                    SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
+                )
+                AND m.is_archived = 0
+                LIMIT 20
+                "#
+            };
+
+            if let Some(ref ns) = namespace_filter {
+                conn.query(sql, params![fts_query, ns.clone()]).await?
+            } else {
+                conn.query(sql, params![fts_query]).await?
+            }
         };
 
         let mut results = Vec::new();
@@ -791,8 +1267,9 @@ impl StorageBackend for LibsqlStorage {
         &self,
         seed_ids: &[MemoryId],
         max_hops: usize,
+        namespace: Option<Namespace>,
     ) -> Result<Vec<MemoryNote>> {
-        debug!("Graph traverse from {} seeds, max {} hops", seed_ids.len(), max_hops);
+        debug!("Graph traverse from {} seeds, max {} hops, namespace: {:?}", seed_ids.len(), max_hops, namespace);
 
         if seed_ids.is_empty() || max_hops == 0 {
             return Ok(vec![]);
@@ -800,6 +1277,13 @@ impl StorageBackend for LibsqlStorage {
 
         let seed_strings: Vec<String> = seed_ids.iter().map(|id| id.to_string()).collect();
         let placeholders = seed_strings.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+
+        // Add namespace filter if provided
+        let namespace_filter = if namespace.is_some() {
+            "AND m.namespace = ?"
+        } else {
+            ""
+        };
 
         let sql = format!(
             r#"
@@ -821,10 +1305,11 @@ impl StorageBackend for LibsqlStorage {
             SELECT DISTINCT m.*
             FROM memories m
             JOIN graph_walk gw ON m.id = gw.memory_id
-            WHERE m.is_archived = 0
+            WHERE m.is_archived = 0 {namespace_filter}
             ORDER BY gw.depth, m.importance DESC
             "#,
-            placeholders = placeholders
+            placeholders = placeholders,
+            namespace_filter = namespace_filter
         );
 
         let conn = self.get_conn()?;
@@ -833,6 +1318,12 @@ impl StorageBackend for LibsqlStorage {
             .map(|s| libsql::Value::Text(s.clone()))
             .collect();
         param_values.push(libsql::Value::Integer(max_hops as i64));
+
+        // Add namespace parameter if provided
+        if let Some(ns) = namespace {
+            let ns_json = serde_json::to_string(&ns)?;
+            param_values.push(libsql::Value::Text(ns_json));
+        }
 
         let mut rows = conn.query(&sql, libsql::params_from_iter(param_values)).await?;
 
@@ -972,7 +1463,7 @@ impl StorageBackend for LibsqlStorage {
         if expand_graph {
             debug!("Expanding graph from {} seed memories", all_memories.len());
             let seed_ids: Vec<_> = all_memories.keys().take(5).copied().collect();
-            let graph_memories = self.graph_traverse(&seed_ids, 2).await?;
+            let graph_memories = self.graph_traverse(&seed_ids, 2, namespace.clone()).await?;
 
             for memory in graph_memories {
                 if !all_memories.contains_key(&memory.id) {

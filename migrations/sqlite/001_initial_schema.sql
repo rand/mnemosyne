@@ -169,7 +169,8 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
     tags,
     context,
     content='memories',
-    content_rowid='rowid'
+    content_rowid='rowid',
+    tokenize='porter'
 );
 
 -- Triggers to keep FTS in sync

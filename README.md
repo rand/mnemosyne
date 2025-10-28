@@ -63,6 +63,7 @@ All 156 tests passing. Production-ready. See [ROADMAP.md](ROADMAP.md) for detail
   - **Link Decay**: Automatic weakening of untraversed connections (90/180-day thresholds)
   - **Memory Archival**: Smart archival of unused memories (never archived: importance ≥7.0)
 - **Self-Organizing Knowledge**: Automatic consolidation, link strength evolution, and importance decay
+- **Privacy-Preserving Evaluation** 🔒: Adaptive context relevance learning with local-only storage, hashed tasks, and statistical features (no raw content stored)
 
 ---
 
@@ -127,6 +128,42 @@ mnemosyne.delete     - Archive a memory
 
 See [MCP_SERVER.md](MCP_SERVER.md) for API documentation and examples.
 
+### Orchestrated Sessions (Default)
+
+**New in v2.0**: Running `mnemosyne` without any commands launches an orchestrated Claude Code session with full multi-agent coordination:
+
+```bash
+# Launch orchestrated Claude Code session (default)
+mnemosyne
+
+# Start MCP server only (no Claude Code session)
+mnemosyne --serve
+```
+
+**Orchestrated sessions include**:
+- **4 Active Agents**: Orchestrator (coordinator), Optimizer (context optimization), Reviewer (quality gates), Executor (primary work agent)
+- **Automatic Mnemosyne Integration**: MCP server runs in background with proper agent roles
+- **Intelligent Context Loading**: Three-layer context strategy
+  - **Pre-launch**: Top 10 high-importance memories (≥7) loaded before Claude starts
+  - **Post-launch**: Session start hook displays context in chat
+  - **In-session**: Optimizer dynamically loads memories as tasks evolve
+- **Namespace Detection**: Auto-detects project from git repository
+- **Sub-Agent Spawning**: Executor can spawn parallel sub-agents for independent work
+
+This is the recommended way to use Mnemosyne - it provides the full multi-agent orchestration experience with seamless memory integration and intelligent context management.
+
+**Context Loading Details**:
+- **Pre-launch context**: Loaded in <200ms, ~10KB, memories with importance ≥7
+- **Graceful degradation**: Session launches even if context loading fails
+- **Timeout protection**: 500ms hard limit, never blocks session start
+- **Budget-aware**: Respects 20% context allocation (~10KB of ~50KB total)
+- **Format**: Natural language markdown optimized for LLM consumption
+
+**Use `mnemosyne --serve` when**:
+- Integrating with external tools that expect a standalone MCP server
+- Running in CI/CD pipelines
+- You want manual control over Claude Code session startup
+
 ### Skills Integration
 
 Mnemosyne leverages [cc-polymath](https://github.com/rand/cc-polymath) for comprehensive development knowledge:
@@ -136,12 +173,44 @@ Mnemosyne leverages [cc-polymath](https://github.com/rand/cc-polymath) for compr
 - **Progressive loading** - Optimizer agent loads only relevant skills per task (max 7 skills)
 - **Multi-path discovery** - Project-local skills (`.claude/skills/`) take priority over global cc-polymath skills
 - **Context efficient** - ~30% of context budget allocated to skills
+- **Adaptive learning** - Evaluation system learns which skills are most relevant over time (privacy-preserving)
 
 The Optimizer agent automatically discovers and loads relevant skills based on task analysis. Project-local Mnemosyne skills get a +10% relevance bonus to ensure project-specific knowledge is prioritized.
 
 **Skills locations**:
 - Project-local: `.claude/skills/` (5 Mnemosyne-specific skills)
 - Global: `~/.claude/plugins/cc-polymath/skills/` (354 comprehensive skills)
+
+### Privacy-Preserving Evaluation
+
+Mnemosyne's evaluation system helps the Optimizer agent learn which context is most relevant over time **without compromising privacy**:
+
+**Privacy Guarantees**:
+- ✅ **Local-Only Storage**: All data in `.mnemosyne/project.db` (gitignored)
+- ✅ **Hashed Tasks**: SHA256 hash of task descriptions (16 chars only)
+- ✅ **Limited Keywords**: Max 10 generic keywords, no sensitive terms
+- ✅ **Statistical Features**: Only computed metrics stored, never raw content
+- ✅ **No Network Calls**: Uses existing Anthropic API calls, no separate requests
+- ✅ **Graceful Degradation**: System works perfectly when disabled
+
+**How It Works**:
+1. Optimizer provides context (skills, memories, files) for a task
+2. System tracks implicit feedback (accessed? edited? committed? cited?)
+3. Statistical features computed (keyword overlap scores, recency, access patterns)
+4. Online learning algorithm updates relevance weights
+5. Future context selections improve based on learned patterns
+
+**Hierarchical Learning** (session → project → global):
+- **Session-level**: Fast adaptation (α=0.3) for immediate context
+- **Project-level**: Moderate adaptation (α=0.1) for project patterns
+- **Global-level**: Slow adaptation (α=0.03) for universal patterns
+
+**Example**: If `rust-async.md` is frequently accessed and edited during Rust async tasks, the Optimizer learns to prioritize it for similar future tasks.
+
+**Learn More**:
+- **Privacy Policy**: [docs/PRIVACY.md](docs/PRIVACY.md) - Formal privacy guarantees
+- **Technical Details**: [EVALUATION.md](EVALUATION.md) - Architecture and examples
+- **Disable**: Set `MNEMOSYNE_DISABLE_EVALUATION=1` or `OptimizerConfig(enable_evaluation=False)`
 
 ---
 
@@ -311,6 +380,8 @@ For contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 - 🔧 [Troubleshooting](TROUBLESHOOTING.md) - Fix common issues
 - 🔐 [Secrets Management](SECRETS_MANAGEMENT.md) - API key configuration
 - 📡 [MCP API Reference](MCP_SERVER.md) - Tool documentation
+- 🔒 [Privacy Policy](docs/PRIVACY.md) - Evaluation system privacy guarantees
+- 🎓 [Evaluation System](EVALUATION.md) - Adaptive context learning
 
 **Development:**
 - 🤝 [Contributing Guide](CONTRIBUTING.md) - How to contribute

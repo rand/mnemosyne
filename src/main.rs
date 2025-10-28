@@ -5,14 +5,23 @@
 
 use clap::{Parser, Subcommand};
 use mnemosyne_core::{
-    error::Result, ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig,
-    LlmService, McpServer, StorageBackend, ToolHandler,
+    error::{MnemosyneError, Result},
+    launcher,
+    storage::MemorySortOrder,
+    ConfigManager,
+    ConnectionMode,
+    LibsqlStorage,
+    LlmConfig,
+    LlmService,
+    McpServer,
+    StorageBackend,
+    ToolHandler,
 };
 // Use the v1.0 embedding service for backward compatibility
 use mnemosyne_core::services::embeddings::EmbeddingService;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{info, Level};
+use tracing::{debug, info, warn, Level};
 use tracing_subscriber;
 
 /// Get the default database path using XDG_DATA_HOME standard
@@ -23,15 +32,99 @@ fn get_default_db_path() -> PathBuf {
         .join("mnemosyne.db")
 }
 
-/// Get the database path from CLI arg, env var, or default
+/// Get the database path from CLI arg, env var, project dir, or default
 fn get_db_path(cli_path: Option<String>) -> String {
     cli_path
         .or_else(|| std::env::var("MNEMOSYNE_DB_PATH").ok())
+        .or_else(|| {
+            // Check DATABASE_URL for test compatibility
+            std::env::var("DATABASE_URL").ok().and_then(|url| {
+                // Strip sqlite:// prefix if present
+                if url.starts_with("sqlite://") {
+                    let path = url.strip_prefix("sqlite://").unwrap().to_string();
+                    if !path.is_empty() {
+                        Some(path)
+                    } else {
+                        None
+                    }
+                } else if !url.is_empty() && url != ":memory:" && !url.starts_with("libsql://") {
+                    Some(url)
+                } else {
+                    None
+                }
+            })
+        })
+        .or_else(|| {
+            // Check for project-specific database in .mnemosyne/
+            let project_db = PathBuf::from(".mnemosyne").join("project.db");
+            if project_db.exists() {
+                Some(project_db.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
         .unwrap_or_else(|| {
             get_default_db_path()
                 .to_string_lossy()
                 .to_string()
         })
+}
+
+/// Start MCP server in stdio mode
+async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
+    info!("Starting MCP server...");
+
+    // Initialize configuration
+    let _config_manager = ConfigManager::new()?;
+
+    // Initialize storage with configured database path
+    let db_path = get_db_path(db_path_arg);
+    info!("Using database: {}", db_path);
+
+    // Ensure parent directory exists
+    if let Some(parent) = PathBuf::from(&db_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    // MCP server should create database if it doesn't exist (for first-time setup)
+    let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?;
+
+    // Initialize LLM service (will error on first use if no API key)
+    let llm = match LlmService::with_default() {
+        Ok(service) => {
+            info!("LLM service initialized successfully");
+            Arc::new(service)
+        }
+        Err(_) => {
+            info!("LLM service not configured (ANTHROPIC_API_KEY not set)");
+            info!("Tools requiring LLM will return errors until configured");
+            info!("Configure with: mnemosyne config set-key");
+
+            // Create a dummy service - it will error on use
+            // This allows the server to start for basic operations
+            Arc::new(LlmService::new(LlmConfig {
+                api_key: String::new(),
+                model: "claude-3-5-haiku-20241022".to_string(),
+                max_tokens: 1024,
+                temperature: 0.7,
+            })?)
+        }
+    };
+
+    // Initialize embedding service (shares API key with LLM)
+    let embeddings = {
+        let config = LlmConfig::default();
+        Arc::new(EmbeddingService::new(config.api_key.clone(), config))
+    };
+
+    // Initialize tool handler
+    let tool_handler = ToolHandler::new(Arc::new(storage), llm, embeddings);
+
+    // Create and run server
+    let server = McpServer::new(tool_handler);
+    server.run().await?;
+
+    Ok(())
 }
 
 #[derive(Parser)]
@@ -40,6 +133,10 @@ fn get_db_path(cli_path: Option<String>) -> String {
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
+
+    /// Start MCP server only (don't launch Claude Code session)
+    #[arg(long)]
+    serve: bool,
 
     /// Set log level
     #[arg(short, long, default_value = "info")]
@@ -64,9 +161,9 @@ enum Commands {
 
     /// Export memories to Markdown
     Export {
-        /// Output path
+        /// Output path (prints to stdout if not specified)
         #[arg(short, long)]
-        output: String,
+        output: Option<String>,
 
         /// Namespace filter
         #[arg(short, long)]
@@ -227,61 +324,15 @@ async fn main() -> Result<()> {
 
     info!("Mnemosyne v{} starting...", env!("CARGO_PKG_VERSION"));
 
+    // Handle --serve flag (start MCP server without Claude Code)
+    if cli.serve && cli.command.is_none() {
+        info!("Starting MCP server (--serve mode)...");
+        return start_mcp_server(cli.db_path).await;
+    }
+
     match cli.command {
         Some(Commands::Serve) => {
-            info!("Starting MCP server...");
-
-            // Initialize configuration
-            let _config_manager = ConfigManager::new()?;
-
-            // Initialize storage with configured database path
-            let db_path = get_db_path(cli.db_path.clone());
-            info!("Using database: {}", db_path);
-
-            // Ensure parent directory exists
-            if let Some(parent) = PathBuf::from(&db_path).parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-
-            let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path)).await?;
-
-            // Initialize LLM service (will error on first use if no API key)
-            let llm = match LlmService::with_default() {
-                Ok(service) => {
-                    info!("LLM service initialized successfully");
-                    Arc::new(service)
-                }
-                Err(_) => {
-                    info!("LLM service not configured (ANTHROPIC_API_KEY not set)");
-                    info!("Tools requiring LLM will return errors until configured");
-                    info!("Configure with: mnemosyne config set-key");
-
-                    // Create a dummy service - it will error on use
-                    // This allows the server to start for basic operations
-                    Arc::new(LlmService::new(LlmConfig {
-                        api_key: String::new(),
-                        model: "claude-3-5-haiku-20241022".to_string(),
-                        max_tokens: 1024,
-                        temperature: 0.7,
-                    })?)
-                }
-            };
-
-            // Initialize embedding service (shares API key with LLM)
-            let embeddings = {
-                let config = LlmConfig::default();
-                Arc::new(EmbeddingService::new(config.api_key.clone(), config))
-            };
-
-            // Initialize tool handler
-            let tool_handler = ToolHandler::new(Arc::new(storage), llm, embeddings);
-
-            // Create and run server
-            let server = McpServer::new(tool_handler);
-            server.run().await?;
-
-            Ok(())
+            start_mcp_server(cli.db_path).await
         }
         Some(Commands::Init { database }) => {
             info!("Initializing database...");
@@ -299,14 +350,123 @@ async fn main() -> Result<()> {
             }
 
             // Initialize storage (this will create the database and run migrations)
-            let _storage = LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
+            // Init command explicitly creates database if missing
+            let _storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true).await?;
 
             println!("✓ Database initialized: {}", db_path);
             Ok(())
         }
-        Some(Commands::Export { output, namespace: _ }) => {
-            info!("Exporting memories to {}...", output);
-            eprintln!("Export not yet implemented");
+        Some(Commands::Export { output, namespace }) => {
+            if let Some(ref out_path) = output {
+                info!("Exporting memories to {}...", out_path);
+            } else {
+                debug!("Exporting memories to stdout...");
+            }
+
+            // Initialize storage (read-only)
+            let db_path = get_db_path(cli.db_path.clone());
+            let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), false).await?;
+
+            // Parse namespace if provided
+            let ns = namespace.map(|ns_str| {
+                if ns_str.starts_with("project:") {
+                    let project = ns_str.strip_prefix("project:").unwrap();
+                    mnemosyne_core::Namespace::Project { name: project.to_string() }
+                } else if ns_str.starts_with("session:") {
+                    let parts: Vec<&str> = ns_str.strip_prefix("session:").unwrap().split('/').collect();
+                    if parts.len() == 2 {
+                        mnemosyne_core::Namespace::Session {
+                            project: parts[0].to_string(),
+                            session_id: parts[1].to_string(),
+                        }
+                    } else {
+                        mnemosyne_core::Namespace::Global
+                    }
+                } else {
+                    mnemosyne_core::Namespace::Global
+                }
+            });
+
+            // Query all memories (or filtered by namespace)
+            let memories = storage.list_memories(ns, 10000, MemorySortOrder::Recent).await?;
+
+            // Determine output format and destination
+            let (format, use_stdout) = if let Some(ref path) = output {
+                let fmt = if path.ends_with(".jsonl") {
+                    "jsonl"
+                } else if path.ends_with(".md") || path.ends_with(".markdown") {
+                    "markdown"
+                } else {
+                    "json" // default
+                };
+                (fmt, false)
+            } else {
+                // Default to JSON for stdout
+                ("json", true)
+            };
+
+            use std::io::Write;
+
+            // Helper closure to write formatted output
+            let write_output = |writer: &mut dyn Write| -> Result<()> {
+                match format {
+                    "json" => {
+                        // Pretty-printed JSON
+                        let json = serde_json::to_string_pretty(&memories)?;
+                        writer.write_all(json.as_bytes())?;
+                        writer.write_all(b"\n")?;
+                    }
+                    "jsonl" => {
+                        // Newline-delimited JSON (one object per line)
+                        for memory in &memories {
+                            let json = serde_json::to_string(memory)?;
+                            writeln!(writer, "{}", json)?;
+                        }
+                    }
+                    "markdown" => {
+                        // Human-readable Markdown
+                        writeln!(writer, "# Memory Export\n")?;
+                        writeln!(writer, "Exported {} memories\n", memories.len())?;
+                        writeln!(writer, "---\n")?;
+
+                        for (i, memory) in memories.iter().enumerate() {
+                            writeln!(writer, "## {}. {}\n", i + 1, memory.summary)?;
+                            writeln!(writer, "**ID**: {}", memory.id)?;
+                            writeln!(writer, "**Namespace**: {}", serde_json::to_string(&memory.namespace)?)?;
+                            writeln!(writer, "**Importance**: {}/10", memory.importance)?;
+                            writeln!(writer, "**Type**: {:?}", memory.memory_type)?;
+                            writeln!(writer, "**Created**: {}", memory.created_at.format("%Y-%m-%d %H:%M:%S"))?;
+                            if !memory.tags.is_empty() {
+                                writeln!(writer, "**Tags**: {}", memory.tags.join(", "))?;
+                            }
+                            if !memory.keywords.is_empty() {
+                                writeln!(writer, "**Keywords**: {}", memory.keywords.join(", "))?;
+                            }
+                            writeln!(writer, "\n### Content\n")?;
+                            writeln!(writer, "{}\n", memory.content)?;
+                            writeln!(writer, "---\n")?;
+                        }
+                    }
+                    _ => {
+                        return Err(MnemosyneError::ValidationError(format!("Unsupported export format: {}", format)).into());
+                    }
+                }
+                Ok(())
+            };
+
+            // Write to stdout or file
+            if use_stdout {
+                let stdout = std::io::stdout();
+                let mut handle = stdout.lock();
+                write_output(&mut handle)?;
+            } else {
+                use std::fs::File;
+                let output_path = PathBuf::from(output.as_ref().unwrap());
+                let mut file = File::create(&output_path)?;
+                write_output(&mut file)?;
+                eprintln!("✓ Exported {} memories to {}", memories.len(), output_path.display());
+            }
+
             Ok(())
         }
         Some(Commands::Status) => {
@@ -591,15 +751,14 @@ if __name__ == "__main__":
             format,
         }) => {
             // Initialize storage and services
-            let db_path = "mnemosyne.db";
+            let db_path = get_db_path(cli.db_path.clone());
+            // Remember command creates database if it doesn't exist (write implies initialize)
             let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
+                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true).await?;
 
-            let llm = LlmService::with_default()?;
-            let embedding_service = {
-                let config = LlmConfig::default();
-                EmbeddingService::new(config.api_key.clone(), config)
-            };
+            // Check if API key is available for LLM enrichment
+            let llm_config = LlmConfig::default();
+            let has_api_key = !llm_config.api_key.is_empty();
 
             // Parse namespace
             let ns = if namespace.starts_with("project:") {
@@ -619,11 +778,102 @@ if __name__ == "__main__":
                 mnemosyne_core::Namespace::Global
             };
 
-            // Enrich memory with LLM
-            let ctx = context.unwrap_or_else(|| "CLI input".to_string());
-            let mut memory = llm.enrich_memory(&content, &ctx).await?;
+            // Create or enrich memory
+            let mut memory = if has_api_key {
+                // Try to enrich memory with LLM, but fall back if it fails
+                let llm = LlmService::new(llm_config.clone())?;
+                let ctx = context.unwrap_or_else(|| "CLI input".to_string());
 
-            // Override with CLI parameters
+                match llm.enrich_memory(&content, &ctx).await {
+                    Ok(enriched_memory) => {
+                        debug!("Memory enriched successfully with LLM");
+                        enriched_memory
+                    }
+                    Err(e) => {
+                        // LLM enrichment failed - fall back to basic memory
+                        // Log specific error type for better debugging
+                        match &e {
+                            mnemosyne_core::MnemosyneError::AuthenticationError(_) => {
+                                warn!("LLM enrichment failed (invalid API key): {}, storing memory without enrichment", e);
+                            }
+                            mnemosyne_core::MnemosyneError::RateLimitExceeded(_) => {
+                                warn!("LLM enrichment failed (rate limit): {}, storing memory without enrichment", e);
+                            }
+                            mnemosyne_core::MnemosyneError::NetworkError(_) => {
+                                warn!("LLM enrichment failed (network error): {}, storing memory without enrichment", e);
+                            }
+                            _ => {
+                                warn!("LLM enrichment failed: {}, storing memory without enrichment", e);
+                            }
+                        }
+
+                        use mnemosyne_core::MemoryNote;
+                        use mnemosyne_core::types::MemoryId;
+
+                        let now = chrono::Utc::now();
+
+                        MemoryNote {
+                            id: MemoryId::new(),
+                            namespace: ns.clone(),
+                            created_at: now,
+                            updated_at: now,
+                            content: content.clone(),
+                            summary: content.chars().take(100).collect::<String>(),
+                            keywords: Vec::new(),
+                            tags: Vec::new(),
+                            context: ctx.clone(),
+                            memory_type: mnemosyne_core::MemoryType::Insight,
+                            importance: importance.clamp(1, 10),
+                            confidence: 0.5,
+                            links: Vec::new(),
+                            related_files: Vec::new(),
+                            related_entities: Vec::new(),
+                            access_count: 0,
+                            last_accessed_at: now,
+                            expires_at: None,
+                            is_archived: false,
+                            superseded_by: None,
+                            embedding: None,
+                            embedding_model: String::new(),
+                        }
+                    }
+                }
+            } else {
+                // Create basic memory without LLM enrichment
+                debug!("Creating basic memory without LLM enrichment - no API key");
+                use mnemosyne_core::MemoryNote;
+                use mnemosyne_core::types::MemoryId;
+
+                let now = chrono::Utc::now();
+                let ctx = context.unwrap_or_else(|| "CLI input".to_string());
+
+                MemoryNote {
+                    id: MemoryId::new(),
+                    namespace: ns.clone(),
+                    created_at: now,
+                    updated_at: now,
+                    content: content.clone(),
+                    summary: content.chars().take(100).collect::<String>(),
+                    keywords: Vec::new(),
+                    tags: Vec::new(),
+                    context: ctx,
+                    memory_type: mnemosyne_core::MemoryType::Insight,
+                    importance: importance.clamp(1, 10),
+                    confidence: 0.5,
+                    links: Vec::new(),
+                    related_files: Vec::new(),
+                    related_entities: Vec::new(),
+                    access_count: 0,
+                    last_accessed_at: now,
+                    expires_at: None,
+                    is_archived: false,
+                    superseded_by: None,
+                    embedding: None,
+                    embedding_model: String::new(),
+                }
+            };
+
+            // Override with CLI parameters (in case LLM set different values)
             memory.namespace = ns;
             memory.importance = importance.clamp(1, 10);
 
@@ -637,9 +887,16 @@ if __name__ == "__main__":
                 memory.tags.extend(custom_tags);
             }
 
-            // Generate embedding
-            let embedding = embedding_service.generate_embedding(&memory.content).await?;
-            memory.embedding = Some(embedding);
+            // Generate embedding if API key available
+            if has_api_key {
+                let embedding_service = EmbeddingService::new(llm_config.api_key.clone(), llm_config);
+                match embedding_service.generate_embedding(&memory.content).await {
+                    Ok(embedding) => memory.embedding = Some(embedding),
+                    Err(_) => {
+                        debug!("Failed to generate embedding, storing without it");
+                    }
+                }
+            }
 
             // Store memory
             storage.store_memory(&memory).await?;
@@ -671,14 +928,13 @@ if __name__ == "__main__":
             format,
         }) => {
             // Initialize storage and services
-            let db_path = "mnemosyne.db";
+            let db_path = get_db_path(cli.db_path.clone());
             let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
+                LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
 
-            let embedding_service = {
-                let config = LlmConfig::default();
-                EmbeddingService::new(config.api_key.clone(), config)
-            };
+            // Check if API key is available for vector search
+            let embedding_service_config = LlmConfig::default();
+            let has_api_key = !embedding_service_config.api_key.is_empty();
 
             // Parse namespace
             let ns = namespace.as_ref().map(|ns_str| {
@@ -703,14 +959,23 @@ if __name__ == "__main__":
             // Perform hybrid search (keyword + vector + graph)
             let keyword_results = storage.hybrid_search(&query, ns.clone(), limit * 2, true).await?;
 
-            // Vector search (optional - gracefully handle failures)
-            let vector_results = match embedding_service.generate_embedding(&query).await {
-                Ok(query_embedding) => {
-                    storage.vector_search(&query_embedding, limit * 2, ns.clone())
-                        .await
-                        .unwrap_or_default()
+            // Vector search (optional - only if API key available)
+            let vector_results = if has_api_key {
+                let embedding_service = EmbeddingService::new(
+                    embedding_service_config.api_key.clone(),
+                    embedding_service_config.clone()
+                );
+                match embedding_service.generate_embedding(&query).await {
+                    Ok(query_embedding) => {
+                        storage.vector_search(&query_embedding, limit * 2, ns.clone())
+                            .await
+                            .unwrap_or_default()
+                    }
+                    Err(_) => Vec::new(),
                 }
-                Err(_) => Vec::new(),
+            } else {
+                debug!("Skipping vector search - no API key configured");
+                Vec::new()
             };
 
             // Merge results
@@ -793,53 +1058,14 @@ if __name__ == "__main__":
             Ok(())
         }
         None => {
-            // Default: start MCP server
-            info!("Starting MCP server (default)...");
+            // Default: launch orchestrated Claude Code session
+            info!("Launching orchestrated Claude Code session...");
 
-            // Initialize configuration
-            let _config_manager = ConfigManager::new()?;
+            // Get database path
+            let db_path = get_db_path(cli.db_path);
 
-            // Initialize storage
-            let db_path = "mnemosyne.db";
-            let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
-
-            // Initialize LLM service (will error on first use if no API key)
-            let llm = match LlmService::with_default() {
-                Ok(service) => {
-                    info!("LLM service initialized successfully");
-                    Arc::new(service)
-                }
-                Err(_) => {
-                    info!("LLM service not configured (ANTHROPIC_API_KEY not set)");
-                    info!("Tools requiring LLM will return errors until configured");
-                    info!("Configure with: mnemosyne config set-key");
-
-                    // Create a dummy service - it will error on use
-                    // This allows the server to start for basic operations
-                    Arc::new(LlmService::new(LlmConfig {
-                        api_key: String::new(),
-                        model: "claude-3-5-haiku-20241022".to_string(),
-                        max_tokens: 1024,
-                        temperature: 0.7,
-                    })?)
-                }
-            };
-
-            // Initialize embedding service (shares API key with LLM)
-            let embeddings = {
-                let config = LlmConfig::default();
-                Arc::new(EmbeddingService::new(config.api_key.clone(), config))
-            };
-
-            // Initialize tool handler
-            let tool_handler = ToolHandler::new(Arc::new(storage), llm, embeddings);
-
-            // Create and run server
-            let server = McpServer::new(tool_handler);
-            server.run().await?;
-
-            Ok(())
+            // Launch orchestrated session
+            launcher::launch_orchestrated_session(Some(db_path)).await
         }
     }
 }

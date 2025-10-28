@@ -9,6 +9,7 @@
 mod storage;
 mod memory;
 mod coordination;
+mod evaluation;
 
 use pyo3::prelude::*;
 
@@ -27,6 +28,11 @@ fn mnemosyne_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Coordination primitives
     m.add_class::<coordination::PyCoordinator>()?;
+
+    // Evaluation system
+    m.add_class::<evaluation::PyFeedbackCollector>()?;
+    m.add_class::<evaluation::PyFeatureExtractor>()?;
+    m.add_class::<evaluation::PyRelevanceScorer>()?;
 
     Ok(())
 }
