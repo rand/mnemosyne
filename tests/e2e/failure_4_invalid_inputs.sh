@@ -262,7 +262,10 @@ for imp in 0 10; do
 done
 
 BOUNDARY_STORED=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "Boundary test" \
-    --namespace "project:test" 2>&1 | grep -c "Boundary test" || echo "0")
+    --namespace "project:test" 2>&1 | grep -c "Boundary test" || true)
+if [ -z "$BOUNDARY_STORED" ] || [ "$BOUNDARY_STORED" = "" ]; then
+    BOUNDARY_STORED=0
+fi
 
 if [ "$BOUNDARY_STORED" -ge 2 ]; then
     pass "Boundary values: Valid boundary values accepted (0 and 10)"

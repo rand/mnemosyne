@@ -132,7 +132,10 @@ sleep 2
 
 # Check how many were stored
 CONCURRENT_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "Concurrent memory" \
-    --namespace "project:concurrent" 2>&1 | grep -c "Concurrent memory" || echo "0")
+    --namespace "project:concurrent" 2>&1 | grep -c "Concurrent memory" || true)
+if [ -z "$CONCURRENT_COUNT" ] || [ "$CONCURRENT_COUNT" = "" ]; then
+    CONCURRENT_COUNT=0
+fi
 
 if [ "$CONCURRENT_COUNT" -ge 3 ]; then
     pass "Concurrent timeouts: Most operations completed ($CONCURRENT_COUNT/5 in ${DURATION}s)"
@@ -174,7 +177,10 @@ sleep 2
 
 # Verify both memories stored (retry mechanism working)
 STORED_COUNT=$(DATABASE_URL="sqlite://$LOCK_DB" "$BIN" recall --query "Lock test" \
-    --namespace "project:test" 2>&1 | grep -c "Lock test" || echo "0")
+    --namespace "project:test" 2>&1 | grep -c "Lock test" || true)
+if [ -z "$STORED_COUNT" ] || [ "$STORED_COUNT" = "" ]; then
+    STORED_COUNT=0
+fi
 
 if [ "$STORED_COUNT" -ge 2 ]; then
     pass "Database lock retry: Both memories stored ($STORED_COUNT)"
