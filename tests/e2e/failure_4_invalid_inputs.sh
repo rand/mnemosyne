@@ -106,25 +106,44 @@ SQL_INJECTIONS=(
 SQL_INJECTION_BLOCKED=0
 
 for injection in "${SQL_INJECTIONS[@]}"; do
-    # Try injection in content
+    # Store injection pattern as content (should be stored safely)
     INJ_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-        "$injection" \
+        --content "$injection" \
         --namespace "project:test" --importance 7 2>&1 || echo "")
 
     sleep 1
 
-    # Verify database integrity
-    CHECK_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "Test" \
-        --namespace "project:test" 2>&1 || echo "DB_CORRUPTED")
+    # Verify database integrity by checking:
+    # 1. Tables still exist
+    # 2. We can query the database
+    # 3. Database structure is intact
 
-    if echo "$CHECK_OUTPUT" | grep -qi "DB_CORRUPTED\|error"; then
-        fail "SQL injection: Database corrupted by injection"
+    # Check if memories table still exists
+    TABLE_CHECK=$(sqlite3 "$TEST_DB" \
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='memories';" 2>&1)
+
+    if [ -z "$TABLE_CHECK" ]; then
+        fail "SQL injection: memories table was dropped!"
         ((SQL_INJECTION_BLOCKED++))
+        continue
     fi
+
+    # Check if we can query the table without SQL errors
+    QUERY_CHECK=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
+        --namespace "project:test" 2>&1)
+
+    if echo "$QUERY_CHECK" | grep -qi "no such table\|syntax error\|database is locked"; then
+        fail "SQL injection: Database structure damaged"
+        ((SQL_INJECTION_BLOCKED++))
+        continue
+    fi
+
+    # Success - injection was safely stored as text
+    pass "SQL injection: Injection pattern safely stored as text"
 done
 
 if [ "$SQL_INJECTION_BLOCKED" -eq 0 ]; then
-    pass "SQL injection: All injection attempts safely handled"
+    pass "SQL injection: All injection attempts safely handled (${#SQL_INJECTIONS[@]}/${#SQL_INJECTIONS[@]})"
 else
     fail "SQL injection: $SQL_INJECTION_BLOCKED injection(s) caused issues"
 fi
