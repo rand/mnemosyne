@@ -77,7 +77,8 @@ async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    let storage = LibsqlStorage::new(ConnectionMode::Local(db_path)).await?;
+    // MCP server should create database if it doesn't exist (for first-time setup)
+    let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?;
 
     // Initialize LLM service (will error on first use if no API key)
     let llm = match LlmService::with_default() {
@@ -340,7 +341,8 @@ async fn main() -> Result<()> {
             }
 
             // Initialize storage (this will create the database and run migrations)
-            let _storage = LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
+            // Init command explicitly creates database if missing
+            let _storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true).await?;
 
             println!("✓ Database initialized: {}", db_path);
             Ok(())
