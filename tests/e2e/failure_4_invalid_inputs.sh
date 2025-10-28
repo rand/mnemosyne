@@ -317,7 +317,7 @@ print_cyan "Testing input sanitization..."
 
 # Inputs should be sanitized, not just rejected
 SANITIZE_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "Test memory with <html>tags</html> and ${variables}" \
+    "Test memory with <html>tags</html> and \${variables}" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
 sleep 2
