@@ -30,8 +30,8 @@ section "Test 1: LLM Enrichment Fallback"
 
 print_cyan "Testing fallback when LLM enrichment unavailable..."
 
-# Simulate LLM unavailability
-OLD_API_KEY="$ANTHROPIC_API_KEY"
+# Simulate LLM unavailability (use :- to handle unset variable)
+OLD_API_KEY="${ANTHROPIC_API_KEY:-}"
 export ANTHROPIC_API_KEY="sk-invalid-fallback-test"
 
 # System should fall back to basic metadata generation
@@ -39,8 +39,10 @@ FALLBACK_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     "Architectural decision: Using PostgreSQL for primary database" \
     --namespace "project:test" --importance 8 2>&1 || echo "")
 
-# Restore API key
-export ANTHROPIC_API_KEY="$OLD_API_KEY"
+# Restore API key (if it was set)
+if [ -n "$OLD_API_KEY" ]; then
+    export ANTHROPIC_API_KEY="$OLD_API_KEY"
+fi
 
 sleep 2
 
@@ -270,7 +272,10 @@ METADATA_FALLBACK=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     "Important: System should generate metadata even without LLM" \
     --namespace "project:test" --importance 8 2>&1 || echo "")
 
-export ANTHROPIC_API_KEY="$OLD_API_KEY"
+# Restore API key (if it was set)
+if [ -n "$OLD_API_KEY" ]; then
+    export ANTHROPIC_API_KEY="$OLD_API_KEY"
+fi
 
 sleep 2
 
@@ -374,7 +379,10 @@ PERF_FALLBACK=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     "Performance fallback test" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
-export ANTHROPIC_API_KEY="$OLD_API_KEY"
+# Restore API key (if it was set)
+if [ -n "$OLD_API_KEY" ]; then
+    export ANTHROPIC_API_KEY="$OLD_API_KEY"
+fi
 
 END=$(date +%s)
 DURATION=$((END - START))
@@ -394,7 +402,10 @@ print_cyan "Testing recovery from fallback state to normal state..."
 # After fallback, system should return to normal when conditions improve
 # Create memory in fallback mode, then verify normal mode works
 
-export ANTHROPIC_API_KEY="$OLD_API_KEY"
+# Restore API key (if it was set)
+if [ -n "$OLD_API_KEY" ]; then
+    export ANTHROPIC_API_KEY="$OLD_API_KEY"
+fi
 
 NORMAL_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     "Normal mode recovery test after fallback" \

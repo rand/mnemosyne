@@ -30,8 +30,8 @@ section "Test 1: Core Functionality Without LLM"
 
 print_cyan "Testing core functionality when LLM unavailable..."
 
-# Simulate LLM unavailability by using invalid API key
-OLD_API_KEY="$ANTHROPIC_API_KEY"
+# Simulate LLM unavailability by using invalid API key (use :- to handle unset variable)
+OLD_API_KEY="${ANTHROPIC_API_KEY:-}"
 export ANTHROPIC_API_KEY="sk-invalid-for-testing"
 
 # System should still be able to store memories (degraded mode)
@@ -39,8 +39,10 @@ DEGRADED_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     "Critical system memory - must be stored even without enrichment" \
     --namespace "project:test" --importance 9 2>&1 || echo "")
 
-# Restore API key
-export ANTHROPIC_API_KEY="$OLD_API_KEY"
+# Restore API key (if it was set)
+if [ -n "$OLD_API_KEY" ]; then
+    export ANTHROPIC_API_KEY="$OLD_API_KEY"
+fi
 
 sleep 2
 
@@ -317,7 +319,10 @@ ERROR_MSG_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     "Error message quality test" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
-export ANTHROPIC_API_KEY="$OLD_API_KEY"
+# Restore API key (if it was set)
+if [ -n "$OLD_API_KEY" ]; then
+    export ANTHROPIC_API_KEY="$OLD_API_KEY"
+fi
 
 # Check if error messages are helpful
 if echo "$ERROR_MSG_OUTPUT" | grep -qi "api.*key\|authentication\|enrichment"; then
