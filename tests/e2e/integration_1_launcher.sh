@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail  # Removed -e to allow test failures
 
 # E2E Test: Integration 1 - Orchestrated Launcher
 #
@@ -197,7 +197,6 @@ MISSING_DB_URL="sqlite://$MISSING_DB"
 set +e  # Allow command to fail
 DATABASE_URL="$MISSING_DB_URL" "$BIN" recall --query "" --namespace "project:test" > /dev/null 2>&1
 EXIT_CODE=$?
-set -e
 
 if [ "$EXIT_CODE" -ne 0 ]; then
     pass "Non-existent database handled gracefully (error returned)"
@@ -307,11 +306,9 @@ section "Test 12: Error Logging and Recovery"
 print_cyan "Testing error handling..."
 
 # Try to create memory with invalid importance
-set +e
 ERROR_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember "Test" \
     --namespace "project:test" --importance 15 2>&1 || echo "INVALID_IMPORTANCE")
 EXIT_CODE=$?
-set -e
 
 if [ "$EXIT_CODE" -ne 0 ]; then
     pass "Invalid importance rejected with error"

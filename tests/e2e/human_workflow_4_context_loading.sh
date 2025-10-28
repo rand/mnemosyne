@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail  # Removed -e to allow test failures
 
 # E2E Test: Human Workflow 4 - Context Loading
 #
