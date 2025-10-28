@@ -161,9 +161,9 @@ enum Commands {
 
     /// Export memories to Markdown
     Export {
-        /// Output path
+        /// Output path (prints to stdout if not specified)
         #[arg(short, long)]
-        output: String,
+        output: Option<String>,
 
         /// Namespace filter
         #[arg(short, long)]
@@ -357,7 +357,11 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Some(Commands::Export { output, namespace }) => {
-            info!("Exporting memories to {}...", output);
+            if let Some(ref out_path) = output {
+                info!("Exporting memories to {}...", out_path);
+            } else {
+                debug!("Exporting memories to stdout...");
+            }
 
             // Initialize storage (read-only)
             let db_path = get_db_path(cli.db_path.clone());
@@ -386,64 +390,83 @@ async fn main() -> Result<()> {
             // Query all memories (or filtered by namespace)
             let memories = storage.list_memories(ns, 10000, MemorySortOrder::Recent).await?;
 
-            // Determine output format based on file extension
-            let output_path = PathBuf::from(&output);
-            let format = if output.ends_with(".jsonl") {
-                "jsonl"
-            } else if output.ends_with(".md") || output.ends_with(".markdown") {
-                "markdown"
+            // Determine output format and destination
+            let (format, use_stdout) = if let Some(ref path) = output {
+                let fmt = if path.ends_with(".jsonl") {
+                    "jsonl"
+                } else if path.ends_with(".md") || path.ends_with(".markdown") {
+                    "markdown"
+                } else {
+                    "json" // default
+                };
+                (fmt, false)
             } else {
-                "json" // default
+                // Default to JSON for stdout
+                ("json", true)
             };
 
-            // Write to file
-            use std::fs::File;
             use std::io::Write;
-            let mut file = File::create(&output_path)?;
 
-            match format {
-                "json" => {
-                    // Pretty-printed JSON
-                    let json = serde_json::to_string_pretty(&memories)?;
-                    file.write_all(json.as_bytes())?;
-                }
-                "jsonl" => {
-                    // Newline-delimited JSON (one object per line)
-                    for memory in &memories {
-                        let json = serde_json::to_string(memory)?;
-                        writeln!(file, "{}", json)?;
+            // Helper closure to write formatted output
+            let write_output = |writer: &mut dyn Write| -> Result<()> {
+                match format {
+                    "json" => {
+                        // Pretty-printed JSON
+                        let json = serde_json::to_string_pretty(&memories)?;
+                        writer.write_all(json.as_bytes())?;
+                        writer.write_all(b"\n")?;
+                    }
+                    "jsonl" => {
+                        // Newline-delimited JSON (one object per line)
+                        for memory in &memories {
+                            let json = serde_json::to_string(memory)?;
+                            writeln!(writer, "{}", json)?;
+                        }
+                    }
+                    "markdown" => {
+                        // Human-readable Markdown
+                        writeln!(writer, "# Memory Export\n")?;
+                        writeln!(writer, "Exported {} memories\n", memories.len())?;
+                        writeln!(writer, "---\n")?;
+
+                        for (i, memory) in memories.iter().enumerate() {
+                            writeln!(writer, "## {}. {}\n", i + 1, memory.summary)?;
+                            writeln!(writer, "**ID**: {}", memory.id)?;
+                            writeln!(writer, "**Namespace**: {}", serde_json::to_string(&memory.namespace)?)?;
+                            writeln!(writer, "**Importance**: {}/10", memory.importance)?;
+                            writeln!(writer, "**Type**: {:?}", memory.memory_type)?;
+                            writeln!(writer, "**Created**: {}", memory.created_at.format("%Y-%m-%d %H:%M:%S"))?;
+                            if !memory.tags.is_empty() {
+                                writeln!(writer, "**Tags**: {}", memory.tags.join(", "))?;
+                            }
+                            if !memory.keywords.is_empty() {
+                                writeln!(writer, "**Keywords**: {}", memory.keywords.join(", "))?;
+                            }
+                            writeln!(writer, "\n### Content\n")?;
+                            writeln!(writer, "{}\n", memory.content)?;
+                            writeln!(writer, "---\n")?;
+                        }
+                    }
+                    _ => {
+                        return Err(MnemosyneError::ValidationError(format!("Unsupported export format: {}", format)).into());
                     }
                 }
-                "markdown" => {
-                    // Human-readable Markdown
-                    writeln!(file, "# Memory Export\n")?;
-                    writeln!(file, "Exported {} memories\n", memories.len())?;
-                    writeln!(file, "---\n")?;
+                Ok(())
+            };
 
-                    for (i, memory) in memories.iter().enumerate() {
-                        writeln!(file, "## {}. {}\n", i + 1, memory.summary)?;
-                        writeln!(file, "**ID**: {}", memory.id)?;
-                        writeln!(file, "**Namespace**: {}", serde_json::to_string(&memory.namespace)?)?;
-                        writeln!(file, "**Importance**: {}/10", memory.importance)?;
-                        writeln!(file, "**Type**: {:?}", memory.memory_type)?;
-                        writeln!(file, "**Created**: {}", memory.created_at.format("%Y-%m-%d %H:%M:%S"))?;
-                        if !memory.tags.is_empty() {
-                            writeln!(file, "**Tags**: {}", memory.tags.join(", "))?;
-                        }
-                        if !memory.keywords.is_empty() {
-                            writeln!(file, "**Keywords**: {}", memory.keywords.join(", "))?;
-                        }
-                        writeln!(file, "\n### Content\n")?;
-                        writeln!(file, "{}\n", memory.content)?;
-                        writeln!(file, "---\n")?;
-                    }
-                }
-                _ => {
-                    return Err(MnemosyneError::ValidationError(format!("Unsupported export format: {}", format)).into());
-                }
+            // Write to stdout or file
+            if use_stdout {
+                let stdout = std::io::stdout();
+                let mut handle = stdout.lock();
+                write_output(&mut handle)?;
+            } else {
+                use std::fs::File;
+                let output_path = PathBuf::from(output.as_ref().unwrap());
+                let mut file = File::create(&output_path)?;
+                write_output(&mut file)?;
+                eprintln!("✓ Exported {} memories to {}", memories.len(), output_path.display());
             }
 
-            println!("✓ Exported {} memories to {}", memories.len(), output);
             Ok(())
         }
         Some(Commands::Status) => {
