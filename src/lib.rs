@@ -47,6 +47,7 @@ pub mod config;
 pub mod daemon;
 pub mod embeddings;
 pub mod error;
+pub mod evaluation;
 pub mod evolution;
 pub mod launcher;
 pub mod mcp;
@@ -65,6 +66,10 @@ pub use agents::{AgentMemoryView, AgentRole, CustomImportanceScorer, MemoryAcces
 pub use config::ConfigManager;
 pub use embeddings::{cosine_similarity, EmbeddingService, RemoteEmbeddingService, VOYAGE_EMBEDDING_DIM};
 pub use error::{MnemosyneError, Result};
+pub use evaluation::{
+    ContextEvaluation, FeedbackCollector, FeatureExtractor, ProvidedContext, RelevanceFeatures,
+    RelevanceScorer, Scope, WeightSet,
+};
 pub use evolution::{
     ArchivalJob, BackgroundScheduler, ConsolidationJob, EvolutionConfig, EvolutionJob,
     ImportanceRecalibrator, JobConfig, JobReport, LinkDecayJob,
