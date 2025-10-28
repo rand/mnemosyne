@@ -98,8 +98,14 @@ LOCKER_PID=$!
 sleep 1  # Give locker time to acquire lock
 
 # Try to write while locked
-LOCKED_OUTPUT=$(timeout 3 bash -c "DATABASE_URL='sqlite://$LOCKED_DB' '$BIN' remember 'Locked test' --namespace 'project:test' --importance 7 2>&1 || echo 'LOCKED_ERROR'")
-LOCKED_EXIT=$?
+if ! command -v timeout &> /dev/null; then
+    warn "timeout command not available, skipping detailed lock test"
+    LOCKED_OUTPUT=$(DATABASE_URL="sqlite://$LOCKED_DB" "$BIN" remember "Locked test" --namespace "project:test" --importance 7 2>&1 || echo "LOCKED_ERROR")
+    LOCKED_EXIT=$?
+else
+    LOCKED_OUTPUT=$(timeout 3 bash -c "DATABASE_URL='sqlite://$LOCKED_DB' '$BIN' remember 'Locked test' --namespace 'project:test' --importance 7 2>&1 || echo 'LOCKED_ERROR'")
+    LOCKED_EXIT=$?
+fi
 
 # Should timeout or fail gracefully
 if [ "$LOCKED_EXIT" -ne 0 ]; then
@@ -220,7 +226,10 @@ CONCURRENT_LIST=$(DATABASE_URL="sqlite://$CONCURRENT_DB" "$BIN" recall --query "
     --namespace "project:test" 2>&1 || echo "")
 
 if echo "$CONCURRENT_LIST" | grep -qi "Concurrent memory"; then
-    CONCURRENT_COUNT=$(echo "$CONCURRENT_LIST" | grep -c "Concurrent memory" || echo "0")
+    CONCURRENT_COUNT=$(echo "$CONCURRENT_LIST" | grep -c "Concurrent memory" || true)
+    if [ -z "$CONCURRENT_COUNT" ] || [ "$CONCURRENT_COUNT" = "" ]; then
+        CONCURRENT_COUNT=0
+    fi
     echo "Successfully stored $CONCURRENT_COUNT/5 concurrent writes"
 
     if [ "$CONCURRENT_COUNT" -ge 3 ]; then

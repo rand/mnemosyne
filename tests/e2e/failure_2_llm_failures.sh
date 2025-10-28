@@ -197,7 +197,10 @@ sleep 3
 
 # Check how many were actually stored
 STORED_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "Rapid memory" \
-    --namespace "project:ratelimit" 2>&1 | grep -c "Rapid memory" || echo "0")
+    --namespace "project:ratelimit" 2>&1 | grep -c "Rapid memory" || true)
+if [ -z "$STORED_COUNT" ] || [ "$STORED_COUNT" = "" ]; then
+    STORED_COUNT=0
+fi
 
 if [ "$STORED_COUNT" -ge 3 ]; then
     pass "Rate limit handling: Majority of memories stored ($STORED_COUNT/5)"

@@ -147,7 +147,10 @@ sleep 3
 
 # Check how many were actually stored
 RAPID_STORED=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "Rapid memory" \
-    --namespace "project:test" 2>&1 | grep -c "Rapid memory" || echo "0")
+    --namespace "project:test" 2>&1 | grep -c "Rapid memory" || true)
+if [ -z "$RAPID_STORED" ] || [ "$RAPID_STORED" = "" ]; then
+    RAPID_STORED=0
+fi
 
 if [ "$RAPID_STORED" -ge 2 ]; then
     pass "Network resilience: Most operations succeeded despite rapid execution ($RAPID_STORED/3)"
@@ -182,7 +185,10 @@ RESOURCE_CHECK=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "Resourc
     --namespace "project:resource" --limit 10 2>&1 || echo "")
 
 if [ -n "$RESOURCE_CHECK" ]; then
-    STORED_COUNT=$(echo "$RESOURCE_CHECK" | grep -c "Resource constraint" || echo "0")
+    STORED_COUNT=$(echo "$RESOURCE_CHECK" | grep -c "Resource constraint" || true)
+    if [ -z "$STORED_COUNT" ] || [ "$STORED_COUNT" = "" ]; then
+        STORED_COUNT=0
+    fi
     if [ "$STORED_COUNT" -ge 5 ]; then
         pass "Resource constraints: System functional under load ($STORED_COUNT memories found)"
     else
@@ -281,7 +287,10 @@ print_cyan "Testing that degraded mode doesn't cause data loss..."
 
 # Count memories before additional operations
 BEFORE_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
-    --namespace "project:test" 2>&1 | grep -c "importance:" || echo "0")
+    --namespace "project:test" 2>&1 | grep -c "importance:" || true)
+if [ -z "$BEFORE_COUNT" ] || [ "$BEFORE_COUNT" = "" ]; then
+    BEFORE_COUNT=0
+fi
 
 print_cyan "Memories before degraded operations: $BEFORE_COUNT"
 
@@ -297,7 +306,10 @@ sleep 3
 
 # Count memories after
 AFTER_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
-    --namespace "project:test" 2>&1 | grep -c "importance:" || echo "0")
+    --namespace "project:test" 2>&1 | grep -c "importance:" || true)
+if [ -z "$AFTER_COUNT" ] || [ "$AFTER_COUNT" = "" ]; then
+    AFTER_COUNT=0
+fi
 
 print_cyan "Memories after degraded operations: $AFTER_COUNT"
 
