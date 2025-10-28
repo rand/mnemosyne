@@ -12,7 +12,7 @@ use mnemosyne_core::{
 use mnemosyne_core::services::embeddings::EmbeddingService;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{info, Level};
+use tracing::{debug, info, Level};
 use tracing_subscriber;
 
 /// Get the default database path using XDG_DATA_HOME standard
@@ -716,10 +716,9 @@ if __name__ == "__main__":
             let storage =
                 LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
 
-            let embedding_service = {
-                let config = LlmConfig::default();
-                EmbeddingService::new(config.api_key.clone(), config)
-            };
+            // Check if API key is available for vector search
+            let embedding_service_config = LlmConfig::default();
+            let has_api_key = !embedding_service_config.api_key.is_empty();
 
             // Parse namespace
             let ns = namespace.as_ref().map(|ns_str| {
@@ -744,14 +743,23 @@ if __name__ == "__main__":
             // Perform hybrid search (keyword + vector + graph)
             let keyword_results = storage.hybrid_search(&query, ns.clone(), limit * 2, true).await?;
 
-            // Vector search (optional - gracefully handle failures)
-            let vector_results = match embedding_service.generate_embedding(&query).await {
-                Ok(query_embedding) => {
-                    storage.vector_search(&query_embedding, limit * 2, ns.clone())
-                        .await
-                        .unwrap_or_default()
+            // Vector search (optional - only if API key available)
+            let vector_results = if has_api_key {
+                let embedding_service = EmbeddingService::new(
+                    embedding_service_config.api_key.clone(),
+                    embedding_service_config.clone()
+                );
+                match embedding_service.generate_embedding(&query).await {
+                    Ok(query_embedding) => {
+                        storage.vector_search(&query_embedding, limit * 2, ns.clone())
+                            .await
+                            .unwrap_or_default()
+                    }
+                    Err(_) => Vec::new(),
                 }
-                Err(_) => Vec::new(),
+            } else {
+                debug!("Skipping vector search - no API key configured");
+                Vec::new()
             };
 
             // Merge results
