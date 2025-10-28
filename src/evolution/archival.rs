@@ -40,6 +40,11 @@ impl ArchivalJob {
             return Ok(false);
         }
 
+        // Never archive high-importance memories (>= 7.0)
+        if importance >= 7.0 {
+            return Ok(false);
+        }
+
         // Rule 1: Never accessed and very old
         if access_count == 0 && days_since_access > 180.0 {
             return Ok(true);

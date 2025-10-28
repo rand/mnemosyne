@@ -85,14 +85,17 @@ CREATE INDEX IF NOT EXISTS idx_audit_memory_id ON audit_log(memory_id);
 CREATE INDEX IF NOT EXISTS idx_audit_operation ON audit_log(operation);
 
 -- ============================================================================
--- Vector Search Index (LibSQL Native)
+-- Vector Search Index (Deprecated in v2.0)
 -- ============================================================================
--- Create native vector index for efficient similarity search using LibSQL's
--- built-in vector capabilities. This uses the F32_BLOB embedding column.
-
-CREATE INDEX IF NOT EXISTS idx_memories_vector ON memories (
-    libsql_vector_idx(embedding, 'metric=cosine')
-);
-
--- Update metadata to reflect vector index
-INSERT OR REPLACE INTO metadata (key, value) VALUES ('vector_index_created', datetime('now'));
+-- NOTE: Vector indexing is now handled by migration 006 using sqlite-vec
+-- with the dual storage approach (rusqlite for vectors, libsql for memories).
+-- The LibSQL native vector index below is commented out as it:
+-- 1. Requires LibSQL server (not available in local/test SQLite)
+-- 2. Has been superseded by sqlite-vec implementation
+--
+-- If running on LibSQL server with native vector support, you may uncomment:
+-- CREATE INDEX IF NOT EXISTS idx_memories_vector ON memories (
+--     libsql_vector_idx(embedding, 'metric=cosine')
+-- );
+--
+-- INSERT OR REPLACE INTO metadata (key, value) VALUES ('vector_index_created', datetime('now'));

@@ -39,17 +39,17 @@ impl LinkDecayJob {
         }
 
         // Strong decay for very old untraversed links
-        if days_since_traversal > 180.0 {
+        if days_since_traversal >= 180.0 {
             return Ok(0.25); // Quarter strength after 6 months
         }
 
         // Medium decay for old untraversed links
-        if days_since_traversal > 90.0 {
+        if days_since_traversal >= 90.0 {
             return Ok(0.5); // Half strength after 3 months
         }
 
         // Slight decay for old links that haven't been used recently
-        if days_since_creation > 365.0 && days_since_traversal > 30.0 {
+        if days_since_creation >= 365.0 && days_since_traversal >= 30.0 {
             return Ok(0.8); // 20% decay for old, recently unused links
         }
 
