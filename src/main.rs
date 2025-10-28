@@ -23,10 +23,19 @@ fn get_default_db_path() -> PathBuf {
         .join("mnemosyne.db")
 }
 
-/// Get the database path from CLI arg, env var, or default
+/// Get the database path from CLI arg, env var, project dir, or default
 fn get_db_path(cli_path: Option<String>) -> String {
     cli_path
         .or_else(|| std::env::var("MNEMOSYNE_DB_PATH").ok())
+        .or_else(|| {
+            // Check for project-specific database in .mnemosyne/
+            let project_db = PathBuf::from(".mnemosyne").join("project.db");
+            if project_db.exists() {
+                Some(project_db.to_string_lossy().to_string())
+            } else {
+                None
+            }
+        })
         .unwrap_or_else(|| {
             get_default_db_path()
                 .to_string_lossy()
@@ -605,9 +614,9 @@ if __name__ == "__main__":
             format,
         }) => {
             // Initialize storage and services
-            let db_path = "mnemosyne.db";
+            let db_path = get_db_path(cli.db_path.clone());
             let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
+                LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
 
             let llm = LlmService::with_default()?;
             let embedding_service = {
@@ -685,9 +694,9 @@ if __name__ == "__main__":
             format,
         }) => {
             // Initialize storage and services
-            let db_path = "mnemosyne.db";
+            let db_path = get_db_path(cli.db_path.clone());
             let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path.to_string())).await?;
+                LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
 
             let embedding_service = {
                 let config = LlmConfig::default();

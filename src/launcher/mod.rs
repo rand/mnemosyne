@@ -335,8 +335,15 @@ fn detect_namespace() -> String {
     "global".to_string()
 }
 
-/// Get default database path
+/// Get default database path, checking for project database first
 fn get_default_db_path() -> String {
+    // Check for project-specific database in .mnemosyne/
+    let project_db = PathBuf::from(".mnemosyne").join("project.db");
+    if project_db.exists() {
+        return project_db.to_string_lossy().to_string();
+    }
+
+    // Fall back to XDG default
     dirs::data_local_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("mnemosyne")
