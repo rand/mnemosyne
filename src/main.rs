@@ -5,8 +5,17 @@
 
 use clap::{Parser, Subcommand};
 use mnemosyne_core::{
-    error::Result, launcher, ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig,
-    LlmService, McpServer, StorageBackend, ToolHandler,
+    error::{MnemosyneError, Result},
+    launcher,
+    storage::MemorySortOrder,
+    ConfigManager,
+    ConnectionMode,
+    LibsqlStorage,
+    LlmConfig,
+    LlmService,
+    McpServer,
+    StorageBackend,
+    ToolHandler,
 };
 // Use the v1.0 embedding service for backward compatibility
 use mnemosyne_core::services::embeddings::EmbeddingService;
@@ -347,9 +356,94 @@ async fn main() -> Result<()> {
             println!("✓ Database initialized: {}", db_path);
             Ok(())
         }
-        Some(Commands::Export { output, namespace: _ }) => {
+        Some(Commands::Export { output, namespace }) => {
             info!("Exporting memories to {}...", output);
-            eprintln!("Export not yet implemented");
+
+            // Initialize storage (read-only)
+            let db_path = get_db_path(cli.db_path.clone());
+            let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), false).await?;
+
+            // Parse namespace if provided
+            let ns = namespace.map(|ns_str| {
+                if ns_str.starts_with("project:") {
+                    let project = ns_str.strip_prefix("project:").unwrap();
+                    mnemosyne_core::Namespace::Project { name: project.to_string() }
+                } else if ns_str.starts_with("session:") {
+                    let parts: Vec<&str> = ns_str.strip_prefix("session:").unwrap().split('/').collect();
+                    if parts.len() == 2 {
+                        mnemosyne_core::Namespace::Session {
+                            project: parts[0].to_string(),
+                            session_id: parts[1].to_string(),
+                        }
+                    } else {
+                        mnemosyne_core::Namespace::Global
+                    }
+                } else {
+                    mnemosyne_core::Namespace::Global
+                }
+            });
+
+            // Query all memories (or filtered by namespace)
+            let memories = storage.list_memories(ns, 10000, MemorySortOrder::Recent).await?;
+
+            // Determine output format based on file extension
+            let output_path = PathBuf::from(&output);
+            let format = if output.ends_with(".jsonl") {
+                "jsonl"
+            } else if output.ends_with(".md") || output.ends_with(".markdown") {
+                "markdown"
+            } else {
+                "json" // default
+            };
+
+            // Write to file
+            use std::fs::File;
+            use std::io::Write;
+            let mut file = File::create(&output_path)?;
+
+            match format {
+                "json" => {
+                    // Pretty-printed JSON
+                    let json = serde_json::to_string_pretty(&memories)?;
+                    file.write_all(json.as_bytes())?;
+                }
+                "jsonl" => {
+                    // Newline-delimited JSON (one object per line)
+                    for memory in &memories {
+                        let json = serde_json::to_string(memory)?;
+                        writeln!(file, "{}", json)?;
+                    }
+                }
+                "markdown" => {
+                    // Human-readable Markdown
+                    writeln!(file, "# Memory Export\n")?;
+                    writeln!(file, "Exported {} memories\n", memories.len())?;
+                    writeln!(file, "---\n")?;
+
+                    for (i, memory) in memories.iter().enumerate() {
+                        writeln!(file, "## {}. {}\n", i + 1, memory.summary)?;
+                        writeln!(file, "**ID**: {}", memory.id)?;
+                        writeln!(file, "**Namespace**: {}", serde_json::to_string(&memory.namespace)?)?;
+                        writeln!(file, "**Importance**: {}/10", memory.importance)?;
+                        writeln!(file, "**Type**: {:?}", memory.memory_type)?;
+                        writeln!(file, "**Created**: {}", memory.created_at.format("%Y-%m-%d %H:%M:%S"))?;
+                        if !memory.tags.is_empty() {
+                            writeln!(file, "**Tags**: {}", memory.tags.join(", "))?;
+                        }
+                        if !memory.keywords.is_empty() {
+                            writeln!(file, "**Keywords**: {}", memory.keywords.join(", "))?;
+                        }
+                        writeln!(file, "\n### Content\n")?;
+                        writeln!(file, "{}\n", memory.content)?;
+                        writeln!(file, "---\n")?;
+                    }
+                }
+                _ => {
+                    return Err(MnemosyneError::ValidationError(format!("Unsupported export format: {}", format)).into());
+                }
+            }
+
+            println!("✓ Exported {} memories to {}", memories.len(), output);
             Ok(())
         }
         Some(Commands::Status) => {
