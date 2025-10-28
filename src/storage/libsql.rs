@@ -554,27 +554,57 @@ impl LibsqlStorage {
                 return Ok(());
             }
             Err(e) => {
-                debug!("Database health check failed: {}", e);
+                debug!("Database health check failed: {}, attempting recovery", e);
                 // Continue with recovery attempt
             }
         }
 
-        // Try to establish a fresh connection to clear any stale state
-        match self.get_conn() {
-            Ok(conn) => {
-                // Try a simple write operation to verify database is writable
+        // Get a fresh connection for recovery operations
+        let conn = self.get_conn().map_err(|e| {
+            MnemosyneError::Database(format!("Cannot establish connection for recovery: {}", e))
+        })?;
+
+        // Step 1: Try to checkpoint WAL to clear pending writes
+        debug!("Attempting WAL checkpoint to recover from stale state...");
+        match conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", ()).await {
+            Ok(_) => {
+                info!("WAL checkpoint successful - database recovered");
+                return Ok(());
+            }
+            Err(e) => {
+                debug!("WAL checkpoint failed: {}, trying alternative recovery", e);
+            }
+        }
+
+        // Step 2: Try to reinitialize WAL mode
+        debug!("Attempting to reinitialize WAL mode...");
+        match conn.execute("PRAGMA journal_mode=WAL", ()).await {
+            Ok(_) => {
+                info!("WAL mode reinitialized - database recovered");
+
+                // Verify recovery with a simple query
                 match conn.execute("SELECT 1", ()).await {
                     Ok(_) => {
-                        debug!("Database recovered successfully");
+                        debug!("Database is now operational after recovery");
                         Ok(())
                     }
                     Err(e) => {
-                        Err(MnemosyneError::Database(format!("Recovery failed: {}", e)))
+                        Err(MnemosyneError::Database(format!(
+                            "Recovery partially successful but database still not operational: {}. \
+                            Manual intervention may be required: delete .db-wal and .db-shm files.",
+                            e
+                        )))
                     }
                 }
             }
             Err(e) => {
-                Err(MnemosyneError::Database(format!("Cannot establish connection for recovery: {}", e)))
+                Err(MnemosyneError::Database(format!(
+                    "Recovery failed: {}. Manual intervention required: \
+                    1. Check file permissions on database and WAL files (.db-wal, .db-shm) \
+                    2. If permissions are correct, delete stale WAL files and retry \
+                    3. As a last resort, restore from backup",
+                    e
+                )))
             }
         }
     }
