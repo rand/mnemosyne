@@ -98,7 +98,7 @@ echo "Query: 'database'"
 echo ""
 
 START_TIME=$(date +%s%N)
-OUTPUT1=$("$BIN" search "database" --namespace "project:ecommerce" 2>&1)
+OUTPUT1=$("$BIN" recall --query "database" --namespace "project:ecommerce" 2>&1)
 END_TIME=$(date +%s%N)
 ELAPSED_MS=$(( (END_TIME - START_TIME) / 1000000 ))
 
@@ -130,7 +130,7 @@ echo "========================================"
 echo "Query: 'performance optimization'"
 echo ""
 
-OUTPUT2=$("$BIN" search "performance optimization" --namespace "project:ecommerce" 2>&1)
+OUTPUT2=$("$BIN" recall --query "performance optimization" --namespace "project:ecommerce" 2>&1)
 
 if echo "$OUTPUT2" | grep -qi "FTS5\|search\|50ms"; then
     echo -e "${GREEN}[PASS]${NC} Search returned performance optimization memory"
@@ -156,7 +156,7 @@ echo "Running $ITERATIONS searches to measure average performance..."
 
 for i in $(seq 1 $ITERATIONS); do
     START=$(date +%s%N)
-    "$BIN" search "API REST" --namespace "project:ecommerce" > /dev/null 2>&1
+    "$BIN" recall --query "API REST" --namespace "project:ecommerce" > /dev/null 2>&1
     END=$(date +%s%N)
     ITER_MS=$(( (END - START) / 1000000 ))
     TOTAL_MS=$(( TOTAL_MS + ITER_MS ))
@@ -180,7 +180,7 @@ echo "========================================"
 echo "Test 4: Result Ranking (High Importance First)"
 echo "========================================"
 
-OUTPUT4=$("$BIN" list --namespace "project:ecommerce" --sort importance 2>&1)
+OUTPUT4=$("$BIN" recall --query "" --namespace "project:ecommerce"  2>&1)
 
 # Check if results are sorted by importance
 if echo "$OUTPUT4" | head -5 | grep -q "PostgreSQL\|8\|importance: 8"; then
@@ -200,7 +200,7 @@ echo "========================================"
 echo "Query: 'database' (all namespaces)"
 echo ""
 
-OUTPUT5=$("$BIN" search "database" 2>&1)
+OUTPUT5=$("$BIN" recall --query "database" 2>&1)
 
 # Should find both ecommerce and blog mentions
 FOUND_POSTGRES=$(echo "$OUTPUT5" | grep -c "PostgreSQL\|Postgres" || echo "0")
@@ -221,7 +221,7 @@ echo "========================================"
 echo "Test 6: List with Filtering"
 echo "========================================"
 
-OUTPUT6=$("$BIN" list --namespace "project:ecommerce" --limit 3 2>&1)
+OUTPUT6=$("$BIN" recall --query "" --namespace "project:ecommerce" --limit 3 2>&1)
 
 # Count results (heuristic)
 RESULT_COUNT=$(echo "$OUTPUT6" | grep -cE '[0-9]{4}-[0-9]{2}-[0-9]{2}|Importance:' || echo "0")

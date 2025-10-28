@@ -37,7 +37,7 @@ NONEXISTENT_URL="sqlite://$NONEXISTENT_DB"
 
 # Try to list memories from non-existent database
 set +e
-OUTPUT=$(DATABASE_URL="$NONEXISTENT_URL" "$BIN" list --namespace "project:test" 2>&1 || echo "ERROR_EXPECTED")
+OUTPUT=$(DATABASE_URL="$NONEXISTENT_URL" "$BIN" recall --query "" --namespace "project:test" 2>&1 || echo "ERROR_EXPECTED")
 EXIT_CODE=$?
 set -e
 
@@ -70,7 +70,7 @@ dd if=/dev/urandom of="$CORRUPT_DB" bs=1024 count=1 conv=notrunc > /dev/null 2>&
 
 # Try to query corrupted database
 set +e
-CORRUPT_OUTPUT=$(DATABASE_URL="sqlite://$CORRUPT_DB" "$BIN" list --namespace "project:test" 2>&1 || echo "CORRUPT_ERROR")
+CORRUPT_OUTPUT=$(DATABASE_URL="sqlite://$CORRUPT_DB" "$BIN" recall --query "" --namespace "project:test" 2>&1 || echo "CORRUPT_ERROR")
 CORRUPT_EXIT=$?
 set -e
 
@@ -147,7 +147,7 @@ fi
 
 # But reads should still work
 set +e
-READONLY_READ=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" list --namespace "project:test" 2>&1 || echo "")
+READONLY_READ=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" recall --query "" --namespace "project:test" 2>&1 || echo "")
 READ_EXIT=$?
 set -e
 
@@ -230,7 +230,7 @@ done
 wait
 
 # Verify all writes succeeded (or at least didn't corrupt database)
-CONCURRENT_LIST=$(DATABASE_URL="sqlite://$CONCURRENT_DB" "$BIN" list \
+CONCURRENT_LIST=$(DATABASE_URL="sqlite://$CONCURRENT_DB" "$BIN" recall --query "" \
     --namespace "project:test" 2>&1 || echo "")
 
 if echo "$CONCURRENT_LIST" | grep -qi "Concurrent memory"; then
@@ -281,7 +281,7 @@ else
 fi
 
 # Verify old data still intact
-RECOVERY_LIST=$(DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" list \
+RECOVERY_LIST=$(DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" recall --query "" \
     --namespace "project:test" 2>&1 || echo "")
 
 if echo "$RECOVERY_LIST" | grep -qi "Before error"; then
@@ -303,7 +303,7 @@ print_cyan "Testing launcher behavior without database..."
 MISSING_DB="/tmp/missing_launcher_$(date +%s).db"
 
 set +e
-CONTEXT_OUTPUT=$(DATABASE_URL="sqlite://$MISSING_DB" "$BIN" list \
+CONTEXT_OUTPUT=$(DATABASE_URL="sqlite://$MISSING_DB" "$BIN" recall --query "" \
     --namespace "project:test" --limit 10 2>&1 || echo "")
 CONTEXT_EXIT=$?
 set -e
@@ -322,7 +322,7 @@ print_cyan "Testing error message helpfulness..."
 
 # Invalid namespace format
 set +e
-INVALID_NS_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
+INVALID_NS_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
     --namespace "invalid::format::here" 2>&1 || echo "")
 set -e
 

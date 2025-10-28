@@ -181,7 +181,7 @@ echo "========================================"
 echo "Test 4: Verify Memories After Consolidation"
 echo "========================================"
 
-OUTPUT4=$("$BIN" list --namespace "project:api" 2>&1)
+OUTPUT4=$("$BIN" recall --query "" --namespace "project:api" 2>&1)
 
 # Count non-archived memories
 MEMORY_COUNT=$(echo "$OUTPUT4" | grep -cE '[0-9]{4}-[0-9]{2}-[0-9]{2}|Importance:' || echo "0")
@@ -206,7 +206,7 @@ echo "========================================"
 echo "Query: 'PostgreSQL database'"
 echo ""
 
-OUTPUT5=$("$BIN" search "PostgreSQL database" --namespace "project:api" 2>&1)
+OUTPUT5=$("$BIN" recall --query "PostgreSQL database" --namespace "project:api" 2>&1)
 
 if echo "$OUTPUT5" | grep -qi "postgres"; then
     echo -e "${GREEN}[PASS]${NC} Search still finds PostgreSQL information after consolidation"
@@ -222,7 +222,7 @@ echo "========================================"
 echo "Test 6: Verify Distinct Memory Preserved"
 echo "========================================"
 
-OUTPUT6=$("$BIN" search "Redis caching" --namespace "project:api" 2>&1)
+OUTPUT6=$("$BIN" recall --query "Redis caching" --namespace "project:api" 2>&1)
 
 if echo "$OUTPUT6" | grep -qi "redis"; then
     echo -e "${GREEN}[PASS]${NC} Distinct memory (Redis) was not incorrectly consolidated"

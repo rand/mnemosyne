@@ -75,8 +75,8 @@ section "Test 1: Pre-Launch Context Loading (Layer 1)"
 
 # List memories that should be included (importance >= 7)
 print_cyan "Querying memories with importance >= 7..."
-HIGH_IMPORTANCE_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
-    --namespace "project:testapp" --sort importance 2>&1 || echo "")
+HIGH_IMPORTANCE_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
+    --namespace "project:testapp"  2>&1 || echo "")
 
 # Count how many high-importance memories exist
 CRITICAL_COUNT=$(echo "$HIGH_IMPORTANCE_OUTPUT" | grep -c "importance.*8\|Critical" || echo "0")
@@ -135,7 +135,7 @@ print_cyan "Created 50 large memories for size testing"
 
 # List all and check output size
 # In real launcher, this would be truncated to 10KB
-ALL_OUTPUT=$(DATABASE_URL="$SIZE_TEST_DATABASE_URL" "$BIN" list \
+ALL_OUTPUT=$(DATABASE_URL="$SIZE_TEST_DATABASE_URL" "$BIN" recall --query "" \
     --namespace "project:sizetest" --limit 50 2>&1 || echo "")
 
 OUTPUT_SIZE=${#ALL_OUTPUT}
@@ -174,7 +174,7 @@ create_memory "$BIN" "$TEST_DB" \
 sleep 1
 
 # Query project:testapp namespace
-TESTAPP_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
+TESTAPP_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
     --namespace "project:testapp" 2>&1 || echo "")
 
 # Should find testapp-specific memory
@@ -213,8 +213,8 @@ sleep 1
 
 # Measure query time (simulates what launcher does)
 START_TIME=$(date +%s%N)
-DATABASE_URL="$PERF_DATABASE_URL" "$BIN" list \
-    --namespace "project:perftest" --limit 10 --sort importance > /dev/null 2>&1
+DATABASE_URL="$PERF_DATABASE_URL" "$BIN" recall --query "" \
+    --namespace "project:perftest" --limit 10  > /dev/null 2>&1
 END_TIME=$(date +%s%N)
 
 QUERY_MS=$(( (END_TIME - START_TIME) / 1000000 ))
@@ -252,7 +252,7 @@ done
 sleep 1
 
 # Query with limit=10 (what launcher uses)
-LIMIT_OUTPUT=$(DATABASE_URL="$LIMIT_DATABASE_URL" "$BIN" list \
+LIMIT_OUTPUT=$(DATABASE_URL="$LIMIT_DATABASE_URL" "$BIN" recall --query "" \
     --namespace "project:limittest" --limit 10 2>&1 || echo "")
 
 # Count results (heuristic: count lines with timestamps or importance markers)
@@ -273,7 +273,7 @@ cleanup_test_db "$LIMIT_TEST_DB"
 section "Test 7: Importance Threshold Filtering"
 
 # Verify min_importance=7 threshold works
-THRESHOLD_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
+THRESHOLD_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
     --namespace "project:testapp" 2>&1 || echo "")
 
 # Should include importance 7 and 8
@@ -300,7 +300,7 @@ section "Test 8: Natural Language Formatting"
 # Verify output format is suitable for LLM consumption
 # Should be markdown-formatted with clear structure
 
-SAMPLE_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
+SAMPLE_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
     --namespace "project:testapp" --limit 5 2>&1 || echo "")
 
 # Check for structured output (not just raw data dumps)
