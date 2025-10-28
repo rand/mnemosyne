@@ -64,7 +64,7 @@ echo "Content: $CONTENT1"
 echo ""
 echo "Running: mnemosyne remember ..."
 
-OUTPUT1=$("$BIN" remember "$CONTENT1" --namespace "project:mnemosyne" --importance 8 2>&1)
+OUTPUT1=$("$BIN" remember --content "$CONTENT1" --namespace "project:mnemosyne" --importance 8 2>&1)
 
 if echo "$OUTPUT1" | grep -q "stored successfully\|Stored memory"; then
     echo -e "${GREEN}[PASS]${NC} Memory stored successfully"
@@ -97,7 +97,7 @@ CONTENT2="API design: REST with JSON for simplicity, versioned endpoints (/v1/),
 echo "Content: $CONTENT2"
 echo ""
 
-OUTPUT2=$("$BIN" remember "$CONTENT2" --namespace "project:mnemosyne" --importance 8 2>&1)
+OUTPUT2=$("$BIN" remember --content "$CONTENT2" --namespace "project:mnemosyne" --importance 8 2>&1)
 
 if echo "$OUTPUT2" | grep -q "stored successfully\|Stored memory"; then
     echo -e "${GREEN}[PASS]${NC} Memory stored successfully"
@@ -120,7 +120,7 @@ CONTENT3="Performance constraint: Search must complete in <200ms for typical que
 echo "Content: $CONTENT3"
 echo ""
 
-OUTPUT3=$("$BIN" remember "$CONTENT3" --namespace "project:mnemosyne" --importance 7 2>&1)
+OUTPUT3=$("$BIN" remember --content "$CONTENT3" --namespace "project:mnemosyne" --importance 7 2>&1)
 
 if echo "$OUTPUT3" | grep -q "stored successfully\|Stored memory"; then
     echo -e "${GREEN}[PASS]${NC} Memory stored successfully"

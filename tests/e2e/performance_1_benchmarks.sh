@@ -95,7 +95,7 @@ for i in $(seq 1 $WRITE_ITERATIONS); do
     CONTENT="Performance test memory $i with some meaningful content to simulate realistic write"
 
     START=$(date +%s%N)
-    DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember "$CONTENT" \
+    DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember --content "$CONTENT" \
         --namespace "project:perftest" --importance 7 > /dev/null 2>&1
     END=$(date +%s%N)
 

@@ -60,7 +60,7 @@ print_cyan "Testing behavior with corrupted database..."
 CORRUPT_DB=$(create_test_db "corrupt")
 
 # Create a valid database first
-DATABASE_URL="sqlite://$CORRUPT_DB" "$BIN" remember "Valid memory" \
+DATABASE_URL="sqlite://$CORRUPT_DB" "$BIN" remember --content "Valid memory" \
     --namespace "project:test" --importance 7 > /dev/null 2>&1
 
 # Corrupt the database by writing random data
@@ -85,7 +85,7 @@ print_cyan "Testing behavior with locked database..."
 LOCKED_DB=$(create_test_db "locked")
 
 # Initialize database
-DATABASE_URL="sqlite://$LOCKED_DB" "$BIN" remember "Init" \
+DATABASE_URL="sqlite://$LOCKED_DB" "$BIN" remember --content "Init" \
     --namespace "project:test" --importance 7 > /dev/null 2>&1
 
 # Lock database using sqlite3 in a background process
@@ -120,14 +120,14 @@ print_cyan "Testing behavior with read-only database..."
 READONLY_DB=$(create_test_db "readonly")
 
 # Initialize database with some data
-DATABASE_URL="sqlite://$READONLY_DB" "$BIN" remember "Read-only test" \
+DATABASE_URL="sqlite://$READONLY_DB" "$BIN" remember --content "Read-only test" \
     --namespace "project:test" --importance 7 > /dev/null 2>&1
 
 # Make database read-only
 chmod 444 "$READONLY_DB"
 
 # Try to write (should fail)
-READONLY_OUTPUT=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" remember "Should fail" \
+READONLY_OUTPUT=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" remember --content "Should fail" \
     --namespace "project:test" --importance 7 2>&1 || echo "READONLY_ERROR")
 READONLY_EXIT=$?
 
@@ -159,7 +159,7 @@ print_cyan "Testing behavior with invalid database paths..."
 INVALID_DB="/nonexistent_dir/subdir/invalid.db"
 INVALID_URL="sqlite://$INVALID_DB"
 
-INVALID_OUTPUT=$(DATABASE_URL="$INVALID_URL" "$BIN" remember "Should fail" \
+INVALID_OUTPUT=$(DATABASE_URL="$INVALID_URL" "$BIN" remember --content "Should fail" \
     --namespace "project:test" --importance 7 2>&1 || echo "INVALID_PATH_ERROR")
 INVALID_EXIT=$?
 
@@ -182,7 +182,7 @@ DISKSPACE_DB=$(create_test_db "diskspace")
 # Try to write very large memory (should be limited or chunked)
 LARGE_CONTENT=$(printf 'X%.0s' {1..100000})  # 100KB content
 
-LARGE_OUTPUT=$(DATABASE_URL="sqlite://$DISKSPACE_DB" "$BIN" remember "$LARGE_CONTENT" \
+LARGE_OUTPUT=$(DATABASE_URL="sqlite://$DISKSPACE_DB" "$BIN" remember --content "$LARGE_CONTENT" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 LARGE_EXIT=$?
 
@@ -201,13 +201,13 @@ print_cyan "Testing concurrent database access..."
 CONCURRENT_DB=$(create_test_db "concurrent")
 
 # Initialize database
-DATABASE_URL="sqlite://$CONCURRENT_DB" "$BIN" remember "Init" \
+DATABASE_URL="sqlite://$CONCURRENT_DB" "$BIN" remember --content "Init" \
     --namespace "project:test" --importance 7 > /dev/null 2>&1
 
 # Launch multiple concurrent writes (SQLite will serialize these)
 for i in {1..5}; do
     (
-        DATABASE_URL="sqlite://$CONCURRENT_DB" "$BIN" remember "Concurrent memory $i" \
+        DATABASE_URL="sqlite://$CONCURRENT_DB" "$BIN" remember --content "Concurrent memory $i" \
             --namespace "project:test" --importance 7 > /dev/null 2>&1
     ) &
 done
@@ -241,21 +241,21 @@ print_cyan "Testing recovery after storage errors..."
 RECOVERY_DB=$(create_test_db "recovery")
 
 # Initialize database
-DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" remember "Before error" \
+DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" remember --content "Before error" \
     --namespace "project:test" --importance 7 > /dev/null 2>&1
 
 # Simulate error condition (make read-only temporarily)
 chmod 444 "$RECOVERY_DB"
 
 # Try to write (will fail)
-DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" remember "During error" \
+DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" remember --content "During error" \
     --namespace "project:test" --importance 7 > /dev/null 2>&1
 
 # Restore write permissions (simulate recovery)
 chmod 644 "$RECOVERY_DB"
 
 # Verify database still works after recovery
-RECOVERY_OUTPUT=$(DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" remember "After recovery" \
+RECOVERY_OUTPUT=$(DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" remember --content "After recovery" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
 if echo "$RECOVERY_OUTPUT" | grep -qiE 'stored|success|created'; then
@@ -307,7 +307,7 @@ INVALID_NS_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
     --namespace "invalid::format::here" 2>&1 || echo "")
 
 # Invalid importance
-INVALID_IMP_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember "Test" \
+INVALID_IMP_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember --content "Test" \
     --namespace "project:test" --importance 99 2>&1 || echo "")
 
 # Check if error messages are actionable

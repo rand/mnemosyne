@@ -127,7 +127,7 @@ export SIZE_TEST_DATABASE_URL="sqlite://$SIZE_TEST_DB"
 # Create 50 memories with long content (to test size limits)
 for i in {1..50}; do
     LONG_CONTENT="Architecture decision $i: $(printf 'A%.0s' {1..500})"  # 500 char content
-    DATABASE_URL="$SIZE_TEST_DATABASE_URL" "$BIN" remember "$LONG_CONTENT" \
+    DATABASE_URL="$SIZE_TEST_DATABASE_URL" "$BIN" remember --content "$LONG_CONTENT" \
         --namespace "project:sizetest" --importance 8 > /dev/null 2>&1
 done
 
