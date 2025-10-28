@@ -1005,6 +1005,18 @@ impl StorageBackend for LibsqlStorage {
 
         let namespace_filter = namespace.map(|ns| serde_json::to_string(&ns).unwrap());
 
+        // Convert multi-word queries to OR logic for FTS5
+        // "database architecture" -> "database OR architecture"
+        // This matches user expectations: show results containing ANY of the search terms
+        let fts_query = if query.contains(' ') {
+            query
+                .split_whitespace()
+                .collect::<Vec<&str>>()
+                .join(" OR ")
+        } else {
+            query.to_string()
+        };
+
         // Handle empty query - return all memories in namespace (no FTS5)
         let conn = self.get_conn()?;
         let mut rows = if query.trim().is_empty() {
@@ -1031,7 +1043,7 @@ impl StorageBackend for LibsqlStorage {
                 conn.query(sql, params![]).await?
             }
         } else {
-            // Non-empty query: use FTS5 full-text search
+            // Non-empty query: use FTS5 full-text search with OR logic
             let sql = if namespace_filter.is_some() {
                 r#"
                 SELECT m.* FROM memories m
@@ -1054,9 +1066,9 @@ impl StorageBackend for LibsqlStorage {
             };
 
             if let Some(ref ns) = namespace_filter {
-                conn.query(sql, params![query, ns.clone()]).await?
+                conn.query(sql, params![fts_query, ns.clone()]).await?
             } else {
-                conn.query(sql, params![query]).await?
+                conn.query(sql, params![fts_query]).await?
             }
         };
 
