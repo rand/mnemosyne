@@ -183,7 +183,10 @@ sleep 3
 # Verify all operations completed
 CONCURRENT_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "Concurrent MCP" \
     --namespace "project:mcp_test" 2>&1 || echo "")
-CONCURRENT_COUNT=$(echo "$CONCURRENT_OUTPUT" | grep -c "Concurrent MCP" || echo "0")
+CONCURRENT_COUNT=$(echo "$CONCURRENT_OUTPUT" | grep -c "Concurrent MCP")
+if [ -z "$CONCURRENT_COUNT" ] || [ "$CONCURRENT_COUNT" = "" ]; then
+    CONCURRENT_COUNT=0
+fi
 
 if [ "$CONCURRENT_COUNT" -ge 4 ]; then
     pass "Concurrent tools: Multiple tool invocations handled ($CONCURRENT_COUNT/5)"
@@ -229,7 +232,7 @@ if echo "$RECALL_OUTPUT" | grep -qi "authentication"; then
     pass "Recall tool: Search functionality works correctly"
 
     # Count results
-    RESULT_COUNT=$(echo "$RECALL_OUTPUT" | grep -c "authentication" || echo "0")
+    RESULT_COUNT=$(echo "$RECALL_OUTPUT" | grep -c "authentication")
     if [ "$RESULT_COUNT" -ge 2 ]; then
         pass "Recall tool: Multiple relevant results returned ($RESULT_COUNT)"
     fi
@@ -306,7 +309,7 @@ CONTEXT_LOAD=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "" \
 if [ -n "$CONTEXT_LOAD" ]; then
     pass "MCP context loading: High-importance memories retrieved"
 
-    CONTEXT_COUNT=$(echo "$CONTEXT_LOAD" | grep -c "importance:" || echo "0")
+    CONTEXT_COUNT=$(echo "$CONTEXT_LOAD" | grep -c "importance:")
     if [ "$CONTEXT_COUNT" -ge 3 ]; then
         pass "MCP context loading: Multiple context items loaded ($CONTEXT_COUNT)"
     fi
