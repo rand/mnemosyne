@@ -75,11 +75,18 @@ chmod 444 "$READONLY_DB"
 # Try to write (should fail gracefully)
 WRITE_OUTPUT=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" remember \
     "New memory in read-only database" \
-    --namespace "project:test" --importance 7 2>&1 || echo "READONLY_ERROR")
+    --namespace "project:test" --importance 7 2>&1) || WRITE_EXIT=$?
+: ${WRITE_EXIT:=0}
+
+# Append marker if errored (for validation)
+if [ "$WRITE_EXIT" -ne 0 ]; then
+    WRITE_OUTPUT="${WRITE_OUTPUT}"$'\n'"READONLY_ERROR"
+fi
 
 # Should still be able to read
 READ_OUTPUT=$(DATABASE_URL="sqlite://$READONLY_DB" "$BIN" recall --query "Existing memory" \
-    --namespace "project:test" 2>&1 || echo "")
+    --namespace "project:test" 2>&1) || READ_EXIT=$?
+: ${READ_EXIT:=0}
 
 if echo "$READ_OUTPUT" | grep -qi "Existing memory"; then
     pass "Read-only mode: Read operations still functional"
