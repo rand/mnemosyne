@@ -35,9 +35,8 @@ toml = "0.8"
 # LLM Integration
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 
-# Embeddings (optional for now, will be implemented later)
-# fastembed = "3.0"
-# ndarray = "0.15"
+# Local embeddings with ONNX Runtime (auto-downloads binaries)
+fastembed = { version = "5.2", features = ["ort-download-binaries"] }
 
 # Utilities
 anyhow = "1.0"

@@ -3,12 +3,14 @@
 //! Provides persistent storage using Turso/libSQL with native vector search,
 //! FTS5 for keyword search, and efficient indexing for graph traversal.
 
+use crate::embeddings::{EmbeddingService, LocalEmbeddingService};
 use crate::error::{MnemosyneError, Result};
 use crate::storage::StorageBackend;
 use crate::types::{MemoryId, MemoryNote, Namespace, SearchResult};
 use async_trait::async_trait;
 use chrono::Utc;
 use libsql::{params, Builder, Connection, Database};
+use std::sync::Arc;
 use tracing::{debug, info};
 
 /// Parse SQL file into individual statements, handling multi-line constructs like triggers
@@ -58,6 +60,7 @@ fn parse_sql_statements(sql: &str) -> Vec<String> {
 /// LibSQL storage backend
 pub struct LibsqlStorage {
     db: Database,
+    embedding_service: Option<Arc<LocalEmbeddingService>>,
 }
 
 /// Database connection mode
@@ -264,7 +267,10 @@ impl LibsqlStorage {
 
         info!("LibSQL database connection established");
 
-        let storage = Self { db };
+        let storage = Self {
+            db,
+            embedding_service: None,
+        };
 
         // Verify database health before running migrations
         storage.verify_database_health().await?;
@@ -762,6 +768,116 @@ impl LibsqlStorage {
             term.to_string()
         }
     }
+
+    /// Set the embedding service for this storage backend
+    pub fn set_embedding_service(&mut self, service: Arc<LocalEmbeddingService>) {
+        self.embedding_service = Some(service);
+    }
+
+    /// Generate and store embedding for a memory
+    ///
+    /// This method generates an embedding for the given memory content and stores it
+    /// in the memory_vectors table. If embeddings are disabled (no service), this is a no-op.
+    ///
+    /// # Arguments
+    /// * `memory_id` - The ID of the memory to embed
+    /// * `content` - The text content to embed
+    ///
+    /// # Returns
+    /// * `Ok(())` - Embedding generated and stored successfully (or disabled)
+    /// * `Err(MnemosyneError)` - If embedding generation or storage fails
+    pub async fn generate_and_store_embedding(&self, memory_id: &MemoryId, content: &str) -> Result<()> {
+        // Skip if no embedding service configured
+        let service = match &self.embedding_service {
+            Some(s) => s,
+            None => {
+                debug!("Embedding service not configured, skipping embedding for {}", memory_id);
+                return Ok(());
+            }
+        };
+
+        // Generate embedding
+        debug!("Generating embedding for memory: {}", memory_id);
+        let embedding = service.embed(content).await?;
+
+        // Store in memory_vectors table
+        self.store_embedding(memory_id, &embedding).await?;
+
+        info!("Successfully generated and stored embedding for memory: {}", memory_id);
+        Ok(())
+    }
+
+    /// Store an embedding vector in the memory_vectors table
+    ///
+    /// This is a low-level method that directly stores a pre-computed embedding.
+    /// Use generate_and_store_embedding() for the high-level workflow.
+    ///
+    /// # Arguments
+    /// * `memory_id` - The ID of the memory
+    /// * `embedding` - The embedding vector (must match configured dimensions)
+    pub async fn store_embedding(&self, memory_id: &MemoryId, embedding: &[f32]) -> Result<()> {
+        let conn = self.get_conn()?;
+
+        // Convert embedding to JSON array for sqlite-vec
+        let embedding_json = serde_json::to_string(embedding)?;
+
+        // Insert or replace embedding in memory_vectors table
+        conn.execute(
+            "INSERT OR REPLACE INTO memory_vectors (memory_id, embedding) VALUES (?, ?)",
+            params![memory_id.to_string(), embedding_json],
+        )
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Failed to store embedding: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Retrieve embedding for a memory
+    ///
+    /// # Arguments
+    /// * `memory_id` - The ID of the memory
+    ///
+    /// # Returns
+    /// * `Ok(Some(Vec<f32>))` - The embedding vector if it exists
+    /// * `Ok(None)` - If no embedding exists for this memory
+    /// * `Err(MnemosyneError)` - If retrieval fails
+    pub async fn get_embedding(&self, memory_id: &MemoryId) -> Result<Option<Vec<f32>>> {
+        let conn = self.get_conn()?;
+
+        let row = conn
+            .query("SELECT embedding FROM memory_vectors WHERE memory_id = ?", params![memory_id.to_string()])
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to retrieve embedding: {}", e)))?
+            .next()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get embedding row: {}", e)))?;
+
+        match row {
+            Some(row) => {
+                let embedding_json: String = row.get(0)?;
+                let embedding: Vec<f32> = serde_json::from_str(&embedding_json)?;
+                Ok(Some(embedding))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Delete embedding for a memory
+    ///
+    /// # Arguments
+    /// * `memory_id` - The ID of the memory
+    pub async fn delete_embedding(&self, memory_id: &MemoryId) -> Result<()> {
+        let conn = self.get_conn()?;
+
+        conn.execute(
+            "DELETE FROM memory_vectors WHERE memory_id = ?",
+            params![memory_id.to_string()],
+        )
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Failed to delete embedding: {}", e)))?;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -881,6 +997,20 @@ impl StorageBackend for LibsqlStorage {
             }),
         )
         .await?;
+
+        // Auto-generate embedding if embedding service is configured
+        // This is a fire-and-forget operation - failures are logged but don't fail the store
+        if self.embedding_service.is_some() {
+            if let Err(e) = self.generate_and_store_embedding(&memory.id, &memory.content).await {
+                // Log error but don't fail the store operation
+                // Embeddings can be regenerated later using CLI
+                tracing::warn!(
+                    "Failed to generate embedding for memory {}: {}",
+                    memory.id,
+                    e
+                );
+            }
+        }
 
         debug!("Memory stored successfully: {}", memory.id);
         Ok(())

@@ -1,9 +1,11 @@
 //! Embedding generation services for vector similarity search
 //!
-//! Provides both remote (Voyage AI) and local embedding generation.
+//! Provides both remote (Voyage AI) and local (fastembed) embedding generation.
 
+pub mod local;
 pub mod remote;
 
+pub use local::LocalEmbeddingService;
 pub use remote::{EmbeddingService, RemoteEmbeddingService, VOYAGE_EMBEDDING_DIM};
 
 /// Calculate cosine similarity between two vectors

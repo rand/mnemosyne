@@ -14,7 +14,134 @@ use crate::secrets::SecretsManager;
 use keyring::Entry;
 use secrecy::ExposeSecret;
 use std::env;
+use std::path::PathBuf;
 use tracing::{debug, info, warn};
+
+/// Configuration for local embedding generation
+#[derive(Debug, Clone)]
+pub struct EmbeddingConfig {
+    /// Enable or disable embeddings globally
+    pub enabled: bool,
+
+    /// Model to use for embeddings
+    /// Options: "nomic-embed-text-v1.5", "all-MiniLM-L6-v2", "bge-small-en-v1.5"
+    pub model: String,
+
+    /// Device to run on ("cpu" or "cuda")
+    pub device: String,
+
+    /// Batch size for embedding generation
+    pub batch_size: usize,
+
+    /// Cache directory for downloaded models
+    pub cache_dir: PathBuf,
+
+    /// Show download progress for models
+    pub show_download_progress: bool,
+}
+
+impl Default for EmbeddingConfig {
+    fn default() -> Self {
+        // Use default HuggingFace cache directory
+        let cache_dir = dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".cache")
+            .join("mnemosyne")
+            .join("models");
+
+        Self {
+            enabled: true,
+            model: "nomic-embed-text-v1.5".to_string(),
+            device: "cpu".to_string(),
+            batch_size: 32,
+            cache_dir,
+            show_download_progress: true,
+        }
+    }
+}
+
+impl EmbeddingConfig {
+    /// Model download strategy:
+    /// - Models are automatically downloaded by fastembed on first use
+    /// - Downloaded to `cache_dir` (defaults to ~/.cache/mnemosyne/models/)
+    /// - Progress displayed if `show_download_progress` is true
+    /// - Subsequent runs use cached models (no re-download)
+    /// - Models are typically 90-200MB depending on selection
+    ///
+    /// Supported models and sizes:
+    /// - nomic-embed-text-v1.5: ~140MB, 768 dimensions (recommended)
+    /// - all-MiniLM-L6-v2: ~90MB, 384 dimensions (fastest)
+    /// - bge-small-en-v1.5: ~130MB, 384 dimensions
+    /// - bge-base-en-v1.5: ~440MB, 768 dimensions
+    /// - bge-large-en-v1.5: ~1.3GB, 1024 dimensions
+
+    /// Get the embedding dimensions for the configured model
+    pub fn dimensions(&self) -> usize {
+        match self.model.as_str() {
+            "nomic-embed-text-v1.5" | "nomic-embed-text-v1" => 768,
+            "all-MiniLM-L6-v2" => 384,
+            "all-MiniLM-L12-v2" => 384,
+            "bge-small-en-v1.5" => 384,
+            "bge-base-en-v1.5" => 768,
+            "bge-large-en-v1.5" => 1024,
+            _ => {
+                warn!("Unknown model '{}', defaulting to 768 dimensions", self.model);
+                768
+            }
+        }
+    }
+
+    /// Check if GPU (CUDA) is requested
+    pub fn use_gpu(&self) -> bool {
+        self.device == "cuda"
+    }
+
+    /// Validate the configuration
+    pub fn validate(&self) -> Result<()> {
+        // Check if model is supported
+        let supported_models = vec![
+            "nomic-embed-text-v1.5",
+            "nomic-embed-text-v1",
+            "all-MiniLM-L6-v2",
+            "all-MiniLM-L12-v2",
+            "bge-small-en-v1.5",
+            "bge-base-en-v1.5",
+            "bge-large-en-v1.5",
+        ];
+
+        if !supported_models.contains(&self.model.as_str()) {
+            return Err(MnemosyneError::Config(
+                config::ConfigError::Message(format!(
+                    "Unsupported embedding model: '{}'. Supported models: {}",
+                    self.model,
+                    supported_models.join(", ")
+                ))
+            ));
+        }
+
+        // Check device
+        if self.device != "cpu" && self.device != "cuda" {
+            return Err(MnemosyneError::Config(
+                config::ConfigError::Message(format!(
+                    "Invalid device '{}'. Must be 'cpu' or 'cuda'",
+                    self.device
+                ))
+            ));
+        }
+
+        // Check batch size
+        if self.batch_size == 0 || self.batch_size > 1000 {
+            return Err(MnemosyneError::Config(
+                config::ConfigError::Message(format!(
+                    "Batch size {} out of range. Must be between 1 and 1000",
+                    self.batch_size
+                ))
+            ));
+        }
+
+        Ok(())
+    }
+}
 
 /// Service name for keyring storage
 const KEYRING_SERVICE: &str = "mnemosyne-memory-system";
@@ -303,5 +430,97 @@ mod tests {
         env::set_var("ANTHROPIC_API_KEY", "sk-ant-test");
         assert!(manager.has_api_key());
         env::remove_var("ANTHROPIC_API_KEY");
+    }
+
+    // EmbeddingConfig tests
+    #[test]
+    fn test_embedding_config_default() {
+        let config = EmbeddingConfig::default();
+        assert!(config.enabled);
+        assert_eq!(config.model, "nomic-embed-text-v1.5");
+        assert_eq!(config.device, "cpu");
+        assert_eq!(config.batch_size, 32);
+        assert!(config.show_download_progress);
+    }
+
+    #[test]
+    fn test_embedding_dimensions() {
+        let mut config = EmbeddingConfig::default();
+
+        config.model = "nomic-embed-text-v1.5".to_string();
+        assert_eq!(config.dimensions(), 768);
+
+        config.model = "all-MiniLM-L6-v2".to_string();
+        assert_eq!(config.dimensions(), 384);
+
+        config.model = "bge-base-en-v1.5".to_string();
+        assert_eq!(config.dimensions(), 768);
+
+        config.model = "bge-large-en-v1.5".to_string();
+        assert_eq!(config.dimensions(), 1024);
+
+        // Unknown model defaults to 768
+        config.model = "unknown-model".to_string();
+        assert_eq!(config.dimensions(), 768);
+    }
+
+    #[test]
+    fn test_embedding_use_gpu() {
+        let mut config = EmbeddingConfig::default();
+
+        config.device = "cpu".to_string();
+        assert!(!config.use_gpu());
+
+        config.device = "cuda".to_string();
+        assert!(config.use_gpu());
+    }
+
+    #[test]
+    fn test_embedding_config_validation() {
+        let mut config = EmbeddingConfig::default();
+
+        // Valid config
+        assert!(config.validate().is_ok());
+
+        // Invalid model
+        config.model = "invalid-model".to_string();
+        assert!(config.validate().is_err());
+        config.model = "nomic-embed-text-v1.5".to_string();
+
+        // Invalid device
+        config.device = "gpu".to_string();
+        assert!(config.validate().is_err());
+        config.device = "cpu".to_string();
+
+        // Invalid batch size (too small)
+        config.batch_size = 0;
+        assert!(config.validate().is_err());
+
+        // Invalid batch size (too large)
+        config.batch_size = 1001;
+        assert!(config.validate().is_err());
+
+        // Valid batch size
+        config.batch_size = 32;
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_embedding_config_all_supported_models() {
+        let supported_models = vec![
+            "nomic-embed-text-v1.5",
+            "nomic-embed-text-v1",
+            "all-MiniLM-L6-v2",
+            "all-MiniLM-L12-v2",
+            "bge-small-en-v1.5",
+            "bge-base-en-v1.5",
+            "bge-large-en-v1.5",
+        ];
+
+        for model in supported_models {
+            let mut config = EmbeddingConfig::default();
+            config.model = model.to_string();
+            assert!(config.validate().is_ok(), "Model {} should be valid", model);
+        }
     }
 }
