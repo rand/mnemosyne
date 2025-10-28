@@ -121,7 +121,7 @@ GOOD_DOCS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
     --namespace "project:review" 2>&1 || echo "")
 
 MISSING_DOCS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
-    --query "NOT DOCUMENTED" \
+    --query "UNDOCUMENTED" \
     --namespace "project:review" 2>&1 || echo "")
 
 if echo "$GOOD_DOCS" | grep -qi "fully documented"; then
@@ -157,7 +157,7 @@ create_memory "$BIN" "$TEST_DB" \
 sleep 2
 
 ANTI_PATTERNS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
-    --query "Anti-Pattern TODO" \
+    --query "TODO" \
     --namespace "project:review" 2>&1 || echo "")
 
 MOCK_STUB=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
@@ -165,7 +165,7 @@ MOCK_STUB=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
     --namespace "project:review" 2>&1 || echo "")
 
 CLEAN_CODE=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
-    --query "No anti-patterns" \
+    --query "clean code" \
     --namespace "project:review" 2>&1 || echo "")
 
 if echo "$ANTI_PATTERNS" | grep -qi "TODO comments"; then
