@@ -868,32 +868,59 @@ impl StorageBackend for LibsqlStorage {
 
         let namespace_filter = namespace.map(|ns| serde_json::to_string(&ns).unwrap());
 
-        let sql = if namespace_filter.is_some() {
-            r#"
-            SELECT m.* FROM memories m
-            WHERE m.rowid IN (
-                SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
-            )
-            AND m.namespace = ?
-            AND m.is_archived = 0
-            LIMIT 20
-            "#
-        } else {
-            r#"
-            SELECT m.* FROM memories m
-            WHERE m.rowid IN (
-                SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
-            )
-            AND m.is_archived = 0
-            LIMIT 20
-            "#
-        };
-
+        // Handle empty query - return all memories in namespace (no FTS5)
         let conn = self.get_conn()?;
-        let mut rows = if let Some(ns) = namespace_filter {
-            conn.query(sql, params![query, ns]).await?
+        let mut rows = if query.trim().is_empty() {
+            // Empty query: list all memories (filtered by namespace if provided)
+            let sql = if namespace_filter.is_some() {
+                r#"
+                SELECT * FROM memories
+                WHERE namespace = ? AND is_archived = 0
+                ORDER BY importance DESC, created_at DESC
+                LIMIT 20
+                "#
+            } else {
+                r#"
+                SELECT * FROM memories
+                WHERE is_archived = 0
+                ORDER BY importance DESC, created_at DESC
+                LIMIT 20
+                "#
+            };
+
+            if let Some(ref ns) = namespace_filter {
+                conn.query(sql, params![ns.clone()]).await?
+            } else {
+                conn.query(sql, params![]).await?
+            }
         } else {
-            conn.query(sql, params![query]).await?
+            // Non-empty query: use FTS5 full-text search
+            let sql = if namespace_filter.is_some() {
+                r#"
+                SELECT m.* FROM memories m
+                WHERE m.rowid IN (
+                    SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
+                )
+                AND m.namespace = ?
+                AND m.is_archived = 0
+                LIMIT 20
+                "#
+            } else {
+                r#"
+                SELECT m.* FROM memories m
+                WHERE m.rowid IN (
+                    SELECT rowid FROM memories_fts WHERE memories_fts MATCH ?
+                )
+                AND m.is_archived = 0
+                LIMIT 20
+                "#
+            };
+
+            if let Some(ref ns) = namespace_filter {
+                conn.query(sql, params![query, ns.clone()]).await?
+            } else {
+                conn.query(sql, params![query]).await?
+            }
         };
 
         let mut results = Vec::new();
