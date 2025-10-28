@@ -118,12 +118,11 @@ assert_contains() {
 
     if echo "$haystack" | grep -qi "$needle"; then
         pass "$test_name"
-        return 0
     else
         fail "$test_name" "Expected to find '$needle' in output"
         echo "Actual output: $haystack"
-        return 1
     fi
+    return 0  # Always return 0 to not exit script with set -e
 }
 
 # Assert string does NOT contain substring
@@ -136,11 +135,10 @@ assert_not_contains() {
     if echo "$haystack" | grep -qi "$needle"; then
         fail "$test_name" "Did not expect to find '$needle' in output"
         echo "Actual output: $haystack"
-        return 1
     else
         pass "$test_name"
-        return 0
     fi
+    return 0  # Always return 0 to not exit script with set -e
 }
 
 # Assert command succeeds (exit code 0)
@@ -151,11 +149,10 @@ assert_success() {
 
     if [ "$exit_code" -eq 0 ]; then
         pass "$test_name"
-        return 0
     else
         fail "$test_name" "Command exited with code $exit_code (expected 0)"
-        return 1
     fi
+    return 0  # Always return 0 to not exit script with set -e
 }
 
 # Assert command fails (non-zero exit code)
@@ -166,11 +163,10 @@ assert_failure() {
 
     if [ "$exit_code" -ne 0 ]; then
         pass "$test_name"
-        return 0
     else
         fail "$test_name" "Command succeeded (expected failure)"
-        return 1
     fi
+    return 0  # Always return 0 to not exit script with set -e
 }
 
 # Assert number comparison
@@ -182,11 +178,10 @@ assert_lt() {
 
     if [ "$value" -lt "$threshold" ]; then
         pass "$test_name (${value} < ${threshold})"
-        return 0
     else
         fail "$test_name" "Value $value not less than threshold $threshold"
-        return 1
     fi
+    return 0  # Always return 0 to not exit script with set -e
 }
 
 assert_gt() {
@@ -196,11 +191,10 @@ assert_gt() {
 
     if [ "$value" -gt "$threshold" ]; then
         pass "$test_name (${value} > ${threshold})"
-        return 0
     else
         fail "$test_name" "Value $value not greater than threshold $threshold"
-        return 1
     fi
+    return 0  # Always return 0 to not exit script with set -e
 }
 
 assert_eq() {
@@ -210,11 +204,10 @@ assert_eq() {
 
     if [ "$value" -eq "$expected" ]; then
         pass "$test_name (${value} == ${expected})"
-        return 0
     else
         fail "$test_name" "Value $value does not equal expected $expected"
-        return 1
     fi
+    return 0  # Always return 0 to not exit script with set -e
 }
 
 # Assert file exists
@@ -225,11 +218,10 @@ assert_file_exists() {
 
     if [ -f "$file_path" ]; then
         pass "$test_name"
-        return 0
     else
         fail "$test_name" "File not found: $file_path"
-        return 1
     fi
+    return 0  # Always return 0 to not exit script with set -e
 }
 
 # Assert file does NOT exist
@@ -239,11 +231,10 @@ assert_file_not_exists() {
 
     if [ ! -f "$file_path" ]; then
         pass "$test_name"
-        return 0
     else
         fail "$test_name" "File exists but shouldn't: $file_path"
-        return 1
     fi
+    return 0  # Always return 0 to not exit script with set -e
 }
 
 # ============================================================================
