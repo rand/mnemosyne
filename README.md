@@ -36,8 +36,6 @@ Mnemosyne is a high-performance memory system that gives Claude Code a multi-age
 - **Evolution System**: Autonomous importance recalibration, link decay, and memory archival
 - **Hybrid Search**: Combined keyword + graph + vector search with weighted ranking
 
-All 156 tests passing. Production-ready. See [ROADMAP.md](ROADMAP.md) for detailed completion evidence.
-
 ---
 
 ## Features
