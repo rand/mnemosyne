@@ -178,11 +178,11 @@ create_memory "$BIN" "$TEST_DB" \
 sleep 2
 
 APPROVED=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
-    --query "Sub-Agent APPROVED" \
+    --query "APPROVED spawning" \
     --namespace "project:subagent" 2>&1 || echo "")
 
 REJECTED=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
-    --query "Sub-Agent REJECTED" \
+    --query "REJECTED Circular" \
     --namespace "project:subagent" 2>&1 || echo "")
 
 if echo "$APPROVED" | grep -qi "All spawning criteria met"; then
