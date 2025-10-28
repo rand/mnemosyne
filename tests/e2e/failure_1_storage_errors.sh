@@ -295,7 +295,7 @@ chmod 644 "$RECOVERY_DB"
 RECOVERY_OUTPUT=$(DATABASE_URL="sqlite://$RECOVERY_DB" "$BIN" remember --content "After recovery" \
     --namespace "project:test" --importance 7 2>&1 || echo "")
 
-if echo "$RECOVERY_OUTPUT" | grep -qiE 'stored|success|created'; then
+if echo "$RECOVERY_OUTPUT" | grep -qiE 'stored|success|created|Memory saved'; then
     pass "Database usable after error recovery"
 else
     fail "Database not usable after error recovery"
