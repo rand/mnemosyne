@@ -61,11 +61,11 @@ echo "========================================"
 echo "Creating intentionally duplicate memories..."
 
 # Duplicate pair 1: PostgreSQL decision (slightly different wording)
-OUTPUT_M1=$("$BIN" remember "We decided to use PostgreSQL for the database. It provides ACID guarantees and excellent JSON support." \
+OUTPUT_M1=$("$BIN" remember --content "We decided to use PostgreSQL for the database. It provides ACID guarantees and excellent JSON support." \
     --namespace "project:api" --importance 8 2>&1)
 MEMORY_ID1=$(echo "$OUTPUT_M1" | grep -oE '[a-f0-9-]{36}' | head -1 || echo "")
 
-OUTPUT_M2=$("$BIN" remember "Database choice: PostgreSQL. Reasoning: Need ACID transactions and JSON queries." \
+OUTPUT_M2=$("$BIN" remember --content "Database choice: PostgreSQL. Reasoning: Need ACID transactions and JSON queries." \
     --namespace "project:api" --importance 7 2>&1)
 MEMORY_ID2=$(echo "$OUTPUT_M2" | grep -oE '[a-f0-9-]{36}' | head -1 || echo "")
 
@@ -74,11 +74,11 @@ echo "  Memory 1 ID: $MEMORY_ID1"
 echo "  Memory 2 ID: $MEMORY_ID2"
 
 # Duplicate pair 2: API versioning (very similar)
-OUTPUT_M3=$("$BIN" remember "API versioning: Use /v1/ prefix for all endpoints to enable future breaking changes." \
+OUTPUT_M3=$("$BIN" remember --content "API versioning: Use /v1/ prefix for all endpoints to enable future breaking changes." \
     --namespace "project:api" --importance 6 2>&1)
 MEMORY_ID3=$(echo "$OUTPUT_M3" | grep -oE '[a-f0-9-]{36}' | head -1 || echo "")
 
-OUTPUT_M4=$("$BIN" remember "Versioned API endpoints with /v1/ prefix allow backward-compatible evolution." \
+OUTPUT_M4=$("$BIN" remember --content "Versioned API endpoints with /v1/ prefix allow backward-compatible evolution." \
     --namespace "project:api" --importance 6 2>&1)
 MEMORY_ID4=$(echo "$OUTPUT_M4" | grep -oE '[a-f0-9-]{36}' | head -1 || echo "")
 
@@ -87,7 +87,7 @@ echo "  Memory 3 ID: $MEMORY_ID3"
 echo "  Memory 4 ID: $MEMORY_ID4"
 
 # Distinct memory (should NOT be consolidated)
-"$BIN" remember "Use Redis for caching - completely different from database choice" \
+"$BIN" remember --content "Use Redis for caching - completely different from database choice" \
     --namespace "project:api" --importance 7 > /dev/null 2>&1
 
 echo -e "${GREEN}[SETUP]${NC} Created 5 memories (2 duplicate pairs + 1 distinct)"

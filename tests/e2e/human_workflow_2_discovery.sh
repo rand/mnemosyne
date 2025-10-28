@@ -61,27 +61,27 @@ echo "========================================"
 echo "Creating sample memories..."
 
 # Memory 1: Database decision
-"$BIN" remember "Chose PostgreSQL for main database - ACID guarantees, JSON support, excellent performance" \
+"$BIN" remember --content "Chose PostgreSQL for main database - ACID guarantees, JSON support, excellent performance" \
     --namespace "project:ecommerce" --importance 8 > /dev/null 2>&1
 
 # Memory 2: Caching decision
-"$BIN" remember "Using Redis for session caching and rate limiting - fast in-memory operations, TTL support" \
+"$BIN" remember --content "Using Redis for session caching and rate limiting - fast in-memory operations, TTL support" \
     --namespace "project:ecommerce" --importance 7 > /dev/null 2>&1
 
 # Memory 3: API pattern
-"$BIN" remember "REST API with versioning (/v1/), pagination via cursor, standard HTTP codes" \
+"$BIN" remember --content "REST API with versioning (/v1/), pagination via cursor, standard HTTP codes" \
     --namespace "project:ecommerce" --importance 7 > /dev/null 2>&1
 
 # Memory 4: Bug fix
-"$BIN" remember "Fixed race condition in cart checkout - wrapped HashMap in Arc<RwLock>, added transaction isolation" \
+"$BIN" remember --content "Fixed race condition in cart checkout - wrapped HashMap in Arc<RwLock>, added transaction isolation" \
     --namespace "project:ecommerce" --importance 6 > /dev/null 2>&1
 
 # Memory 5: Performance optimization
-"$BIN" remember "Optimized product search with FTS5 full-text indexing - reduced query time from 800ms to 50ms" \
+"$BIN" remember --content "Optimized product search with FTS5 full-text indexing - reduced query time from 800ms to 50ms" \
     --namespace "project:ecommerce" --importance 7 > /dev/null 2>&1
 
 # Memory 6: Different project
-"$BIN" remember "Blog platform uses SQLite - embedded database, simpler deployment for small sites" \
+"$BIN" remember --content "Blog platform uses SQLite - embedded database, simpler deployment for small sites" \
     --namespace "project:blog" --importance 5 > /dev/null 2>&1
 
 echo -e "${GREEN}[SETUP]${NC} Created 6 sample memories (5 ecommerce, 1 blog)"
