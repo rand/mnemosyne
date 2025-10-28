@@ -291,22 +291,24 @@ impl LibsqlStorage {
 
     /// Create a new LibSQL storage backend
     ///
-    /// Default behavior: creates database if parent directory exists, fails if parent doesn't exist.
-    /// This provides a balance between convenience and security.
+    /// Default behavior: requires database to exist (secure by default).
+    /// Returns clear error if database not found or corrupted.
+    ///
+    /// For explicit database creation, use `new_with_validation(..., true)`.
     ///
     /// # Arguments
     /// * `mode` - Connection mode (local, in-memory, remote, or replica)
     ///
     /// # Example
     /// ```ignore
-    /// // Normal use (creates database if parent directory exists)
+    /// // Normal use (requires database to exist)
     /// let storage = LibsqlStorage::new(ConnectionMode::Local("mnemosyne.db".into())).await?;
     /// ```
     pub async fn new(mode: ConnectionMode) -> Result<Self> {
-        // Default behavior: create if parent directory exists (convenient but safe)
-        // Use new_with_validation(..., true) for unconditional creation (init mode)
-        // Use new_with_validation(..., false) for strict validation (must exist)
-        Self::new_with_validation(mode, true).await
+        // Default behavior: database must exist (secure by default, clear errors)
+        // This prevents accidental database creation and ensures explicit initialization
+        // Use new_with_validation(..., true) for database creation (init/serve commands)
+        Self::new_with_validation(mode, false).await
     }
 
     /// Create a new local file-based storage (convenience method)
