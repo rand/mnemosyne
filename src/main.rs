@@ -1012,12 +1012,15 @@ if __name__ == "__main__":
                     .push(result.score * 0.4);
             }
 
-            for result in vector_results {
-                memory_scores
-                    .entry(result.memory.id)
-                    .or_insert((result.memory.clone(), vec![]))
-                    .1
-                    .push(result.score * 0.3);
+            for (memory_id, similarity) in vector_results {
+                // Fetch the memory for this ID
+                if let Ok(memory) = storage.get_memory(memory_id).await {
+                    memory_scores
+                        .entry(memory_id)
+                        .or_insert((memory, vec![]))
+                        .1
+                        .push(similarity * 0.3);
+                }
             }
 
             let mut results: Vec<_> = memory_scores

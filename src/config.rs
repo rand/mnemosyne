@@ -40,6 +40,93 @@ pub struct EmbeddingConfig {
     pub show_download_progress: bool,
 }
 
+/// Configuration for hybrid search scoring weights
+#[derive(Debug, Clone)]
+pub struct SearchConfig {
+    /// Weight for vector similarity (0.0-1.0)
+    pub vector_weight: f32,
+
+    /// Weight for keyword matching (0.0-1.0)
+    pub keyword_weight: f32,
+
+    /// Weight for graph connections (0.0-1.0)
+    pub graph_weight: f32,
+
+    /// Weight for importance score (0.0-1.0)
+    pub importance_weight: f32,
+
+    /// Weight for recency (0.0-1.0)
+    pub recency_weight: f32,
+
+    /// Enable vector search (requires embedding service)
+    pub enable_vector_search: bool,
+
+    /// Enable graph expansion in hybrid search
+    pub enable_graph_expansion: bool,
+
+    /// Maximum graph traversal depth
+    pub max_graph_depth: usize,
+}
+
+impl Default for SearchConfig {
+    fn default() -> Self {
+        Self {
+            // Balanced hybrid search weights (sum to 1.0)
+            vector_weight: 0.35,      // Vector similarity is primary
+            keyword_weight: 0.30,     // Keyword matching is secondary
+            graph_weight: 0.20,       // Graph connections for context
+            importance_weight: 0.10,  // Importance as tie-breaker
+            recency_weight: 0.05,     // Slight recency bias
+
+            enable_vector_search: true,
+            enable_graph_expansion: true,
+            max_graph_depth: 2,
+        }
+    }
+}
+
+impl SearchConfig {
+    /// Validate search configuration
+    pub fn validate(&self) -> Result<()> {
+        // Check weight ranges
+        let weights = [
+            ("vector_weight", self.vector_weight),
+            ("keyword_weight", self.keyword_weight),
+            ("graph_weight", self.graph_weight),
+            ("importance_weight", self.importance_weight),
+            ("recency_weight", self.recency_weight),
+        ];
+
+        for (name, weight) in &weights {
+            if *weight < 0.0 || *weight > 1.0 {
+                return Err(MnemosyneError::Config(
+                    config::ConfigError::Message(format!(
+                        "{} must be between 0.0 and 1.0, got {}",
+                        name, weight
+                    ))
+                ));
+            }
+        }
+
+        // Warn if weights don't sum to 1.0 (but allow it)
+        let sum: f32 = weights.iter().map(|(_, w)| w).sum();
+        if (sum - 1.0).abs() > 0.01 {
+            warn!("Search weights sum to {}, not 1.0. Results may be scaled unexpectedly.", sum);
+        }
+
+        // Check graph depth
+        if self.max_graph_depth == 0 {
+            return Err(MnemosyneError::Config(
+                config::ConfigError::Message(
+                    "max_graph_depth must be at least 1".to_string()
+                )
+            ));
+        }
+
+        Ok(())
+    }
+}
+
 impl Default for EmbeddingConfig {
     fn default() -> Self {
         // Use default HuggingFace cache directory

@@ -63,7 +63,7 @@ pub mod python_bindings;
 
 // Re-export commonly used types
 pub use agents::{AgentMemoryView, AgentRole, CustomImportanceScorer, MemoryAccessControl};
-pub use config::{ConfigManager, EmbeddingConfig};
+pub use config::{ConfigManager, EmbeddingConfig, SearchConfig};
 pub use embeddings::{
     cosine_similarity, EmbeddingService, LocalEmbeddingService, RemoteEmbeddingService,
     VOYAGE_EMBEDDING_DIM,

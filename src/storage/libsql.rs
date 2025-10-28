@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use libsql::{params, Builder, Connection, Database};
 use std::sync::Arc;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 /// Parse SQL file into individual statements, handling multi-line constructs like triggers
 fn parse_sql_statements(sql: &str) -> Vec<String> {
@@ -61,6 +61,7 @@ fn parse_sql_statements(sql: &str) -> Vec<String> {
 pub struct LibsqlStorage {
     db: Database,
     embedding_service: Option<Arc<LocalEmbeddingService>>,
+    search_config: crate::config::SearchConfig,
 }
 
 /// Database connection mode
@@ -270,6 +271,7 @@ impl LibsqlStorage {
         let storage = Self {
             db,
             embedding_service: None,
+            search_config: crate::config::SearchConfig::default(),
         };
 
         // Verify database health before running migrations
@@ -877,6 +879,92 @@ impl LibsqlStorage {
         .map_err(|e| MnemosyneError::Database(format!("Failed to delete embedding: {}", e)))?;
 
         Ok(())
+    }
+
+    /// Set the search configuration
+    pub fn set_search_config(&mut self, config: crate::config::SearchConfig) {
+        self.search_config = config;
+    }
+
+    /// Perform vector similarity search
+    ///
+    /// Searches for memories with embeddings similar to the query embedding.
+    /// Uses sqlite-vec's vec_distance_cosine for similarity.
+    ///
+    /// # Arguments
+    /// * `query_embedding` - The query embedding vector
+    /// * `limit` - Maximum number of results
+    /// * `namespace` - Optional namespace filter
+    ///
+    /// # Returns
+    /// * Vector of (MemoryId, similarity_score) tuples, sorted by similarity (desc)
+    pub async fn vector_search(
+        &self,
+        query_embedding: &[f32],
+        limit: usize,
+        namespace: Option<Namespace>,
+    ) -> Result<Vec<(MemoryId, f32)>> {
+        // Skip if vector search is disabled
+        if !self.search_config.enable_vector_search {
+            debug!("Vector search disabled in config");
+            return Ok(Vec::new());
+        }
+
+        // Skip if no embedding service (can't search without embeddings)
+        if self.embedding_service.is_none() {
+            debug!("No embedding service available for vector search");
+            return Ok(Vec::new());
+        }
+
+        let conn = self.get_conn()?;
+
+        // Convert query embedding to JSON for sqlite-vec
+        let query_json = serde_json::to_string(query_embedding)?;
+
+        // Build query with optional namespace filter
+        let sql = if namespace.is_some() {
+            r#"
+            SELECT v.memory_id, vec_distance_cosine(v.embedding, ?) as distance
+            FROM memory_vectors v
+            JOIN memories m ON v.memory_id = m.id
+            WHERE m.namespace = ?
+            ORDER BY distance ASC
+            LIMIT ?
+            "#
+            .to_string()
+        } else {
+            r#"
+            SELECT memory_id, vec_distance_cosine(embedding, ?) as distance
+            FROM memory_vectors
+            ORDER BY distance ASC
+            LIMIT ?
+            "#
+            .to_string()
+        };
+
+        let mut rows = if let Some(ns) = &namespace {
+            let ns_json = serde_json::to_string(ns)?;
+            conn.query(&sql, params![query_json, ns_json, limit as i64])
+                .await?
+        } else {
+            conn.query(&sql, params![query_json, limit as i64]).await?
+        };
+
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let memory_id_str: String = row.get(0)?;
+            let distance: f64 = row.get(1)?;
+
+            // Convert distance to similarity (0 = identical, 2 = opposite)
+            // Similarity = 1 - (distance / 2), range [0, 1]
+            let similarity = 1.0 - (distance as f32 / 2.0);
+
+            let memory_id = MemoryId(uuid::Uuid::parse_str(&memory_id_str)?);
+            results.push((memory_id, similarity));
+        }
+
+        debug!("Vector search found {} results", results.len());
+        Ok(results)
     }
 }
 
@@ -1499,23 +1587,26 @@ impl StorageBackend for LibsqlStorage {
         for i in 0..memories.len() {
             if let Some(ref embedding_i) = memories[i].embedding {
                 let similar = self.vector_search(embedding_i, 5, None).await?;
-                for result in similar {
-                    if result.memory.id == memories[i].id {
+                for (memory_id, similarity) in similar {
+                    if memory_id == memories[i].id {
                         continue;
                     }
-                    if result.score >= similarity_threshold {
+                    if similarity >= similarity_threshold {
                         let should_add = memories
                             .iter()
-                            .position(|m| m.id == result.memory.id)
+                            .position(|m| m.id == memory_id)
                             .map(|j| i < j)
                             .unwrap_or(false);
 
                         if should_add {
-                            debug!(
-                                "Consolidation candidate: {} <-> {} (similarity: {:.2})",
-                                memories[i].id, result.memory.id, result.score
-                            );
-                            candidates.push((memories[i].clone(), result.memory));
+                            // Fetch the similar memory
+                            if let Ok(similar_memory) = self.get_memory(memory_id).await {
+                                debug!(
+                                    "Consolidation candidate: {} <-> {} (similarity: {:.2})",
+                                    memories[i].id, memory_id, similarity
+                                );
+                                candidates.push((memories[i].clone(), similar_memory));
+                            }
                         }
                     }
                 }
@@ -1577,59 +1668,105 @@ impl StorageBackend for LibsqlStorage {
     ) -> Result<Vec<SearchResult>> {
         debug!("Hybrid search: {} (expand_graph: {})", query, expand_graph);
 
+        // Collect scores from different sources
+        let mut memory_scores: std::collections::HashMap<MemoryId, (f32, f32, f32, f32)> =
+            std::collections::HashMap::new(); // (keyword, vector, graph, depth)
+
+        // 1. Keyword search
         let keyword_results = self.keyword_search(query, namespace.clone()).await?;
+        debug!("Keyword search found {} results", keyword_results.len());
 
-        if keyword_results.is_empty() {
-            debug!("No keyword matches found");
-            return Ok(vec![]);
+        for result in &keyword_results {
+            memory_scores.insert(result.memory.id, (1.0, 0.0, 0.0, 0.0));
         }
 
-        let mut all_memories = std::collections::HashMap::new();
+        // 2. Vector search (if embedding service available and query non-empty)
+        if !query.is_empty() && self.embedding_service.is_some() && self.search_config.enable_vector_search {
+            // Generate query embedding
+            if let Some(service) = &self.embedding_service {
+                match service.embed(query).await {
+                    Ok(query_embedding) => {
+                        // Perform vector search
+                        let vector_results = self.vector_search(&query_embedding, max_results * 2, namespace.clone()).await?;
+                        debug!("Vector search found {} results", vector_results.len());
 
-        for result in keyword_results {
-            all_memories.insert(result.memory.id, (result.memory.clone(), 1.0, 0));
-        }
-
-        if expand_graph {
-            debug!("Expanding graph from {} seed memories", all_memories.len());
-            let seed_ids: Vec<_> = all_memories.keys().take(5).copied().collect();
-            let graph_memories = self.graph_traverse(&seed_ids, 2, namespace.clone()).await?;
-
-            for memory in graph_memories {
-                if !all_memories.contains_key(&memory.id) {
-                    all_memories.insert(memory.id, (memory, 0.3, 1));
+                        for (memory_id, similarity) in vector_results {
+                            let entry = memory_scores.entry(memory_id).or_insert((0.0, 0.0, 0.0, 0.0));
+                            entry.1 = similarity; // Update vector score
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to generate query embedding: {}", e);
+                    }
                 }
             }
         }
 
+        // 3. Graph expansion (if enabled)
+        let use_graph = expand_graph && self.search_config.enable_graph_expansion;
+        if use_graph && !memory_scores.is_empty() {
+            debug!("Expanding graph from {} seed memories", memory_scores.len());
+            let seed_ids: Vec<_> = memory_scores.keys().take(5).copied().collect();
+            let graph_memories = self.graph_traverse(&seed_ids, self.search_config.max_graph_depth, namespace.clone()).await?;
+
+            for memory in graph_memories {
+                let entry = memory_scores.entry(memory.id).or_insert((0.0, 0.0, 0.0, 1.0));
+                entry.2 = 1.0; // Mark as graph-expanded
+                entry.3 = entry.3.min(1.0); // Update depth
+            }
+        }
+
+        // If no results from any source, return empty
+        if memory_scores.is_empty() {
+            debug!("No results from any search source");
+            return Ok(vec![]);
+        }
+
+        // 4. Fetch all memories and compute final scores
         let now = Utc::now();
-        let mut scored_results: Vec<_> = all_memories
-            .into_values()
-            .map(|(memory, keyword_score, depth)| {
-                let importance_score = memory.importance as f32 / 10.0;
-                let age_days = (now - memory.created_at).num_days() as f32;
-                let recency_score = (-age_days / 30.0).exp();
-                let graph_score = 1.0 / (1.0 + depth as f32);
+        let mut scored_results = Vec::new();
 
-                let score = 0.5 * keyword_score
-                    + 0.2 * graph_score
-                    + 0.2 * importance_score
-                    + 0.1 * recency_score;
-
-                let match_reason = if keyword_score > 0.5 {
-                    format!("keyword_match (score: {:.2})", score)
-                } else {
-                    format!("graph_expansion (score: {:.2})", score)
-                };
-
-                SearchResult {
-                    memory,
-                    score,
-                    match_reason,
+        for (memory_id, (keyword_score, vector_score, graph_score, depth)) in memory_scores {
+            // Fetch full memory
+            let memory = match self.get_memory(memory_id).await {
+                Ok(m) => m,
+                Err(e) => {
+                    warn!("Failed to fetch memory {}: {}", memory_id, e);
+                    continue;
                 }
-            })
-            .collect();
+            };
 
+            // Compute component scores
+            let importance_score = memory.importance as f32 / 10.0;
+            let age_days = (now - memory.created_at).num_days() as f32;
+            let recency_score = (-age_days / 30.0).exp();
+            let graph_depth_score = if graph_score > 0.0 { 1.0 / (1.0 + depth) } else { 0.0 };
+
+            // Compute weighted final score using config weights
+            let final_score =
+                self.search_config.keyword_weight * keyword_score +
+                self.search_config.vector_weight * vector_score +
+                self.search_config.graph_weight * graph_depth_score +
+                self.search_config.importance_weight * importance_score +
+                self.search_config.recency_weight * recency_score;
+
+            // Determine match reason
+            let match_reason = if vector_score > keyword_score && vector_score > graph_depth_score {
+                format!("vector_similarity ({:.2})", final_score)
+            } else if keyword_score > 0.0 {
+                format!("keyword_match ({:.2})", final_score)
+            } else {
+                format!("graph_expansion ({:.2})", final_score)
+            };
+
+            scored_results.push(SearchResult {
+                memory,
+                score: final_score,
+                match_reason,
+            });
+        }
+
+        // Sort by score and limit results
         scored_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
         scored_results.truncate(max_results);
 
