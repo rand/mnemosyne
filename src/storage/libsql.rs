@@ -101,8 +101,18 @@ impl LibsqlStorage {
         info!("Connecting to LibSQL database: {:?}", mode);
 
         let db = match mode {
-            ConnectionMode::Local(path) => {
-                Builder::new_local(&path)
+            ConnectionMode::Local(ref path) => {
+                // Create parent directory if needed
+                if let Some(parent) = std::path::Path::new(path).parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| {
+                        MnemosyneError::Database(format!(
+                            "Failed to create database directory {}: {}",
+                            parent.display(), e
+                        ))
+                    })?;
+                }
+
+                Builder::new_local(path)
                     .build()
                     .await
                     .map_err(|e| MnemosyneError::Database(format!("Failed to create local database: {}", e)))?
@@ -113,14 +123,24 @@ impl LibsqlStorage {
                     .await
                     .map_err(|e| MnemosyneError::Database(format!("Failed to create in-memory database: {}", e)))?
             }
-            ConnectionMode::Remote { url, token } => {
-                Builder::new_remote(url, token)
+            ConnectionMode::Remote { ref url, ref token } => {
+                Builder::new_remote(url.clone(), token.clone())
                     .build()
                     .await
                     .map_err(|e| MnemosyneError::Database(format!("Failed to create remote database: {}", e)))?
             }
-            ConnectionMode::EmbeddedReplica { path, url, token } => {
-                Builder::new_remote_replica(&path, url, token)
+            ConnectionMode::EmbeddedReplica { ref path, ref url, ref token } => {
+                // Create parent directory if needed
+                if let Some(parent) = std::path::Path::new(path).parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| {
+                        MnemosyneError::Database(format!(
+                            "Failed to create replica directory {}: {}",
+                            parent.display(), e
+                        ))
+                    })?;
+                }
+
+                Builder::new_remote_replica(path, url.clone(), token.clone())
                     .build()
                     .await
                     .map_err(|e| MnemosyneError::Database(format!("Failed to create embedded replica: {}", e)))?
@@ -133,6 +153,20 @@ impl LibsqlStorage {
 
         // Run migrations
         storage.run_migrations().await?;
+
+        // Verify database file exists for local modes
+        match &mode {
+            ConnectionMode::Local(path) | ConnectionMode::EmbeddedReplica { path, .. } => {
+                if !std::path::Path::new(path).exists() {
+                    return Err(MnemosyneError::Database(format!(
+                        "Database file not created after initialization: {}",
+                        path
+                    )));
+                }
+                debug!("Verified database file exists: {}", path);
+            }
+            _ => {} // In-memory and remote don't have local files
+        }
 
         Ok(storage)
     }
@@ -180,6 +214,17 @@ impl LibsqlStorage {
         // Get a connection for migrations
         let conn = self.get_conn()?;
 
+        // Create migrations tracking table if it doesn't exist
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS _migrations_applied (
+                migration_name TEXT PRIMARY KEY,
+                applied_at INTEGER NOT NULL
+            )",
+            params![]
+        ).await.map_err(|e| {
+            MnemosyneError::Migration(format!("Failed to create migrations table: {}", e))
+        })?;
+
         // Manually run migrations for better control
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         let migrations_path = std::path::PathBuf::from(manifest_dir)
@@ -189,9 +234,32 @@ impl LibsqlStorage {
         debug!("Migrations path: {:?}", migrations_path);
 
         // Read and execute migration files in order
-        let migration_files = vec!["001_initial_schema.sql", "002_add_indexes.sql"];
+        let migration_files = vec![
+            "001_initial_schema.sql",
+            "002_add_indexes.sql",
+            "006_vector_search.sql",
+            "007_evolution.sql",
+            "008_agent_features.sql",
+            "009_evaluation_system.sql",
+        ];
 
         for migration_file in migration_files {
+            // Check if migration already applied
+            let mut rows = conn.query(
+                "SELECT COUNT(*) FROM _migrations_applied WHERE migration_name = ?",
+                params![migration_file],
+            ).await?;
+
+            let already_applied = if let Some(row) = rows.next().await? {
+                row.get::<i64>(0).unwrap_or(0)
+            } else {
+                0
+            };
+
+            if already_applied > 0 {
+                debug!("Skipping already applied migration: {}", migration_file);
+                continue;
+            }
             let file_path = migrations_path.join(migration_file);
             debug!("Executing migration: {:?}", file_path);
 
@@ -222,6 +290,15 @@ impl LibsqlStorage {
                     })?;
                 }
             }
+
+            // Record migration as applied
+            let now = Utc::now().timestamp();
+            conn.execute(
+                "INSERT INTO _migrations_applied (migration_name, applied_at) VALUES (?, ?)",
+                params![migration_file, now]
+            ).await.map_err(|e| {
+                MnemosyneError::Migration(format!("Failed to record migration: {}", e))
+            })?;
 
             info!("Executed migration: {}", migration_file);
         }
@@ -791,8 +868,9 @@ impl StorageBackend for LibsqlStorage {
         &self,
         seed_ids: &[MemoryId],
         max_hops: usize,
+        namespace: Option<Namespace>,
     ) -> Result<Vec<MemoryNote>> {
-        debug!("Graph traverse from {} seeds, max {} hops", seed_ids.len(), max_hops);
+        debug!("Graph traverse from {} seeds, max {} hops, namespace: {:?}", seed_ids.len(), max_hops, namespace);
 
         if seed_ids.is_empty() || max_hops == 0 {
             return Ok(vec![]);
@@ -800,6 +878,13 @@ impl StorageBackend for LibsqlStorage {
 
         let seed_strings: Vec<String> = seed_ids.iter().map(|id| id.to_string()).collect();
         let placeholders = seed_strings.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+
+        // Add namespace filter if provided
+        let namespace_filter = if namespace.is_some() {
+            "AND m.namespace = ?"
+        } else {
+            ""
+        };
 
         let sql = format!(
             r#"
@@ -821,10 +906,11 @@ impl StorageBackend for LibsqlStorage {
             SELECT DISTINCT m.*
             FROM memories m
             JOIN graph_walk gw ON m.id = gw.memory_id
-            WHERE m.is_archived = 0
+            WHERE m.is_archived = 0 {namespace_filter}
             ORDER BY gw.depth, m.importance DESC
             "#,
-            placeholders = placeholders
+            placeholders = placeholders,
+            namespace_filter = namespace_filter
         );
 
         let conn = self.get_conn()?;
@@ -833,6 +919,12 @@ impl StorageBackend for LibsqlStorage {
             .map(|s| libsql::Value::Text(s.clone()))
             .collect();
         param_values.push(libsql::Value::Integer(max_hops as i64));
+
+        // Add namespace parameter if provided
+        if let Some(ns) = namespace {
+            let ns_json = serde_json::to_string(&ns)?;
+            param_values.push(libsql::Value::Text(ns_json));
+        }
 
         let mut rows = conn.query(&sql, libsql::params_from_iter(param_values)).await?;
 
@@ -972,7 +1064,7 @@ impl StorageBackend for LibsqlStorage {
         if expand_graph {
             debug!("Expanding graph from {} seed memories", all_memories.len());
             let seed_ids: Vec<_> = all_memories.keys().take(5).copied().collect();
-            let graph_memories = self.graph_traverse(&seed_ids, 2).await?;
+            let graph_memories = self.graph_traverse(&seed_ids, 2, namespace.clone()).await?;
 
             for memory in graph_memories {
                 if !all_memories.contains_key(&memory.id) {
