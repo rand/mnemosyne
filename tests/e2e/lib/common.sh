@@ -412,7 +412,7 @@ create_memory() {
     local namespace=$4
     local importance=$5
 
-    DATABASE_URL="sqlite://$db_path" "$binary" remember "$content" \
+    DATABASE_URL="sqlite://$db_path" "$binary" remember --content "$content" \
         --namespace "$namespace" --importance "$importance" 2>&1
 }
 

@@ -161,7 +161,7 @@ NEW_DB=$(create_test_db "init_test")
 NEW_DB_URL="sqlite://$NEW_DB"
 
 # Store a memory to initialize database
-DATABASE_URL="$NEW_DB_URL" "$BIN" remember "First memory" \
+DATABASE_URL="$NEW_DB_URL" "$BIN" remember --content "First memory" \
     --namespace "project:newproj" --importance 7 > /dev/null 2>&1
 
 # Verify database file was created
@@ -213,7 +213,7 @@ CUSTOM_DB="/tmp/custom_mnemosyne_$(date +%s).db"
 CUSTOM_DB_URL="sqlite://$CUSTOM_DB"
 
 # Create memory with custom DB path
-DATABASE_URL="$CUSTOM_DB_URL" "$BIN" remember "Custom DB test" \
+DATABASE_URL="$CUSTOM_DB_URL" "$BIN" remember --content "Custom DB test" \
     --namespace "project:custom" --importance 7 > /dev/null 2>&1
 
 # Verify custom DB was created
@@ -264,7 +264,7 @@ EAGER_DB=$(create_test_db "eager_init")
 EAGER_DB_URL="sqlite://$EAGER_DB"
 
 # Initialize with one write
-DATABASE_URL="$EAGER_DB_URL" "$BIN" remember "Init memory" \
+DATABASE_URL="$EAGER_DB_URL" "$BIN" remember --content "Init memory" \
     --namespace "project:eager" --importance 8 > /dev/null 2>&1
 
 # Immediately query (no delay)
@@ -306,7 +306,7 @@ section "Test 12: Error Logging and Recovery"
 print_cyan "Testing error handling..."
 
 # Try to create memory with invalid importance
-ERROR_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember "Test" \
+ERROR_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember --content "Test" \
     --namespace "project:test" --importance 15 2>&1 || echo "INVALID_IMPORTANCE")
 EXIT_CODE=$?
 
