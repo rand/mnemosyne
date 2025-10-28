@@ -635,8 +635,9 @@ if __name__ == "__main__":
         }) => {
             // Initialize storage and services
             let db_path = get_db_path(cli.db_path.clone());
+            // Remember command creates database if it doesn't exist (write implies initialize)
             let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
+                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true).await?;
 
             // Check if API key is available for LLM enrichment
             let llm_config = LlmConfig::default();
