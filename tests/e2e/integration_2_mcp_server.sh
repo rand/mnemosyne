@@ -143,7 +143,7 @@ print_cyan "Testing tool invocation patterns..."
 # This validates that tools would work when called via MCP
 
 TOOL_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
-    "MCP tool invocation test - simulating agent call" \
+    --content "MCP tool invocation test - simulating agent call" \
     --namespace "project:mcp_test" --importance 7 2>&1 || echo "TOOL_ERROR")
 
 if echo "$TOOL_OUTPUT" | grep -qi "TOOL_ERROR"; then
@@ -181,8 +181,9 @@ wait
 sleep 3
 
 # Verify all operations completed
-CONCURRENT_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "Concurrent MCP" \
-    --namespace "project:mcp_test" 2>&1 | grep -c "Concurrent MCP" || echo "0")
+CONCURRENT_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "Concurrent MCP" \
+    --namespace "project:mcp_test" 2>&1 || echo "")
+CONCURRENT_COUNT=$(echo "$CONCURRENT_OUTPUT" | grep -c "Concurrent MCP" || echo "0")
 
 if [ "$CONCURRENT_COUNT" -ge 4 ]; then
     pass "Concurrent tools: Multiple tool invocations handled ($CONCURRENT_COUNT/5)"

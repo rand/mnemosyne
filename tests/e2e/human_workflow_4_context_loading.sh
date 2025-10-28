@@ -255,8 +255,9 @@ sleep 1
 LIMIT_OUTPUT=$(DATABASE_URL="$LIMIT_DATABASE_URL" "$BIN" recall --query "" \
     --namespace "project:limittest" --limit 10 2>&1 || echo "")
 
-# Count results (heuristic: count lines with timestamps or importance markers)
-RESULT_COUNT=$(echo "$LIMIT_OUTPUT" | grep -cE 'importance.*8|Limit test' || echo "0")
+# Count results by counting numbered entries (e.g., "1.", "2.", etc.)
+# This is more reliable than counting content matches which may appear multiple times per entry
+RESULT_COUNT=$(echo "$LIMIT_OUTPUT" | grep -cE '^[0-9]+\.' || echo "0")
 
 echo "Results with limit=10: $RESULT_COUNT entries"
 
