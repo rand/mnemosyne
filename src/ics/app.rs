@@ -395,6 +395,7 @@ impl IcsApp {
 
             let editor_widget = EditorWidget::new(buffer)
                 .block(editor_block)
+                .diagnostics(&self.diagnostics)
                 .focused(true);
 
             frame.render_stateful_widget(editor_widget, editor_area, editor_state);

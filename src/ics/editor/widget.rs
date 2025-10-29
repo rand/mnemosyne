@@ -5,8 +5,9 @@
 //! - Cursor rendering
 //! - Smooth scrolling
 //! - Change attribution (color-coded by actor)
+//! - Inline diagnostic indicators (gutter icons and text underlines)
 
-use super::{Attribution, CrdtBuffer, CursorState, TextBuffer};
+use super::{Attribution, CrdtBuffer, CursorState, Diagnostic, Severity, TextBuffer};
 use ratatui::{
     buffer::Buffer as RatatuiBuffer,
     layout::{Constraint, Direction, Layout, Rect},
@@ -66,6 +67,9 @@ pub struct EditorWidget<'a> {
     /// Optional CRDT buffer for attribution
     crdt_buffer: Option<&'a CrdtBuffer>,
 
+    /// Optional diagnostics for inline indicators
+    diagnostics: Option<&'a [Diagnostic]>,
+
     /// Block styling
     block: Option<Block<'a>>,
 
@@ -79,6 +83,7 @@ impl<'a> EditorWidget<'a> {
         Self {
             buffer,
             crdt_buffer: None,
+            diagnostics: None,
             block: None,
             focused: false,
         }
@@ -87,6 +92,12 @@ impl<'a> EditorWidget<'a> {
     /// Set CRDT buffer for attribution display
     pub fn crdt_buffer(mut self, crdt: &'a CrdtBuffer) -> Self {
         self.crdt_buffer = Some(crdt);
+        self
+    }
+
+    /// Set diagnostics for inline indicators
+    pub fn diagnostics(mut self, diagnostics: &'a [Diagnostic]) -> Self {
+        self.diagnostics = Some(diagnostics);
         self
     }
 
@@ -120,6 +131,43 @@ impl<'a> EditorWidget<'a> {
             }
         }
         None
+    }
+
+    /// Get the most severe diagnostic for a line (for gutter display)
+    fn line_diagnostic(&self, line_num: usize) -> Option<&Diagnostic> {
+        let diagnostics = self.diagnostics?;
+
+        // Find all diagnostics on this line
+        let mut line_diagnostics: Vec<&Diagnostic> = diagnostics
+            .iter()
+            .filter(|d| d.position.line == line_num)
+            .collect();
+
+        if line_diagnostics.is_empty() {
+            return None;
+        }
+
+        // Sort by severity (Error > Warning > Hint)
+        line_diagnostics.sort_by_key(|d| match d.severity {
+            Severity::Error => 0,
+            Severity::Warning => 1,
+            Severity::Hint => 2,
+        });
+
+        Some(line_diagnostics[0])
+    }
+
+    /// Get diagnostic at a specific position (for underlining)
+    fn diagnostic_at(&self, line: usize, column: usize) -> Option<&Diagnostic> {
+        let diagnostics = self.diagnostics?;
+
+        diagnostics
+            .iter()
+            .find(|d| {
+                d.position.line == line
+                    && column >= d.position.column
+                    && column < d.position.column + d.length
+            })
     }
 }
 
@@ -181,7 +229,11 @@ impl<'a> EditorWidget<'a> {
 
             let is_cursor_line = line_num == self.buffer.cursor.position.line;
 
-            let style = if is_cursor_line && self.focused {
+            // Check for diagnostic on this line
+            let diagnostic = self.line_diagnostic(line_num);
+
+            // Line number style
+            let line_num_style = if is_cursor_line && self.focused {
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD)
@@ -189,14 +241,33 @@ impl<'a> EditorWidget<'a> {
                 Style::default().fg(Color::DarkGray)
             };
 
-            let line_num_text = format!("{:>width$}", line_num + 1, width = area.width.saturating_sub(1) as usize);
+            // Render line number (reserve space for diagnostic icon)
+            let available_width = area.width.saturating_sub(2) as usize; // Reserve 2 chars for icon
+            let line_num_text = format!("{:>width$}", line_num + 1, width = available_width);
 
             buf.set_string(
                 area.x,
                 area.y + i as u16,
                 &line_num_text,
-                style,
+                line_num_style,
             );
+
+            // Render diagnostic icon if present
+            if let Some(diag) = diagnostic {
+                let (icon, color) = match diag.severity {
+                    Severity::Error => ("✗", Color::Rgb(200, 140, 140)),
+                    Severity::Warning => ("⚠", Color::Rgb(200, 180, 120)),
+                    Severity::Hint => ("●", Color::Rgb(140, 140, 160)),
+                };
+
+                let icon_style = Style::default().fg(color);
+                buf.set_string(
+                    area.x + available_width as u16 + 1,
+                    area.y + i as u16,
+                    icon,
+                    icon_style,
+                );
+            }
         }
     }
 
@@ -224,29 +295,17 @@ impl<'a> EditorWidget<'a> {
                     .take(viewport_width)
                     .collect();
 
-                // Render line with attribution colors if enabled
-                if state.show_attribution && self.crdt_buffer.is_some() {
-                    self.render_line_with_attribution(
-                        area.x,
-                        area.y + i as u16,
-                        &visible_text,
-                        char_pos,
-                        buf,
-                    );
-                } else {
-                    let style = if is_cursor_line && self.focused {
-                        Style::default()
-                    } else {
-                        Style::default()
-                    };
-
-                    buf.set_string(
-                        area.x,
-                        area.y + i as u16,
-                        &visible_text,
-                        style,
-                    );
-                }
+                // Render line with both attribution and diagnostics
+                self.render_line_with_diagnostics(
+                    area.x,
+                    area.y + i as u16,
+                    &visible_text,
+                    line_num,
+                    state.h_scroll_offset,
+                    char_pos,
+                    state.show_attribution,
+                    buf,
+                );
 
                 // Render cursor if on this line
                 if is_cursor_line && self.focused {
@@ -272,7 +331,43 @@ impl<'a> EditorWidget<'a> {
         }
     }
 
-    /// Render line with attribution colors
+    /// Render line with diagnostics (and optionally attribution)
+    fn render_line_with_diagnostics(
+        &self,
+        x: u16,
+        y: u16,
+        text: &str,
+        line_num: usize,
+        h_scroll: usize,
+        start_char_pos: usize,
+        show_attribution: bool,
+        buf: &mut RatatuiBuffer,
+    ) {
+        for (i, ch) in text.chars().enumerate() {
+            let column = h_scroll + i;
+            let char_pos = start_char_pos + i;
+
+            // Get base color (attribution or default)
+            let base_color = if show_attribution {
+                self.attribution_color(char_pos).unwrap_or(Color::White)
+            } else {
+                Color::White
+            };
+
+            // Check for diagnostic at this position
+            let has_diagnostic = self.diagnostic_at(line_num, column).is_some();
+
+            // Build style with underline if diagnostic present
+            let mut style = Style::default().fg(base_color);
+            if has_diagnostic {
+                style = style.add_modifier(Modifier::UNDERLINED);
+            }
+
+            buf.set_string(x + i as u16, y, &ch.to_string(), style);
+        }
+    }
+
+    /// Render line with attribution colors (legacy method for compatibility)
     fn render_line_with_attribution(
         &self,
         x: u16,
@@ -319,5 +414,117 @@ mod tests {
 
         // Empty buffer should have min width
         assert_eq!(widget.line_number_width(), 3);
+    }
+
+    #[test]
+    fn test_line_diagnostic() {
+        let buffer = TextBuffer::new(0, None);
+        let diagnostics = vec![
+            Diagnostic {
+                position: Position { line: 5, column: 10 },
+                length: 5,
+                severity: Severity::Error,
+                message: "Error on line 5".to_string(),
+                suggestion: None,
+            },
+            Diagnostic {
+                position: Position { line: 5, column: 20 },
+                length: 3,
+                severity: Severity::Warning,
+                message: "Warning on line 5".to_string(),
+                suggestion: None,
+            },
+            Diagnostic {
+                position: Position { line: 10, column: 0 },
+                length: 1,
+                severity: Severity::Hint,
+                message: "Hint on line 10".to_string(),
+                suggestion: None,
+            },
+        ];
+
+        let widget = EditorWidget::new(&buffer).diagnostics(&diagnostics);
+
+        // Line 5 should return the most severe diagnostic (Error)
+        let diag = widget.line_diagnostic(5);
+        assert!(diag.is_some());
+        assert_eq!(diag.unwrap().severity, Severity::Error);
+
+        // Line 10 should return the hint
+        let diag = widget.line_diagnostic(10);
+        assert!(diag.is_some());
+        assert_eq!(diag.unwrap().severity, Severity::Hint);
+
+        // Line 0 should have no diagnostic
+        assert!(widget.line_diagnostic(0).is_none());
+    }
+
+    #[test]
+    fn test_diagnostic_at() {
+        let buffer = TextBuffer::new(0, None);
+        let diagnostics = vec![
+            Diagnostic {
+                position: Position { line: 5, column: 10 },
+                length: 5, // covers columns 10-14
+                severity: Severity::Error,
+                message: "Error".to_string(),
+                suggestion: None,
+            },
+        ];
+
+        let widget = EditorWidget::new(&buffer).diagnostics(&diagnostics);
+
+        // Column 10 is the start of diagnostic
+        assert!(widget.diagnostic_at(5, 10).is_some());
+
+        // Column 12 is within diagnostic
+        assert!(widget.diagnostic_at(5, 12).is_some());
+
+        // Column 14 is within diagnostic
+        assert!(widget.diagnostic_at(5, 14).is_some());
+
+        // Column 15 is past the diagnostic
+        assert!(widget.diagnostic_at(5, 15).is_none());
+
+        // Column 9 is before the diagnostic
+        assert!(widget.diagnostic_at(5, 9).is_none());
+
+        // Different line
+        assert!(widget.diagnostic_at(4, 10).is_none());
+    }
+
+    #[test]
+    fn test_severity_ordering() {
+        let buffer = TextBuffer::new(0, None);
+        let diagnostics = vec![
+            Diagnostic {
+                position: Position { line: 0, column: 0 },
+                length: 1,
+                severity: Severity::Hint,
+                message: "Hint".to_string(),
+                suggestion: None,
+            },
+            Diagnostic {
+                position: Position { line: 0, column: 5 },
+                length: 1,
+                severity: Severity::Warning,
+                message: "Warning".to_string(),
+                suggestion: None,
+            },
+            Diagnostic {
+                position: Position { line: 0, column: 10 },
+                length: 1,
+                severity: Severity::Error,
+                message: "Error".to_string(),
+                suggestion: None,
+            },
+        ];
+
+        let widget = EditorWidget::new(&buffer).diagnostics(&diagnostics);
+
+        // Should return Error as it's most severe
+        let diag = widget.line_diagnostic(0);
+        assert!(diag.is_some());
+        assert_eq!(diag.unwrap().severity, Severity::Error);
     }
 }
