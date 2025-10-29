@@ -126,6 +126,36 @@ impl ClaudeCodeLauncher {
             }
         };
 
+        // STEP 1.5: Initialize OrchestrationEngine
+        let orchestration_config = crate::orchestration::SupervisionConfig {
+            max_restarts: 3,
+            restart_window_secs: 60,
+            enable_subagents: self.config.enable_subagents,
+            max_concurrent_agents: self.config.max_concurrent_agents as usize,
+        };
+
+        let mut orchestration_engine = match crate::orchestration::OrchestrationEngine::new(
+            storage.clone(),
+            orchestration_config
+        ).await {
+            Ok(mut engine) => {
+                // Start the engine to spawn all 4 agents
+                if let Err(e) = engine.start().await {
+                    warn!("Could not start orchestration engine: {}", e);
+                    warn!("Continuing without orchestration");
+                    None
+                } else {
+                    info!("Orchestration engine started with all 4 agents");
+                    Some(engine)
+                }
+            }
+            Err(e) => {
+                warn!("Could not initialize orchestration engine: {}", e);
+                warn!("Continuing without orchestration");
+                None
+            }
+        };
+
         // STEP 2: Generate startup context with timeout protection
         let startup_prompt = if self.config.load_context_on_start {
             match tokio::time::timeout(
@@ -160,11 +190,19 @@ impl ClaudeCodeLauncher {
 
         debug!("Launching Claude Code with {} bytes of startup context", startup_prompt.len());
 
-        // STEP 5: Execute Claude Code (replaces current process)
+        // STEP 5: Execute Claude Code with orchestration engine running
         let status = Command::new(&self.claude_binary)
             .args(&args)
             .status()
             .map_err(|e| MnemosyneError::Other(format!("Failed to launch Claude Code: {}", e)))?;
+
+        // STEP 6: Graceful shutdown of orchestration engine
+        if let Some(mut engine) = orchestration_engine {
+            info!("Shutting down orchestration engine");
+            if let Err(e) = engine.stop().await {
+                warn!("Error during orchestration shutdown: {}", e);
+            }
+        }
 
         if !status.success() {
             return Err(MnemosyneError::Other(format!(

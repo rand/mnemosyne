@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS memories (
         'entity',
         'insight',
         'reference',
-        'preference'
+        'preference',
+        'agent_event'
     )),
     importance INTEGER NOT NULL CHECK(importance BETWEEN 1 AND 10),
     confidence REAL NOT NULL CHECK(confidence BETWEEN 0.0 AND 1.0),

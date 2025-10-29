@@ -31,6 +31,7 @@ sqlite-vec = "0.1.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 toml = "0.8"
+bincode = "1.3"
 
 # LLM Integration
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
@@ -62,10 +63,17 @@ pyo3 = { version = "0.22", features = ["extension-module", "abi3"], optional = t
 dirs = "6.0.0"
 nix = { version = "0.30.1", features = ["process", "signal"] }
 
+# Actor system and distributed networking
+ractor = "0.13"
+ractor_cluster = { version = "0.13", optional = true }
+iroh = "0.28"
+iroh-net = "0.28"
+
 [features]
 default = ["keyring-fallback"]
 python = ["pyo3"]
 keyring-fallback = ["keyring"]
+distributed = ["ractor_cluster"]
 
 [dev-dependencies]
 mockall = "0.12"

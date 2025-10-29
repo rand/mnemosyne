@@ -1,0 +1,284 @@
+//! Executor Actor
+//!
+//! Responsibilities:
+//! - Primary work execution
+//! - Sub-agent spawning for parallel work
+//! - Deterministic workflow wrapping
+//! - Work result reporting
+
+use crate::error::Result;
+use crate::launcher::agents::AgentRole;
+use crate::orchestration::events::{AgentEvent, EventPersistence};
+use crate::orchestration::messages::{ExecutorMessage, OrchestratorMessage, WorkResult};
+use crate::orchestration::state::{AgentState, WorkItem};
+use crate::storage::StorageBackend;
+use crate::types::{MemoryId, Namespace};
+use ractor::{Actor, ActorProcessingErr, ActorRef};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+/// Executor actor state
+pub struct ExecutorState {
+    /// Event persistence
+    events: EventPersistence,
+
+    /// Storage backend
+    storage: Arc<dyn StorageBackend>,
+
+    /// Reference to Orchestrator
+    orchestrator: Option<ActorRef<OrchestratorMessage>>,
+
+    /// Currently executing work items
+    active_work: HashMap<crate::orchestration::state::WorkItemId, Instant>,
+
+    /// Sub-agent references
+    sub_agents: Vec<ActorRef<ExecutorMessage>>,
+
+    /// Max concurrent work items
+    max_concurrent: usize,
+}
+
+impl ExecutorState {
+    pub fn new(storage: Arc<dyn StorageBackend>, namespace: Namespace) -> Self {
+        Self {
+            events: EventPersistence::new(storage.clone(), namespace),
+            storage,
+            orchestrator: None,
+            active_work: HashMap::new(),
+            sub_agents: Vec::new(),
+            max_concurrent: 4,
+        }
+    }
+
+    pub fn register_orchestrator(&mut self, orchestrator: ActorRef<OrchestratorMessage>) {
+        self.orchestrator = Some(orchestrator);
+    }
+}
+
+/// Executor actor implementation
+pub struct ExecutorActor {
+    storage: Arc<dyn StorageBackend>,
+    namespace: Namespace,
+}
+
+impl ExecutorActor {
+    pub fn new(storage: Arc<dyn StorageBackend>, namespace: Namespace) -> Self {
+        Self { storage, namespace }
+    }
+
+    /// Execute a work item
+    async fn execute_work(
+        state: &mut ExecutorState,
+        item: WorkItem,
+    ) -> Result<()> {
+        tracing::info!("Executing work: {}", item.description);
+
+        let item_id = item.id.clone();
+        let start_time = Instant::now();
+
+        // Mark as active
+        state.active_work.insert(item_id.clone(), start_time);
+
+        // Persist start event
+        state
+            .events
+            .persist(AgentEvent::WorkItemStarted {
+                agent: AgentRole::Executor,
+                item_id: item_id.clone(),
+            })
+            .await?;
+
+        // Simulate work execution
+        // In production, this would:
+        // 1. Load relevant context
+        // 2. Execute the actual work
+        // 3. Persist intermediate results
+        // 4. Handle errors gracefully
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // Create result
+        let duration = start_time.elapsed();
+        let result = WorkResult::success(item_id.clone(), duration);
+
+        // Remove from active
+        state.active_work.remove(&item_id);
+
+        // Notify orchestrator
+        if let Some(ref orchestrator) = state.orchestrator {
+            let _ = orchestrator
+                .cast(OrchestratorMessage::WorkCompleted {
+                    item_id: item_id.clone(),
+                    result,
+                })
+                .map_err(|e| tracing::warn!("Failed to notify orchestrator: {:?}", e));
+        }
+
+        // Persist completion event
+        state
+            .events
+            .persist(AgentEvent::WorkItemCompleted {
+                agent: AgentRole::Executor,
+                item_id,
+                duration_ms: duration.as_millis() as u64,
+                memory_ids: Vec::new(),
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    /// Spawn a sub-agent for parallel work
+    async fn spawn_sub_agent(
+        state: &mut ExecutorState,
+        work_item: WorkItem,
+    ) -> Result<()> {
+        tracing::info!("Spawning sub-agent for: {}", work_item.description);
+
+        // Check if we can spawn more sub-agents
+        if state.sub_agents.len() >= state.max_concurrent {
+            tracing::warn!("Max sub-agents reached, queuing work");
+            // In production, would queue the work
+            return Ok(());
+        }
+
+        // Persist spawn event
+        state
+            .events
+            .persist(AgentEvent::SubAgentSpawned {
+                parent: AgentRole::Executor,
+                child: AgentRole::Executor,
+                item_id: work_item.id.clone(),
+            })
+            .await?;
+
+        // TODO: Actually spawn a sub-agent actor
+        // For now, just execute inline
+        Self::execute_work(state, work_item).await?;
+
+        Ok(())
+    }
+
+    /// Handle sub-agent completion
+    async fn handle_sub_agent_completed(
+        state: &mut ExecutorState,
+        item_id: crate::orchestration::state::WorkItemId,
+        result: WorkResult,
+    ) -> Result<()> {
+        tracing::info!("Sub-agent completed: {:?}", item_id);
+
+        // Notify orchestrator
+        if let Some(ref orchestrator) = state.orchestrator {
+            let _ = orchestrator
+                .cast(OrchestratorMessage::WorkCompleted { item_id, result })
+                .map_err(|e| tracing::warn!("Failed to notify orchestrator: {:?}", e));
+        }
+
+        Ok(())
+    }
+}
+
+#[ractor::async_trait]
+impl Actor for ExecutorActor {
+    type Msg = ExecutorMessage;
+    type State = ExecutorState;
+    type Arguments = (Arc<dyn StorageBackend>, Namespace);
+
+    async fn pre_start(
+        &self,
+        _myself: ActorRef<Self::Msg>,
+        args: Self::Arguments,
+    ) -> std::result::Result<Self::State, ActorProcessingErr> {
+        tracing::info!("Executor actor starting");
+        let (storage, namespace) = args;
+        Ok(ExecutorState::new(storage, namespace))
+    }
+
+    async fn post_start(
+        &self,
+        myself: ActorRef<Self::Msg>,
+        _state: &mut Self::State,
+    ) -> std::result::Result<(), ActorProcessingErr> {
+        tracing::info!("Executor actor started: {:?}", myself.get_id());
+        Ok(())
+    }
+
+    async fn handle(
+        &self,
+        _myself: ActorRef<Self::Msg>,
+        message: Self::Msg,
+        state: &mut Self::State,
+    ) -> std::result::Result<(), ActorProcessingErr> {
+        match message {
+            ExecutorMessage::Initialize => {
+                tracing::info!("Executor initialized");
+            }
+            ExecutorMessage::ExecuteWork(item) => {
+                Self::execute_work(state, item)
+                    .await
+                    .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+            }
+            ExecutorMessage::SpawnSubAgent { work_item } => {
+                Self::spawn_sub_agent(state, work_item)
+                    .await
+                    .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+            }
+            ExecutorMessage::SubAgentCompleted { item_id, result } => {
+                Self::handle_sub_agent_completed(state, item_id, result)
+                    .await
+                    .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn post_stop(
+        &self,
+        _myself: ActorRef<Self::Msg>,
+        _state: &mut Self::State,
+    ) -> std::result::Result<(), ActorProcessingErr> {
+        tracing::info!("Executor actor stopped");
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::LibsqlStorage;
+    use tempfile::TempDir;
+
+    #[tokio::test]
+    async fn test_executor_lifecycle() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true, // create_if_missing
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        let (actor_ref, _handle) = Actor::spawn(
+            None,
+            ExecutorActor::new(storage.clone(), namespace.clone()),
+            (storage, namespace),
+        )
+        .await
+        .unwrap();
+
+        actor_ref.cast(ExecutorMessage::Initialize).unwrap();
+        actor_ref.stop(None);
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}

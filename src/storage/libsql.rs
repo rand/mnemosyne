@@ -658,6 +658,7 @@ impl LibsqlStorage {
             "insight" => crate::types::MemoryType::Insight,
             "reference" => crate::types::MemoryType::Reference,
             "preference" => crate::types::MemoryType::Preference,
+            "agent_event" => crate::types::MemoryType::AgentEvent,
             _ => return Err(MnemosyneError::Other(format!("Unknown memory type: {}", memory_type_str))),
         };
 

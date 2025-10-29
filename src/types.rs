@@ -139,6 +139,9 @@ pub enum MemoryType {
 
     /// User preferences and settings
     Preference,
+
+    /// Agent coordination events for orchestration
+    AgentEvent,
 }
 
 impl MemoryType {
@@ -148,6 +151,7 @@ impl MemoryType {
         match self {
             MemoryType::ArchitectureDecision => 1.2,
             MemoryType::Constraint => 1.1,
+            MemoryType::AgentEvent => 1.0,  // High value for orchestration
             MemoryType::CodePattern => 1.0,
             MemoryType::BugFix => 0.9,
             MemoryType::Insight => 0.9,

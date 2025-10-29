@@ -234,6 +234,7 @@ fn format_memory_type(mt: &crate::types::MemoryType) -> &'static str {
         MemoryType::Insight => "Insight",
         MemoryType::Reference => "Reference",
         MemoryType::Preference => "Preference",
+        MemoryType::AgentEvent => "Agent Event",
     }
 }
 

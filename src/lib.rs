@@ -52,6 +52,7 @@ pub mod evolution;
 pub mod launcher;
 pub mod mcp;
 pub mod namespace;
+pub mod orchestration;
 pub mod secrets;
 pub mod services;
 pub mod storage;
@@ -79,6 +80,9 @@ pub use evolution::{
 };
 pub use mcp::{McpServer, ToolHandler};
 pub use namespace::{NamespaceDetector, ProjectMetadata};
+pub use orchestration::{
+    AgentEvent, OrchestrationEngine, SupervisionConfig, WorkItem, WorkQueue,
+};
 pub use services::{LlmConfig, LlmService};
 pub use storage::{libsql::{ConnectionMode, LibsqlStorage}, StorageBackend};
 pub use types::{

@@ -108,6 +108,10 @@ pub enum MnemosyneError {
     #[error("Audit log error: {0}")]
     AuditLog(String),
 
+    /// Actor system error (Ractor)
+    #[error("Actor error: {0}")]
+    ActorError(String),
+
     /// Generic error with context
     #[error("{0}")]
     Other(String),
