@@ -22,6 +22,7 @@
 //! - State recovery
 
 pub mod actors;
+pub mod branch_coordinator;
 pub mod branch_guard;
 pub mod branch_registry;
 pub mod conflict_detector;
@@ -40,6 +41,7 @@ pub mod supervision;
 
 // Re-export key types
 pub use actors::{ExecutorActor, OrchestratorActor, OptimizerActor, ReviewerActor};
+pub use branch_coordinator::{BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse};
 pub use branch_guard::{BranchGuard, BranchGuardConfig};
 pub use branch_registry::{
     AgentAssignment, BranchRegistry, ConflictReport, CoordinationMode, SharedBranchRegistry,
