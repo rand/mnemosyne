@@ -25,7 +25,12 @@ impl StorageFixture {
         let db_path = temp_dir.path().join("test.db");
         let db_path_str = db_path.to_string_lossy().to_string();
 
-        let storage = LibsqlStorage::new(ConnectionMode::Local(db_path_str.clone())).await?;
+        // Use new_with_validation with create_if_missing=true for tests
+        let storage = LibsqlStorage::new_with_validation(
+            ConnectionMode::Local(db_path_str.clone()),
+            true,
+        )
+        .await?;
 
         Ok(Self {
             _temp_dir: temp_dir,
