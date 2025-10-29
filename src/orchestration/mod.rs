@@ -22,19 +22,56 @@
 //! - State recovery
 
 pub mod actors;
+pub mod branch_coordinator;
+pub mod branch_guard;
+pub mod branch_registry;
+pub mod cli;
+pub mod config;
+pub mod conflict_detector;
+pub mod conflict_notifier;
+pub mod cross_process;
 pub mod events;
+pub mod file_tracker;
+pub mod git_state;
+pub mod git_wrapper;
+pub mod identity;
 pub mod integrations;
 pub mod messages;
 pub mod network;
+pub mod notification_task;
+pub mod prompts;
 pub mod state;
+pub mod status_line;
 pub mod supervision;
+
+#[cfg(test)]
+mod coordination_tests;
 
 // Re-export key types
 pub use actors::{ExecutorActor, OrchestratorActor, OptimizerActor, ReviewerActor};
+pub use branch_coordinator::{BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse};
+pub use branch_guard::{BranchGuard, BranchGuardConfig};
+pub use cli::{CliCommand, CliHandler, CliResult, parse_args};
+pub use config::{BranchIsolationConfig, BranchIsolationSettings, ConflictDetectionSettings,
+                 CrossProcessSettings, NotificationSettings};
+pub use branch_registry::{
+    AgentAssignment, BranchRegistry, ConflictReport, CoordinationMode, SharedBranchRegistry,
+    WorkIntent,
+};
+pub use conflict_detector::{ConflictAction, ConflictAssessment, ConflictDetector, ConflictSeverity};
+pub use conflict_notifier::{ConflictNotification, ConflictNotifier, NotificationConfig, NotificationType};
+pub use cross_process::{CoordinationMessage, CrossProcessCoordinator, MessageType, ProcessRegistration};
 pub use events::{AgentEvent, EventPersistence, EventReplay};
+pub use file_tracker::{ActiveConflict, FileModification, FileTracker, ModificationType};
+pub use git_state::{GitState, GitStateTracker};
+pub use git_wrapper::{GitAuditEntry, GitOperationType, GitWrapper};
+pub use identity::{AgentId, AgentIdentity};
 pub use messages::{AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage};
 pub use network::{AgentEndpoint, AgentProtocol, MessageRouter};
+pub use notification_task::NotificationTaskHandle;
+pub use prompts::{ConflictDecision, ConflictPrompt, InteractivePrompter, JoinDecision, JoinRequestPrompt};
 pub use state::{AgentState, Phase, WorkItem, WorkQueue};
+pub use status_line::{ShellIntegration, StatusLine, StatusLineFormat, StatusLineProvider};
 pub use supervision::{SupervisionConfig, SupervisionTree};
 
 use crate::error::Result;

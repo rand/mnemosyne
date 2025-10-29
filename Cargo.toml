@@ -35,6 +35,7 @@ bincode = "1.3"
 
 # LLM Integration
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+dspy-rs = "0.7.1"  # DSPy framework for systematic prompt optimization
 
 # Local embeddings with ONNX Runtime (auto-downloads binaries)
 fastembed = { version = "5.2", features = ["ort-download-binaries"] }
@@ -55,6 +56,10 @@ age = { version = "0.11", features = ["armor", "cli-common"] }
 secrecy = "0.10"
 directories = "5.0"
 
+# Cryptographic signatures for cross-process authentication
+hmac = "0.12"
+sha2 = "0.10"
+
 # Optional keyring fallback for backward compatibility
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native"], optional = true }
 
@@ -68,6 +73,35 @@ ractor = "0.13"
 ractor_cluster = { version = "0.13", optional = true }
 iroh = "0.28"
 iroh-net = "0.28"
+
+# TUI framework
+ratatui = "0.29"
+crossterm = "0.29"
+
+# ICS (Integrated Context Studio) dependencies
+# Text editing
+ropey = "1.6"
+tui-textarea = "0.4"
+
+# Parsing and lexing
+tree-sitter = "0.20"
+tree-sitter-markdown = "0.7"
+logos = "0.13"
+
+# Symbol completion and fuzzy matching
+nucleo = "0.5"
+fuzzy-matcher = "0.3"
+
+# Error reporting
+ariadne = "0.4"
+miette = "7.0"
+
+# PTY support
+portable-pty = "0.8"
+vte = "0.13"
+
+# TUI extensions
+tui-logger = "0.11"
 
 [features]
 default = ["keyring-fallback"]
@@ -95,4 +129,8 @@ opt-level = 0
 
 [[bench]]
 name = "memory_benchmarks"
+harness = false
+
+[[bench]]
+name = "branch_isolation_bench"
 harness = false

@@ -1,0 +1,36 @@
+//! Integrated Context Studio (ICS)
+//!
+//! AI-assisted context engineering environment for Claude Code.
+//!
+//! ICS provides:
+//! - Real-time semantic analysis of context files
+//! - Typed hole tracking for ambiguities
+//! - Symbol resolution (#file/path, @symbol_name)
+//! - AI-powered suggestions and rewrites
+//! - Interactive editor with syntax highlighting
+//!
+//! Can be used as:
+//! - Embedded panel in PTY mode (Ctrl+E to toggle)
+//! - Standalone mode: `mnemosyne --ics context.md`
+
+pub mod actors;
+pub mod editor;
+pub mod rendering;
+pub mod semantic;
+pub mod symbols;
+pub mod holes;
+pub mod suggestions;
+pub mod commands;
+pub mod views;
+pub mod layout;
+pub mod storage;
+pub mod input;
+pub mod diagnostics;
+
+mod app;
+mod config;
+mod events;
+
+pub use app::IcsApp;
+pub use config::IcsConfig;
+pub use events::{EditorEvent, AnalysisEvent, IcsEvent};

@@ -112,6 +112,14 @@ pub enum MnemosyneError {
     #[error("Actor error: {0}")]
     ActorError(String),
 
+    /// Branch assignment conflict
+    #[error("Branch conflict: {0}")]
+    BranchConflict(String),
+
+    /// Resource not found (generic)
+    #[error("Not found: {0}")]
+    NotFound(String),
+
     /// Generic error with context
     #[error("{0}")]
     Other(String),

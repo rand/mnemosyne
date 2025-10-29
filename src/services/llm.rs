@@ -11,7 +11,41 @@ use crate::error::{MnemosyneError, Result};
 use crate::types::{ConsolidationDecision, LinkType, MemoryLink, MemoryNote, MemoryType};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
+
+/// Structured JSON response for memory enrichment
+#[derive(Debug, Deserialize, Serialize)]
+struct EnrichmentResponse {
+    summary: String,
+    keywords: Vec<String>,
+    tags: Vec<String>,
+    #[serde(rename = "type")]
+    memory_type: String,
+    importance: u8,
+}
+
+/// Structured JSON response for link generation
+#[derive(Debug, Deserialize, Serialize)]
+struct LinkResponse {
+    links: Vec<LinkEntry>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct LinkEntry {
+    index: usize,
+    #[serde(rename = "type")]
+    link_type: String,
+    strength: f32,
+    reason: String,
+}
+
+/// Structured JSON response for consolidation decision
+#[derive(Debug, Deserialize, Serialize)]
+struct ConsolidationResponse {
+    decision: String,
+    reason: String,
+    superseding_id: Option<String>,
+}
 
 /// Configuration for LLM service
 #[derive(Debug, Clone)]
@@ -114,38 +148,102 @@ Provide a structured response with:
 4. Determine the memory type (one of: ArchitectureDecision, CodePattern, BugFix, Configuration, Constraint, Entity, Insight, Reference, Preference)
 5. Assign an importance score (1-10, where 10 is critical)
 
-Format your response EXACTLY as:
-SUMMARY: <summary>
-KEYWORDS: <keyword1>, <keyword2>, ...
-TAGS: <tag1>, <tag2>, ...
-TYPE: <memory_type>
-IMPORTANCE: <score>
+Examples:
+
+Example 1:
+Raw: "Switched from SQLite to PostgreSQL for production due to concurrent write limitations. Migration completed successfully."
+Context: "Database architecture discussion"
+{{
+  "summary": "Migration from SQLite to PostgreSQL completed to support concurrent writes in production",
+  "keywords": ["PostgreSQL", "SQLite", "migration", "concurrency", "database"],
+  "tags": ["architecture", "infrastructure"],
+  "type": "ArchitectureDecision",
+  "importance": 8
+}}
+
+Example 2:
+Raw: "Fixed infinite loop in retry logic by adding max_attempts counter. Bug was causing API timeouts."
+Context: "API reliability improvements"
+{{
+  "summary": "Added max_attempts counter to prevent infinite retry loops causing API timeouts",
+  "keywords": ["retry", "bugfix", "infinite-loop", "API", "timeout"],
+  "tags": ["reliability", "api"],
+  "type": "BugFix",
+  "importance": 7
+}}
+
+Example 3:
+Raw: "User prefers dark mode for terminal interfaces"
+Context: "User interface preferences"
+{{
+  "summary": "User preference for dark mode terminal interfaces",
+  "keywords": ["dark-mode", "terminal", "UI", "preferences"],
+  "tags": ["preferences", "ui"],
+  "type": "Preference",
+  "importance": 3
+}}
+
+Now format your response as valid JSON matching this schema:
+{{
+  "summary": "string (1-2 sentences)",
+  "keywords": ["string array (3-5 items)"],
+  "tags": ["string array (2-3 items)"],
+  "type": "ArchitectureDecision|CodePattern|BugFix|Configuration|Constraint|Entity|Insight|Reference|Preference",
+  "importance": number (1-10)
+}}
+
+IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
 "#,
             raw_content, context
         );
 
         let response = self.call_api(&prompt).await?;
 
-        // Parse the structured response
-        let summary = self.extract_field(&response, "SUMMARY:")?;
-        let keywords_str = self.extract_field(&response, "KEYWORDS:")?;
-        let tags_str = self.extract_field(&response, "TAGS:")?;
-        let type_str = self.extract_field(&response, "TYPE:")?;
-        let importance_str = self.extract_field(&response, "IMPORTANCE:")?;
+        // Parse JSON response with fallback to string parsing
+        let enrichment: EnrichmentResponse = match serde_json::from_str(&response) {
+            Ok(data) => data,
+            Err(e) => {
+                warn!("JSON parsing failed: {}, attempting fallback string parsing", e);
+                // Fallback to old string parsing for backward compatibility
+                let summary = self.extract_field(&response, "SUMMARY:").or_else(|_| {
+                    self.extract_field(&response, "summary:")
+                })?;
+                let keywords_str = self.extract_field(&response, "KEYWORDS:").or_else(|_| {
+                    self.extract_field(&response, "keywords:")
+                })?;
+                let tags_str = self.extract_field(&response, "TAGS:").or_else(|_| {
+                    self.extract_field(&response, "tags:")
+                })?;
+                let type_str = self.extract_field(&response, "TYPE:").or_else(|_| {
+                    self.extract_field(&response, "type:")
+                })?;
+                let importance_str = self.extract_field(&response, "IMPORTANCE:").or_else(|_| {
+                    self.extract_field(&response, "importance:")
+                })?;
 
-        let keywords: Vec<String> = keywords_str
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
+                EnrichmentResponse {
+                    summary,
+                    keywords: keywords_str
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect(),
+                    tags: tags_str
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect(),
+                    memory_type: type_str.trim().to_string(),
+                    importance: importance_str
+                        .trim()
+                        .parse::<u8>()
+                        .unwrap_or(5)
+                        .clamp(1, 10),
+                }
+            }
+        };
 
-        let tags: Vec<String> = tags_str
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-
-        let memory_type = match type_str.trim() {
+        let memory_type = match enrichment.memory_type.as_str() {
             "ArchitectureDecision" => MemoryType::ArchitectureDecision,
             "CodePattern" => MemoryType::CodePattern,
             "BugFix" => MemoryType::BugFix,
@@ -158,11 +256,7 @@ IMPORTANCE: <score>
             _ => MemoryType::Insight, // Default fallback
         };
 
-        let importance = importance_str
-            .trim()
-            .parse::<u8>()
-            .unwrap_or(5)
-            .clamp(1, 10);
+        let importance = enrichment.importance.clamp(1, 10);
 
         Ok(MemoryNote {
             id: crate::types::MemoryId::new(),
@@ -170,9 +264,9 @@ IMPORTANCE: <score>
             created_at: Utc::now(),
             updated_at: Utc::now(),
             content: raw_content.to_string(),
-            summary,
-            keywords,
-            tags,
+            summary: enrichment.summary,
+            keywords: enrichment.keywords,
+            tags: enrichment.tags,
             context: context.to_string(),
             memory_type,
             importance,
@@ -234,14 +328,67 @@ Candidate memories:
 For each candidate that has a meaningful relationship, specify:
 1. The candidate index
 2. The relationship type (Extends, Contradicts, Implements, References, Supersedes)
-3. The link strength (0.0 - 1.0)
+3. The link strength (0.0 - 1.0, higher = stronger relationship)
 4. A brief reason
 
-Format EXACTLY as (one per line):
-LINK: <index>, <type>, <strength>, <reason>
+Examples of good link identification:
 
-Only include meaningful links. If no relationships exist, respond with:
-NO_LINKS
+Example 1 - Extension:
+New: "Added authentication middleware to API endpoints"
+Candidate [2]: "Set up JWT token generation for user sessions"
+{{
+  "links": [
+    {{
+      "index": 2,
+      "type": "Extends",
+      "strength": 0.9,
+      "reason": "JWT implementation provides auth mechanism for the middleware"
+    }}
+  ]
+}}
+
+Example 2 - Multiple links:
+New: "Decided to use REST API instead of GraphQL"
+Candidate [5]: "GraphQL chosen for API layer due to flexible queries"
+Candidate [3]: "API documentation framework selection"
+{{
+  "links": [
+    {{
+      "index": 5,
+      "type": "Contradicts",
+      "strength": 0.95,
+      "reason": "New decision reverses previous GraphQL choice"
+    }},
+    {{
+      "index": 3,
+      "type": "References",
+      "strength": 0.7,
+      "reason": "Documentation framework relates to API design choice"
+    }}
+  ]
+}}
+
+Example 3 - No meaningful links:
+New: "User prefers dark mode terminal"
+Candidates are all about database architecture
+{{
+  "links": []
+}}
+
+Now analyze the actual memories above. Format your response as valid JSON matching this schema:
+{{
+  "links": [
+    {{
+      "index": number,
+      "type": "Extends|Contradicts|Implements|References|Supersedes",
+      "strength": number (0.0-1.0),
+      "reason": "string"
+    }}
+  ]
+}}
+
+Only include meaningful links (strength >= 0.6). If no relationships exist, return {{"links": []}}.
+IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
 "#,
             new_memory.summary,
             new_memory.content,
@@ -252,41 +399,66 @@ NO_LINKS
 
         let response = self.call_api(&prompt).await?;
 
-        if response.trim() == "NO_LINKS" {
-            return Ok(vec![]);
-        }
+        // Parse JSON response with fallback to string parsing
+        let link_response: LinkResponse = match serde_json::from_str(&response) {
+            Ok(data) => data,
+            Err(e) => {
+                warn!("JSON parsing failed: {}, attempting fallback string parsing", e);
+                // Fallback to old string parsing for backward compatibility
+                if response.trim() == "NO_LINKS" {
+                    return Ok(vec![]);
+                }
 
-        let mut links = Vec::new();
+                let mut link_entries = Vec::new();
+                for line in response.lines() {
+                    if let Some(link_data) = line.strip_prefix("LINK:") {
+                        let parts: Vec<&str> = link_data.split(',').collect();
+                        if parts.len() >= 4 {
+                            if let Ok(index) = parts[0].trim().parse::<usize>() {
+                                if index < candidates.len() {
+                                    let link_type = parts[1].trim().to_string();
+                                    let strength = parts[2].trim().parse::<f32>().unwrap_or(0.5).clamp(0.0, 1.0);
+                                    let reason = parts[3..].join(",").trim().to_string();
 
-        for line in response.lines() {
-            if let Some(link_data) = line.strip_prefix("LINK:") {
-                let parts: Vec<&str> = link_data.split(',').collect();
-                if parts.len() >= 4 {
-                    if let Ok(index) = parts[0].trim().parse::<usize>() {
-                        if index < candidates.len() {
-                            let link_type = match parts[1].trim() {
-                                "Extends" => LinkType::Extends,
-                                "Contradicts" => LinkType::Contradicts,
-                                "Implements" => LinkType::Implements,
-                                "References" => LinkType::References,
-                                "Supersedes" => LinkType::Supersedes,
-                                _ => LinkType::References,
-                            };
-
-                            let strength = parts[2].trim().parse::<f32>().unwrap_or(0.5).clamp(0.0, 1.0);
-                            let reason = parts[3..].join(",").trim().to_string();
-
-                            links.push(MemoryLink {
-                                target_id: candidates[index].id,
-                                link_type,
-                                strength,
-                                reason,
-                                created_at: Utc::now(),
-                            });
+                                    link_entries.push(LinkEntry {
+                                        index,
+                                        link_type,
+                                        strength,
+                                        reason,
+                                    });
+                                }
+                            }
                         }
                     }
                 }
+                LinkResponse { links: link_entries }
             }
+        };
+
+        // Convert parsed entries to MemoryLinks
+        let mut links = Vec::new();
+        for entry in link_response.links {
+            if entry.index >= candidates.len() {
+                warn!("Link index {} out of bounds for {} candidates", entry.index, candidates.len());
+                continue;
+            }
+
+            let link_type = match entry.link_type.as_str() {
+                "Extends" => LinkType::Extends,
+                "Contradicts" => LinkType::Contradicts,
+                "Implements" => LinkType::Implements,
+                "References" => LinkType::References,
+                "Supersedes" => LinkType::Supersedes,
+                _ => LinkType::References,
+            };
+
+            links.push(MemoryLink {
+                target_id: candidates[entry.index].id,
+                link_type,
+                strength: entry.strength.clamp(0.0, 1.0),
+                reason: entry.reason,
+                created_at: Utc::now(),
+            });
         }
 
         info!("Generated {} links", links.len());
@@ -307,14 +479,14 @@ NO_LINKS
         let prompt = format!(
             r#"You are analyzing whether two memories should be consolidated in an agentic memory system.
 
-Memory A:
+Memory A (ID: {}):
 Summary: {}
 Content: {}
 Type: {:?}
 Importance: {}
 Tags: {}
 
-Memory B:
+Memory B (ID: {}):
 Summary: {}
 Content: {}
 Type: {:?}
@@ -322,20 +494,55 @@ Importance: {}
 Tags: {}
 
 Determine if these memories should be:
-1. MERGE - Combine into one (very similar content)
-2. SUPERSEDE - One replaces the other (updated information)
-3. KEEP_BOTH - Maintain separately (distinct content)
+1. MERGE - Combine into one (very similar content, both valuable)
+2. SUPERSEDE - One replaces the other (updated/corrected information)
+3. KEEP_BOTH - Maintain separately (distinct content, both relevant)
 
-Format EXACTLY as:
-DECISION: <MERGE|SUPERSEDE|KEEP_BOTH>
-REASON: <brief explanation>
-SUPERSEDING_ID: <memory_id if SUPERSEDE, otherwise NONE>
+Examples:
+
+Example 1 - MERGE:
+Memory A: "PostgreSQL migration completed successfully"
+Memory B: "Switched from SQLite to PostgreSQL for production"
+{{
+  "decision": "MERGE",
+  "reason": "Both describe the same migration event, should combine into comprehensive record",
+  "superseding_id": null
+}}
+
+Example 2 - SUPERSEDE:
+Memory A (ID: abc-123, Importance: 6): "API endpoint uses /api/v1/users"
+Memory B (ID: def-456, Importance: 8): "API endpoint updated to /api/v2/users with new schema"
+{{
+  "decision": "SUPERSEDE",
+  "reason": "Memory B contains updated information that makes A obsolete",
+  "superseding_id": "def-456"
+}}
+
+Example 3 - KEEP_BOTH:
+Memory A: "User authentication implemented with JWT"
+Memory B: "Database connection pooling configured"
+{{
+  "decision": "KEEP_BOTH",
+  "reason": "Distinct technical decisions, both remain relevant",
+  "superseding_id": null
+}}
+
+Now analyze the actual memories above. Format your response as valid JSON matching this schema:
+{{
+  "decision": "MERGE|SUPERSEDE|KEEP_BOTH",
+  "reason": "string",
+  "superseding_id": "string or null"
+}}
+
+IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
 "#,
+            memory_a.id,
             memory_a.summary,
             memory_a.content,
             memory_a.memory_type,
             memory_a.importance,
             memory_a.tags.join(", "),
+            memory_b.id,
             memory_b.summary,
             memory_b.content,
             memory_b.memory_type,
@@ -345,11 +552,38 @@ SUPERSEDING_ID: <memory_id if SUPERSEDE, otherwise NONE>
 
         let response = self.call_api(&prompt).await?;
 
-        let decision_str = self.extract_field(&response, "DECISION:")?;
-        let _reason = self.extract_field(&response, "REASON:")?;
-        let _superseding_str = self.extract_field(&response, "SUPERSEDING_ID:")?;
+        // Parse JSON response with fallback to string parsing
+        let consolidation_response: ConsolidationResponse = match serde_json::from_str(&response) {
+            Ok(data) => data,
+            Err(e) => {
+                warn!("JSON parsing failed: {}, attempting fallback string parsing", e);
+                // Fallback to old string parsing for backward compatibility
+                let decision_str = self.extract_field(&response, "DECISION:").or_else(|_| {
+                    self.extract_field(&response, "decision:")
+                })?;
+                let reason = self.extract_field(&response, "REASON:").or_else(|_| {
+                    self.extract_field(&response, "reason:")
+                }).unwrap_or_else(|_| "No reason provided".to_string());
+                let superseding_str = self.extract_field(&response, "SUPERSEDING_ID:").or_else(|_| {
+                    self.extract_field(&response, "superseding_id:")
+                }).ok();
 
-        let decision = match decision_str.trim() {
+                ConsolidationResponse {
+                    decision: decision_str.trim().to_string(),
+                    reason,
+                    superseding_id: superseding_str.and_then(|s| {
+                        let trimmed = s.trim();
+                        if trimmed == "NONE" || trimmed.is_empty() {
+                            None
+                        } else {
+                            Some(trimmed.to_string())
+                        }
+                    }),
+                }
+            }
+        };
+
+        let decision = match consolidation_response.decision.as_str() {
             "MERGE" => {
                 // Use the more important memory as the base
                 let into = if memory_a.importance >= memory_b.importance {
