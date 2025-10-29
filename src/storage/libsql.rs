@@ -430,7 +430,8 @@ impl LibsqlStorage {
         let migration_files = vec![
             "001_initial_schema.sql",
             "002_add_indexes.sql",
-            "006_vector_search.sql",    // Vector search table (libsql has vec0 built-in)
+            // Note: Vector search uses native embedding column in memories table (F32_BLOB)
+            // No need for separate memory_vectors table or vec0 extension
         ];
 
         for migration_file in migration_files {
@@ -912,24 +913,28 @@ impl LibsqlStorage {
 
         let conn = self.get_conn()?;
 
-        // Convert query embedding to JSON for sqlite-vec
+        // Convert query embedding to JSON for libsql vector functions
         let query_json = serde_json::to_string(query_embedding)?;
 
-        // Build query with optional namespace filter
+        // Build query using native libsql vector functions (no vec0 extension needed)
+        // Queries the memories table's embedding column (F32_BLOB)
         let sql = if namespace.is_some() {
             r#"
-            SELECT v.memory_id, vec_distance_cosine(v.embedding, ?) as distance
-            FROM memory_vectors v
-            JOIN memories m ON v.memory_id = m.id
-            WHERE m.namespace = ?
+            SELECT id, vector_distance_cos(embedding, vector32(?)) as distance
+            FROM memories
+            WHERE embedding IS NOT NULL
+              AND is_archived = 0
+              AND namespace = ?
             ORDER BY distance ASC
             LIMIT ?
             "#
             .to_string()
         } else {
             r#"
-            SELECT memory_id, vec_distance_cosine(embedding, ?) as distance
-            FROM memory_vectors
+            SELECT id, vector_distance_cos(embedding, vector32(?)) as distance
+            FROM memories
+            WHERE embedding IS NOT NULL
+              AND is_archived = 0
             ORDER BY distance ASC
             LIMIT ?
             "#
