@@ -4,7 +4,7 @@ This document tracks the detailed implementation phases and progress for Mnemosy
 
 ## Progress Overview
 
-**Current Status**: 10 of 10 phases complete - All core features implemented and tested
+**Current Status**: 11 of 11 phases complete - All core features implemented and tested
 
 ```
 ✅ Phase 1: Core Memory System
@@ -17,6 +17,7 @@ This document tracks the detailed implementation phases and progress for Mnemosy
 ✅ Phase 8: Claude Code Integration (Hooks)
 ✅ Phase 9: Comprehensive Testing
 ✅ Phase 10: Documentation
+✅ Phase 11: Local Vector Search
 ```
 
 ---
@@ -70,11 +71,11 @@ This document tracks the detailed implementation phases and progress for Mnemosy
   - Weighted ranking: 50% keyword, 20% graph, 20% importance, 10% recency
   - Exponential recency decay (30-day half-life)
 
-**Deferred**:
-- [ ] Vector similarity search (deferred to v2.0 due to compilation issues)
-- [ ] Embedding service (fastembed/ort compilation issues)
-
-**Rationale**: FTS5 keyword search provides sufficient accuracy for v1.0. Vector search can be added later without breaking changes.
+**Completed**:
+- [x] Vector similarity search with local embeddings (fastembed 5.2.0)
+- [x] Embedding service with nomic-embed-text-v1.5 (768 dimensions)
+- [x] Global model cache at ~/.cache/mnemosyne/models/
+- [x] Hybrid search with 5 configurable signals
 
 ---
 
@@ -304,6 +305,57 @@ Mnemosyne Storage (Rust)
 
 ---
 
+## ✅ Phase 11: Local Vector Search (COMPLETE)
+
+**Goal**: Implement local embedding generation and vector similarity search
+
+**Completed**:
+- [x] **LocalEmbeddingService** (`src/embeddings/local.rs`)
+  - fastembed 5.2.0 with ONNX Runtime
+  - nomic-embed-text-v1.5 model (768 dimensions)
+  - Thread-safe with Arc<Mutex<TextEmbedding>>
+  - Async-friendly via tokio::spawn_blocking
+  - Auto-downloads models on first use
+- [x] **Global Model Cache**
+  - Shared across projects at ~/.cache/mnemosyne/models/
+  - ~140MB per model, reused across all Mnemosyne projects
+  - CLI management: `mnemosyne models list/info/clear`
+- [x] **Storage Integration** (`src/storage/libsql.rs`)
+  - Auto-generates embeddings on store_memory()
+  - vector_search() method using sqlite-vec
+  - Cosine similarity with vec_distance_cosine
+  - Graceful degradation when embeddings unavailable
+- [x] **Hybrid Search Enhancement**
+  - SearchConfig with 5 configurable scoring weights
+  - Vector: 35%, Keyword: 30%, Graph: 20%, Importance: 10%, Recency: 5%
+  - Combines keyword (FTS5) + vector + graph + importance + recency
+  - Weighted ranking with user-configurable weights
+- [x] **CLI Tools**
+  - `mnemosyne embed --all` - Generate embeddings for all memories
+  - `mnemosyne embed --namespace` - Batch process by namespace
+  - `mnemosyne models list/info/clear` - Model cache management
+- [x] **Migration**
+  - 010_update_vector_dimensions.sql (768 dims for local models)
+  - Updated from 1536 (remote Voyage AI) to 768 (local fastembed)
+- [x] **Documentation**
+  - VECTOR_SEARCH.md (359 lines) - Complete reference
+  - Architecture, configuration, usage, troubleshooting
+  - Performance characteristics and migration guide
+- [x] **Testing**
+  - Integration tests passing (--test-threads=1)
+  - Semantic similarity validation
+  - Batch processing tests
+
+**Key Features**:
+- ✅ No external API calls for embeddings (fully local)
+- ✅ Privacy-preserving (no data leaves machine)
+- ✅ Production-ready performance (~50-100ms per embedding)
+- ✅ Graceful degradation throughout
+
+**Timeline**: 1 week (completed 2025-10-28)
+
+---
+
 ## Performance Targets
 
 | Metric | Target | Current Status |
@@ -324,16 +376,18 @@ Mnemosyne Storage (Rust)
 
 Detailed implementation plans available in `docs/v2/`:
 
-#### Vector Similarity Search (P0)
-**Plan**: [`docs/v2/vector-similarity-search-plan.md`](docs/v2/vector-similarity-search-plan.md)
+#### ✅ Vector Similarity Search (P0) - **COMPLETE**
+**Implemented**: Phase 11 (completed 2025-10-28)
 
-- Remote embeddings (Voyage AI or Anthropic) for v2.0
-- Local embeddings (fastembed) when compilation stable
-- sqlite-vec extension for native vector search
-- Hybrid ranking: vector (40%) + keyword (30%) + graph (20%) + importance (10%)
-- Target: 85-95% search accuracy (up from 70-80%)
+- ✅ Local embeddings with fastembed 5.2.0 (nomic-embed-text-v1.5, 768 dims)
+- ✅ Global model cache (~/.cache/mnemosyne/models/)
+- ✅ sqlite-vec extension for native vector search
+- ✅ Hybrid ranking: vector (35%) + keyword (30%) + graph (20%) + importance (10%) + recency (5%)
+- ✅ Configurable SearchConfig with user-defined weights
+- ✅ CLI tools for embedding generation and model management
+- ✅ Comprehensive documentation (VECTOR_SEARCH.md)
 
-**Timeline**: 2-3 weeks for remote embeddings
+**Status**: Production-ready, no external API calls required
 
 #### Background Memory Evolution (P1)
 **Plan**: [`docs/v2/background-memory-evolution-plan.md`](docs/v2/background-memory-evolution-plan.md)
@@ -437,8 +491,9 @@ Detailed implementation plans available in `docs/v2/`:
 - **v0.1.0** (Current): Core memory system with MCP integration
 - **v0.2.0** (Planned): Multi-agent orchestration complete
 - **v1.0.0** (Future): Production-ready with full test coverage
-- **v2.0.0** (Future): Vector search and advanced features
+- **v2.0.0** (In Progress): Vector search ✅ complete, evolution jobs in progress
+- **v2.1.0** (Planned): Background evolution and enhanced evaluation
 
 ---
 
-**Last Updated**: 2025-10-27
+**Last Updated**: 2025-10-28
