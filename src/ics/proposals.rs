@@ -135,6 +135,11 @@ impl ProposalsPanelState {
         self.show_details = !self.show_details;
     }
 
+    /// Check if details view is shown
+    pub fn is_showing_details(&self) -> bool {
+        self.show_details
+    }
+
     /// Set status filter
     pub fn set_status_filter(&mut self, filter: Option<ProposalStatus>) {
         self.status_filter = filter;
@@ -449,12 +454,12 @@ mod tests {
     #[test]
     fn test_toggle_details() {
         let mut state = ProposalsPanelState::new();
-        assert!(!state.show_details);
+        assert!(!state.is_showing_details());
 
         state.toggle_details();
-        assert!(state.show_details);
+        assert!(state.is_showing_details());
 
         state.toggle_details();
-        assert!(!state.show_details);
+        assert!(!state.is_showing_details());
     }
 }

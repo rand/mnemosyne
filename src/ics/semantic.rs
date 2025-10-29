@@ -112,8 +112,6 @@ pub struct SemanticAnalyzer {
 struct AnalysisRequest {
     /// Text to analyze
     text: String,
-    /// Response channel
-    response_tx: mpsc::UnboundedSender<SemanticAnalysis>,
 }
 
 impl SemanticAnalyzer {
@@ -126,7 +124,7 @@ impl SemanticAnalyzer {
         tokio::spawn(async move {
             while let Some(request) = request_rx.recv().await {
                 let analysis = Self::analyze_text(&request.text);
-                let _ = request.response_tx.send(analysis);
+                let _ = result_tx.send(analysis);
             }
         });
 
@@ -139,24 +137,10 @@ impl SemanticAnalyzer {
 
     /// Request analysis of text (non-blocking)
     pub fn analyze(&mut self, text: String) -> Result<()> {
-        let (response_tx, mut response_rx) = mpsc::unbounded_channel();
-
-        let request = AnalysisRequest {
-            text,
-            response_tx,
-        };
+        let request = AnalysisRequest { text };
 
         self.tx.send(request)?;
         self.analyzing = true;
-
-        // Forward result to our receiver
-        let result_tx = self.tx.clone();
-        tokio::spawn(async move {
-            if let Some(analysis) = response_rx.recv().await {
-                // Result available for pickup
-                let _ = result_tx; // Keep channel alive
-            }
-        });
 
         Ok(())
     }
@@ -400,5 +384,20 @@ mod tests {
         let analysis = SemanticAnalyzer::analyze_text(text);
 
         assert!(analysis.holes.iter().any(|h| h.kind == HoleKind::Contradiction));
+    }
+
+    #[tokio::test]
+    async fn test_analyzing_state() {
+        let mut analyzer = SemanticAnalyzer::new();
+
+        // Initially not analyzing
+        assert!(!analyzer.is_analyzing());
+
+        // After triggering analysis, should be analyzing
+        analyzer.analyze("test text".to_string()).unwrap();
+        assert!(analyzer.is_analyzing());
+
+        // Note: In real usage, try_recv() would eventually return a result
+        // and set analyzing to false, but that's async so can't test here
     }
 }

@@ -468,4 +468,20 @@ mod tests {
         assert_eq!(action.shortcut(), "Ctrl+M");
         assert!(!action.description().is_empty());
     }
+
+    #[test]
+    fn test_memory_panel_loading_state() {
+        let mut state = MemoryPanelState::new();
+
+        // Initially not loading
+        assert!(!state.is_loading());
+
+        // Set loading
+        state.set_loading(true);
+        assert!(state.is_loading());
+
+        // Clear loading
+        state.set_loading(false);
+        assert!(!state.is_loading());
+    }
 }
