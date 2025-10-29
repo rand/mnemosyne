@@ -52,6 +52,9 @@ clap = { version = "4.4", features = ["derive"] }
 async-trait = "0.1"
 regex = "1.10"
 
+# CRDT for ICS collaborative editing
+automerge = "0.5"
+
 # Built-in secrets management (no external tools needed)
 age = { version = "0.11", features = ["armor", "cli-common"] }
 secrecy = "0.10"

@@ -3,11 +3,15 @@
 //! Manages multiple text buffers with syntax highlighting
 
 mod buffer;
+mod crdt_buffer;
 mod cursor;
+mod sync;
 mod syntax;
 
 pub use buffer::{TextBuffer, BufferId};
+pub use crdt_buffer::{Actor, Attribution, CrdtBuffer};
 pub use cursor::{CursorState, Position, Movement};
+pub use sync::{Awareness, AwarenessTracker, SyncCoordinator, SyncMessage, SyncPayload};
 pub use syntax::{Language, HighlightKind};
 
 use std::collections::HashMap;
