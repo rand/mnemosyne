@@ -143,6 +143,7 @@ mnemosyne models clear     # Clear model cache (~140MB)
 
 For detailed vector search documentation, see [VECTOR_SEARCH.md](docs/VECTOR_SEARCH.md).
 
+
 ### Orchestrated Sessions (Default)
 
 **New in v2.0**: Running `mnemosyne` without any commands launches an orchestrated Claude Code session with full multi-agent coordination:

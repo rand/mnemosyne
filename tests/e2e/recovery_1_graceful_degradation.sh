@@ -231,7 +231,7 @@ print_cyan "Testing automatic recovery mechanisms..."
 # System should attempt to recover from transient failures
 # Create memory after previous stress tests - system should have recovered
 
-RECOVERY_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
+RECOVERY_OUTPUT=$(DATABASE_URL="$TEST_DB" "$BIN" remember \
     --content "Automatic recovery test - system should recover from previous stress" \
     --namespace "project:test" --importance 8 2>&1 || echo "")
 
