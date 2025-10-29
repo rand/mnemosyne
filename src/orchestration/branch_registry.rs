@@ -475,20 +475,25 @@ impl BranchRegistry {
                 })?;
             }
 
-            let data = RegistryData {
-                assignments: self.assignments.clone(),
-                phases: self.phases.clone(),
-            };
-
-            let json = serde_json::to_string_pretty(&data)
-                .map_err(|e| MnemosyneError::Other(format!("Failed to serialize registry: {}", e)))?;
-
-            std::fs::write(path, json).map_err(|e| {
+            // Zero-copy serialization: write directly to BufWriter without cloning
+            use std::io::BufWriter;
+            let file = std::fs::File::create(path).map_err(|e| {
                 MnemosyneError::Io(std::io::Error::new(
                     e.kind(),
-                    format!("Failed to write registry: {}", e),
+                    format!("Failed to create registry file: {}", e),
                 ))
             })?;
+
+            let writer = BufWriter::new(file);
+
+            let data = RegistryDataRef {
+                assignments: &self.assignments,
+                phases: &self.phases,
+            };
+
+            // Use compact JSON (faster than pretty) for internal persistence
+            serde_json::to_writer(writer, &data)
+                .map_err(|e| MnemosyneError::Other(format!("Failed to serialize registry: {}", e)))?;
         }
 
         Ok(())
@@ -500,14 +505,17 @@ impl BranchRegistry {
             return Ok(Self::with_persistence(path.to_path_buf()));
         }
 
-        let json = std::fs::read_to_string(path).map_err(|e| {
+        // Use BufReader for efficient reading
+        use std::io::BufReader;
+        let file = std::fs::File::open(path).map_err(|e| {
             MnemosyneError::Io(std::io::Error::new(
                 e.kind(),
-                format!("Failed to read registry: {}", e),
+                format!("Failed to open registry: {}", e),
             ))
         })?;
 
-        let data: RegistryData = serde_json::from_str(&json)
+        let reader = BufReader::new(file);
+        let data: RegistryData = serde_json::from_reader(reader)
             .map_err(|e| MnemosyneError::Other(format!("Failed to deserialize registry: {}", e)))?;
 
         Ok(Self {
@@ -533,11 +541,18 @@ pub struct RegistryStats {
     pub coordinated_assignments: usize,
 }
 
-/// Serializable registry data
+/// Serializable registry data (for deserialization with owned data)
 #[derive(Debug, Serialize, Deserialize)]
 struct RegistryData {
     assignments: HashMap<String, Vec<AgentAssignment>>,
     phases: HashMap<WorkItemId, Phase>,
+}
+
+/// Registry data with references (for zero-copy serialization)
+#[derive(Debug, Serialize)]
+struct RegistryDataRef<'a> {
+    assignments: &'a HashMap<String, Vec<AgentAssignment>>,
+    phases: &'a HashMap<WorkItemId, Phase>,
 }
 
 /// Thread-safe shared registry
