@@ -1924,7 +1924,7 @@ impl StorageBackend for LibsqlStorage {
             r#"
             UPDATE memories
             SET access_count = access_count + 1,
-                last_accessed_at = CURRENT_TIMESTAMP
+                last_accessed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
             WHERE id = ?
             "#,
             params![id.to_string()],
