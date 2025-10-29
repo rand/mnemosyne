@@ -29,6 +29,10 @@ pub struct EvolutionConfig {
     /// Consolidation job configuration
     pub consolidation: JobConfig,
 
+    /// Consolidation-specific settings (optional for backward compatibility)
+    #[serde(default)]
+    pub consolidation_config: ConsolidationConfig,
+
     /// Importance recalibration job configuration
     pub importance: JobConfig,
 
@@ -55,6 +59,54 @@ pub struct JobConfig {
     /// Maximum duration for job execution (in seconds)
     #[serde(with = "serde_duration")]
     pub max_duration: Duration,
+}
+
+/// Decision mode for consolidation job
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DecisionMode {
+    /// Use heuristics only (fast, free, less accurate)
+    Heuristic,
+
+    /// Use LLM for all decisions (slow, costs money, most accurate)
+    LlmAlways,
+
+    /// Use LLM selectively based on similarity range
+    LlmSelective {
+        /// Only use LLM for similarity in this range
+        llm_range: (f32, f32), // e.g., (0.80, 0.95)
+
+        /// Use heuristics outside range
+        heuristic_fallback: bool,
+    },
+
+    /// Try LLM, fall back to heuristics on error
+    LlmWithFallback,
+}
+
+/// Consolidation-specific configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConsolidationConfig {
+    /// Decision mode for consolidation
+    pub decision_mode: DecisionMode,
+
+    /// Maximum cost per consolidation run (in USD)
+    pub max_cost_per_run_usd: f32,
+}
+
+impl Default for DecisionMode {
+    fn default() -> Self {
+        DecisionMode::Heuristic
+    }
+}
+
+impl Default for ConsolidationConfig {
+    fn default() -> Self {
+        Self {
+            decision_mode: DecisionMode::Heuristic,
+            max_cost_per_run_usd: 0.50, // Default budget: 50 cents per run
+        }
+    }
 }
 
 // Custom serde module for Duration (serialize/deserialize as seconds)
@@ -88,6 +140,7 @@ impl Default for EvolutionConfig {
                 batch_size: 100,
                 max_duration: Duration::from_secs(300), // 5 minutes
             },
+            consolidation_config: ConsolidationConfig::default(),
             importance: JobConfig {
                 enabled: true,
                 interval: Duration::from_secs(604800), // 7 days
