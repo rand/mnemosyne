@@ -185,38 +185,49 @@ impl SemanticAnalyzer {
 
     /// Analyze text and extract semantic information
     fn analyze_text(text: &str) -> SemanticAnalysis {
-        let mut analysis = SemanticAnalysis::default();
+        let line_count = text.lines().count();
+
+        // Pre-allocate with estimated capacity (reduces reallocations)
+        let mut triples = Vec::with_capacity(line_count / 5);  // ~20% of lines have triples
+        let mut holes = Vec::with_capacity(line_count / 10);   // ~10% of lines have holes
+        let mut entities = HashMap::with_capacity(line_count / 2);  // ~50% entities/line
+        let mut relationships = Vec::with_capacity(line_count / 5);
 
         // Extract simple triples from text
         for (line_idx, line) in text.lines().enumerate() {
+            // Compute lowercase once per line for efficiency
+            let lower = line.to_lowercase();
+
             // Look for patterns like "X is Y", "X has Y", "X requires Y"
-            if let Some(triple) = Self::extract_triple(line, line_idx) {
-                analysis.triples.push(triple);
+            if let Some(triple) = Self::extract_triple(line, &lower, line_idx) {
+                // Build relationship while we have the triple (avoid clone later)
+                relationships.push((
+                    triple.subject.clone(),
+                    triple.predicate.clone(),
+                    triple.object.clone(),
+                ));
+                triples.push(triple);
             }
 
-            // Look for typed holes
-            analysis.holes.extend(Self::find_holes(line, line_idx));
+            // Look for typed holes (pass lowercase to avoid recomputation)
+            Self::find_holes_into(line, &lower, line_idx, &mut holes);
 
             // Extract entity mentions
-            Self::extract_entities(line, &mut analysis.entities);
+            Self::extract_entities(line, &mut entities);
         }
 
-        // Build relationships from triples
-        for triple in &analysis.triples {
-            analysis.relationships.push((
-                triple.subject.clone(),
-                triple.predicate.clone(),
-                triple.object.clone(),
-            ));
+        SemanticAnalysis {
+            triples,
+            holes,
+            entities,
+            relationships,
         }
-
-        analysis
     }
 
     /// Extract a semantic triple from a line
-    fn extract_triple(line: &str, line_idx: usize) -> Option<Triple> {
-        let lower = line.to_lowercase();
-
+    ///
+    /// Takes pre-computed lowercase for efficiency
+    fn extract_triple(line: &str, lower: &str, line_idx: usize) -> Option<Triple> {
         // Pattern: "X is Y"
         if let Some(is_pos) = lower.find(" is ") {
             let subject = line[..is_pos].trim().to_string();
@@ -268,12 +279,11 @@ impl SemanticAnalyzer {
         None
     }
 
-    /// Find typed holes in a line
-    fn find_holes(line: &str, line_idx: usize) -> Vec<TypedHole> {
-        let mut holes = Vec::new();
-
+    /// Find typed holes in a line and push them into the provided vector
+    ///
+    /// Takes pre-computed lowercase for efficiency
+    fn find_holes_into(line: &str, lower: &str, line_idx: usize, holes: &mut Vec<TypedHole>) {
         // Look for TODO/TBD/FIXME markers
-        let lower = line.to_lowercase();
         if lower.contains("todo") || lower.contains("tbd") || lower.contains("fixme") {
             holes.push(TypedHole {
                 name: "Incomplete".to_string(),
@@ -286,7 +296,6 @@ impl SemanticAnalyzer {
         }
 
         // Look for contradictions (words like "however", "but actually")
-        let lower = line.to_lowercase();
         if lower.contains("however") || lower.contains("but actually") || lower.contains("contradiction") {
             holes.push(TypedHole {
                 name: "Potential contradiction".to_string(),
@@ -315,8 +324,6 @@ impl SemanticAnalyzer {
                 }
             }
         }
-
-        holes
     }
 
     /// Extract entity mentions from a line
