@@ -345,6 +345,17 @@ enum EvolveJob {
         database: Option<String>,
     },
 
+    /// Run consolidation job (detect and merge duplicates)
+    Consolidation {
+        /// Batch size (max memories to check)
+        #[arg(short, long, default_value = "100")]
+        batch_size: usize,
+
+        /// Database path
+        #[arg(short, long)]
+        database: Option<String>,
+    },
+
     /// Run all evolution jobs
     All {
         /// Batch size for each job
@@ -1354,7 +1365,7 @@ if __name__ == "__main__":
             use anyhow::Context;
             use mnemosyne_core::{ConnectionMode, LibsqlStorage};
             use mnemosyne_core::evolution::{
-                ArchivalJob, ImportanceRecalibrator, LinkDecayJob,
+                ArchivalJob, ConsolidationJob, ImportanceRecalibrator, LinkDecayJob,
                 EvolutionJob, JobConfig,
             };
             use std::sync::Arc;
@@ -1365,6 +1376,7 @@ if __name__ == "__main__":
                 EvolveJob::Importance { database, .. }
                 | EvolveJob::Links { database, .. }
                 | EvolveJob::Archival { database, .. }
+                | EvolveJob::Consolidation { database, .. }
                 | EvolveJob::All { database, .. } => {
                     database
                         .clone()
@@ -1452,6 +1464,31 @@ if __name__ == "__main__":
                         }
                         Err(e) => {
                             eprintln!("✗ Archival failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                EvolveJob::Consolidation { batch_size, .. } => {
+                    println!("Running consolidation job...");
+                    let job = ConsolidationJob::new(storage.clone());
+                    let config = JobConfig {
+                        enabled: true,
+                        interval: Duration::from_secs(0),
+                        batch_size,
+                        max_duration: Duration::from_secs(300), // 5 minutes
+                    };
+
+                    match job.run(&config).await {
+                        Ok(report) => {
+                            println!("✓ Consolidation complete:");
+                            println!("  Memories processed: {}", report.memories_processed);
+                            println!("  Changes made: {}", report.changes_made);
+                            println!("  Errors: {}", report.errors);
+                            println!("  Duration: {:?}", report.duration);
+                            Ok(())
+                        }
+                        Err(e) => {
+                            eprintln!("✗ Consolidation failed: {}", e);
                             std::process::exit(1);
                         }
                     }
