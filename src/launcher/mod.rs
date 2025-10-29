@@ -16,7 +16,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     launcher::launch_orchestrated_session(None).await?;
+//!     launcher::launch_orchestrated_session(None, None).await?;
 //!     Ok(())
 //! }
 //! ```
@@ -62,6 +62,9 @@ pub struct LauncherConfig {
 
     /// Enable session hooks (default: true)
     pub enable_hooks: bool,
+
+    /// Initial prompt to send to Claude Code (optional)
+    pub initial_prompt: Option<String>,
 }
 
 impl Default for LauncherConfig {
@@ -77,6 +80,7 @@ impl Default for LauncherConfig {
             permission_mode: "default".to_string(),
             model: "sonnet".to_string(),
             enable_hooks: true,
+            initial_prompt: None,
         }
     }
 }
@@ -291,6 +295,12 @@ impl ClaudeCodeLauncher {
             args.push(startup_prompt.to_string());
         }
 
+        // Add initial prompt if provided
+        if let Some(ref prompt) = self.config.initial_prompt {
+            args.push("--prompt".to_string());
+            args.push(prompt.clone());
+        }
+
         args
     }
 }
@@ -391,9 +401,13 @@ fn get_default_db_path() -> String {
 }
 
 /// Launch an orchestrated Claude Code session (convenience function)
-pub async fn launch_orchestrated_session(db_path: Option<String>) -> Result<()> {
+pub async fn launch_orchestrated_session(
+    db_path: Option<String>,
+    initial_prompt: Option<String>,
+) -> Result<()> {
     let mut config = LauncherConfig::default();
     config.mnemosyne_db_path = db_path;
+    config.initial_prompt = initial_prompt;
 
     let launcher = ClaudeCodeLauncher::with_config(config)?;
     launcher.launch().await

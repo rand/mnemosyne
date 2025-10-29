@@ -768,88 +768,50 @@ async fn main() -> Result<()> {
             plan,
             database,
             dashboard,
-            polling_interval,
+            polling_interval: _,
             max_concurrent,
         }) => {
             info!("Launching multi-agent orchestration system...");
 
-            // Build Python command
-            let db_path = database.unwrap_or_else(|| "mnemosyne.db".to_string());
+            let db_path = get_db_path(database);
 
-            // Create Python script invocation
-            let python_script = format!(
-                r#"
-import asyncio
-import sys
-import json
-from pathlib import Path
-
-# Add src directory to Python path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-try:
-    from orchestration import create_engine
-except ImportError as e:
-    print(f"Error: PyO3 bindings not available: {{e}}", file=sys.stderr)
-    print("Install with: maturin develop --features python", file=sys.stderr)
-    sys.exit(1)
-
-async def main():
-    # Parse work plan
-    plan_str = {}
-    try:
-        # Try to parse as JSON
-        work_plan = json.loads(plan_str)
-    except json.JSONDecodeError:
-        # Treat as plain prompt
-        work_plan = {{"prompt": plan_str}}
-
-    # Create engine
-    engine = await create_engine(db_path={})
-
-    # Execute work plan
-    result = await engine.execute_work_plan(work_plan)
-
-    # Print results
-    print(json.dumps(result, indent=2))
-
-    # Cleanup
-    await engine.stop()
-
-if __name__ == "__main__":
-    asyncio.run(main())
-"#,
-                serde_json::to_string(&plan).unwrap(),
-                serde_json::to_string(&db_path).unwrap()
-            );
-
-            // Write script to temp file
-            let script_path = std::env::temp_dir().join("mnemosyne_orchestrate.py");
-            std::fs::write(&script_path, python_script)?;
-
+            println!("🤖 Mnemosyne Multi-Agent Orchestration");
+            println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             println!("Configuration:");
             println!("  Database: {}", db_path);
-            println!("  Polling interval: {}ms", polling_interval);
             println!("  Max concurrent agents: {}", max_concurrent);
-            println!("  Dashboard: {}", if dashboard { "enabled" } else { "disabled" });
+            println!("  Dashboard: {}", if dashboard { "enabled (future)" } else { "disabled" });
+            println!("  Work plan: {}", plan);
             println!();
 
-            // Execute Python script
-            let output = std::process::Command::new("python3")
-                .arg(&script_path)
-                .output()?;
+            // Create launcher configuration
+            let mut config = launcher::LauncherConfig::default();
+            config.mnemosyne_db_path = Some(db_path.clone());
+            config.max_concurrent_agents = max_concurrent as u8;
 
-            // Clean up temp file
-            let _ = std::fs::remove_file(&script_path);
-
-            if output.status.success() {
-                println!("{}", String::from_utf8_lossy(&output.stdout));
-                Ok(())
+            // Parse plan as JSON or treat as prompt
+            if let Ok(plan_json) = serde_json::from_str::<serde_json::Value>(&plan) {
+                info!("Parsed work plan as JSON");
+                debug!("Plan: {:?}", plan_json);
+                // TODO: Process structured work plan when ready
+                println!("📋 Structured work plan detected (execution pending)");
+                println!();
             } else {
-                eprintln!("Orchestration failed:");
-                eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-                std::process::exit(1);
+                info!("Treating plan as plain text prompt");
+                println!("📝 Prompt-based orchestration:");
+                println!("   {}", plan);
+                println!();
             }
+
+            // Launch orchestrated session
+            println!("🚀 Starting orchestration engine...");
+            println!();
+
+            launcher::launch_orchestrated_session(Some(db_path), Some(plan)).await?;
+
+            println!();
+            println!("✨ Orchestration session complete");
+            Ok(())
         }
         Some(Commands::Remember {
             content,
@@ -1559,7 +1521,7 @@ if __name__ == "__main__":
             let db_path = get_db_path(cli.db_path);
 
             // Launch orchestrated session
-            launcher::launch_orchestrated_session(Some(db_path)).await
+            launcher::launch_orchestrated_session(Some(db_path), None).await
         }
     }
 }
