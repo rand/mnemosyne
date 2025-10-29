@@ -164,7 +164,7 @@ mod tests {
             session_end_summary: true,
         };
 
-        let notifier = Arc::new(ConflictNotifier::new(file_tracker, config));
+        let notifier = Arc::new(ConflictNotifier::new(config, file_tracker));
 
         // Spawn task with short interval for testing
         let mut handle = NotificationTaskHandle::spawn(notifier, 1);
@@ -192,7 +192,7 @@ mod tests {
             session_end_summary: true,
         };
 
-        let notifier = Arc::new(ConflictNotifier::new(file_tracker, config));
+        let notifier = Arc::new(ConflictNotifier::new(config, file_tracker));
 
         let mut handle = NotificationTaskHandle::spawn(notifier, 1);
 
@@ -215,7 +215,7 @@ mod tests {
             session_end_summary: true,
         };
 
-        let notifier = Arc::new(ConflictNotifier::new(file_tracker, config));
+        let notifier = Arc::new(ConflictNotifier::new(config, file_tracker));
 
         // Spawn task with 1-second interval for testing
         let mut handle = NotificationTaskHandle::spawn(notifier, 1);

@@ -26,8 +26,7 @@ mod e2e_tests {
     use crate::types::Namespace;
     use chrono::Utc;
     use std::path::PathBuf;
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
+    use std::sync::{Arc, RwLock};
 
     /// Setup helper for creating a fully-configured branch coordinator
     async fn setup_test_coordinator() -> BranchCoordinator {
@@ -45,7 +44,7 @@ mod e2e_tests {
             session_end_summary: true,
         };
 
-        let notifier = Arc::new(ConflictNotifier::new(file_tracker, notifier_config));
+        let notifier = Arc::new(ConflictNotifier::new(notifier_config, file_tracker));
 
         let git_wrapper = Arc::new(GitWrapper::new(registry.clone(), PathBuf::from(".")));
 

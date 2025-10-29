@@ -29,8 +29,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 /// Branch coordinator configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -378,7 +377,8 @@ impl BranchCoordinator {
 
         // If cross-process coordination enabled, send messages
         if let Some(ref coordinator) = self.cross_process {
-            let coordinator = coordinator.read().await;
+            let coordinator = coordinator.read()
+                .map_err(|e| MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e)))?;
             for agent_id in existing_agents {
                 let message = CoordinationMessage {
                     id: uuid::Uuid::new_v4().to_string(),
@@ -442,7 +442,8 @@ impl BranchCoordinator {
     /// Process incoming cross-process messages
     pub async fn process_cross_process_messages(&self) -> Result<Vec<CoordinationMessage>> {
         if let Some(ref coordinator) = self.cross_process {
-            let coordinator = coordinator.read().await;
+            let coordinator = coordinator.read()
+                .map_err(|e| MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e)))?;
             coordinator.receive_messages()
         } else {
             Ok(vec![])
@@ -452,7 +453,8 @@ impl BranchCoordinator {
     /// Send heartbeat (if cross-process enabled)
     pub async fn send_heartbeat(&self) -> Result<()> {
         if let Some(ref coordinator) = self.cross_process {
-            let mut coordinator = coordinator.write().await;
+            let mut coordinator = coordinator.write()
+                .map_err(|e| MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e)))?;
             coordinator.heartbeat()?;
         }
         Ok(())
@@ -461,7 +463,8 @@ impl BranchCoordinator {
     /// Cleanup stale processes (if cross-process enabled)
     pub async fn cleanup_stale_processes(&self) -> Result<Vec<AgentId>> {
         if let Some(ref coordinator) = self.cross_process {
-            let coordinator = coordinator.read().await;
+            let coordinator = coordinator.read()
+                .map_err(|e| MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e)))?;
             coordinator.cleanup_stale_processes()
         } else {
             Ok(vec![])
@@ -494,7 +497,7 @@ mod tests {
             session_end_summary: true,
         };
 
-        let notifier = Arc::new(ConflictNotifier::new(file_tracker, notifier_config));
+        let notifier = Arc::new(ConflictNotifier::new(notifier_config, file_tracker));
 
         let git_wrapper = Arc::new(GitWrapper::new(registry.clone(), PathBuf::from(".")));
 
