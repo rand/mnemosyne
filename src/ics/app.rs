@@ -2,8 +2,16 @@
 //!
 //! Standalone ICS application that can be run with `mnemosyne --ics`
 
-use super::{IcsConfig, editor::{EditorState, EditorWidget, IcsEditor, Movement}};
-use crate::tui::{EventLoop, TerminalConfig, TerminalManager, TuiEvent};
+use super::{
+    IcsConfig,
+    editor::{EditorState, EditorWidget, IcsEditor, Movement},
+    memory_panel::{MemoryPanel, MemoryPanelState},
+    semantic::{SemanticAnalyzer, SemanticAnalysis},
+};
+use crate::{
+    tui::{EventLoop, TerminalConfig, TerminalManager, TuiEvent},
+    types::MemoryNote,
+};
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
@@ -33,6 +41,14 @@ pub struct IcsApp {
     state: AppState,
     /// Status message
     status: String,
+    /// Memory panel state
+    memory_panel: MemoryPanelState,
+    /// Semantic analyzer
+    semantic_analyzer: SemanticAnalyzer,
+    /// Latest semantic analysis result
+    semantic_analysis: Option<SemanticAnalysis>,
+    /// Placeholder memories (will be fetched from storage in real implementation)
+    memories: Vec<MemoryNote>,
 }
 
 impl IcsApp {
@@ -43,7 +59,11 @@ impl IcsApp {
             editor: IcsEditor::new(),
             editor_state: EditorState::default(),
             state: AppState::Running,
-            status: "ICS - Integrated Context Studio | Ctrl+Q: quit | Ctrl+S: save | Ctrl+O: open".to_string(),
+            status: "ICS - Integrated Context Studio | Ctrl+Q: quit | Ctrl+S: save | Ctrl+M: memories | Ctrl+O: open".to_string(),
+            memory_panel: MemoryPanelState::new(),
+            semantic_analyzer: SemanticAnalyzer::new(),
+            semantic_analysis: None,
+            memories: Vec::new(), // TODO: fetch from storage
         }
     }
 
@@ -61,6 +81,22 @@ impl IcsApp {
         buffer.save_file()?;
         self.status = format!("Saved: {}", buffer.path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "untitled".to_string()));
         Ok(())
+    }
+
+    /// Trigger semantic analysis on current buffer
+    fn trigger_semantic_analysis(&mut self) {
+        let buffer = self.editor.active_buffer();
+        let text = buffer.text().to_string();
+
+        // Trigger background analysis
+        if let Err(e) = self.semantic_analyzer.analyze(text) {
+            eprintln!("Error triggering semantic analysis: {}", e);
+        }
+
+        // Try to get result if ready
+        if let Some(analysis) = self.semantic_analyzer.try_recv() {
+            self.semantic_analysis = Some(analysis);
+        }
     }
 
     /// Run the ICS application
@@ -114,6 +150,16 @@ impl IcsApp {
                         }
                     }
 
+                    // Toggle memory panel
+                    (KeyCode::Char('m'), true) => {
+                        self.memory_panel.toggle();
+                        self.status = if self.memory_panel.is_visible() {
+                            "Memory panel: visible".to_string()
+                        } else {
+                            "Memory panel: hidden".to_string()
+                        };
+                    }
+
                     // Undo/Redo
                     (KeyCode::Char('z'), true) => {
                         buffer.undo();
@@ -127,11 +173,13 @@ impl IcsApp {
                     // Text input
                     (KeyCode::Char(c), false) => {
                         buffer.insert(&c.to_string());
+                        self.trigger_semantic_analysis();
                     }
 
                     // Newline
                     (KeyCode::Enter, _) => {
                         buffer.insert("\n");
+                        self.trigger_semantic_analysis();
                     }
 
                     // Backspace
@@ -140,12 +188,14 @@ impl IcsApp {
                         if pos > 0 {
                             buffer.move_cursor(Movement::Left);
                             buffer.delete();
+                            self.trigger_semantic_analysis();
                         }
                     }
 
                     // Delete
                     (KeyCode::Delete, _) => {
                         buffer.delete();
+                        self.trigger_semantic_analysis();
                     }
 
                     // Cursor movement
@@ -204,6 +254,20 @@ impl IcsApp {
                 .style(Style::default().fg(Color::White).bg(Color::DarkGray));
             frame.render_widget(status_widget, chunks[0]);
 
+            // Split editor area if memory panel is visible
+            let editor_area = if self.memory_panel.is_visible() {
+                let horizontal_chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Percentage(60), // Editor
+                        Constraint::Percentage(40), // Memory panel
+                    ])
+                    .split(chunks[1]);
+                horizontal_chunks[0]
+            } else {
+                chunks[1]
+            };
+
             // Render editor
             let editor_title = if let Some(path) = &buffer.path {
                 let dirty_mark = if buffer.dirty { "*" } else { "" };
@@ -222,16 +286,40 @@ impl IcsApp {
                 .block(editor_block)
                 .focused(true);
 
-            frame.render_stateful_widget(editor_widget, chunks[1], editor_state);
+            frame.render_stateful_widget(editor_widget, editor_area, editor_state);
 
-            // Render info bar at bottom (cursor position, language)
+            // Render memory panel if visible
+            if self.memory_panel.is_visible() {
+                let horizontal_chunks = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([
+                        Constraint::Percentage(60), // Editor
+                        Constraint::Percentage(40), // Memory panel
+                    ])
+                    .split(chunks[1]);
+
+                let panel_widget = MemoryPanel::new(&self.memories);
+                frame.render_stateful_widget(panel_widget, horizontal_chunks[1], &mut self.memory_panel);
+            }
+
+            // Render info bar at bottom (cursor position, language, semantic stats)
             let cursor_pos = format!(
                 "Ln {}, Col {} ",
                 buffer.cursor.position.line + 1,
                 buffer.cursor.position.column + 1
             );
             let lang = format!("{:?} ", buffer.language);
-            let info_text = format!("{} | {}", cursor_pos, lang);
+            let semantic_info = if let Some(analysis) = &self.semantic_analysis {
+                format!(
+                    "| Triples: {} | Holes: {} | Entities: {} ",
+                    analysis.triples.len(),
+                    analysis.holes.len(),
+                    analysis.entities.len()
+                )
+            } else {
+                String::new()
+            };
+            let info_text = format!("{} | {}{}", cursor_pos, lang, semantic_info);
 
             let info_widget = Paragraph::new(info_text)
                 .style(Style::default().fg(Color::DarkGray));
