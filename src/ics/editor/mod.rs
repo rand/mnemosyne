@@ -7,12 +7,14 @@ mod crdt_buffer;
 mod cursor;
 mod sync;
 mod syntax;
+mod widget;
 
 pub use buffer::{TextBuffer, BufferId};
 pub use crdt_buffer::{Actor, Attribution, CrdtBuffer};
 pub use cursor::{CursorState, Position, Movement};
 pub use sync::{Awareness, AwarenessTracker, SyncCoordinator, SyncMessage, SyncPayload};
 pub use syntax::{Language, HighlightKind};
+pub use widget::{EditorWidget, EditorState};
 
 use std::collections::HashMap;
 use std::path::PathBuf;

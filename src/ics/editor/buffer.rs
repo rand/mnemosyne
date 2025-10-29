@@ -3,8 +3,10 @@
 //! Efficient text storage and manipulation using ropey
 
 use super::{CursorState, Language};
+use anyhow::{Context, Result};
 use ropey::Rope;
 use std::collections::VecDeque;
+use std::fs;
 use std::path::PathBuf;
 
 /// Buffer identifier
@@ -168,5 +170,198 @@ impl TextBuffer {
             return None;
         }
         Some(self.content.line(idx).to_string())
+    }
+
+    /// Load file from disk
+    pub fn load_file(&mut self, path: PathBuf) -> Result<()> {
+        let content = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read file: {}", path.display()))?;
+
+        self.content = Rope::from_str(&content);
+        self.path = Some(path.clone());
+        self.language = Language::from_path(&path).unwrap_or(Language::PlainText);
+        self.dirty = false;
+
+        // Reset cursor to start
+        self.cursor.position.line = 0;
+        self.cursor.position.column = 0;
+
+        // Clear undo/redo stacks
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+
+        Ok(())
+    }
+
+    /// Save buffer to disk
+    pub fn save_file(&mut self) -> Result<()> {
+        let path = self.path.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("No file path set"))?;
+
+        let content = self.content.to_string();
+        fs::write(path, content)
+            .with_context(|| format!("Failed to write file: {}", path.display()))?;
+
+        self.dirty = false;
+
+        Ok(())
+    }
+
+    /// Save buffer to a new path
+    pub fn save_file_as(&mut self, path: PathBuf) -> Result<()> {
+        self.path = Some(path.clone());
+        self.language = Language::from_path(&path).unwrap_or(Language::PlainText);
+        self.save_file()
+    }
+
+    /// Get text content as string
+    pub fn text(&self) -> String {
+        self.content.to_string()
+    }
+
+    /// Move cursor
+    pub fn move_cursor(&mut self, movement: super::Movement) {
+        use super::Movement::*;
+
+        match movement {
+            Left => {
+                if self.cursor.position.column > 0 {
+                    self.cursor.position.column -= 1;
+                } else if self.cursor.position.line > 0 {
+                    // Move to end of previous line
+                    self.cursor.position.line -= 1;
+                    if let Some(line) = self.line(self.cursor.position.line) {
+                        self.cursor.position.column = line.trim_end().len();
+                    }
+                }
+            }
+            Right => {
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    let line_len = line.trim_end().len();
+                    if self.cursor.position.column < line_len {
+                        self.cursor.position.column += 1;
+                    } else if self.cursor.position.line < self.line_count() - 1 {
+                        // Move to start of next line
+                        self.cursor.position.line += 1;
+                        self.cursor.position.column = 0;
+                    }
+                }
+            }
+            Up => {
+                if self.cursor.position.line > 0 {
+                    self.cursor.position.line -= 1;
+                    // Clamp column to line length
+                    if let Some(line) = self.line(self.cursor.position.line) {
+                        let line_len = line.trim_end().len();
+                        self.cursor.position.column = self.cursor.position.column.min(line_len);
+                    }
+                }
+            }
+            Down => {
+                if self.cursor.position.line < self.line_count() - 1 {
+                    self.cursor.position.line += 1;
+                    // Clamp column to line length
+                    if let Some(line) = self.line(self.cursor.position.line) {
+                        let line_len = line.trim_end().len();
+                        self.cursor.position.column = self.cursor.position.column.min(line_len);
+                    }
+                }
+            }
+            LineStart => {
+                self.cursor.position.column = 0;
+            }
+            LineEnd => {
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    // Trim newline characters from line length
+                    self.cursor.position.column = line.trim_end().len();
+                }
+            }
+            _ => {
+                // TODO: Implement other movement commands
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ics::editor::{Movement, Position};
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_file_load_save() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+
+        // Write initial content
+        fs::write(&file_path, "Hello, world!").unwrap();
+
+        // Load into buffer
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.load_file(file_path.clone()).unwrap();
+
+        assert_eq!(buffer.text(), "Hello, world!");
+        assert_eq!(buffer.path, Some(file_path.clone()));
+        assert!(!buffer.dirty);
+
+        // Modify buffer
+        buffer.insert(" More text.");
+        assert!(buffer.dirty);
+
+        // Save back
+        buffer.save_file().unwrap();
+        assert!(!buffer.dirty);
+
+        // Read back from disk
+        let content = fs::read_to_string(&file_path).unwrap();
+        assert!(content.contains("Hello, world!"));
+        assert!(content.contains("More text."));
+    }
+
+    #[test]
+    fn test_cursor_movement() {
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.insert("Line 1\nLine 2\nLine 3");
+
+        // Move to start
+        buffer.cursor.position = Position { line: 0, column: 0 };
+
+        // Move right
+        buffer.move_cursor(Movement::Right);
+        assert_eq!(buffer.cursor.position.column, 1);
+
+        // Move down
+        buffer.move_cursor(Movement::Down);
+        assert_eq!(buffer.cursor.position.line, 1);
+
+        // Move to line end
+        buffer.move_cursor(Movement::LineEnd);
+        // Rope lines include newlines, so line length includes '\n'
+        let line_len = buffer.line(buffer.cursor.position.line).unwrap().trim_end().len();
+        assert_eq!(buffer.cursor.position.column, line_len);
+
+        // Move to line start
+        buffer.move_cursor(Movement::LineStart);
+        assert_eq!(buffer.cursor.position.column, 0);
+    }
+
+    #[test]
+    fn test_undo_redo() {
+        let mut buffer = TextBuffer::new(0, None);
+
+        buffer.insert("Hello");
+        buffer.insert(" World");
+
+        assert_eq!(buffer.text(), "Hello World");
+
+        // Undo
+        buffer.undo();
+        assert_eq!(buffer.text(), "Hello");
+
+        // Redo
+        buffer.redo();
+        assert_eq!(buffer.text(), "Hello World");
     }
 }
