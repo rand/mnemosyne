@@ -8,13 +8,13 @@
 //! - Notifications: <5ms per notification
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use mnemosyne::launcher::agents::AgentRole;
-use mnemosyne::orchestration::{
+use mnemosyne_core::launcher::agents::AgentRole;
+use mnemosyne_core::orchestration::{
     AgentId, AgentIdentity, BranchRegistry, ConflictDetector, ConflictNotifier,
     CrossProcessCoordinator, FileTracker, ModificationType, NotificationConfig,
     WorkIntent, CoordinationMode,
 };
-use mnemosyne::types::Namespace;
+use mnemosyne_core::types::Namespace;
 use std::path::PathBuf;
 use std::sync::Arc;
 use chrono::Utc;
@@ -157,7 +157,7 @@ fn bench_cross_process(c: &mut Criterion) {
         let coordinator = CrossProcessCoordinator::new(temp_dir.path(), agent_id).unwrap();
 
         b.iter(|| {
-            use mnemosyne::orchestration::{CoordinationMessage, MessageType};
+            use mnemosyne_core::orchestration::{CoordinationMessage, MessageType};
             let message = CoordinationMessage {
                 id: uuid::Uuid::new_v4().to_string(),
                 from_agent: AgentId::new(),
@@ -177,7 +177,7 @@ fn bench_cross_process(c: &mut Criterion) {
 
         // Send 10 messages
         for _ in 0..10 {
-            use mnemosyne::orchestration::{CoordinationMessage, MessageType};
+            use mnemosyne_core::orchestration::{CoordinationMessage, MessageType};
             let message = CoordinationMessage {
                 id: uuid::Uuid::new_v4().to_string(),
                 from_agent: AgentId::new(),

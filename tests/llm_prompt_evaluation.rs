@@ -8,8 +8,8 @@
 //! Run with: cargo test --test llm_prompt_evaluation -- --ignored
 //! Requires ANTHROPIC_API_KEY environment variable.
 
-use mnemosyne::services::{LlmConfig, LlmService};
-use mnemosyne::types::{MemoryNote, MemoryType, Namespace, MemoryId};
+use mnemosyne_core::services::{LlmConfig, LlmService};
+use mnemosyne_core::types::{MemoryNote, MemoryType, Namespace, MemoryId};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
