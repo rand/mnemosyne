@@ -693,9 +693,20 @@ impl LibsqlStorage {
 
         let embedding_model: String = row.get(19)?;
 
-        // Get embedding from column 20 (F32_BLOB stored as JSON string)
-        let embedding: Option<Vec<f32>> = row.get::<Option<String>>(20)?
-            .and_then(|json_str| serde_json::from_str(&json_str).ok());
+        // Get embedding from column 20 (F32_BLOB type)
+        // Try to get as bytes and convert, or fall back to None if not present
+        let embedding: Option<Vec<f32>> = row.get::<Option<Vec<u8>>>(20).ok().flatten()
+            .and_then(|bytes| {
+                // F32_BLOB is stored as raw f32 bytes in little-endian
+                if bytes.len() % 4 != 0 {
+                    return None;
+                }
+                Some(
+                    bytes.chunks_exact(4)
+                        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                        .collect()
+                )
+            });
 
         Ok(MemoryNote {
             id,
