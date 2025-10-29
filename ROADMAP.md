@@ -622,15 +622,28 @@ When future enhancements are scheduled:
 
 ## Version History
 
-- **v0.1.0** (Current): Core memory system with MCP integration
-- **v0.2.0** (Planned): Multi-agent orchestration complete
-- **v1.0.0** (Future): Production-ready with full test coverage
-- **v2.0.0** (In Progress): Vector search ✅ complete, evolution jobs in progress
-- **v2.1.0** (Planned): Background evolution and enhanced evaluation
+- **v0.1.0**: Core memory system with MCP integration
+- **v0.2.0**: Multi-agent orchestration complete
+- **v1.0.0**: Production-ready with full test coverage
+- **v2.0.0** (In Progress - Blocked on ICS):
+  - ✅ Vector search (fastembed + sqlite-vec)
+  - ✅ Background evolution jobs (importance, links, archival, consolidation)
+  - ✅ Agent RBAC and multi-agent orchestration
+  - ✅ Privacy-preserving evaluation system
+  - ✅ Production hardening (export, WAL recovery, E2E tests)
+  - ⏸️ **ICS (Integrated Context Studio)** - TUI for memory management (blocker)
+- **v2.1.0** (Planned): Enhanced evaluation and advanced agent features
 
 ---
 
-**Last Updated**: 2025-10-28
+**Last Updated**: 2025-10-29
 
 **Recent Milestones**:
+- 2025-10-29: Merged orchestrated-launcher (production hardening, 95% test pass rate)
 - 2025-10-28: Evolution LLM Integration complete (Vector similarity + LLM decisions + Hybrid modes)
+- 2025-10-28: Consolidated v2.0 features, identified ICS as release blocker
+
+**v2.0 Release Status**:
+- **Ready**: All core v2.0 features implemented and tested
+- **Blocker**: ICS (Integrated Context Studio) TUI implementation in progress
+- **Timeline**: v2.0 release pending ICS completion (target: Q4 2025)
