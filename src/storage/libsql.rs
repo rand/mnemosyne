@@ -693,9 +693,9 @@ impl LibsqlStorage {
 
         let embedding_model: String = row.get(19)?;
 
-        // Try to get embedding from column 20 if it exists (F32_BLOB)
-        // Note: We'll handle embedding parsing in Phase 3 when implementing vector search
-        let embedding: Option<Vec<f32>> = None; // Placeholder for now
+        // Get embedding from column 20 (F32_BLOB stored as JSON string)
+        let embedding: Option<Vec<f32>> = row.get::<Option<String>>(20)?
+            .and_then(|json_str| serde_json::from_str(&json_str).ok());
 
         Ok(MemoryNote {
             id,
