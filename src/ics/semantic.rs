@@ -1,0 +1,5 @@
+//! Semantic analysis with DSPy (stub)
+//!
+//! To be implemented in Phase 5
+
+// Placeholder for semantic analysis

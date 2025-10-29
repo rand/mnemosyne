@@ -114,7 +114,36 @@ Provide a structured response with:
 4. Determine the memory type (one of: ArchitectureDecision, CodePattern, BugFix, Configuration, Constraint, Entity, Insight, Reference, Preference)
 5. Assign an importance score (1-10, where 10 is critical)
 
-Format your response EXACTLY as:
+Examples:
+
+Example 1:
+Raw: "Switched from SQLite to PostgreSQL for production due to concurrent write limitations. Migration completed successfully."
+Context: "Database architecture discussion"
+SUMMARY: Migration from SQLite to PostgreSQL completed to support concurrent writes in production
+KEYWORDS: PostgreSQL, SQLite, migration, concurrency, database
+TAGS: architecture, infrastructure
+TYPE: ArchitectureDecision
+IMPORTANCE: 8
+
+Example 2:
+Raw: "Fixed infinite loop in retry logic by adding max_attempts counter. Bug was causing API timeouts."
+Context: "API reliability improvements"
+SUMMARY: Added max_attempts counter to prevent infinite retry loops causing API timeouts
+KEYWORDS: retry, bugfix, infinite-loop, API, timeout
+TAGS: reliability, api
+TYPE: BugFix
+IMPORTANCE: 7
+
+Example 3:
+Raw: "User prefers dark mode for terminal interfaces"
+Context: "User interface preferences"
+SUMMARY: User preference for dark mode terminal interfaces
+KEYWORDS: dark-mode, terminal, UI, preferences
+TAGS: preferences, ui
+TYPE: Preference
+IMPORTANCE: 3
+
+Now format your response EXACTLY as:
 SUMMARY: <summary>
 KEYWORDS: <keyword1>, <keyword2>, ...
 TAGS: <tag1>, <tag2>, ...
@@ -234,13 +263,35 @@ Candidate memories:
 For each candidate that has a meaningful relationship, specify:
 1. The candidate index
 2. The relationship type (Extends, Contradicts, Implements, References, Supersedes)
-3. The link strength (0.0 - 1.0)
+3. The link strength (0.0 - 1.0, higher = stronger relationship)
 4. A brief reason
 
-Format EXACTLY as (one per line):
+Examples of good link identification:
+
+Example 1 - Extension:
+New: "Added authentication middleware to API endpoints"
+Candidate [2]: "Set up JWT token generation for user sessions"
+LINK: 2, Extends, 0.9, JWT implementation provides auth mechanism for the middleware
+
+Example 2 - Contradiction:
+New: "Decided to use REST API instead of GraphQL"
+Candidate [5]: "GraphQL chosen for API layer due to flexible queries"
+LINK: 5, Contradicts, 0.95, New decision reverses previous GraphQL choice
+
+Example 3 - References:
+New: "Updated documentation for deployment process"
+Candidate [1]: "Created CI/CD pipeline for automated deployments"
+LINK: 1, References, 0.7, Documentation covers the pipeline setup process
+
+Example 4 - No meaningful links:
+New: "User prefers dark mode terminal"
+Candidates are all about database architecture
+NO_LINKS
+
+Now analyze the actual memories above. Format EXACTLY as (one per line):
 LINK: <index>, <type>, <strength>, <reason>
 
-Only include meaningful links. If no relationships exist, respond with:
+Only include meaningful links (strength >= 0.6). If no relationships exist, respond with:
 NO_LINKS
 "#,
             new_memory.summary,
@@ -307,14 +358,14 @@ NO_LINKS
         let prompt = format!(
             r#"You are analyzing whether two memories should be consolidated in an agentic memory system.
 
-Memory A:
+Memory A (ID: {}):
 Summary: {}
 Content: {}
 Type: {:?}
 Importance: {}
 Tags: {}
 
-Memory B:
+Memory B (ID: {}):
 Summary: {}
 Content: {}
 Type: {:?}
@@ -322,25 +373,51 @@ Importance: {}
 Tags: {}
 
 Determine if these memories should be:
-1. MERGE - Combine into one (very similar content)
-2. SUPERSEDE - One replaces the other (updated information)
-3. KEEP_BOTH - Maintain separately (distinct content)
+1. MERGE - Combine into one (very similar content, both valuable)
+2. SUPERSEDE - One replaces the other (updated/corrected information)
+3. KEEP_BOTH - Maintain separately (distinct content, both relevant)
 
-Format EXACTLY as:
+Examples:
+
+Example 1 - MERGE:
+Memory A: "PostgreSQL migration completed successfully"
+Memory B: "Switched from SQLite to PostgreSQL for production"
+DECISION: MERGE
+REASON: Both describe the same migration event, should combine into comprehensive record
+SUPERSEDING_ID: NONE
+
+Example 2 - SUPERSEDE:
+Memory A (Importance: 6): "API endpoint uses /api/v1/users"
+Memory B (Importance: 8): "API endpoint updated to /api/v2/users with new schema"
+DECISION: SUPERSEDE
+REASON: Memory B contains updated information that makes A obsolete
+SUPERSEDING_ID: {}
+
+Example 3 - KEEP_BOTH:
+Memory A: "User authentication implemented with JWT"
+Memory B: "Database connection pooling configured"
+DECISION: KEEP_BOTH
+REASON: Distinct technical decisions, both remain relevant
+SUPERSEDING_ID: NONE
+
+Now analyze the actual memories above. Format EXACTLY as:
 DECISION: <MERGE|SUPERSEDE|KEEP_BOTH>
 REASON: <brief explanation>
 SUPERSEDING_ID: <memory_id if SUPERSEDE, otherwise NONE>
 "#,
+            memory_a.id,
             memory_a.summary,
             memory_a.content,
             memory_a.memory_type,
             memory_a.importance,
             memory_a.tags.join(", "),
+            memory_b.id,
             memory_b.summary,
             memory_b.content,
             memory_b.memory_type,
             memory_b.importance,
-            memory_b.tags.join(", ")
+            memory_b.tags.join(", "),
+            memory_b.id  // For example superseding ID
         );
 
         let response = self.call_api(&prompt).await?;
