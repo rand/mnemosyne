@@ -6,7 +6,7 @@
 use crate::embeddings::{EmbeddingService, LocalEmbeddingService};
 use crate::error::{MnemosyneError, Result};
 use crate::storage::StorageBackend;
-use crate::types::{MemoryId, MemoryNote, Namespace, SearchResult};
+use crate::types::{MemoryId, MemoryLink, MemoryNote, Namespace, SearchResult};
 use async_trait::async_trait;
 use chrono::Utc;
 use libsql::{params, Builder, Connection, Database};
@@ -965,6 +965,306 @@ impl LibsqlStorage {
 
         debug!("Vector search found {} results", results.len());
         Ok(results)
+    }
+
+    // ========================================================================
+    // Evolution System Methods
+    // ========================================================================
+
+    /// List all active (non-archived) memories for evolution jobs
+    pub async fn list_all_active(&self, limit: Option<usize>) -> Result<Vec<MemoryNote>> {
+        debug!("Listing all active memories for evolution");
+
+        let conn = self.get_conn()?;
+        let sql = if let Some(lim) = limit {
+            format!(
+                "SELECT * FROM memories WHERE is_archived = 0 AND archived_at IS NULL ORDER BY created_at DESC LIMIT {}",
+                lim
+            )
+        } else {
+            "SELECT * FROM memories WHERE is_archived = 0 AND archived_at IS NULL ORDER BY created_at DESC".to_string()
+        };
+
+        let mut rows = conn.query(&sql, params![]).await?;
+        let mut memories = Vec::new();
+
+        while let Some(row) = rows.next().await? {
+            memories.push(self.row_to_memory(&row).await?);
+        }
+
+        debug!("Listed {} active memories", memories.len());
+        Ok(memories)
+    }
+
+    /// Update the importance score of a memory
+    pub async fn update_importance(&self, memory_id: &MemoryId, new_importance: f32) -> Result<()> {
+        debug!("Updating importance for memory {} to {}", memory_id, new_importance);
+
+        let conn = self.get_conn()?;
+        conn.execute(
+            r#"
+            UPDATE memories
+            SET importance = ?,
+                updated_at = ?
+            WHERE id = ?
+            "#,
+            params![
+                new_importance as f64,
+                Utc::now().to_rfc3339(),
+                memory_id.to_string()
+            ],
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    /// Find memories that are candidates for archival
+    pub async fn find_archival_candidates(&self, limit: usize) -> Result<Vec<MemoryNote>> {
+        debug!("Finding archival candidates (limit: {})", limit);
+
+        let conn = self.get_conn()?;
+
+        // Use the view from migration 007
+        let sql = r#"
+            SELECT m.*
+            FROM memories m
+            WHERE m.archived_at IS NULL AND m.is_archived = 0
+              AND (
+                (m.access_count = 0 AND
+                 julianday('now') - julianday(m.created_at) > 180) OR
+                (m.importance < 3.0 AND
+                 julianday('now') - julianday(COALESCE(m.last_accessed_at, m.created_at)) > 90) OR
+                (m.importance < 2.0 AND
+                 julianday('now') - julianday(COALESCE(m.last_accessed_at, m.created_at)) > 30)
+              )
+            ORDER BY m.importance ASC, m.access_count ASC
+            LIMIT ?
+        "#;
+
+        let mut rows = conn.query(sql, params![limit as i64]).await?;
+        let mut candidates = Vec::new();
+
+        while let Some(row) = rows.next().await? {
+            candidates.push(self.row_to_memory(&row).await?);
+        }
+
+        debug!("Found {} archival candidates", candidates.len());
+        Ok(candidates)
+    }
+
+    /// Archive a memory by setting archived_at timestamp
+    pub async fn archive_memory_with_timestamp(&self, memory_id: &MemoryId) -> Result<()> {
+        debug!("Archiving memory with timestamp: {}", memory_id);
+
+        let conn = self.get_conn()?;
+        let now = Utc::now();
+
+        conn.execute(
+            r#"
+            UPDATE memories
+            SET archived_at = ?,
+                is_archived = 1,
+                updated_at = ?
+            WHERE id = ?
+            "#,
+            params![
+                now.timestamp(),
+                now.to_rfc3339(),
+                memory_id.to_string()
+            ],
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    /// Unarchive a memory
+    pub async fn unarchive_memory(&self, memory_id: &MemoryId) -> Result<()> {
+        debug!("Unarchiving memory: {}", memory_id);
+
+        let conn = self.get_conn()?;
+
+        conn.execute(
+            r#"
+            UPDATE memories
+            SET archived_at = NULL,
+                is_archived = 0,
+                updated_at = ?
+            WHERE id = ?
+            "#,
+            params![Utc::now().to_rfc3339(), memory_id.to_string()],
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    /// Record link traversal for decay tracking
+    pub async fn record_link_traversal(&self, source_id: &MemoryId, target_id: &MemoryId) -> Result<()> {
+        debug!("Recording link traversal: {} -> {}", source_id, target_id);
+
+        let conn = self.get_conn()?;
+        let now = Utc::now();
+
+        conn.execute(
+            r#"
+            UPDATE memory_links
+            SET last_traversed_at = ?
+            WHERE source_id = ? AND target_id = ?
+            "#,
+            params![now.timestamp(), source_id.to_string(), target_id.to_string()],
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    /// Update link strength (for reinforcement or decay)
+    pub async fn update_link_strength(
+        &self,
+        source_id: &MemoryId,
+        target_id: &MemoryId,
+        new_strength: f32,
+    ) -> Result<()> {
+        debug!(
+            "Updating link strength: {} -> {} = {}",
+            source_id, target_id, new_strength
+        );
+
+        let conn = self.get_conn()?;
+
+        conn.execute(
+            r#"
+            UPDATE memory_links
+            SET strength = ?
+            WHERE source_id = ? AND target_id = ?
+            "#,
+            params![new_strength, source_id.to_string(), target_id.to_string()],
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    /// Find links that need decay (untraversed for long time)
+    /// Returns (source_id, link) tuples
+    pub async fn find_link_decay_candidates(&self, days_threshold: i64, limit: usize) -> Result<Vec<(MemoryId, MemoryLink)>> {
+        debug!(
+            "Finding link decay candidates (threshold: {} days, limit: {})",
+            days_threshold, limit
+        );
+
+        let conn = self.get_conn()?;
+
+        let sql = r#"
+            SELECT source_id, target_id, link_type, strength, created_at, reason
+            FROM memory_links
+            WHERE user_created = 0
+              AND strength > 0.1
+              AND (
+                (last_traversed_at IS NULL AND
+                 julianday('now') - julianday(datetime(created_at, 'unixepoch')) > ?) OR
+                (last_traversed_at IS NOT NULL AND
+                 julianday('now') - julianday(datetime(last_traversed_at, 'unixepoch')) > ?)
+              )
+            ORDER BY strength ASC
+            LIMIT ?
+        "#;
+
+        let mut rows = conn
+            .query(
+                sql,
+                params![days_threshold as i64, days_threshold as i64, limit as i64],
+            )
+            .await?;
+
+        let mut links = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let source_id_str: String = row.get(0)?;
+            let source_id = MemoryId::from_string(&source_id_str)?;
+
+            let target_id_str: String = row.get(1)?;
+            let target_id = MemoryId::from_string(&target_id_str)?;
+
+            let link_type_str: String = row.get(2)?;
+            let link_type = match link_type_str.as_str() {
+                "extends" => crate::types::LinkType::Extends,
+                "contradicts" => crate::types::LinkType::Contradicts,
+                "implements" => crate::types::LinkType::Implements,
+                "references" => crate::types::LinkType::References,
+                "supersedes" => crate::types::LinkType::Supersedes,
+                _ => continue,
+            };
+
+            let strength: f64 = row.get(3)?;
+            let created_at_str: String = row.get(4)?;
+            let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)
+                .ok()
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(Utc::now);
+
+            let reason: String = row.get::<String>(5).unwrap_or_else(|_| String::from("link decay candidate"));
+
+            links.push((
+                source_id,
+                MemoryLink {
+                    target_id,
+                    link_type,
+                    strength: strength as f32,
+                    reason,
+                    created_at,
+                },
+            ));
+        }
+
+        debug!("Found {} link decay candidates", links.len());
+        Ok(links)
+    }
+
+    /// Remove a weak link
+    pub async fn remove_link(&self, source_id: &MemoryId, target_id: &MemoryId) -> Result<()> {
+        debug!("Removing link: {} -> {}", source_id, target_id);
+
+        let conn = self.get_conn()?;
+
+        conn.execute(
+            r#"
+            DELETE FROM memory_links
+            WHERE source_id = ? AND target_id = ?
+            "#,
+            params![source_id.to_string(), target_id.to_string()],
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    /// Get memory access statistics
+    pub async fn get_access_stats(&self, memory_id: &MemoryId) -> Result<(u32, Option<chrono::DateTime<Utc>>)> {
+        let conn = self.get_conn()?;
+
+        let mut rows = conn
+            .query(
+                "SELECT access_count, last_accessed_at FROM memories WHERE id = ?",
+                params![memory_id.to_string()],
+            )
+            .await?;
+
+        if let Some(row) = rows.next().await? {
+            let access_count: i64 = row.get(0)?;
+            let last_accessed_at = if let Ok(last_accessed_str) = row.get::<String>(1) {
+                chrono::DateTime::parse_from_rfc3339(&last_accessed_str)
+                    .ok()
+                    .map(|dt| dt.with_timezone(&Utc))
+            } else {
+                None
+            };
+
+            Ok((access_count as u32, last_accessed_at))
+        } else {
+            Err(MnemosyneError::MemoryNotFound(memory_id.to_string()))
+        }
     }
 }
 
