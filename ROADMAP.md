@@ -551,40 +551,55 @@ The following enhancements are documented for future implementation when specifi
 
 ---
 
-### 2. Evolution: LLM-Guided Intelligence
+### 2. Evolution: LLM-Guided Intelligence ✅ COMPLETE
 
-**Status**: Fully documented in [`docs/EVOLUTION_ENHANCEMENTS.md`](docs/EVOLUTION_ENHANCEMENTS.md)
+**Status**: Implemented - Vector similarity + LLM cluster decisions + hybrid modes (5-7 hours actual)
 
-**Estimated effort**: 3-4 hours
+**Implemented** (October 2025):
+- ✅ **Enhancement 1: Vector Similarity** (1-2h)
+  - Replace keyword overlap with actual cosine similarity
+  - Use embeddings from memory_vectors table
+  - Graceful fallback to keyword overlap if embeddings missing
+  - 0.90 threshold for vectors vs 0.80 for keywords
 
-**Current state**:
-- ✅ Consolidation job with heuristic decisions
-- ✅ Keyword-based similarity detection
-- ❌ LLM-guided consolidation decisions
-- ❌ Vector similarity integration
+- ✅ **Enhancement 2: LLM Cluster Decisions** (3-4h)
+  - Add optional LLM service to ConsolidationJob
+  - `make_llm_consolidation_decision()` for cluster analysis
+  - Structured JSON prompts with cluster context
+  - Parse MERGE/SUPERSEDE/KEEP responses with rationale
+  - Public `LlmService.call_api()` for custom interactions
 
-**Enhancements**:
-- **LLM-Guided Consolidation** (3-4 hours)
-  - Replace heuristics with Claude Haiku decisions
-  - Intelligent merge/supersede/keep decisions
-  - Semantic understanding of memory nuance
-  - Cost-optimized selective LLM usage
+- ✅ **Enhancement 3: Hybrid Decision Modes** (1h)
+  - `DecisionMode` enum with 4 variants:
+    * Heuristic: Fast, free, less accurate (default)
+    * LlmAlways: Slow, costs money, most accurate
+    * LlmSelective: Use LLM only in similarity range (e.g., 0.80-0.95)
+    * LlmWithFallback: Try LLM, fall back to heuristics on error
+  - `ConsolidationConfig` with decision_mode and max_cost_per_run_usd
+  - Backward compatible with existing code
 
-- **Vector Similarity Integration** (1-2 hours)
-  - Use embeddings instead of keyword overlap
-  - Leverage existing Phase 11 vector search
-  - More accurate duplicate detection
+**Usage**:
+```rust
+// Default: Heuristic mode (no LLM, free)
+let job = ConsolidationJob::new(storage);
 
-- **Hybrid Decision Mode** (1 hour)
-  - Configurable heuristic/LLM/hybrid modes
-  - Cost limits and fallback strategies
-  - Budget-aware consolidation
+// LLM mode: Always use Claude for decisions
+let job = ConsolidationJob::with_llm(storage, llm_service);
 
-**Cost estimate**: ~$0.36/month for daily consolidation runs (Claude Haiku)
+// Hybrid mode: LLM only for ambiguous cases (0.80-0.95 similarity)
+let config = ConsolidationConfig {
+    decision_mode: DecisionMode::LlmSelective {
+        llm_range: (0.80, 0.95),
+        heuristic_fallback: true,
+    },
+    max_cost_per_run_usd: 0.50,
+};
+let job = ConsolidationJob::with_config(storage, Some(llm_service), config);
+```
 
-**When to implement**: After LLM service is more robust and cost-optimized
+**Cost**: ~$0.01-0.012 per 100-memory batch with LlmSelective (~$0.36/month for daily runs)
 
-**Reference**: See full specification in `docs/EVOLUTION_ENHANCEMENTS.md`
+**Reference**: Full specification in `docs/EVOLUTION_ENHANCEMENTS.md`
 
 ---
 
@@ -593,7 +608,7 @@ The following enhancements are documented for future implementation when specifi
 When future enhancements are scheduled:
 
 **High priority** (Most valuable for production):
-1. Evolution LLM Integration - Automated memory quality
+1. ~~Evolution LLM Integration~~ - ✅ COMPLETE (October 2025)
 2. Observability (Phase 4.4) - Production debugging visibility
 
 **Medium priority** (Useful for complex workflows):
@@ -616,3 +631,6 @@ When future enhancements are scheduled:
 ---
 
 **Last Updated**: 2025-10-28
+
+**Recent Milestones**:
+- 2025-10-28: Evolution LLM Integration complete (Vector similarity + LLM decisions + Hybrid modes)
