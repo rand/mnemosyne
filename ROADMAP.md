@@ -512,6 +512,99 @@ Detailed implementation plans available in `docs/v2/`:
 
 ---
 
+## 📋 Future Enhancements (Deferred)
+
+The following enhancements are documented for future implementation when specific needs arise:
+
+### 1. Orchestration Phase 4: Enhanced Coordination
+
+**Status**: Fully documented in [`docs/ORCHESTRATION_PHASE4.md`](docs/ORCHESTRATION_PHASE4.md)
+
+**Estimated effort**: 12-16 hours
+
+**Components**:
+- **4.1: Dynamic Agent Scaling** (4-5 hours)
+  - Agent pool management with auto-scaling
+  - Load balancing across agent pools
+  - Resource monitoring and utilization tracking
+
+- **4.2: Cross-Session Coordination** (3-4 hours)
+  - Persistent work queue across restarts
+  - Session handoff protocol
+  - State reconciliation after crashes
+
+- **4.3: Distributed P2P Orchestration** (4-5 hours)
+  - Multi-machine work distribution
+  - Consensus protocol (leader election)
+  - Network partition handling
+  - Work stealing coordination
+
+- **4.4: Observability & Monitoring** (3-4 hours)
+  - Real-time metrics collection
+  - Terminal/web dashboards (TUI/web)
+  - OpenTelemetry tracing
+  - Performance profiling
+
+**When to implement**: After production validation and when scaling needs emerge
+
+**Reference**: See full specification in `docs/ORCHESTRATION_PHASE4.md`
+
+---
+
+### 2. Evolution: LLM-Guided Intelligence
+
+**Status**: Fully documented in [`docs/EVOLUTION_ENHANCEMENTS.md`](docs/EVOLUTION_ENHANCEMENTS.md)
+
+**Estimated effort**: 3-4 hours
+
+**Current state**:
+- ✅ Consolidation job with heuristic decisions
+- ✅ Keyword-based similarity detection
+- ❌ LLM-guided consolidation decisions
+- ❌ Vector similarity integration
+
+**Enhancements**:
+- **LLM-Guided Consolidation** (3-4 hours)
+  - Replace heuristics with Claude Haiku decisions
+  - Intelligent merge/supersede/keep decisions
+  - Semantic understanding of memory nuance
+  - Cost-optimized selective LLM usage
+
+- **Vector Similarity Integration** (1-2 hours)
+  - Use embeddings instead of keyword overlap
+  - Leverage existing Phase 11 vector search
+  - More accurate duplicate detection
+
+- **Hybrid Decision Mode** (1 hour)
+  - Configurable heuristic/LLM/hybrid modes
+  - Cost limits and fallback strategies
+  - Budget-aware consolidation
+
+**Cost estimate**: ~$0.36/month for daily consolidation runs (Claude Haiku)
+
+**When to implement**: After LLM service is more robust and cost-optimized
+
+**Reference**: See full specification in `docs/EVOLUTION_ENHANCEMENTS.md`
+
+---
+
+### 3. Implementation Priority
+
+When future enhancements are scheduled:
+
+**High priority** (Most valuable for production):
+1. Evolution LLM Integration - Automated memory quality
+2. Observability (Phase 4.4) - Production debugging visibility
+
+**Medium priority** (Useful for complex workflows):
+3. Cross-Session Coordination (Phase 4.2) - Long-running tasks
+4. Dynamic Scaling (Phase 4.1) - Handle load spikes
+
+**Low priority** (Advanced use cases only):
+5. Distributed P2P (Phase 4.3) - Multi-machine orchestration
+
+---
+
 ## Version History
 
 - **v0.1.0** (Current): Core memory system with MCP integration
