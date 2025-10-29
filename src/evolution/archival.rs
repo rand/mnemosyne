@@ -9,19 +9,20 @@
 
 use super::config::JobConfig;
 use super::scheduler::{EvolutionJob, JobError, JobReport};
+use crate::storage::libsql::LibsqlStorage;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use std::sync::Arc;
 use std::time::Instant;
 
 /// Archival job
 pub struct ArchivalJob {
-    // In full implementation, this would hold:
-    // storage: Arc<LibSqlStorage>
+    storage: Arc<LibsqlStorage>,
 }
 
 impl ArchivalJob {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(storage: Arc<LibsqlStorage>) -> Self {
+        Self { storage }
     }
 
     /// Determine if a memory should be archived
@@ -107,24 +108,50 @@ impl EvolutionJob for ArchivalJob {
             config.batch_size
         );
 
-        // In full implementation, would:
-        // 1. Find archival candidates from storage (using v_archival_candidates view)
-        // 2. Check each candidate with should_archive()
-        // 3. Archive by setting archived_at = NOW()
-        // 4. Log archival reason
+        // Find archival candidates from storage
+        let candidates = self
+            .storage
+            .find_archival_candidates(config.batch_size)
+            .await
+            .map_err(|e| JobError::ExecutionError(e.to_string()))?;
 
-        // For now, simulate processing
-        // let candidates = self.storage.find_archival_candidates().await?;
-        // for memory in candidates.into_iter().take(config.batch_size) {
-        //     if self.should_archive(&memory)? {
-        //         let reason = self.archival_reason(&memory);
-        //         tracing::info!("Archiving memory {}: {}", memory.id, reason);
-        //
-        //         self.storage.archive_memory(&memory.id).await?;
-        //         changes_made += 1;
-        //     }
-        //     memories_processed += 1;
-        // }
+        for memory in candidates {
+            memories_processed += 1;
+
+            // Get access stats for archival decision
+            let (access_count, last_accessed_at) = self
+                .storage
+                .get_access_stats(&memory.id)
+                .await
+                .unwrap_or((0, None));
+
+            // Convert MemoryNote to MemoryData for decision
+            let memory_data = MemoryData {
+                id: memory.id.to_string(),
+                importance: memory.importance as f32,
+                access_count,
+                created_at: memory.created_at,
+                last_accessed_at,
+                archived_at: if memory.is_archived { Some(memory.updated_at) } else { None },
+            };
+
+            // Check if should archive
+            if self.should_archive(&memory_data)? {
+                let reason = self.archival_reason(&memory_data);
+                tracing::info!("Archiving memory {}: {}", memory.id, reason);
+
+                match self.storage.archive_memory_with_timestamp(&memory.id).await {
+                    Ok(_) => {
+                        changes_made += 1;
+                        tracing::debug!("Successfully archived memory {}", memory.id);
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to archive memory {}: {:?}", memory.id, e);
+                        errors += 1;
+                    }
+                }
+            }
+        }
 
         tracing::info!(
             "Archival complete: {} processed, {} archived in {:?}",

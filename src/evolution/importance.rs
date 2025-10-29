@@ -10,19 +10,20 @@
 
 use super::config::JobConfig;
 use super::scheduler::{EvolutionJob, JobError, JobReport};
+use crate::storage::libsql::LibsqlStorage;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use std::time::{Duration, Instant};
+use std::sync::Arc;
+use std::time::Instant;
 
 /// Importance recalibration job
 pub struct ImportanceRecalibrator {
-    // In full implementation, this would hold:
-    // storage: Arc<LibSqlStorage>
+    storage: Arc<LibsqlStorage>,
 }
 
 impl ImportanceRecalibrator {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(storage: Arc<LibsqlStorage>) -> Self {
+        Self { storage }
     }
 
     /// Calculate new importance score for a memory
@@ -122,15 +123,63 @@ impl EvolutionJob for ImportanceRecalibrator {
             config.batch_size
         );
 
-        // In full implementation, would:
-        // 1. Get active memories from storage
-        // 2. Calculate new importance for each
-        // 3. Update if change is significant
-        // 4. Record to importance_history table
+        // Get active memories from storage
+        let memories = self
+            .storage
+            .list_all_active(Some(config.batch_size))
+            .await
+            .map_err(|e| JobError::ExecutionError(e.to_string()))?;
 
-        // For now, simulate processing
-        // let memories = self.storage.list_all_active().await?;
-        // for memory in memories.into_iter().take(config.batch_size) { ... }
+        for memory in memories {
+            memories_processed += 1;
+
+            // Get access stats for this memory
+            let (access_count, last_accessed_at) = self
+                .storage
+                .get_access_stats(&memory.id)
+                .await
+                .unwrap_or((0, None));
+
+            // Convert MemoryNote to MemoryData for calculation
+            let memory_data = MemoryData {
+                id: memory.id.to_string(),
+                importance: memory.importance as f32,
+                access_count,
+                created_at: memory.created_at,
+                last_accessed_at,
+                incoming_links_count: 0, // TODO: Count incoming links from database
+                outgoing_links_count: memory.links.len(),
+            };
+
+            // Calculate new importance
+            let new_importance = match self.calculate_importance(&memory_data) {
+                Ok(imp) => imp,
+                Err(e) => {
+                    tracing::warn!("Failed to calculate importance for {}: {:?}", memory.id, e);
+                    errors += 1;
+                    continue;
+                }
+            };
+
+            // Update if change is significant
+            if self.is_significant_change(memory.importance as f32, new_importance) {
+                match self.storage.update_importance(&memory.id, new_importance).await {
+                    Ok(_) => {
+                        changes_made += 1;
+                        tracing::debug!(
+                            "Updated importance for {}: {} -> {}",
+                            memory.id,
+                            memory.importance,
+                            new_importance
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to update importance for {}: {:?}", memory.id, e);
+                        errors += 1;
+                    }
+                }
+            }
+        }
 
         tracing::info!(
             "Importance recalibration complete: {} processed, {} updated in {:?}",

@@ -5,19 +5,20 @@
 
 use super::config::JobConfig;
 use super::scheduler::{EvolutionJob, JobError, JobReport};
+use crate::storage::libsql::LibsqlStorage;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use std::sync::Arc;
 use std::time::Instant;
 
 /// Link decay job
 pub struct LinkDecayJob {
-    // In full implementation, this would hold:
-    // storage: Arc<LibSqlStorage>
+    storage: Arc<LibsqlStorage>,
 }
 
 impl LinkDecayJob {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(storage: Arc<LibsqlStorage>) -> Self {
+        Self { storage }
     }
 
     /// Calculate decay factor for a link based on traversal history
@@ -81,27 +82,82 @@ impl EvolutionJob for LinkDecayJob {
             config.batch_size
         );
 
-        // In full implementation, would:
-        // 1. Get all active links from storage
-        // 2. Calculate decay factor for each
-        // 3. Update link strength or remove if below threshold
-        // 4. Track changes
+        // Get link decay candidates from storage (untraversed links)
+        // Using 90 days threshold as a balance between aggressive (180d) and conservative (30d)
+        let links = self
+            .storage
+            .find_link_decay_candidates(90, config.batch_size)
+            .await
+            .map_err(|e| JobError::ExecutionError(e.to_string()))?;
 
-        // For now, simulate processing
-        // let links = self.storage.list_all_links().await?;
-        // for link in links.into_iter().take(config.batch_size) {
-        //     let decay_factor = self.calculate_decay(&link)?;
-        //     let new_strength = link.strength * decay_factor;
-        //
-        //     if self.should_remove(new_strength) {
-        //         self.storage.remove_link(&link.id).await?;
-        //         removed += 1;
-        //     } else if (new_strength - link.strength).abs() > 0.01 {
-        //         self.storage.update_link_strength(&link.id, new_strength).await?;
-        //         changes_made += 1;
-        //     }
-        //     memories_processed += 1;
-        // }
+        for (source_id, link) in links {
+            memories_processed += 1;
+
+            // Convert to LinkData for calculation
+            // Note: We don't have user_created info from MemoryLink, assuming system-created for decay candidates
+            let link_data = LinkData {
+                id: format!("{}_{}", source_id, link.target_id),
+                source_id: source_id.to_string(),
+                target_id: link.target_id.to_string(),
+                strength: link.strength,
+                created_at: link.created_at,
+                last_traversed_at: None, // TODO: Get from database when available
+                user_created: false,     // Links from decay candidates are system-created
+            };
+
+            // Calculate decay factor
+            let decay_factor = match self.calculate_decay(&link_data) {
+                Ok(factor) => factor,
+                Err(e) => {
+                    tracing::warn!("Failed to calculate decay for link: {:?}", e);
+                    errors += 1;
+                    continue;
+                }
+            };
+
+            let new_strength = link.strength * decay_factor;
+
+            // Remove if below threshold
+            if self.should_remove(new_strength) {
+                match self.storage.remove_link(&source_id, &link.target_id).await {
+                    Ok(_) => {
+                        removed += 1;
+                        tracing::debug!(
+                            "Removed weak link: {} -> {} (strength: {})",
+                            source_id,
+                            link.target_id,
+                            new_strength
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to remove link: {:?}", e);
+                        errors += 1;
+                    }
+                }
+            } else if (new_strength - link.strength).abs() > 0.01 {
+                // Update strength if changed significantly
+                match self
+                    .storage
+                    .update_link_strength(&source_id, &link.target_id, new_strength)
+                    .await
+                {
+                    Ok(_) => {
+                        changes_made += 1;
+                        tracing::debug!(
+                            "Updated link strength: {} -> {} ({} -> {})",
+                            source_id,
+                            link.target_id,
+                            link.strength,
+                            new_strength
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to update link strength: {:?}", e);
+                        errors += 1;
+                    }
+                }
+            }
+        }
 
         tracing::info!(
             "Link decay complete: {} processed, {} updated, {} removed in {:?}",
