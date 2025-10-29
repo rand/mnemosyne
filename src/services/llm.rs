@@ -336,28 +336,59 @@ Examples of good link identification:
 Example 1 - Extension:
 New: "Added authentication middleware to API endpoints"
 Candidate [2]: "Set up JWT token generation for user sessions"
-LINK: 2, Extends, 0.9, JWT implementation provides auth mechanism for the middleware
+{{
+  "links": [
+    {{
+      "index": 2,
+      "type": "Extends",
+      "strength": 0.9,
+      "reason": "JWT implementation provides auth mechanism for the middleware"
+    }}
+  ]
+}}
 
-Example 2 - Contradiction:
+Example 2 - Multiple links:
 New: "Decided to use REST API instead of GraphQL"
 Candidate [5]: "GraphQL chosen for API layer due to flexible queries"
-LINK: 5, Contradicts, 0.95, New decision reverses previous GraphQL choice
+Candidate [3]: "API documentation framework selection"
+{{
+  "links": [
+    {{
+      "index": 5,
+      "type": "Contradicts",
+      "strength": 0.95,
+      "reason": "New decision reverses previous GraphQL choice"
+    }},
+    {{
+      "index": 3,
+      "type": "References",
+      "strength": 0.7,
+      "reason": "Documentation framework relates to API design choice"
+    }}
+  ]
+}}
 
-Example 3 - References:
-New: "Updated documentation for deployment process"
-Candidate [1]: "Created CI/CD pipeline for automated deployments"
-LINK: 1, References, 0.7, Documentation covers the pipeline setup process
-
-Example 4 - No meaningful links:
+Example 3 - No meaningful links:
 New: "User prefers dark mode terminal"
 Candidates are all about database architecture
-NO_LINKS
+{{
+  "links": []
+}}
 
-Now analyze the actual memories above. Format EXACTLY as (one per line):
-LINK: <index>, <type>, <strength>, <reason>
+Now analyze the actual memories above. Format your response as valid JSON matching this schema:
+{{
+  "links": [
+    {{
+      "index": number,
+      "type": "Extends|Contradicts|Implements|References|Supersedes",
+      "strength": number (0.0-1.0),
+      "reason": "string"
+    }}
+  ]
+}}
 
-Only include meaningful links (strength >= 0.6). If no relationships exist, respond with:
-NO_LINKS
+Only include meaningful links (strength >= 0.6). If no relationships exist, return {{"links": []}}.
+IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
 "#,
             new_memory.summary,
             new_memory.content,

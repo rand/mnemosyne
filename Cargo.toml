@@ -70,6 +70,35 @@ ractor_cluster = { version = "0.13", optional = true }
 iroh = "0.28"
 iroh-net = "0.28"
 
+# TUI framework
+ratatui = "0.29"
+crossterm = "0.29"
+
+# ICS (Integrated Context Studio) dependencies
+# Text editing
+ropey = "1.6"
+tui-textarea = "0.4"
+
+# Parsing and lexing
+tree-sitter = "0.20"
+tree-sitter-markdown = "0.7"
+logos = "0.13"
+
+# Symbol completion and fuzzy matching
+nucleo = "0.5"
+fuzzy-matcher = "0.3"
+
+# Error reporting
+ariadne = "0.4"
+miette = "7.0"
+
+# PTY support
+portable-pty = "0.8"
+vte = "0.13"
+
+# TUI extensions
+tui-logger = "0.11"
+
 [features]
 default = ["keyring-fallback"]
 python = ["pyo3"]

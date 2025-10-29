@@ -49,6 +49,7 @@ pub mod embeddings;
 pub mod error;
 pub mod evaluation;
 pub mod evolution;
+pub mod ics;  // Integrated Context Studio
 pub mod launcher;
 pub mod mcp;
 pub mod namespace;
@@ -56,6 +57,7 @@ pub mod orchestration;
 pub mod secrets;
 pub mod services;
 pub mod storage;
+pub mod tui;  // Shared TUI infrastructure
 pub mod types;
 
 // Python bindings (PyO3) - only available with "python" feature
