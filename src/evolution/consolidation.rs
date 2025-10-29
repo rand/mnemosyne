@@ -36,25 +36,68 @@ impl ConsolidationJob {
 
         let mut candidates = Vec::new();
 
-        // For each memory, check for duplicates with other memories
+        // Get embeddings for each memory
+        let mut memory_embeddings: HashMap<MemoryId, Vec<f32>> = HashMap::new();
+
+        for memory in &memories {
+            // Try to get embedding from vector storage
+            if let Ok(Some(embedding)) = self.storage.get_embedding(&memory.id).await {
+                memory_embeddings.insert(memory.id, embedding);
+            }
+        }
+
+        tracing::debug!(
+            "Retrieved embeddings for {}/{} memories",
+            memory_embeddings.len(),
+            memories.len()
+        );
+
+        // For each memory pair, compute similarity
         for i in 0..memories.len() {
             for j in (i + 1)..memories.len() {
                 let mem1 = &memories[i];
                 let mem2 = &memories[j];
 
-                // Calculate keyword overlap
-                let overlap = self.keyword_overlap(mem1, mem2);
+                // Try vector similarity first
+                let similarity = if let (Some(emb1), Some(emb2)) = (
+                    memory_embeddings.get(&mem1.id),
+                    memory_embeddings.get(&mem2.id),
+                ) {
+                    // Use cosine similarity for vector comparison
+                    self.cosine_similarity(emb1, emb2)
+                } else {
+                    // Fall back to keyword overlap if embeddings not available
+                    self.keyword_overlap(mem1, mem2)
+                };
 
-                // High keyword overlap indicates potential duplicate
-                if overlap > 0.80 {
-                    // Use keyword overlap as similarity proxy
-                    // In production, this would use actual vector similarity
-                    candidates.push((mem1.clone(), mem2.clone(), overlap));
+                // High similarity indicates potential duplicate
+                // Use 0.90 threshold for vector similarity, 0.80 for keyword overlap
+                let threshold = if memory_embeddings.contains_key(&mem1.id) { 0.90 } else { 0.80 };
+
+                if similarity > threshold {
+                    candidates.push((mem1.clone(), mem2.clone(), similarity));
                 }
             }
         }
 
         Ok(candidates)
+    }
+
+    /// Calculate cosine similarity between two embedding vectors
+    fn cosine_similarity(&self, a: &[f32], b: &[f32]) -> f32 {
+        if a.len() != b.len() {
+            return 0.0;
+        }
+
+        let dot_product: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+        let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+
+        if norm_a == 0.0 || norm_b == 0.0 {
+            0.0
+        } else {
+            dot_product / (norm_a * norm_b)
+        }
     }
 
     /// Calculate keyword overlap between two memories
