@@ -88,7 +88,7 @@ ropey = "1.6"
 tui-textarea = "0.4"
 
 # Parsing and lexing
-tree-sitter = "0.20"
+tree-sitter = "0.19"
 tree-sitter-markdown = "0.7"
 logos = "0.13"
 

@@ -3,17 +3,23 @@
 //! Manages multiple text buffers with syntax highlighting
 
 mod buffer;
+mod completion;
 mod crdt_buffer;
 mod cursor;
+mod highlight;
 mod sync;
 mod syntax;
+mod validation;
 mod widget;
 
 pub use buffer::{TextBuffer, BufferId};
+pub use completion::{CompletionEngine, CompletionItem, CompletionKind};
 pub use crdt_buffer::{Actor, Attribution, CrdtBuffer};
 pub use cursor::{CursorState, Position, Movement};
+pub use highlight::{Highlighter, HighlightSpan, HighlightKind as HighlightKindEnum};
 pub use sync::{Awareness, AwarenessTracker, SyncCoordinator, SyncMessage, SyncPayload};
 pub use syntax::{Language, HighlightKind};
+pub use validation::{Diagnostic, Severity, Validator};
 pub use widget::{EditorWidget, EditorState};
 
 use std::collections::HashMap;

@@ -5402,7 +5402,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
- "tree-sitter 0.20.10",
+ "tree-sitter",
  "tree-sitter-markdown",
  "tui-logger",
  "tui-textarea",
@@ -9930,23 +9930,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-sitter"
-version = "0.20.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e747b1f9b7b931ed39a548c1fae149101497de3c1fc8d9e18c62c1a66c683d3d"
-dependencies = [
- "cc",
- "regex",
-]
-
-[[package]]
 name = "tree-sitter-markdown"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7c1cfe0396b0e500cc99067bcd2d48720eb08a077e2690194f0c3a3d105f9a0"
 dependencies = [
  "cc",
- "tree-sitter 0.19.5",
+ "tree-sitter",
 ]
 
 [[package]]
