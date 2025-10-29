@@ -38,6 +38,7 @@ mod events;
 
 pub use app::IcsApp;
 pub use config::IcsConfig;
+pub use editor::IcsEditor;
 pub use events::{EditorEvent, AnalysisEvent, IcsEvent};
 pub use memory_panel::{MemoryPanel, MemoryPanelState, MemoryAction};
 pub use semantic::{SemanticAnalyzer, SemanticAnalysis, Triple, TypedHole, HoleKind};

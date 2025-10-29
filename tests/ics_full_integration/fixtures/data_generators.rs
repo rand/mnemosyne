@@ -40,16 +40,14 @@ pub fn generate_large_dataset(count: usize, namespace: Namespace) -> Vec<MemoryN
     let mut memories = Vec::new();
 
     for i in 0..count {
-        let memory_type = match i % 9 {
+        let memory_type = match i % 7 {
             0 => MemoryType::ArchitectureDecision,
             1 => MemoryType::CodePattern,
-            2 => MemoryType::BugReport,
-            3 => MemoryType::PerformanceMetric,
-            4 => MemoryType::DesignRationale,
-            5 => MemoryType::TroubleshootingStep,
-            6 => MemoryType::ConfigSetting,
-            7 => MemoryType::DependencyInfo,
-            _ => MemoryType::ContextNote,
+            2 => MemoryType::BugFix,
+            3 => MemoryType::Configuration,
+            4 => MemoryType::Constraint,
+            5 => MemoryType::Entity,
+            _ => MemoryType::Insight,
         };
 
         let content = format!("Large dataset entry {} with detailed content about the system component and its interactions", i + 1);
@@ -87,7 +85,7 @@ pub fn generate_search_test_data(namespace: Namespace) -> Vec<MemoryNote> {
         ),
         create_test_memory(
             "Database connection pool size set to 20",
-            MemoryType::ConfigSetting,
+            MemoryType::Configuration,
             namespace.clone(),
             7,
         ),
@@ -99,7 +97,7 @@ pub fn generate_search_test_data(namespace: Namespace) -> Vec<MemoryNote> {
         ),
         create_test_memory(
             "Caching strategy uses Redis for session data",
-            MemoryType::DesignRationale,
+            MemoryType::Insight,
             namespace.clone(),
             7,
         ),

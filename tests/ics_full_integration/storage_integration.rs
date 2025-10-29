@@ -5,8 +5,8 @@
 use crate::ics_full_integration::*;
 use mnemosyne_core::{
     ics::SemanticAnalyzer,
+    storage::StorageBackend,
     types::{MemoryType, Namespace},
-    StorageBackend,
 };
 
 /// S1: Memory persistence from ICS
@@ -159,7 +159,7 @@ async fn s4_namespace_isolation_in_ics() {
     // Create memories in different namespaces
     let global = create_test_memory(
         "Global configuration",
-        MemoryType::ConfigSetting,
+        MemoryType::Configuration,
         Namespace::Global,
         8,
     );

@@ -65,7 +65,7 @@ pub fn assert_min_triples(analysis: &SemanticAnalysis, min: usize) {
 pub fn assert_has_entities(analysis: &SemanticAnalysis, expected_entities: &[&str]) {
     for entity in expected_entities {
         assert!(
-            analysis.entities.iter().any(|e| e.contains(entity)),
+            analysis.entities.iter().any(|(name, _count)| name.contains(entity)),
             "Expected entity '{}' not found in analysis",
             entity
         );
@@ -111,5 +111,15 @@ pub fn assert_access_count_increased(before: u32, after: u32) {
         "Access count should increase: before={}, after={}",
         before,
         after
+    );
+}
+
+/// Assert proposal is accepted
+pub fn assert_proposal_accepted(proposal: &mnemosyne_core::ics::ChangeProposal) {
+    assert_eq!(
+        proposal.status,
+        mnemosyne_core::ics::ProposalStatus::Accepted,
+        "Proposal should be accepted: {}",
+        proposal.id
     );
 }
