@@ -40,6 +40,9 @@ pub mod notification_task;
 pub mod state;
 pub mod supervision;
 
+#[cfg(test)]
+mod coordination_tests;
+
 // Re-export key types
 pub use actors::{ExecutorActor, OrchestratorActor, OptimizerActor, ReviewerActor};
 pub use branch_coordinator::{BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse};

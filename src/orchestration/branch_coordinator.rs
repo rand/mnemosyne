@@ -481,24 +481,11 @@ mod tests {
 
     async fn setup_coordinator() -> BranchCoordinator {
         let registry = Arc::new(RwLock::new(BranchRegistry::new()));
+
+        let guard = Arc::new(BranchGuard::new(registry.clone(), PathBuf::from(".")));
+
         let conflict_detector = Arc::new(ConflictDetector::new());
-        let file_tracker = Arc::new(FileTracker::new(conflict_detector.clone()));
-        let git_state_tracker = Arc::new(RwLock::new(GitStateTracker::new(PathBuf::from("."))));
-
-        let guard_config = BranchGuardConfig {
-            enabled: true,
-            orchestrator_bypass: true,
-            auto_approve_readonly: true,
-            conflict_detection: true,
-        };
-
-        let guard = Arc::new(BranchGuard::new(
-            registry.clone(),
-            conflict_detector,
-            file_tracker,
-            git_state_tracker,
-            guard_config,
-        ));
+        let file_tracker = Arc::new(FileTracker::new(conflict_detector));
 
         let notifier_config = NotificationConfig {
             enabled: true,
@@ -507,15 +494,9 @@ mod tests {
             session_end_summary: true,
         };
 
-        let notifier = Arc::new(ConflictNotifier::new(
-            Arc::new(FileTracker::new(Arc::new(ConflictDetector::new()))),
-            notifier_config,
-        ));
+        let notifier = Arc::new(ConflictNotifier::new(file_tracker, notifier_config));
 
-        let git_wrapper = Arc::new(GitWrapper::new(
-            PathBuf::from("."),
-            registry.clone(),
-        ));
+        let git_wrapper = Arc::new(GitWrapper::new(registry.clone(), PathBuf::from(".")));
 
         let config = BranchCoordinatorConfig::default();
 
@@ -529,7 +510,7 @@ mod tests {
         let agent_identity = AgentIdentity {
             id: AgentId::new(),
             role: AgentRole::Executor,
-            namespace: Namespace::default(),
+            namespace: Namespace::Global,
             branch: "main".to_string(),
             working_dir: PathBuf::from("."),
             spawned_at: Utc::now(),
@@ -562,7 +543,7 @@ mod tests {
         let agent_identity = AgentIdentity {
             id: AgentId::new(),
             role: AgentRole::Orchestrator,
-            namespace: Namespace::default(),
+            namespace: Namespace::Global,
             branch: "main".to_string(),
             working_dir: PathBuf::from("."),
             spawned_at: Utc::now(),
