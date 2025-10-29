@@ -56,6 +56,10 @@ age = { version = "0.11", features = ["armor", "cli-common"] }
 secrecy = "0.10"
 directories = "5.0"
 
+# Cryptographic signatures for cross-process authentication
+hmac = "0.12"
+sha2 = "0.10"
+
 # Optional keyring fallback for backward compatibility
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native"], optional = true }
 

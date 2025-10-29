@@ -20,6 +20,8 @@ use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 
 /// Coordination message for cross-process communication
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,6 +81,10 @@ pub struct ProcessRegistration {
 
     /// Last heartbeat
     pub last_heartbeat: DateTime<Utc>,
+
+    /// HMAC signature (prevents PID spoofing)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signature: Option<String>,
 }
 
 /// Cross-process coordinator
@@ -97,7 +103,12 @@ pub struct CrossProcessCoordinator {
 
     /// Poll interval (default: 2 seconds)
     poll_interval: std::time::Duration,
+
+    /// Shared secret for HMAC signatures (prevents PID spoofing)
+    shared_secret: Vec<u8>,
 }
+
+type HmacSha256 = Hmac<Sha256>;
 
 impl CrossProcessCoordinator {
     /// Create a new cross-process coordinator
@@ -151,24 +162,50 @@ impl CrossProcessCoordinator {
             })?;
         }
 
+        // Security: Get shared secret for HMAC signatures
+        // Try environment variable, fallback to user-specific default
+        let shared_secret = std::env::var("MNEMOSYNE_SHARED_SECRET")
+            .unwrap_or_else(|_| {
+                // WARNING: Default secret is not secure for multi-user systems
+                // Set MNEMOSYNE_SHARED_SECRET environment variable for production
+                tracing::warn!(
+                    "Using default shared secret. Set MNEMOSYNE_SHARED_SECRET for production."
+                );
+                let username = std::env::var("USER")
+                    .or_else(|_| std::env::var("USERNAME"))
+                    .unwrap_or_else(|_| "mnemosyne".to_string());
+                format!("mnemosyne-secret-{}", username)
+            })
+            .into_bytes();
+
         let current_process = ProcessRegistration {
             agent_id: agent_id.clone(),
             pid: std::process::id(),
             registered_at: Utc::now(),
             last_heartbeat: Utc::now(),
+            signature: None, // Will be set below
         };
 
-        Ok(Self {
+        let mut coordinator = Self {
             registry_path,
             queue_dir,
             process_registry_path,
             current_process,
             poll_interval: std::time::Duration::from_secs(2),
-        })
+            shared_secret,
+        };
+
+        // Sign the initial registration
+        coordinator.sign_current_registration()?;
+
+        Ok(coordinator)
     }
 
     /// Register current process
     pub fn register(&mut self) -> Result<()> {
+        // Re-sign before saving (in case timestamps changed)
+        self.sign_current_registration()?;
+
         let mut processes = self.load_process_registry()?;
         processes.insert(self.current_process.agent_id.clone(), self.current_process.clone());
         self.save_process_registry(&processes)?;
@@ -178,6 +215,7 @@ impl CrossProcessCoordinator {
     /// Send heartbeat to indicate process is alive
     pub fn heartbeat(&mut self) -> Result<()> {
         self.current_process.last_heartbeat = Utc::now();
+        // Note: register() will re-sign with updated timestamp
         self.register()?;
         Ok(())
     }
@@ -381,10 +419,19 @@ impl CrossProcessCoordinator {
             ))
         })?;
 
-        let processes: HashMap<AgentId, ProcessRegistration> = serde_json::from_str(&json)
+        let all_processes: HashMap<AgentId, ProcessRegistration> = serde_json::from_str(&json)
             .map_err(|e| MnemosyneError::Other(format!("Failed to deserialize process registry: {}", e)))?;
 
-        Ok(processes)
+        // Security: Verify signatures and filter out invalid registrations
+        let mut verified_processes = HashMap::new();
+        for (agent_id, registration) in all_processes {
+            if self.verify_signature(&registration) {
+                verified_processes.insert(agent_id, registration);
+            }
+            // Invalid signatures are logged and rejected by verify_signature
+        }
+
+        Ok(verified_processes)
     }
 
     /// Save process registry
@@ -405,6 +452,60 @@ impl CrossProcessCoordinator {
     /// Get poll interval
     pub fn poll_interval(&self) -> std::time::Duration {
         self.poll_interval
+    }
+
+    /// Compute HMAC signature for a process registration
+    fn compute_signature(&self, registration: &ProcessRegistration) -> Result<String> {
+        let mut mac = HmacSha256::new_from_slice(&self.shared_secret)
+            .map_err(|e| MnemosyneError::Other(format!("Invalid HMAC key: {}", e)))?;
+
+        // Sign: agent_id + pid + registered_at
+        let data = format!(
+            "{}:{}:{}",
+            registration.agent_id,
+            registration.pid,
+            registration.registered_at.timestamp()
+        );
+        mac.update(data.as_bytes());
+
+        let result = mac.finalize();
+        let bytes = result.into_bytes();
+        // Convert to hex string
+        Ok(bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>())
+    }
+
+    /// Sign the current process registration
+    fn sign_current_registration(&mut self) -> Result<()> {
+        let signature = self.compute_signature(&self.current_process)?;
+        self.current_process.signature = Some(signature);
+        Ok(())
+    }
+
+    /// Verify a process registration signature
+    fn verify_signature(&self, registration: &ProcessRegistration) -> bool {
+        let Some(ref provided_sig) = registration.signature else {
+            // No signature - reject for security
+            tracing::warn!("Registration missing signature for agent {}", registration.agent_id);
+            return false;
+        };
+
+        match self.compute_signature(registration) {
+            Ok(computed_sig) => {
+                if provided_sig == &computed_sig {
+                    true
+                } else {
+                    tracing::warn!(
+                        "Invalid signature for agent {} (possible PID spoofing attempt)",
+                        registration.agent_id
+                    );
+                    false
+                }
+            }
+            Err(e) => {
+                tracing::error!("Failed to compute signature: {}", e);
+                false
+            }
+        }
     }
 }
 
