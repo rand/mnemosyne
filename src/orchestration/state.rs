@@ -136,6 +136,15 @@ pub struct WorkItem {
 
     /// Timeout duration (None = no timeout)
     pub timeout: Option<std::time::Duration>,
+
+    /// Assigned git branch for this work item
+    pub assigned_branch: Option<String>,
+
+    /// Estimated duration for timeout calculation
+    pub estimated_duration: Option<std::time::Duration>,
+
+    /// File scope for work intent
+    pub file_scope: Option<Vec<std::path::PathBuf>>,
 }
 
 impl WorkItem {
@@ -159,6 +168,9 @@ impl WorkItem {
             completed_at: None,
             error: None,
             timeout: Some(std::time::Duration::from_secs(60)), // Default 60s timeout
+            assigned_branch: None,
+            estimated_duration: None,
+            file_scope: None,
         }
     }
 

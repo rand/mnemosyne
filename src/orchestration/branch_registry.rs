@@ -325,7 +325,7 @@ impl BranchRegistry {
 
     /// Update phase for a work item (affects timeout calculations)
     pub fn update_phase(&mut self, work_item_id: WorkItemId, phase: Phase) -> Result<()> {
-        self.phases.insert(work_item_id, phase);
+        self.phases.insert(work_item_id.clone(), phase);
 
         // Recalculate timeouts for all assignments with this work item
         for assignments in self.assignments.values_mut() {

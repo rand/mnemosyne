@@ -25,6 +25,8 @@ pub mod actors;
 pub mod branch_guard;
 pub mod branch_registry;
 pub mod conflict_detector;
+pub mod conflict_notifier;
+pub mod cross_process;
 pub mod events;
 pub mod file_tracker;
 pub mod git_state;
@@ -44,6 +46,8 @@ pub use branch_registry::{
     WorkIntent,
 };
 pub use conflict_detector::{ConflictAction, ConflictAssessment, ConflictDetector, ConflictSeverity};
+pub use conflict_notifier::{ConflictNotification, ConflictNotifier, NotificationConfig, NotificationType};
+pub use cross_process::{CoordinationMessage, CrossProcessCoordinator, MessageType, ProcessRegistration};
 pub use events::{AgentEvent, EventPersistence, EventReplay};
 pub use file_tracker::{ActiveConflict, FileModification, FileTracker, ModificationType};
 pub use git_state::{GitState, GitStateTracker};
