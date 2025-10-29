@@ -168,15 +168,15 @@ impl TuiApp {
                             self.command_palette.toggle();
                         }
                         KeyCode::Enter => {
-                            if let Some(cmd) = self.command_palette.execute() {
+                            if let Some(cmd) = self.command_palette.execute_selected() {
                                 self.handle_command(&cmd).await?;
                             }
                         }
                         KeyCode::Up => {
-                            self.command_palette.previous();
+                            self.command_palette.select_previous();
                         }
                         KeyCode::Down => {
-                            self.command_palette.next();
+                            self.command_palette.select_next();
                         }
                         KeyCode::Char(c) => {
                             self.command_palette.append_query(c);
@@ -250,6 +250,7 @@ impl TuiApp {
                         Constraint::Percentage(40),  // ICS
                     ])
                     .split(chunks[0])
+                    .to_vec()
             } else {
                 vec![chunks[0]]
             };
