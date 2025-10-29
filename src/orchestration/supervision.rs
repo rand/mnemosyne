@@ -107,9 +107,13 @@ impl SupervisionTree {
     pub async fn start(&mut self) -> Result<()> {
         tracing::info!("Starting supervision tree");
 
+        // Use unique names based on namespace to avoid registry conflicts in tests
+        // In production, this creates names like "optimizer-session:project:session-123"
+        let name_prefix = format!("{}", self.namespace);
+
         // Spawn Optimizer
         let (optimizer_ref, _) = Actor::spawn(
-            Some("optimizer".to_string()),
+            Some(format!("{}-optimizer", name_prefix)),
             OptimizerActor::new(self.storage.clone(), self.namespace.clone()),
             (self.storage.clone(), self.namespace.clone()),
         )
@@ -124,7 +128,7 @@ impl SupervisionTree {
 
         // Spawn Reviewer
         let (reviewer_ref, _) = Actor::spawn(
-            Some("reviewer".to_string()),
+            Some(format!("{}-reviewer", name_prefix)),
             ReviewerActor::new(self.storage.clone(), self.namespace.clone()),
             (self.storage.clone(), self.namespace.clone()),
         )
@@ -139,7 +143,7 @@ impl SupervisionTree {
 
         // Spawn Executor
         let (executor_ref, _) = Actor::spawn(
-            Some("executor".to_string()),
+            Some(format!("{}-executor", name_prefix)),
             ExecutorActor::new(self.storage.clone(), self.namespace.clone()),
             (self.storage.clone(), self.namespace.clone()),
         )
@@ -154,7 +158,7 @@ impl SupervisionTree {
 
         // Spawn Orchestrator (root supervisor)
         let (orchestrator_ref, _) = Actor::spawn(
-            Some("orchestrator".to_string()),
+            Some(format!("{}-orchestrator", name_prefix)),
             OrchestratorActor::new(self.storage.clone(), self.namespace.clone()),
             (self.storage.clone(), self.namespace.clone()),
         )
