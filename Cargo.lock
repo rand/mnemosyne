@@ -5313,6 +5313,7 @@ dependencies = [
  "dspy-rs",
  "fastembed",
  "fuzzy-matcher",
+ "hmac",
  "iroh",
  "iroh-net",
  "keyring",
