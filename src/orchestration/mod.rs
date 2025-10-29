@@ -36,6 +36,7 @@ pub mod identity;
 pub mod integrations;
 pub mod messages;
 pub mod network;
+pub mod notification_task;
 pub mod state;
 pub mod supervision;
 
@@ -57,6 +58,7 @@ pub use git_wrapper::{GitAuditEntry, GitOperationType, GitWrapper};
 pub use identity::{AgentId, AgentIdentity};
 pub use messages::{AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage};
 pub use network::{AgentEndpoint, AgentProtocol, MessageRouter};
+pub use notification_task::NotificationTaskHandle;
 pub use state::{AgentState, Phase, WorkItem, WorkQueue};
 pub use supervision::{SupervisionConfig, SupervisionTree};
 
