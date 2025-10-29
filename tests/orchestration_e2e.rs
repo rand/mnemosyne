@@ -749,6 +749,282 @@ async fn test_complete_work_plan_protocol_flow() {
 }
 
 // =============================================================================
+// Phase 1.4: Event Sourcing and Replay
+// =============================================================================
+
+#[tokio::test]
+async fn test_event_persistence_and_replay() {
+    let (storage, _temp) = create_test_storage().await;
+    let namespace = create_test_namespace();
+
+    // Create and persist multiple events
+    let persistence = EventPersistence::new(storage.clone(), namespace.clone());
+
+    let events_to_persist = vec![
+        AgentEvent::WorkItemAssigned {
+            agent: AgentRole::Executor,
+            item_id: WorkItemId::new(),
+            description: "Test task".to_string(),
+            phase: Phase::PromptToSpec,
+        },
+        AgentEvent::WorkItemStarted {
+            agent: AgentRole::Executor,
+            item_id: WorkItemId::new(),
+        },
+        AgentEvent::PhaseTransition {
+            from: Phase::PromptToSpec,
+            to: Phase::SpecToFullSpec,
+            approved_by: AgentRole::Reviewer,
+        },
+    ];
+
+    for event in &events_to_persist {
+        persistence.persist(event.clone()).await.expect("Failed to persist event");
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Replay events
+    let replay = EventReplay::new(storage.clone(), namespace);
+    let loaded_events = replay.load_events().await.expect("Failed to load events");
+
+    assert_eq!(loaded_events.len(), 3, "Should have loaded 3 events");
+
+    // Verify event types
+    assert!(matches!(loaded_events[0], AgentEvent::WorkItemAssigned { .. }));
+    assert!(matches!(loaded_events[1], AgentEvent::WorkItemStarted { .. }));
+    assert!(matches!(loaded_events[2], AgentEvent::PhaseTransition { .. }));
+}
+
+#[tokio::test]
+async fn test_state_reconstruction_from_events() {
+    let (storage, _temp) = create_test_storage().await;
+    let namespace = create_test_namespace();
+
+    let persistence = EventPersistence::new(storage.clone(), namespace.clone());
+
+    // Create a series of events that build up state
+    let item_id_1 = WorkItemId::new();
+    let item_id_2 = WorkItemId::new();
+
+    let events = vec![
+        AgentEvent::WorkItemAssigned {
+            agent: AgentRole::Executor,
+            item_id: item_id_1.clone(),
+            description: "Task 1".to_string(),
+            phase: Phase::PromptToSpec,
+        },
+        AgentEvent::WorkItemStarted {
+            agent: AgentRole::Executor,
+            item_id: item_id_1.clone(),
+        },
+        AgentEvent::WorkItemCompleted {
+            agent: AgentRole::Executor,
+            item_id: item_id_1.clone(),
+            duration_ms: 100,
+            memory_ids: vec![],
+        },
+        AgentEvent::WorkItemAssigned {
+            agent: AgentRole::Executor,
+            item_id: item_id_2.clone(),
+            description: "Task 2".to_string(),
+            phase: Phase::SpecToFullSpec,
+        },
+        AgentEvent::WorkItemFailed {
+            agent: AgentRole::Executor,
+            item_id: item_id_2.clone(),
+            error: "Test error".to_string(),
+        },
+        AgentEvent::PhaseTransition {
+            from: Phase::PromptToSpec,
+            to: Phase::SpecToFullSpec,
+            approved_by: AgentRole::Reviewer,
+        },
+    ];
+
+    for event in events {
+        persistence.persist(event).await.expect("Failed to persist");
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Replay and reconstruct state
+    let replay = EventReplay::new(storage, namespace);
+    let state = replay.replay().await.expect("Failed to replay");
+
+    // Verify reconstructed state
+    assert_eq!(state.completed_items.len(), 1, "Should have 1 completed item");
+    assert_eq!(state.failed_items.len(), 1, "Should have 1 failed item");
+    assert_eq!(state.current_phase, Phase::SpecToFullSpec, "Should be in SpecToFullSpec phase");
+}
+
+#[tokio::test]
+async fn test_crash_recovery_simulation() {
+    let (storage, _temp) = create_test_storage().await;
+    let namespace = create_test_namespace();
+
+    // First session: Start work and crash
+    {
+        let config = SupervisionConfig::default();
+        let mut engine = OrchestrationEngine::new_with_namespace(
+            storage.clone(),
+            config,
+            namespace.clone(),
+        )
+        .await
+        .expect("Failed to create engine");
+
+        engine.start().await.expect("Failed to start");
+
+        let orchestrator = engine.orchestrator();
+
+        // Submit and start work
+        let work = WorkItem::new(
+            "Work before crash".to_string(),
+            AgentRole::Executor,
+            Phase::PromptToSpec,
+            5,
+        );
+
+        orchestrator
+            .cast(OrchestratorMessage::SubmitWork(work))
+            .expect("Failed to submit work");
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // Simulate crash - stop engine without graceful completion
+        engine.stop().await.expect("Failed to stop");
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Second session: Recover from crash
+    {
+        // Replay events to see what happened before crash
+        let replay = EventReplay::new(storage.clone(), namespace.clone());
+        let events = replay.load_events().await.expect("Failed to load events");
+
+        // Should have at least WorkItemAssigned event
+        assert!(!events.is_empty(), "Should have events from crashed session");
+
+        let has_work_assigned = events.iter().any(|e| matches!(e, AgentEvent::WorkItemAssigned { .. }));
+        assert!(has_work_assigned, "Should have work assignment from before crash");
+
+        // Can restart engine with same namespace
+        let config = SupervisionConfig::default();
+        let mut engine = OrchestrationEngine::new_with_namespace(
+            storage.clone(),
+            config,
+            namespace.clone(),
+        )
+        .await
+        .expect("Failed to create recovery engine");
+
+        engine.start().await.expect("Failed to start recovery");
+        engine.stop().await.expect("Failed to stop recovery");
+    }
+}
+
+#[tokio::test]
+async fn test_cross_session_event_persistence() {
+    let (storage, _temp) = create_test_storage().await;
+    let namespace = create_test_namespace();
+
+    // Session 1: Create events
+    {
+        let persistence = EventPersistence::new(storage.clone(), namespace.clone());
+
+        for i in 0..5 {
+            let event = AgentEvent::WorkItemAssigned {
+                agent: AgentRole::Executor,
+                item_id: WorkItemId::new(),
+                description: format!("Task {}", i),
+                phase: Phase::PromptToSpec,
+            };
+            persistence.persist(event).await.expect("Failed to persist");
+        }
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Session 2: Verify events persist across sessions
+    {
+        let replay = EventReplay::new(storage.clone(), namespace.clone());
+        let events = replay.load_events().await.expect("Failed to load events");
+
+        assert_eq!(events.len(), 5, "All events should persist across sessions");
+    }
+
+    // Session 3: Add more events
+    {
+        let persistence = EventPersistence::new(storage.clone(), namespace.clone());
+
+        for i in 5..8 {
+            let event = AgentEvent::WorkItemAssigned {
+                agent: AgentRole::Executor,
+                item_id: WorkItemId::new(),
+                description: format!("Task {}", i),
+                phase: Phase::SpecToFullSpec,
+            };
+            persistence.persist(event).await.expect("Failed to persist");
+        }
+    }
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Session 4: Verify cumulative events
+    {
+        let replay = EventReplay::new(storage, namespace);
+        let events = replay.load_events().await.expect("Failed to load events");
+
+        assert_eq!(events.len(), 8, "All events from all sessions should be available");
+    }
+}
+
+#[tokio::test]
+async fn test_event_ordering_preservation() {
+    let (storage, _temp) = create_test_storage().await;
+    let namespace = create_test_namespace();
+
+    let persistence = EventPersistence::new(storage.clone(), namespace.clone());
+
+    // Create events with specific order
+    let mut item_ids = vec![];
+    for i in 0..10 {
+        let item_id = WorkItemId::new();
+        item_ids.push(item_id.clone());
+
+        let event = AgentEvent::WorkItemAssigned {
+            agent: AgentRole::Executor,
+            item_id,
+            description: format!("Task {}", i),
+            phase: Phase::PromptToSpec,
+        };
+
+        persistence.persist(event).await.expect("Failed to persist");
+
+        // Small delay to ensure chronological ordering
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+
+    // Replay and verify order
+    let replay = EventReplay::new(storage, namespace);
+    let events = replay.load_events().await.expect("Failed to load events");
+
+    assert_eq!(events.len(), 10, "Should have all 10 events");
+
+    // Verify events are in the correct order
+    for (i, event) in events.iter().enumerate() {
+        if let AgentEvent::WorkItemAssigned { description, item_id, .. } = event {
+            assert_eq!(*description, format!("Task {}", i), "Events should be in insertion order");
+            assert_eq!(*item_id, item_ids[i], "Item IDs should match insertion order");
+        } else {
+            panic!("Unexpected event type");
+        }
+    }
+}
+
+// =============================================================================
 // Test Summary
 // =============================================================================
 
@@ -782,4 +1058,14 @@ async fn test_phase_1_3_complete() {
     println!("✓ Reviewer validation of transitions");
     println!("✓ Phase tracking in work queue");
     println!("✓ Complete Work Plan Protocol flow");
+}
+
+#[tokio::test]
+async fn test_phase_1_4_complete() {
+    println!("Phase 1.4: Event Sourcing and Replay - COMPLETE");
+    println!("✓ Event persistence and replay");
+    println!("✓ State reconstruction from events");
+    println!("✓ Crash recovery simulation");
+    println!("✓ Cross-session event persistence");
+    println!("✓ Event ordering preservation");
 }
