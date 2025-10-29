@@ -5331,6 +5331,7 @@ dependencies = [
  "ractor",
  "ractor_cluster",
  "ratatui 0.29.0",
+ "regex",
  "reqwest 0.11.27",
  "ropey",
  "rusqlite",

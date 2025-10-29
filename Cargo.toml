@@ -50,6 +50,7 @@ uuid = { version = "1.6", features = ["v4", "serde"] }
 config = "0.13"
 clap = { version = "4.4", features = ["derive"] }
 async-trait = "0.1"
+regex = "1.10"
 
 # Built-in secrets management (no external tools needed)
 age = { version = "0.11", features = ["armor", "cli-common"] }

@@ -54,6 +54,7 @@ pub mod launcher;
 pub mod mcp;
 pub mod namespace;
 pub mod orchestration;
+pub mod pty;  // PTY wrapper for Claude Code
 pub mod secrets;
 pub mod services;
 pub mod storage;
