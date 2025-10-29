@@ -70,6 +70,31 @@ impl OrchestrationEngine {
         })
     }
 
+    /// Create a new orchestration engine with explicit namespace
+    pub async fn new_with_namespace(
+        storage: Arc<dyn crate::storage::StorageBackend>,
+        config: SupervisionConfig,
+        namespace: crate::types::Namespace,
+    ) -> Result<Self> {
+        // Initialize network layer
+        let network = Arc::new(network::NetworkLayer::new().await?);
+
+        // Create supervision tree with explicit namespace
+        let supervision = SupervisionTree::new_with_namespace(
+            config,
+            storage.clone(),
+            network.clone(),
+            namespace,
+        )
+        .await?;
+
+        Ok(Self {
+            supervision,
+            network,
+            storage,
+        })
+    }
+
     /// Start the orchestration engine
     pub async fn start(&mut self) -> Result<()> {
         tracing::info!("Starting orchestration engine");

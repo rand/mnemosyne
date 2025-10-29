@@ -103,6 +103,25 @@ impl SupervisionTree {
         })
     }
 
+    /// Create a new supervision tree with explicit namespace
+    pub async fn new_with_namespace(
+        config: SupervisionConfig,
+        storage: Arc<dyn StorageBackend>,
+        network: Arc<network::NetworkLayer>,
+        namespace: Namespace,
+    ) -> Result<Self> {
+        Ok(Self {
+            config,
+            storage,
+            network,
+            namespace,
+            orchestrator: None,
+            optimizer: None,
+            reviewer: None,
+            executor: None,
+        })
+    }
+
     /// Start all agents in the supervision tree
     pub async fn start(&mut self) -> Result<()> {
         tracing::info!("Starting supervision tree");

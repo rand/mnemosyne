@@ -247,8 +247,8 @@ impl EventReplay {
             .hybrid_search("", Some(self.namespace.clone()), 10000, false)
             .await?;
 
-        // Parse events, filtering by memory_type
-        let mut events = Vec::new();
+        // Parse events, filtering by memory_type, and collect with timestamps
+        let mut events_with_time: Vec<(chrono::DateTime<chrono::Utc>, AgentEvent)> = Vec::new();
         for result in memories {
             // Filter by memory_type
             if result.memory.memory_type != MemoryType::AgentEvent {
@@ -256,14 +256,17 @@ impl EventReplay {
             }
 
             if let Ok(event) = serde_json::from_str::<AgentEvent>(&result.memory.content) {
-                events.push(event);
+                events_with_time.push((result.memory.created_at, event));
             } else {
                 tracing::warn!("Failed to parse event: {}", result.memory.id);
             }
         }
 
-        // Sort by timestamp (memories are stored with created_at)
-        // Already sorted by storage layer
+        // Sort by timestamp (chronological order: oldest first)
+        events_with_time.sort_by_key(|(created_at, _)| *created_at);
+
+        // Extract just the events
+        let events: Vec<AgentEvent> = events_with_time.into_iter().map(|(_, event)| event).collect();
 
         tracing::info!("Loaded {} events from storage", events.len());
 
