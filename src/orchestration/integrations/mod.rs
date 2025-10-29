@@ -6,8 +6,12 @@
 //! - Evaluation: Quality metrics and learning
 //! - Embeddings: Semantic similarity (via storage)
 
+pub mod embeddings;
+pub mod evaluation;
 pub mod evolution;
 pub mod mcp;
 
+pub use embeddings::EmbeddingIntegration;
+pub use evaluation::EvaluationIntegration;
 pub use evolution::EvolutionIntegration;
 pub use mcp::McpIntegration;
