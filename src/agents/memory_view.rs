@@ -324,9 +324,12 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
 
-        let storage = LibsqlStorage::new_local(db_path.to_str().unwrap())
-            .await
-            .expect("Failed to create storage");
+        let storage = LibsqlStorage::new_with_validation(
+            crate::storage::libsql::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+            true, // create_if_missing
+        )
+        .await
+        .expect("Failed to create storage");
 
         let view = AgentMemoryView::new(AgentRole::Executor, Arc::new(storage));
 

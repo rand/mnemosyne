@@ -452,6 +452,11 @@ mod tests {
     #[test]
     fn test_get_default_db_path() {
         let path = get_default_db_path();
-        assert!(path.contains("mnemosyne.db"));
+        // Should contain either project.db (if project-specific exists) or mnemosyne.db (XDG default)
+        assert!(
+            path.contains("project.db") || path.contains("mnemosyne.db"),
+            "Expected path to contain either 'project.db' or 'mnemosyne.db', got: {}",
+            path
+        );
     }
 }

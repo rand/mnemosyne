@@ -532,7 +532,7 @@ impl<S: StorageBackend> MemoryAccessControl<S> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::libsql::LibsqlStorage;
+    use crate::storage::libsql::{ConnectionMode, LibsqlStorage};
     use crate::types::Namespace;
     use tempfile::tempdir;
 
@@ -541,9 +541,12 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
 
-        let storage = LibsqlStorage::new_local(db_path.to_str().unwrap())
-            .await
-            .expect("Failed to create storage");
+        let storage = LibsqlStorage::new_with_validation(
+            ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+            true, // create_if_missing
+        )
+        .await
+        .expect("Failed to create storage");
 
         let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage));
 
@@ -594,9 +597,12 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
 
-        let storage = LibsqlStorage::new_local(db_path.to_str().unwrap())
-            .await
-            .expect("Failed to create storage");
+        let storage = LibsqlStorage::new_with_validation(
+            ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+            true, // create_if_missing
+        )
+        .await
+        .expect("Failed to create storage");
 
         let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage));
 
@@ -624,9 +630,12 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("test.db");
 
-        let storage = LibsqlStorage::new_local(db_path.to_str().unwrap())
-            .await
-            .expect("Failed to create storage");
+        let storage = LibsqlStorage::new_with_validation(
+            ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+            true, // create_if_missing
+        )
+        .await
+        .expect("Failed to create storage");
 
         let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::new(storage));
 

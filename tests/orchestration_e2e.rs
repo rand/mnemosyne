@@ -211,11 +211,16 @@ async fn test_engine_restart_preserves_events() {
 #[tokio::test]
 async fn test_single_work_item_submission() {
     let (storage, _temp) = create_test_storage().await;
+    let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new(storage.clone(), config)
-        .await
-        .expect("Failed to create engine");
+    let mut engine = OrchestrationEngine::new_with_namespace(
+        storage.clone(),
+        config,
+        namespace.clone(),
+    )
+    .await
+    .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -237,7 +242,6 @@ async fn test_single_work_item_submission() {
     tokio::time::sleep(Duration::from_millis(200)).await;
 
     // Verify event was persisted
-    let namespace = create_test_namespace();
     let replay = EventReplay::new(storage.clone(), namespace);
     let events = replay.load_events().await.expect("Failed to load events");
 
@@ -406,11 +410,16 @@ async fn test_work_queue_ready_items() {
 #[tokio::test]
 async fn test_work_completion_notification() {
     let (storage, _temp) = create_test_storage().await;
+    let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new(storage.clone(), config)
-        .await
-        .expect("Failed to create engine");
+    let mut engine = OrchestrationEngine::new_with_namespace(
+        storage.clone(),
+        config,
+        namespace.clone(),
+    )
+    .await
+    .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -445,7 +454,6 @@ async fn test_work_completion_notification() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Verify WorkItemCompleted event exists
-    let namespace = create_test_namespace();
     let replay = EventReplay::new(storage.clone(), namespace);
     let events = replay.load_events().await.expect("Failed to load events");
 
