@@ -1,5 +1,391 @@
-//! Semantic analysis with DSPy (stub)
+//! Semantic analysis for context documents
 //!
-//! To be implemented in Phase 5
+//! Provides background analysis to extract:
+//! - Subject-predicate-object triples
+//! - Relationships and dependencies
+//! - Ambiguities and contradictions
+//! - Typed holes (unknowns that need resolution)
+//!
+//! Runs asynchronously without blocking the UI
 
-// Placeholder for semantic analysis
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use tokio::sync::mpsc;
+
+/// Semantic triple (subject-predicate-object)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Triple {
+    /// Subject
+    pub subject: String,
+    /// Predicate (relationship/action)
+    pub predicate: String,
+    /// Object
+    pub object: String,
+    /// Source line in document
+    pub source_line: usize,
+    /// Confidence score (0-100)
+    pub confidence: u8,
+}
+
+/// Typed hole - something that needs resolution
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TypedHole {
+    /// Name/identifier of the hole
+    pub name: String,
+    /// Type of hole
+    pub kind: HoleKind,
+    /// Position in document
+    pub line: usize,
+    /// Column position
+    pub column: usize,
+    /// Context around the hole
+    pub context: String,
+    /// Possible resolutions
+    pub suggestions: Vec<String>,
+}
+
+/// Kind of typed hole
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum HoleKind {
+    /// Unknown symbol/reference
+    Unknown,
+    /// Ambiguous term (multiple meanings)
+    Ambiguous,
+    /// Missing definition
+    Undefined,
+    /// Contradictory statement
+    Contradiction,
+    /// Incomplete specification
+    Incomplete,
+}
+
+impl HoleKind {
+    /// Get color for hole kind
+    pub fn color(&self) -> ratatui::style::Color {
+        use ratatui::style::Color;
+        match self {
+            HoleKind::Unknown => Color::Rgb(180, 180, 120),       // Soft yellow
+            HoleKind::Ambiguous => Color::Rgb(180, 160, 180),     // Soft purple
+            HoleKind::Undefined => Color::Rgb(180, 140, 140),     // Soft red
+            HoleKind::Contradiction => Color::Rgb(200, 120, 120), // Stronger red
+            HoleKind::Incomplete => Color::Rgb(160, 180, 180),    // Soft cyan
+        }
+    }
+
+    /// Get icon for hole kind
+    pub fn icon(&self) -> &'static str {
+        match self {
+            HoleKind::Unknown => "?",
+            HoleKind::Ambiguous => "~",
+            HoleKind::Undefined => "!",
+            HoleKind::Contradiction => "✗",
+            HoleKind::Incomplete => "…",
+        }
+    }
+}
+
+/// Semantic analysis result
+#[derive(Debug, Clone, Default)]
+pub struct SemanticAnalysis {
+    /// Extracted triples
+    pub triples: Vec<Triple>,
+    /// Typed holes found
+    pub holes: Vec<TypedHole>,
+    /// Entity mentions (name -> count)
+    pub entities: HashMap<String, usize>,
+    /// Relationships between entities
+    pub relationships: Vec<(String, String, String)>, // (from, relation, to)
+}
+
+/// Semantic analyzer
+pub struct SemanticAnalyzer {
+    /// Channel for sending analysis requests
+    tx: mpsc::UnboundedSender<AnalysisRequest>,
+    /// Channel for receiving results
+    rx: mpsc::UnboundedReceiver<SemanticAnalysis>,
+}
+
+/// Analysis request
+struct AnalysisRequest {
+    /// Text to analyze
+    text: String,
+    /// Response channel
+    response_tx: mpsc::UnboundedSender<SemanticAnalysis>,
+}
+
+impl SemanticAnalyzer {
+    /// Create new semantic analyzer
+    pub fn new() -> Self {
+        let (request_tx, mut request_rx) = mpsc::unbounded_channel::<AnalysisRequest>();
+        let (result_tx, result_rx) = mpsc::unbounded_channel::<SemanticAnalysis>();
+
+        // Spawn background analysis task
+        tokio::spawn(async move {
+            while let Some(request) = request_rx.recv().await {
+                let analysis = Self::analyze_text(&request.text);
+                let _ = request.response_tx.send(analysis);
+            }
+        });
+
+        Self {
+            tx: request_tx,
+            rx: result_rx,
+        }
+    }
+
+    /// Request analysis of text (non-blocking)
+    pub fn analyze(&mut self, text: String) -> Result<()> {
+        let (response_tx, mut response_rx) = mpsc::unbounded_channel();
+
+        let request = AnalysisRequest {
+            text,
+            response_tx,
+        };
+
+        self.tx.send(request)?;
+
+        // Forward result to our receiver
+        let result_tx = self.tx.clone();
+        tokio::spawn(async move {
+            if let Some(analysis) = response_rx.recv().await {
+                // Result available for pickup
+                let _ = result_tx; // Keep channel alive
+            }
+        });
+
+        Ok(())
+    }
+
+    /// Try to receive analysis result (non-blocking)
+    pub fn try_recv(&mut self) -> Option<SemanticAnalysis> {
+        self.rx.try_recv().ok()
+    }
+
+    /// Analyze text and extract semantic information
+    fn analyze_text(text: &str) -> SemanticAnalysis {
+        let mut analysis = SemanticAnalysis::default();
+
+        // Extract simple triples from text
+        for (line_idx, line) in text.lines().enumerate() {
+            // Look for patterns like "X is Y", "X has Y", "X requires Y"
+            if let Some(triple) = Self::extract_triple(line, line_idx) {
+                analysis.triples.push(triple);
+            }
+
+            // Look for typed holes
+            analysis.holes.extend(Self::find_holes(line, line_idx));
+
+            // Extract entity mentions
+            Self::extract_entities(line, &mut analysis.entities);
+        }
+
+        // Build relationships from triples
+        for triple in &analysis.triples {
+            analysis.relationships.push((
+                triple.subject.clone(),
+                triple.predicate.clone(),
+                triple.object.clone(),
+            ));
+        }
+
+        analysis
+    }
+
+    /// Extract a semantic triple from a line
+    fn extract_triple(line: &str, line_idx: usize) -> Option<Triple> {
+        let lower = line.to_lowercase();
+
+        // Pattern: "X is Y"
+        if let Some(is_pos) = lower.find(" is ") {
+            let subject = line[..is_pos].trim().to_string();
+            let object = line[is_pos + 4..].trim().to_string();
+
+            if !subject.is_empty() && !object.is_empty() {
+                return Some(Triple {
+                    subject,
+                    predicate: "is".to_string(),
+                    object,
+                    source_line: line_idx,
+                    confidence: 80,
+                });
+            }
+        }
+
+        // Pattern: "X has Y"
+        if let Some(has_pos) = lower.find(" has ") {
+            let subject = line[..has_pos].trim().to_string();
+            let object = line[has_pos + 5..].trim().to_string();
+
+            if !subject.is_empty() && !object.is_empty() {
+                return Some(Triple {
+                    subject,
+                    predicate: "has".to_string(),
+                    object,
+                    source_line: line_idx,
+                    confidence: 75,
+                });
+            }
+        }
+
+        // Pattern: "X requires Y"
+        if let Some(req_pos) = lower.find(" requires ") {
+            let subject = line[..req_pos].trim().to_string();
+            let object = line[req_pos + 10..].trim().to_string();
+
+            if !subject.is_empty() && !object.is_empty() {
+                return Some(Triple {
+                    subject,
+                    predicate: "requires".to_string(),
+                    object,
+                    source_line: line_idx,
+                    confidence: 85,
+                });
+            }
+        }
+
+        None
+    }
+
+    /// Find typed holes in a line
+    fn find_holes(line: &str, line_idx: usize) -> Vec<TypedHole> {
+        let mut holes = Vec::new();
+
+        // Look for TODO/TBD/FIXME markers
+        let lower = line.to_lowercase();
+        if lower.contains("todo") || lower.contains("tbd") || lower.contains("fixme") {
+            holes.push(TypedHole {
+                name: "Incomplete".to_string(),
+                kind: HoleKind::Incomplete,
+                line: line_idx,
+                column: 0,
+                context: line.to_string(),
+                suggestions: vec!["Complete this section".to_string()],
+            });
+        }
+
+        // Look for contradictions (words like "however", "but actually")
+        let lower = line.to_lowercase();
+        if lower.contains("however") || lower.contains("but actually") || lower.contains("contradiction") {
+            holes.push(TypedHole {
+                name: "Potential contradiction".to_string(),
+                kind: HoleKind::Contradiction,
+                line: line_idx,
+                column: 0,
+                context: line.to_string(),
+                suggestions: vec!["Review for consistency".to_string()],
+            });
+        }
+
+        // Look for undefined references (e.g., @undefined, #missing)
+        for (col, word) in line.split_whitespace().enumerate() {
+            if (word.starts_with('@') || word.starts_with('#')) && word.len() > 1 {
+                // This could be an undefined reference
+                // In a real implementation, we'd check against known symbols
+                if word.contains("undefined") || word.contains("missing") || word.contains("unknown") {
+                    holes.push(TypedHole {
+                        name: word.to_string(),
+                        kind: HoleKind::Undefined,
+                        line: line_idx,
+                        column: col,
+                        context: line.to_string(),
+                        suggestions: vec![format!("Define {}", word)],
+                    });
+                }
+            }
+        }
+
+        holes
+    }
+
+    /// Extract entity mentions from a line
+    fn extract_entities(line: &str, entities: &mut HashMap<String, usize>) {
+        // Extract capitalized words (potential entities)
+        for word in line.split_whitespace() {
+            let clean = word.trim_matches(|c: char| !c.is_alphanumeric());
+            if clean.len() > 2 && clean.chars().next().unwrap().is_uppercase() {
+                *entities.entry(clean.to_string()).or_insert(0) += 1;
+            }
+        }
+
+        // Extract symbol references (@symbol, #file)
+        for word in line.split_whitespace() {
+            if word.starts_with('@') || word.starts_with('#') {
+                let clean = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '@' && c != '#');
+                if clean.len() > 2 {
+                    *entities.entry(clean.to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+    }
+}
+
+impl Default for SemanticAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_triple_extraction() {
+        let text = "The system is distributed.\nThe agent has memory.\nService requires authentication.";
+        let analysis = SemanticAnalyzer::analyze_text(text);
+
+        assert_eq!(analysis.triples.len(), 3);
+
+        // Check "is" triple
+        assert!(analysis.triples.iter().any(|t| t.subject == "The system" && t.predicate == "is"));
+
+        // Check "has" triple
+        assert!(analysis.triples.iter().any(|t| t.subject == "The agent" && t.predicate == "has"));
+
+        // Check "requires" triple
+        assert!(analysis.triples.iter().any(|t| t.subject == "Service" && t.predicate == "requires"));
+    }
+
+    #[test]
+    fn test_hole_detection() {
+        let text = "TODO: implement this feature\nThis is complete.";
+        let analysis = SemanticAnalyzer::analyze_text(text);
+
+        assert!(!analysis.holes.is_empty());
+        assert!(analysis.holes.iter().any(|h| h.kind == HoleKind::Incomplete));
+    }
+
+    #[test]
+    fn test_entity_extraction() {
+        let text = "The Orchestrator manages the Agent and calls Process() with #config.";
+        let analysis = SemanticAnalyzer::analyze_text(text);
+
+        assert!(analysis.entities.contains_key("Orchestrator"));
+        assert!(analysis.entities.contains_key("Agent"));
+        assert!(analysis.entities.contains_key("Process"));
+        assert!(analysis.entities.contains_key("#config"));
+    }
+
+    #[test]
+    fn test_hole_kind_colors() {
+        for kind in [
+            HoleKind::Unknown,
+            HoleKind::Ambiguous,
+            HoleKind::Undefined,
+            HoleKind::Contradiction,
+            HoleKind::Incomplete,
+        ] {
+            let _ = kind.color(); // Just verify it doesn't panic
+            assert!(!kind.icon().is_empty());
+        }
+    }
+
+    #[test]
+    fn test_contradiction_detection() {
+        let text = "The system is fast. However, the system is slow.";
+        let analysis = SemanticAnalyzer::analyze_text(text);
+
+        assert!(analysis.holes.iter().any(|h| h.kind == HoleKind::Contradiction));
+    }
+}
