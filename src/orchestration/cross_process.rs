@@ -114,6 +114,19 @@ impl CrossProcessCoordinator {
             ))
         })?;
 
+        // Security: Set directory permissions to 0700 (owner-only) on Unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::Permissions::from_mode(0o700);
+            std::fs::set_permissions(mnemosyne_dir, perms).map_err(|e| {
+                MnemosyneError::Io(std::io::Error::new(
+                    e.kind(),
+                    format!("Failed to set directory permissions: {}", e),
+                ))
+            })?;
+        }
+
         let registry_path = mnemosyne_dir.join("branch_registry.json");
         let queue_dir = mnemosyne_dir.join("coordination_queue");
         let process_registry_path = mnemosyne_dir.join("process_registry.json");
@@ -124,6 +137,19 @@ impl CrossProcessCoordinator {
                 format!("Failed to create queue directory: {}", e),
             ))
         })?;
+
+        // Security: Set queue directory permissions to 0700 (owner-only) on Unix
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::Permissions::from_mode(0o700);
+            std::fs::set_permissions(&queue_dir, perms).map_err(|e| {
+                MnemosyneError::Io(std::io::Error::new(
+                    e.kind(),
+                    format!("Failed to set queue directory permissions: {}", e),
+                ))
+            })?;
+        }
 
         let current_process = ProcessRegistration {
             agent_id: agent_id.clone(),
@@ -190,10 +216,29 @@ impl CrossProcessCoordinator {
 
     /// Send coordination message
     pub fn send_message(&self, message: CoordinationMessage) -> Result<()> {
+        // Security: Validate message ID to prevent path traversal
+        // Message IDs must be valid UUIDs (alphanumeric + hyphens only)
+        if !message.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+            return Err(MnemosyneError::Other(format!(
+                "Invalid message ID: contains illegal characters"
+            )));
+        }
+
         let message_path = self.queue_dir.join(format!("{}.json", message.id));
 
-        let json = serde_json::to_string_pretty(&message)
+        // Security: Use compact JSON and limit message size
+        let json = serde_json::to_string(&message)
             .map_err(|e| MnemosyneError::Other(format!("Failed to serialize message: {}", e)))?;
+
+        // Security: Enforce max message size (1KB)
+        const MAX_MESSAGE_SIZE: usize = 1024;
+        if json.len() > MAX_MESSAGE_SIZE {
+            return Err(MnemosyneError::Other(format!(
+                "Message too large: {} bytes (max {})",
+                json.len(),
+                MAX_MESSAGE_SIZE
+            )));
+        }
 
         std::fs::write(&message_path, json).map_err(|e| {
             MnemosyneError::Io(std::io::Error::new(
@@ -229,6 +274,25 @@ impl CrossProcessCoordinator {
                 continue;
             }
 
+            // Security: Check file size before reading to prevent DoS
+            const MAX_MESSAGE_SIZE: usize = 1024; // 1KB max
+            let metadata = std::fs::metadata(&path).map_err(|e| {
+                MnemosyneError::Io(std::io::Error::new(
+                    e.kind(),
+                    format!("Failed to read file metadata: {}", e),
+                ))
+            })?;
+
+            if metadata.len() > MAX_MESSAGE_SIZE as u64 {
+                // Skip oversized files (potential attack)
+                tracing::warn!(
+                    "Skipping oversized message file: {} bytes (max {})",
+                    metadata.len(),
+                    MAX_MESSAGE_SIZE
+                );
+                continue;
+            }
+
             let json = std::fs::read_to_string(&path).map_err(|e| {
                 MnemosyneError::Io(std::io::Error::new(
                     e.kind(),
@@ -236,8 +300,15 @@ impl CrossProcessCoordinator {
                 ))
             })?;
 
-            let message: CoordinationMessage = serde_json::from_str(&json)
-                .map_err(|e| MnemosyneError::Other(format!("Failed to deserialize message: {}", e)))?;
+            // Security: Validate JSON structure before full deserialization
+            let message: CoordinationMessage = match serde_json::from_str(&json) {
+                Ok(msg) => msg,
+                Err(e) => {
+                    // Skip malformed messages instead of failing entire receive
+                    tracing::warn!("Skipping malformed message file {}: {}", path.display(), e);
+                    continue;
+                }
+            };
 
             // Check if message is for this agent
             if message.to_agent.as_ref() == Some(&self.current_process.agent_id)
