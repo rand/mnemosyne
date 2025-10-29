@@ -25,6 +25,8 @@ pub mod actors;
 pub mod branch_coordinator;
 pub mod branch_guard;
 pub mod branch_registry;
+pub mod cli;
+pub mod config;
 pub mod conflict_detector;
 pub mod conflict_notifier;
 pub mod cross_process;
@@ -47,6 +49,9 @@ mod coordination_tests;
 pub use actors::{ExecutorActor, OrchestratorActor, OptimizerActor, ReviewerActor};
 pub use branch_coordinator::{BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse};
 pub use branch_guard::{BranchGuard, BranchGuardConfig};
+pub use cli::{CliCommand, CliHandler, CliResult, parse_args};
+pub use config::{BranchIsolationConfig, BranchIsolationSettings, ConflictDetectionSettings,
+                 CrossProcessSettings, NotificationSettings};
 pub use branch_registry::{
     AgentAssignment, BranchRegistry, ConflictReport, CoordinationMode, SharedBranchRegistry,
     WorkIntent,
