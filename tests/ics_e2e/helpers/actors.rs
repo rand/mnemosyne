@@ -149,6 +149,30 @@ impl MockAgent {
         Self::new(id, "SubAgent")
     }
 
+    /// Create Semantic mock
+    pub fn semantic() -> Self {
+        let mut agent = Self::new("semantic", "Semantic");
+        agent.proposal_fn = Some(Arc::new(|text: &str| {
+            // Semantic analyzer finds patterns and suggests improvements
+            let mut proposals = Vec::new();
+            if text.contains("TODO") {
+                proposals.push(ChangeProposal {
+                    id: "sem-1".to_string(),
+                    agent: "agent:semantic".to_string(),
+                    description: "Resolve TODO marker".to_string(),
+                    original: "TODO".to_string(),
+                    proposed: "Completed task description".to_string(),
+                    line_range: (0, 0),
+                    created_at: SystemTime::now(),
+                    status: ProposalStatus::Pending,
+                    rationale: "TODO marker should be resolved".to_string(),
+                });
+            }
+            proposals
+        }));
+        agent
+    }
+
     /// Set agent activity
     pub fn set_activity(&mut self, activity: AgentActivity, message: Option<String>) {
         self.info.activity = activity;
