@@ -7,5 +7,7 @@
 //! - Embeddings: Semantic similarity (via storage)
 
 pub mod evolution;
+pub mod mcp;
 
 pub use evolution::EvolutionIntegration;
+pub use mcp::McpIntegration;
