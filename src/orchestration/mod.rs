@@ -23,6 +23,7 @@
 
 pub mod actors;
 pub mod events;
+pub mod integrations;
 pub mod messages;
 pub mod network;
 pub mod state;
