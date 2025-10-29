@@ -427,11 +427,10 @@ impl LibsqlStorage {
         debug!("Migrations path: {:?}", migrations_path);
 
         // Read and execute migration files in order
-        // Only run core migrations for now
-        // Advanced migrations (006-009) require SQLite extensions (vec0) that need to be loaded first
         let migration_files = vec![
             "001_initial_schema.sql",
             "002_add_indexes.sql",
+            "006_vector_search.sql",    // Vector search table (libsql has vec0 built-in)
         ];
 
         for migration_file in migration_files {

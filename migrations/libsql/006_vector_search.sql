@@ -4,9 +4,10 @@
 
 -- Create vec0 virtual table for embeddings
 -- This table stores memory ID -> embedding mappings
+-- Using 384 dimensions for all-MiniLM-L6-v2 (local model)
 CREATE VIRTUAL TABLE IF NOT EXISTS memory_vectors USING vec0(
     memory_id TEXT PRIMARY KEY,
-    embedding FLOAT[1536]
+    embedding FLOAT[384]
 );
 
 -- Note: Virtual tables do not support traditional indexes
