@@ -11,6 +11,7 @@
 //! - Only statistical scores persisted
 //! - All computations local, no network calls
 
+use crate::embeddings::{cosine_similarity, EmbeddingService, LocalEmbeddingService};
 use crate::error::{MnemosyneError, Result};
 use crate::evaluation::feedback_collector::{ContextEvaluation, ContextType};
 use crate::storage::StorageBackend;
@@ -18,7 +19,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
-use tracing::debug;
+use tracing::{debug, warn};
 
 /// Privacy-preserving relevance features
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,12 +51,21 @@ pub struct RelevanceFeatures {
 /// Feature extractor
 pub struct FeatureExtractor {
     db_path: String,
+    embedding_service: Option<Arc<LocalEmbeddingService>>,
 }
 
 impl FeatureExtractor {
     /// Create a new feature extractor
     pub fn new(db_path: String) -> Self {
-        Self { db_path }
+        Self {
+            db_path,
+            embedding_service: None,
+        }
+    }
+
+    /// Set the embedding service for semantic similarity computation
+    pub fn set_embedding_service(&mut self, service: Arc<LocalEmbeddingService>) {
+        self.embedding_service = Some(service);
     }
 
     /// Extract features from an evaluation
@@ -76,7 +86,10 @@ impl FeatureExtractor {
         );
 
         // Semantic similarity (if embeddings available)
-        let semantic_similarity = None; // TODO: Implement when embeddings ready
+        let semantic_similarity = self.compute_semantic_similarity(
+            &evaluation.task_keywords.clone().unwrap_or_default(),
+            context_keywords,
+        ).await.ok().flatten();
 
         // Recency features
         let recency_days = self.compute_recency_days(&evaluation.context_id, &evaluation.context_type).await?;
@@ -146,6 +159,66 @@ impl FeatureExtractor {
         } else {
             intersection as f32 / union as f32
         }
+    }
+
+    /// Compute semantic similarity using embeddings
+    ///
+    /// Computes cosine similarity between task keywords and context keywords
+    /// using local embeddings. Returns None if embedding service unavailable
+    /// or if embeddings fail to generate.
+    ///
+    /// Privacy: Only keywords are embedded, no raw content.
+    async fn compute_semantic_similarity(
+        &self,
+        task_keywords: &[String],
+        context_keywords: &[String],
+    ) -> Result<Option<f32>> {
+        // Skip if no embedding service
+        let service = match &self.embedding_service {
+            Some(s) => s,
+            None => {
+                debug!("No embedding service available for semantic similarity");
+                return Ok(None);
+            }
+        };
+
+        // Skip if either keyword list is empty
+        if task_keywords.is_empty() || context_keywords.is_empty() {
+            debug!("Skipping semantic similarity - empty keyword list");
+            return Ok(None);
+        }
+
+        // Embed task keywords (join into single text)
+        let task_text = task_keywords.join(" ");
+        let task_embedding = match service.embed(&task_text).await {
+            Ok(emb) => emb,
+            Err(e) => {
+                warn!("Failed to embed task keywords: {}", e);
+                return Ok(None);
+            }
+        };
+
+        // Embed context keywords
+        let context_text = context_keywords.join(" ");
+        let context_embedding = match service.embed(&context_text).await {
+            Ok(emb) => emb,
+            Err(e) => {
+                warn!("Failed to embed context keywords: {}", e);
+                return Ok(None);
+            }
+        };
+
+        // Compute cosine similarity
+        let similarity = cosine_similarity(&task_embedding, &context_embedding);
+
+        debug!(
+            "Semantic similarity computed: {:.3} (task: {}, context: {})",
+            similarity,
+            task_keywords.len(),
+            context_keywords.len()
+        );
+
+        Ok(Some(similarity))
     }
 
     /// Compute recency (days since context was created)
@@ -429,6 +502,105 @@ mod tests {
 
         // Should return boolean, not reveal file paths or names
         assert!(has_match || !has_match); // Just a boolean
+    }
+
+    #[tokio::test]
+    async fn test_semantic_similarity_without_service() {
+        // Without embedding service, should return None gracefully
+        let extractor = create_test_extractor();
+
+        let task = vec!["rust".to_string(), "async".to_string()];
+        let context = vec!["rust".to_string(), "tokio".to_string()];
+
+        let result = extractor.compute_semantic_similarity(&task, &context).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none(), "Should return None without embedding service");
+    }
+
+    #[tokio::test]
+    async fn test_semantic_similarity_empty_keywords() {
+        use crate::config::EmbeddingConfig;
+
+        // Even with embedding service, empty keywords should return None
+        let mut extractor = create_test_extractor();
+
+        // Note: This test will work even if embedding service fails to initialize
+        // because we test empty keywords first
+        if let Ok(service) = LocalEmbeddingService::new(EmbeddingConfig::default()).await {
+            extractor.set_embedding_service(Arc::new(service));
+        }
+
+        // Empty task keywords
+        let task = vec![];
+        let context = vec!["rust".to_string()];
+        let result = extractor.compute_semantic_similarity(&task, &context).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+
+        // Empty context keywords
+        let task = vec!["rust".to_string()];
+        let context = vec![];
+        let result = extractor.compute_semantic_similarity(&task, &context).await;
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    #[ignore] // Requires model download (~140MB), run with --ignored
+    async fn test_semantic_similarity_with_embeddings() {
+        use crate::config::EmbeddingConfig;
+
+        // With embedding service, should compute similarity
+        let mut extractor = create_test_extractor();
+
+        let config = EmbeddingConfig::default();
+        let service = LocalEmbeddingService::new(config).await.unwrap();
+        extractor.set_embedding_service(Arc::new(service));
+
+        // Similar keywords should have high similarity
+        let task = vec!["rust".to_string(), "async".to_string(), "programming".to_string()];
+        let context = vec!["rust".to_string(), "asynchronous".to_string(), "code".to_string()];
+
+        let result = extractor.compute_semantic_similarity(&task, &context).await;
+
+        assert!(result.is_ok());
+        let similarity = result.unwrap();
+        assert!(similarity.is_some());
+        let sim = similarity.unwrap();
+
+        // Similarity should be in valid range [0, 1]
+        assert!(sim >= 0.0 && sim <= 1.0);
+
+        // Similar terms should have positive similarity
+        assert!(sim > 0.3, "Similar keywords should have similarity > 0.3, got {}", sim);
+    }
+
+    #[tokio::test]
+    #[ignore] // Requires model download (~140MB), run with --ignored
+    async fn test_semantic_similarity_dissimilar() {
+        use crate::config::EmbeddingConfig;
+
+        let mut extractor = create_test_extractor();
+
+        let config = EmbeddingConfig::default();
+        let service = LocalEmbeddingService::new(config).await.unwrap();
+        extractor.set_embedding_service(Arc::new(service));
+
+        // Dissimilar keywords should have lower similarity
+        let task = vec!["database".to_string(), "sql".to_string(), "query".to_string()];
+        let context = vec!["graphics".to_string(), "rendering".to_string(), "shader".to_string()];
+
+        let result = extractor.compute_semantic_similarity(&task, &context).await;
+
+        assert!(result.is_ok());
+        let similarity = result.unwrap();
+        assert!(similarity.is_some());
+        let sim = similarity.unwrap();
+
+        // Dissimilar terms should have lower similarity than similar terms
+        assert!(sim >= 0.0 && sim <= 1.0);
+        assert!(sim < 0.6, "Dissimilar keywords should have similarity < 0.6, got {}", sim);
     }
 
     // Test helpers
