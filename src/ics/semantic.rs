@@ -104,6 +104,8 @@ pub struct SemanticAnalyzer {
     tx: mpsc::UnboundedSender<AnalysisRequest>,
     /// Channel for receiving results
     rx: mpsc::UnboundedReceiver<SemanticAnalysis>,
+    /// Whether analysis is currently in progress
+    analyzing: bool,
 }
 
 /// Analysis request
@@ -131,6 +133,7 @@ impl SemanticAnalyzer {
         Self {
             tx: request_tx,
             rx: result_rx,
+            analyzing: false,
         }
     }
 
@@ -144,6 +147,7 @@ impl SemanticAnalyzer {
         };
 
         self.tx.send(request)?;
+        self.analyzing = true;
 
         // Forward result to our receiver
         let result_tx = self.tx.clone();
@@ -159,7 +163,16 @@ impl SemanticAnalyzer {
 
     /// Try to receive analysis result (non-blocking)
     pub fn try_recv(&mut self) -> Option<SemanticAnalysis> {
-        self.rx.try_recv().ok()
+        let result = self.rx.try_recv().ok();
+        if result.is_some() {
+            self.analyzing = false;
+        }
+        result
+    }
+
+    /// Check if analysis is currently in progress
+    pub fn is_analyzing(&self) -> bool {
+        self.analyzing
     }
 
     /// Analyze text and extract semantic information

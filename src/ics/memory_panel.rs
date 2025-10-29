@@ -26,6 +26,8 @@ pub struct MemoryPanelState {
     visible: bool,
     /// Selected memory for preview
     selected_memory: Option<MemoryNote>,
+    /// Whether memories are currently loading
+    loading: bool,
 }
 
 impl Default for MemoryPanelState {
@@ -42,6 +44,7 @@ impl MemoryPanelState {
             search_query: String::new(),
             visible: false,
             selected_memory: None,
+            loading: false,
         }
     }
 
@@ -109,6 +112,16 @@ impl MemoryPanelState {
     /// Get selected memory
     pub fn selected_memory(&self) -> Option<&MemoryNote> {
         self.selected_memory.as_ref()
+    }
+
+    /// Set loading state
+    pub fn set_loading(&mut self, loading: bool) {
+        self.loading = loading;
+    }
+
+    /// Check if loading
+    pub fn is_loading(&self) -> bool {
+        self.loading
     }
 }
 
@@ -183,6 +196,29 @@ impl<'a> MemoryPanel<'a> {
             .borders(Borders::ALL)
             .title(title)
             .style(Style::default().fg(Color::Rgb(180, 180, 200)));
+
+        // Show loading state if loading
+        if state.loading {
+            let inner = block.inner(area);
+            block.render(area, buf);
+
+            let loading_text = vec![
+                Line::from(""),
+                Line::from(Span::styled(
+                    "Loading memories...",
+                    Style::default().fg(Color::Rgb(160, 160, 180)),
+                )),
+                Line::from(""),
+                Line::from(Span::styled(
+                    "◐",
+                    Style::default().fg(Color::Rgb(140, 140, 160)),
+                )),
+            ];
+
+            let paragraph = Paragraph::new(loading_text).alignment(ratatui::layout::Alignment::Center);
+            paragraph.render(inner, buf);
+            return;
+        }
 
         // Filter memories based on search
         let filtered_memories: Vec<&MemoryNote> = if state.search_query.is_empty() {

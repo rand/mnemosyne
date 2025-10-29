@@ -494,7 +494,9 @@ impl IcsApp {
                 buffer.cursor.position.column + 1
             );
             let lang = format!("{:?} ", buffer.language);
-            let semantic_info = if let Some(analysis) = &self.semantic_analysis {
+            let semantic_info = if self.semantic_analyzer.is_analyzing() {
+                "| Analyzing... ".to_string()
+            } else if let Some(analysis) = &self.semantic_analysis {
                 format!(
                     "| Triples: {} | Holes: {} | Entities: {} ",
                     analysis.triples.len(),
