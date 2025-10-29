@@ -26,6 +26,14 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// Main editor managing multiple buffers
+///
+/// # Invariants
+///
+/// - `active_buffer` always refers to a buffer that exists in `buffers`
+/// - Buffer 0 always exists (created on initialization)
+/// - Buffers are never removed (only added)
+///
+/// These invariants ensure that `active_buffer()` and `active_buffer_mut()` never panic.
 pub struct IcsEditor {
     buffers: HashMap<BufferId, TextBuffer>,
     active_buffer: BufferId,
@@ -41,7 +49,7 @@ impl IcsEditor {
             next_buffer_id: 1,
         };
 
-        // Create initial empty buffer
+        // Create initial empty buffer (maintains invariant: buffer 0 always exists)
         let initial_buffer = TextBuffer::new(0, None);
         editor.buffers.insert(0, initial_buffer);
 
@@ -60,13 +68,25 @@ impl IcsEditor {
     }
 
     /// Get active buffer
+    ///
+    /// # Panics
+    ///
+    /// Never panics due to maintained invariant that active_buffer always exists
     pub fn active_buffer(&self) -> &TextBuffer {
-        self.buffers.get(&self.active_buffer).unwrap()
+        self.buffers
+            .get(&self.active_buffer)
+            .expect("INVARIANT VIOLATION: active_buffer should always exist")
     }
 
     /// Get mutable active buffer
+    ///
+    /// # Panics
+    ///
+    /// Never panics due to maintained invariant that active_buffer always exists
     pub fn active_buffer_mut(&mut self) -> &mut TextBuffer {
-        self.buffers.get_mut(&self.active_buffer).unwrap()
+        self.buffers
+            .get_mut(&self.active_buffer)
+            .expect("INVARIANT VIOLATION: active_buffer should always exist")
     }
 
     /// Get buffer by ID

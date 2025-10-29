@@ -8,7 +8,7 @@
 //!
 //! Runs asynchronously without blocking the UI
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::mpsc;
@@ -120,11 +120,29 @@ impl SemanticAnalyzer {
         let (request_tx, mut request_rx) = mpsc::unbounded_channel::<AnalysisRequest>();
         let (result_tx, result_rx) = mpsc::unbounded_channel::<SemanticAnalysis>();
 
-        // Spawn background analysis task
+        // Spawn background analysis task with error recovery
         tokio::spawn(async move {
             while let Some(request) = request_rx.recv().await {
-                let analysis = Self::analyze_text(&request.text);
-                let _ = result_tx.send(analysis);
+                // Catch any panics in analysis to prevent task death
+                let analysis = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    Self::analyze_text(&request.text)
+                }));
+
+                match analysis {
+                    Ok(result) => {
+                        let _ = result_tx.send(result);
+                    }
+                    Err(panic_err) => {
+                        // Analysis panicked - send empty result as fallback
+                        let panic_msg = panic_err.downcast_ref::<&str>()
+                            .map(|s| *s)
+                            .or_else(|| panic_err.downcast_ref::<String>().map(|s| s.as_str()))
+                            .unwrap_or("unknown panic");
+
+                        eprintln!("ERROR: Semantic analysis panicked: {}", panic_msg);
+                        let _ = result_tx.send(SemanticAnalysis::default());
+                    }
+                }
             }
         });
 
@@ -136,10 +154,16 @@ impl SemanticAnalyzer {
     }
 
     /// Request analysis of text (non-blocking)
+    ///
+    /// # Errors
+    ///
+    /// Returns error if the background analysis task has died (receiver dropped)
     pub fn analyze(&mut self, text: String) -> Result<()> {
         let request = AnalysisRequest { text };
 
-        self.tx.send(request)?;
+        self.tx
+            .send(request)
+            .context("Failed to send analysis request: background task may have died")?;
         self.analyzing = true;
 
         Ok(())
@@ -300,8 +324,13 @@ impl SemanticAnalyzer {
         // Extract capitalized words (potential entities)
         for word in line.split_whitespace() {
             let clean = word.trim_matches(|c: char| !c.is_alphanumeric());
-            if clean.len() > 2 && clean.chars().next().unwrap().is_uppercase() {
-                *entities.entry(clean.to_string()).or_insert(0) += 1;
+            // Safe: check length before accessing first char
+            if clean.len() > 2 {
+                if let Some(first_char) = clean.chars().next() {
+                    if first_char.is_uppercase() {
+                        *entities.entry(clean.to_string()).or_insert(0) += 1;
+                    }
+                }
             }
         }
 
