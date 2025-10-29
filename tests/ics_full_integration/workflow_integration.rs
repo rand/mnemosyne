@@ -523,7 +523,8 @@ async fn w7_large_scale_processing() {
     let update_start = Instant::now();
     for result in results.iter().take(10) {
         let mut updated = result.memory.clone();
-        updated.importance = updated.importance.saturating_add(1);
+        // Cap importance at 10 (CHECK constraint: importance BETWEEN 1 AND 10)
+        updated.importance = (updated.importance.saturating_add(1)).min(10);
 
         storage
             .storage()
