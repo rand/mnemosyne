@@ -8,9 +8,11 @@
 
 use super::config::JobConfig;
 use super::scheduler::{EvolutionJob, JobError, JobReport};
+use crate::services::llm::LlmService;
 use crate::storage::libsql::LibsqlStorage;
 use crate::types::{MemoryId, MemoryNote};
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
@@ -18,11 +20,20 @@ use std::time::Instant;
 /// Consolidation job - detects and merges duplicate memories
 pub struct ConsolidationJob {
     storage: Arc<LibsqlStorage>,
+    llm: Option<Arc<LlmService>>,
 }
 
 impl ConsolidationJob {
     pub fn new(storage: Arc<LibsqlStorage>) -> Self {
-        Self { storage }
+        Self { storage, llm: None }
+    }
+
+    /// Create with LLM service for intelligent consolidation decisions
+    pub fn with_llm(storage: Arc<LibsqlStorage>, llm: Arc<LlmService>) -> Self {
+        Self {
+            storage,
+            llm: Some(llm),
+        }
     }
 
     /// Find duplicate candidate pairs using vector similarity
@@ -280,7 +291,149 @@ impl ConsolidationJob {
             ),
         }
     }
+
+    /// Make LLM-guided consolidation decision for a cluster
+    async fn make_llm_consolidation_decision(
+        &self,
+        cluster: &MemoryCluster,
+    ) -> Result<ConsolidationDecision, JobError> {
+        // Check if LLM service is available
+        let llm = self.llm.as_ref().ok_or_else(|| {
+            JobError::ExecutionError("LLM service not available".to_string())
+        })?;
+
+        // Build prompt for cluster
+        let prompt = self.build_cluster_prompt(cluster);
+
+        // Call LLM API
+        let response = llm
+            .call_api(&prompt)
+            .await
+            .map_err(|e| JobError::ExecutionError(format!("LLM API call failed: {}", e)))?;
+
+        // Parse response
+        self.parse_llm_cluster_response(&response, cluster)
+    }
+
+    /// Build LLM prompt for cluster consolidation decision
+    fn build_cluster_prompt(&self, cluster: &MemoryCluster) -> String {
+        let memories_text = cluster
+            .memories
+            .iter()
+            .enumerate()
+            .map(|(i, mem)| {
+                format!(
+                    "Memory {}: [{}]\n  ID: {}\n  Created: {}\n  Summary: {}\n  Content: {}\n  Keywords: {}",
+                    i + 1,
+                    format!("{:?}", mem.memory_type),
+                    mem.id,
+                    mem.created_at.format("%Y-%m-%d"),
+                    mem.summary,
+                    &mem.content[..mem.content.len().min(200)], // First 200 chars
+                    mem.keywords.join(", ")
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n\n");
+
+        format!(
+            r#"You are analyzing similar memories for potential consolidation.
+
+Cluster contains {} memories with average similarity of {:.2}:
+
+{}
+
+Analyze these memories and decide:
+1. **MERGE**: Combine into single memory (truly duplicates)
+2. **SUPERSEDE**: One memory obsoletes another (newer/better version)
+3. **KEEP**: Keep separate (meaningful differences despite similarity)
+
+For MERGE or SUPERSEDE, explain:
+- Which memories to consolidate
+- Key information to preserve
+- Rationale for decision
+
+For KEEP, explain:
+- What meaningful differences exist
+- Why both should be retained
+
+Respond in JSON format:
+{{
+    "action": "MERGE" | "SUPERSEDE" | "KEEP",
+    "primary_memory_id": "mem_xxx",
+    "secondary_memory_ids": ["mem_yyy", "mem_zzz"],
+    "rationale": "explanation",
+    "preserved_content": "key facts to keep from secondary memories"
+}}
+"#,
+            cluster.memories.len(),
+            cluster.avg_similarity,
+            memories_text
+        )
+    }
+
+    /// Parse LLM response into consolidation decision
+    fn parse_llm_cluster_response(
+        &self,
+        response: &str,
+        cluster: &MemoryCluster,
+    ) -> Result<ConsolidationDecision, JobError> {
+        // Try to parse JSON response
+        let llm_decision: LlmConsolidationResponse = serde_json::from_str(response)
+            .map_err(|e| {
+                JobError::ExecutionError(format!(
+                    "Failed to parse LLM response as JSON: {}. Response: {}",
+                    e, response
+                ))
+            })?;
+
+        // Convert to ConsolidationDecision based on action
+        match llm_decision.action.to_uppercase().as_str() {
+            "MERGE" => {
+                Ok(ConsolidationDecision {
+                    action: ConsolidationAction::Merge,
+                    memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
+                    superseded_id: None,
+                    superseding_id: Some(llm_decision.primary_memory_id),
+                    reason: llm_decision.rationale,
+                })
+            }
+            "SUPERSEDE" => {
+                Ok(ConsolidationDecision {
+                    action: ConsolidationAction::Supersede,
+                    memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
+                    superseded_id: llm_decision.secondary_memory_ids.first().copied(),
+                    superseding_id: Some(llm_decision.primary_memory_id),
+                    reason: llm_decision.rationale,
+                })
+            }
+            "KEEP" => {
+                Ok(ConsolidationDecision {
+                    action: ConsolidationAction::Keep,
+                    memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
+                    superseded_id: None,
+                    superseding_id: None,
+                    reason: llm_decision.rationale,
+                })
+            }
+            _ => Err(JobError::ExecutionError(format!(
+                "Unknown action from LLM: {}",
+                llm_decision.action
+            ))),
+        }
+    }
 }
+
+/// LLM response format for consolidation decisions
+#[derive(Debug, Deserialize, Serialize)]
+struct LlmConsolidationResponse {
+    action: String,
+    primary_memory_id: MemoryId,
+    secondary_memory_ids: Vec<MemoryId>,
+    rationale: String,
+    preserved_content: String,
+}
+
 
 #[async_trait]
 impl EvolutionJob for ConsolidationJob {

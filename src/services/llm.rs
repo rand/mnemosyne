@@ -392,8 +392,11 @@ SUPERSEDING_ID: <memory_id if SUPERSEDE, otherwise NONE>
         Ok(decision)
     }
 
-    /// Make an API call to Claude
-    async fn call_api(&self, prompt: &str) -> Result<String> {
+    /// Make an API call to Claude with a custom prompt
+    ///
+    /// This is a low-level method for custom LLM interactions.
+    /// For common use cases, prefer specialized methods like `enrich_memory` or `should_consolidate`.
+    pub async fn call_api(&self, prompt: &str) -> Result<String> {
         // Check for API key before making request
         if self.config.api_key.is_empty() {
             return Err(MnemosyneError::Config(
