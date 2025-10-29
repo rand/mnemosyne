@@ -911,12 +911,6 @@ impl LibsqlStorage {
             return Ok(Vec::new());
         }
 
-        // Skip if no embedding service (can't search without embeddings)
-        if self.embedding_service.is_none() {
-            debug!("No embedding service available for vector search");
-            return Ok(Vec::new());
-        }
-
         let conn = self.get_conn()?;
 
         // Convert query embedding to JSON for sqlite-vec
