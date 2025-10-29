@@ -4,32 +4,18 @@
 
 use crate::ics_full_integration::*;
 use mnemosyne_core::{
-    config::EmbeddingConfig,
-    embeddings::{cosine_similarity, EmbeddingService, LocalEmbeddingService},
+    embeddings::{cosine_similarity, EmbeddingService},
     storage::StorageBackend,
     types::{MemoryType, Namespace},
 };
-use std::path::PathBuf;
 
 /// V1: Embedding generation for memories
 #[tokio::test]
-#[ignore] // Ignore by default - requires model download (slow first run)
 async fn v1_embedding_generation() {
     let storage = StorageFixture::new().await.expect("Storage setup failed");
 
-    // Create embedding service with default config
-    let config = EmbeddingConfig {
-        enabled: true,
-        model: "all-MiniLM-L6-v2".to_string(), // Fast, small model for testing
-        device: "cpu".to_string(),
-        batch_size: 32,
-        cache_dir: PathBuf::from("./cache/models"),
-        show_download_progress: false,
-    };
-
-    let embedding_service = LocalEmbeddingService::new(config)
-        .await
-        .expect("Embedding service creation");
+    // Create mock embedding service (no model download required)
+    let embedding_service = MockEmbeddingService::new_standard();
 
     // Create memory
     let content = "Authentication system uses JWT tokens with 1-hour expiration";
@@ -76,23 +62,11 @@ async fn v1_embedding_generation() {
 
 /// V2: Semantic search with embeddings
 #[tokio::test]
-#[ignore] // Requires embedding model
 async fn v2_semantic_search() {
     let storage = StorageFixture::new().await.expect("Storage setup failed");
 
-    // Create embedding service
-    let config = EmbeddingConfig {
-        enabled: true,
-        model: "all-MiniLM-L6-v2".to_string(),
-        device: "cpu".to_string(),
-        batch_size: 32,
-        cache_dir: PathBuf::from("./cache/models"),
-        show_download_progress: false,
-    };
-
-    let embedding_service = LocalEmbeddingService::new(config)
-        .await
-        .expect("Embedding service");
+    // Create mock embedding service
+    let embedding_service = MockEmbeddingService::new_standard();
 
     // Create semantically related memories
     let memories_content = vec![
@@ -197,22 +171,11 @@ async fn v3_hybrid_search() {
 
 /// V4: Semantic relevance ranking
 #[tokio::test]
-#[ignore] // Requires embedding model
 async fn v4_semantic_relevance_ranking() {
     let storage = StorageFixture::new().await.expect("Storage setup failed");
 
-    let config = EmbeddingConfig {
-        enabled: true,
-        model: "all-MiniLM-L6-v2".to_string(),
-        device: "cpu".to_string(),
-        batch_size: 32,
-        cache_dir: PathBuf::from("./cache/models"),
-        show_download_progress: false,
-    };
-
-    let embedding_service = LocalEmbeddingService::new(config)
-        .await
-        .expect("Embedding service");
+    // Create mock embedding service
+    let embedding_service = MockEmbeddingService::new_standard();
 
     // Create memories with varying semantic similarity to query
     let memories = vec![
@@ -285,20 +248,9 @@ async fn v4_semantic_relevance_ranking() {
 
 /// V5: Embedding model consistency
 #[tokio::test]
-#[ignore] // Requires embedding model
 async fn v5_embedding_model_consistency() {
-    let config = EmbeddingConfig {
-        enabled: true,
-        model: "all-MiniLM-L6-v2".to_string(),
-        device: "cpu".to_string(),
-        batch_size: 32,
-        cache_dir: PathBuf::from("./cache/models"),
-        show_download_progress: false,
-    };
-
-    let embedding_service = LocalEmbeddingService::new(config)
-        .await
-        .expect("Embedding service");
+    // Create mock embedding service
+    let embedding_service = MockEmbeddingService::new_standard();
 
     let text = "Authentication system implementation";
 
@@ -336,24 +288,13 @@ async fn v5_embedding_model_consistency() {
 
 /// V6: Large-scale vector search performance
 #[tokio::test]
-#[ignore] // Slow test, requires model
 async fn v6_large_scale_vector_search() {
     use std::time::Instant;
 
     let storage = StorageFixture::new().await.expect("Storage setup failed");
 
-    let config = EmbeddingConfig {
-        enabled: true,
-        model: "all-MiniLM-L6-v2".to_string(),
-        device: "cpu".to_string(),
-        batch_size: 32,
-        cache_dir: PathBuf::from("./cache/models"),
-        show_download_progress: false,
-    };
-
-    let embedding_service = LocalEmbeddingService::new(config)
-        .await
-        .expect("Embedding service");
+    // Create mock embedding service (fast, no model download)
+    let embedding_service = MockEmbeddingService::new_standard();
 
     // Create 100 memories with embeddings (reduced from 1000 for test speed)
     let start = Instant::now();
@@ -408,22 +349,11 @@ async fn v6_large_scale_vector_search() {
 
 /// V7: Vector search with namespace filtering
 #[tokio::test]
-#[ignore] // Requires embedding model
 async fn v7_namespace_filtering() {
     let storage = StorageFixture::new().await.expect("Storage setup failed");
 
-    let config = EmbeddingConfig {
-        enabled: true,
-        model: "all-MiniLM-L6-v2".to_string(),
-        device: "cpu".to_string(),
-        batch_size: 32,
-        cache_dir: PathBuf::from("./cache/models"),
-        show_download_progress: false,
-    };
-
-    let embedding_service = LocalEmbeddingService::new(config)
-        .await
-        .expect("Embedding service");
+    // Create mock embedding service
+    let embedding_service = MockEmbeddingService::new_standard();
 
     // Create memories in different namespaces
     let namespaces = vec![
@@ -506,22 +436,11 @@ async fn v7_namespace_filtering() {
 
 /// V8: Incremental embedding updates
 #[tokio::test]
-#[ignore] // Requires embedding model
 async fn v8_incremental_embedding_updates() {
     let storage = StorageFixture::new().await.expect("Storage setup failed");
 
-    let config = EmbeddingConfig {
-        enabled: true,
-        model: "all-MiniLM-L6-v2".to_string(),
-        device: "cpu".to_string(),
-        batch_size: 32,
-        cache_dir: PathBuf::from("./cache/models"),
-        show_download_progress: false,
-    };
-
-    let embedding_service = LocalEmbeddingService::new(config)
-        .await
-        .expect("Embedding service");
+    // Create mock embedding service
+    let embedding_service = MockEmbeddingService::new_standard();
 
     // Create memory without embedding
     let mut memory = create_test_memory(
