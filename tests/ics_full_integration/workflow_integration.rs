@@ -484,7 +484,7 @@ async fn w7_large_scale_processing() {
             &format!("Batch memory {} with content", i + 1),
             memory_type,
             Namespace::Global,
-            (i % 10) as u8,
+            ((i % 10) + 1) as u8, // 1-10 instead of 0-9
         );
 
         storage
