@@ -399,41 +399,66 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
 
         let response = self.call_api(&prompt).await?;
 
-        if response.trim() == "NO_LINKS" {
-            return Ok(vec![]);
-        }
+        // Parse JSON response with fallback to string parsing
+        let link_response: LinkResponse = match serde_json::from_str(&response) {
+            Ok(data) => data,
+            Err(e) => {
+                warn!("JSON parsing failed: {}, attempting fallback string parsing", e);
+                // Fallback to old string parsing for backward compatibility
+                if response.trim() == "NO_LINKS" {
+                    return Ok(vec![]);
+                }
 
-        let mut links = Vec::new();
+                let mut link_entries = Vec::new();
+                for line in response.lines() {
+                    if let Some(link_data) = line.strip_prefix("LINK:") {
+                        let parts: Vec<&str> = link_data.split(',').collect();
+                        if parts.len() >= 4 {
+                            if let Ok(index) = parts[0].trim().parse::<usize>() {
+                                if index < candidates.len() {
+                                    let link_type = parts[1].trim().to_string();
+                                    let strength = parts[2].trim().parse::<f32>().unwrap_or(0.5).clamp(0.0, 1.0);
+                                    let reason = parts[3..].join(",").trim().to_string();
 
-        for line in response.lines() {
-            if let Some(link_data) = line.strip_prefix("LINK:") {
-                let parts: Vec<&str> = link_data.split(',').collect();
-                if parts.len() >= 4 {
-                    if let Ok(index) = parts[0].trim().parse::<usize>() {
-                        if index < candidates.len() {
-                            let link_type = match parts[1].trim() {
-                                "Extends" => LinkType::Extends,
-                                "Contradicts" => LinkType::Contradicts,
-                                "Implements" => LinkType::Implements,
-                                "References" => LinkType::References,
-                                "Supersedes" => LinkType::Supersedes,
-                                _ => LinkType::References,
-                            };
-
-                            let strength = parts[2].trim().parse::<f32>().unwrap_or(0.5).clamp(0.0, 1.0);
-                            let reason = parts[3..].join(",").trim().to_string();
-
-                            links.push(MemoryLink {
-                                target_id: candidates[index].id,
-                                link_type,
-                                strength,
-                                reason,
-                                created_at: Utc::now(),
-                            });
+                                    link_entries.push(LinkEntry {
+                                        index,
+                                        link_type,
+                                        strength,
+                                        reason,
+                                    });
+                                }
+                            }
                         }
                     }
                 }
+                LinkResponse { links: link_entries }
             }
+        };
+
+        // Convert parsed entries to MemoryLinks
+        let mut links = Vec::new();
+        for entry in link_response.links {
+            if entry.index >= candidates.len() {
+                warn!("Link index {} out of bounds for {} candidates", entry.index, candidates.len());
+                continue;
+            }
+
+            let link_type = match entry.link_type.as_str() {
+                "Extends" => LinkType::Extends,
+                "Contradicts" => LinkType::Contradicts,
+                "Implements" => LinkType::Implements,
+                "References" => LinkType::References,
+                "Supersedes" => LinkType::Supersedes,
+                _ => LinkType::References,
+            };
+
+            links.push(MemoryLink {
+                target_id: candidates[entry.index].id,
+                link_type,
+                strength: entry.strength.clamp(0.0, 1.0),
+                reason: entry.reason,
+                created_at: Utc::now(),
+            });
         }
 
         info!("Generated {} links", links.len());
@@ -478,28 +503,38 @@ Examples:
 Example 1 - MERGE:
 Memory A: "PostgreSQL migration completed successfully"
 Memory B: "Switched from SQLite to PostgreSQL for production"
-DECISION: MERGE
-REASON: Both describe the same migration event, should combine into comprehensive record
-SUPERSEDING_ID: NONE
+{{
+  "decision": "MERGE",
+  "reason": "Both describe the same migration event, should combine into comprehensive record",
+  "superseding_id": null
+}}
 
 Example 2 - SUPERSEDE:
-Memory A (Importance: 6): "API endpoint uses /api/v1/users"
-Memory B (Importance: 8): "API endpoint updated to /api/v2/users with new schema"
-DECISION: SUPERSEDE
-REASON: Memory B contains updated information that makes A obsolete
-SUPERSEDING_ID: {}
+Memory A (ID: abc-123, Importance: 6): "API endpoint uses /api/v1/users"
+Memory B (ID: def-456, Importance: 8): "API endpoint updated to /api/v2/users with new schema"
+{{
+  "decision": "SUPERSEDE",
+  "reason": "Memory B contains updated information that makes A obsolete",
+  "superseding_id": "def-456"
+}}
 
 Example 3 - KEEP_BOTH:
 Memory A: "User authentication implemented with JWT"
 Memory B: "Database connection pooling configured"
-DECISION: KEEP_BOTH
-REASON: Distinct technical decisions, both remain relevant
-SUPERSEDING_ID: NONE
+{{
+  "decision": "KEEP_BOTH",
+  "reason": "Distinct technical decisions, both remain relevant",
+  "superseding_id": null
+}}
 
-Now analyze the actual memories above. Format EXACTLY as:
-DECISION: <MERGE|SUPERSEDE|KEEP_BOTH>
-REASON: <brief explanation>
-SUPERSEDING_ID: <memory_id if SUPERSEDE, otherwise NONE>
+Now analyze the actual memories above. Format your response as valid JSON matching this schema:
+{{
+  "decision": "MERGE|SUPERSEDE|KEEP_BOTH",
+  "reason": "string",
+  "superseding_id": "string or null"
+}}
+
+IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
 "#,
             memory_a.id,
             memory_a.summary,
@@ -512,17 +547,43 @@ SUPERSEDING_ID: <memory_id if SUPERSEDE, otherwise NONE>
             memory_b.content,
             memory_b.memory_type,
             memory_b.importance,
-            memory_b.tags.join(", "),
-            memory_b.id  // For example superseding ID
+            memory_b.tags.join(", ")
         );
 
         let response = self.call_api(&prompt).await?;
 
-        let decision_str = self.extract_field(&response, "DECISION:")?;
-        let _reason = self.extract_field(&response, "REASON:")?;
-        let _superseding_str = self.extract_field(&response, "SUPERSEDING_ID:")?;
+        // Parse JSON response with fallback to string parsing
+        let consolidation_response: ConsolidationResponse = match serde_json::from_str(&response) {
+            Ok(data) => data,
+            Err(e) => {
+                warn!("JSON parsing failed: {}, attempting fallback string parsing", e);
+                // Fallback to old string parsing for backward compatibility
+                let decision_str = self.extract_field(&response, "DECISION:").or_else(|_| {
+                    self.extract_field(&response, "decision:")
+                })?;
+                let reason = self.extract_field(&response, "REASON:").or_else(|_| {
+                    self.extract_field(&response, "reason:")
+                }).unwrap_or_else(|_| "No reason provided".to_string());
+                let superseding_str = self.extract_field(&response, "SUPERSEDING_ID:").or_else(|_| {
+                    self.extract_field(&response, "superseding_id:")
+                }).ok();
 
-        let decision = match decision_str.trim() {
+                ConsolidationResponse {
+                    decision: decision_str.trim().to_string(),
+                    reason,
+                    superseding_id: superseding_str.and_then(|s| {
+                        let trimmed = s.trim();
+                        if trimmed == "NONE" || trimmed.is_empty() {
+                            None
+                        } else {
+                            Some(trimmed.to_string())
+                        }
+                    }),
+                }
+            }
+        };
+
+        let decision = match consolidation_response.decision.as_str() {
             "MERGE" => {
                 // Use the more important memory as the base
                 let into = if memory_a.importance >= memory_b.importance {
