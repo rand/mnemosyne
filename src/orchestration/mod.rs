@@ -22,7 +22,10 @@
 //! - State recovery
 
 pub mod actors;
+pub mod branch_registry;
 pub mod events;
+pub mod git_state;
+pub mod identity;
 pub mod integrations;
 pub mod messages;
 pub mod network;
@@ -31,7 +34,13 @@ pub mod supervision;
 
 // Re-export key types
 pub use actors::{ExecutorActor, OrchestratorActor, OptimizerActor, ReviewerActor};
+pub use branch_registry::{
+    AgentAssignment, BranchRegistry, ConflictReport, CoordinationMode, SharedBranchRegistry,
+    WorkIntent,
+};
 pub use events::{AgentEvent, EventPersistence, EventReplay};
+pub use git_state::{GitState, GitStateTracker};
+pub use identity::{AgentId, AgentIdentity};
 pub use messages::{AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage};
 pub use network::{AgentEndpoint, AgentProtocol, MessageRouter};
 pub use state::{AgentState, Phase, WorkItem, WorkQueue};
