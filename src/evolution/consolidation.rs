@@ -21,11 +21,16 @@ use std::time::Instant;
 pub struct ConsolidationJob {
     storage: Arc<LibsqlStorage>,
     llm: Option<Arc<LlmService>>,
+    consolidation_config: super::config::ConsolidationConfig,
 }
 
 impl ConsolidationJob {
     pub fn new(storage: Arc<LibsqlStorage>) -> Self {
-        Self { storage, llm: None }
+        Self {
+            storage,
+            llm: None,
+            consolidation_config: super::config::ConsolidationConfig::default(),
+        }
     }
 
     /// Create with LLM service for intelligent consolidation decisions
@@ -33,6 +38,20 @@ impl ConsolidationJob {
         Self {
             storage,
             llm: Some(llm),
+            consolidation_config: super::config::ConsolidationConfig::default(),
+        }
+    }
+
+    /// Create with custom consolidation configuration
+    pub fn with_config(
+        storage: Arc<LibsqlStorage>,
+        llm: Option<Arc<LlmService>>,
+        consolidation_config: super::config::ConsolidationConfig,
+    ) -> Self {
+        Self {
+            storage,
+            llm,
+            consolidation_config,
         }
     }
 
@@ -232,8 +251,87 @@ impl ConsolidationJob {
         clusters
     }
 
-    /// Make consolidation decision for a cluster (heuristic-based for now)
+    /// Make consolidation decision with mode-based dispatcher
+    ///
+    /// Routes to heuristic or LLM based on config
+    async fn make_consolidation_decision_with_config(
+        &self,
+        cluster: &MemoryCluster,
+        config: &super::config::ConsolidationConfig,
+    ) -> Result<ConsolidationDecision, JobError> {
+        use super::config::DecisionMode;
+
+        match &config.decision_mode {
+            DecisionMode::Heuristic => {
+                // Always use heuristics
+                Ok(self.make_heuristic_decision(cluster))
+            }
+            DecisionMode::LlmAlways => {
+                // Always use LLM
+                self.make_llm_consolidation_decision(cluster).await
+            }
+            DecisionMode::LlmSelective {
+                llm_range,
+                heuristic_fallback,
+            } => {
+                let similarity = cluster.avg_similarity;
+
+                if similarity >= llm_range.0 && similarity <= llm_range.1 {
+                    // Similarity in LLM range - use LLM
+                    tracing::debug!(
+                        "Similarity {:.2} in LLM range [{:.2}, {:.2}] - using LLM",
+                        similarity,
+                        llm_range.0,
+                        llm_range.1
+                    );
+                    self.make_llm_consolidation_decision(cluster).await
+                } else if *heuristic_fallback {
+                    // Outside range - use heuristics
+                    tracing::debug!(
+                        "Similarity {:.2} outside LLM range - using heuristics",
+                        similarity
+                    );
+                    Ok(self.make_heuristic_decision(cluster))
+                } else {
+                    // Outside range and no fallback - keep separate
+                    tracing::debug!(
+                        "Similarity {:.2} outside LLM range, no fallback - keeping separate",
+                        similarity
+                    );
+                    Ok(ConsolidationDecision {
+                        action: ConsolidationAction::Keep,
+                        memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
+                        superseded_id: None,
+                        superseding_id: None,
+                        reason: "Outside LLM range and no fallback enabled".to_string(),
+                    })
+                }
+            }
+            DecisionMode::LlmWithFallback => {
+                // Try LLM, fall back to heuristics on error
+                match self.make_llm_consolidation_decision(cluster).await {
+                    Ok(decision) => Ok(decision),
+                    Err(e) => {
+                        tracing::warn!(
+                            "LLM decision failed, falling back to heuristics: {}",
+                            e
+                        );
+                        Ok(self.make_heuristic_decision(cluster))
+                    }
+                }
+            }
+        }
+    }
+
+    /// Make consolidation decision for a cluster (backward compatible wrapper)
+    ///
+    /// Uses heuristic mode for backward compatibility with tests
     fn make_consolidation_decision(&self, cluster: &MemoryCluster) -> ConsolidationDecision {
+        self.make_heuristic_decision(cluster)
+    }
+
+    /// Make consolidation decision for a cluster (heuristic-based)
+    fn make_heuristic_decision(&self, cluster: &MemoryCluster) -> ConsolidationDecision {
         if cluster.memories.len() < 2 {
             return ConsolidationDecision {
                 action: ConsolidationAction::Keep,
@@ -481,7 +579,18 @@ impl EvolutionJob for ConsolidationJob {
         for cluster in &clusters {
             memories_processed += cluster.memories.len();
 
-            let decision = self.make_consolidation_decision(cluster);
+            // Use config-based decision dispatcher
+            let decision = match self
+                .make_consolidation_decision_with_config(cluster, &self.consolidation_config)
+                .await
+            {
+                Ok(d) => d,
+                Err(e) => {
+                    tracing::error!("Failed to make consolidation decision: {:?}", e);
+                    errors += 1;
+                    continue;
+                }
+            };
 
             tracing::debug!(
                 "Cluster decision: {:?} for {} memories (avg sim: {:.2})",
