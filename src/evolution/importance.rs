@@ -236,6 +236,7 @@ impl MemoryData {
 mod tests {
     use super::*;
     use chrono::Duration as ChronoDuration;
+    use crate::ConnectionMode;
 
     fn create_test_memory(
         importance: f32,
@@ -257,9 +258,10 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_calculate_importance_high_access() {
-        let recalibrator = ImportanceRecalibrator::new();
+    #[tokio::test]
+    async fn test_calculate_importance_high_access() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let recalibrator = ImportanceRecalibrator::new(storage);
         let memory = create_test_memory(5.0, 100, 10, 0, 5, 3);
 
         let new_importance = recalibrator.calculate_importance(&memory).unwrap();
@@ -269,9 +271,10 @@ mod tests {
         assert!(new_importance <= 10.0);
     }
 
-    #[test]
-    fn test_calculate_importance_decay() {
-        let recalibrator = ImportanceRecalibrator::new();
+    #[tokio::test]
+    async fn test_calculate_importance_decay() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let recalibrator = ImportanceRecalibrator::new(storage);
         let memory = create_test_memory(8.0, 0, 180, 180, 0, 0);
 
         let new_importance = recalibrator.calculate_importance(&memory).unwrap();
@@ -281,9 +284,10 @@ mod tests {
         assert!(new_importance >= 1.0);
     }
 
-    #[test]
-    fn test_access_factor() {
-        let recalibrator = ImportanceRecalibrator::new();
+    #[tokio::test]
+    async fn test_access_factor() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let recalibrator = ImportanceRecalibrator::new(storage);
 
         // High access rate (10 accesses/day)
         let memory_high = create_test_memory(5.0, 100, 10, 0, 0, 0);
@@ -306,9 +310,10 @@ mod tests {
         assert_eq!(factor_none, 0.3); // Floor
     }
 
-    #[test]
-    fn test_recency_factor_exponential_decay() {
-        let recalibrator = ImportanceRecalibrator::new();
+    #[tokio::test]
+    async fn test_recency_factor_exponential_decay() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let recalibrator = ImportanceRecalibrator::new(storage);
 
         // Just accessed
         let memory_recent = create_test_memory(5.0, 10, 10, 0, 0, 0);
@@ -331,9 +336,10 @@ mod tests {
         assert!(factor_180d < 0.02);
     }
 
-    #[test]
-    fn test_link_factor() {
-        let recalibrator = ImportanceRecalibrator::new();
+    #[tokio::test]
+    async fn test_link_factor() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let recalibrator = ImportanceRecalibrator::new(storage);
 
         // No links
         let memory_none = create_test_memory(5.0, 10, 10, 0, 0, 0);
@@ -356,9 +362,10 @@ mod tests {
         assert!((factor_balanced - 0.5).abs() < 0.01);
     }
 
-    #[test]
-    fn test_is_significant_change() {
-        let recalibrator = ImportanceRecalibrator::new();
+    #[tokio::test]
+    async fn test_is_significant_change() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let recalibrator = ImportanceRecalibrator::new(storage);
 
         assert!(recalibrator.is_significant_change(5.0, 6.5)); // Change of 1.5
         assert!(recalibrator.is_significant_change(7.0, 5.5)); // Change of -1.5

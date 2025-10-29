@@ -212,6 +212,7 @@ impl MemoryData {
 mod tests {
     use super::*;
     use chrono::Duration as ChronoDuration;
+    use crate::ConnectionMode;
 
     fn create_test_memory(
         importance: f32,
@@ -231,9 +232,10 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_should_archive_never_accessed_old() {
-        let job = ArchivalJob::new();
+    #[tokio::test]
+    async fn test_should_archive_never_accessed_old() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = ArchivalJob::new(storage);
 
         // Never accessed, 200 days old
         let memory = create_test_memory(5.0, 0, 200, 200, false);
@@ -244,9 +246,10 @@ mod tests {
         assert!(!job.should_archive(&memory_recent).unwrap());
     }
 
-    #[test]
-    fn test_should_archive_low_importance() {
-        let job = ArchivalJob::new();
+    #[tokio::test]
+    async fn test_should_archive_low_importance() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = ArchivalJob::new(storage);
 
         // Low importance (2.5), 100 days since access
         let memory = create_test_memory(2.5, 10, 110, 100, false);
@@ -257,9 +260,10 @@ mod tests {
         assert!(!job.should_archive(&memory_recent).unwrap());
     }
 
-    #[test]
-    fn test_should_archive_very_low_importance() {
-        let job = ArchivalJob::new();
+    #[tokio::test]
+    async fn test_should_archive_very_low_importance() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = ArchivalJob::new(storage);
 
         // Very low importance (1.5), 40 days since access
         let memory = create_test_memory(1.5, 5, 50, 40, false);
@@ -270,27 +274,30 @@ mod tests {
         assert!(!job.should_archive(&memory_recent).unwrap());
     }
 
-    #[test]
-    fn test_should_not_archive_high_importance() {
-        let job = ArchivalJob::new();
+    #[tokio::test]
+    async fn test_should_not_archive_high_importance() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = ArchivalJob::new(storage);
 
         // High importance, never accessed, very old (don't archive)
         let memory = create_test_memory(9.0, 0, 300, 300, false);
         assert!(!job.should_archive(&memory).unwrap());
     }
 
-    #[test]
-    fn test_should_not_archive_already_archived() {
-        let job = ArchivalJob::new();
+    #[tokio::test]
+    async fn test_should_not_archive_already_archived() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = ArchivalJob::new(storage);
 
         // Already archived, meets criteria but should not archive again
         let memory = create_test_memory(1.5, 0, 200, 200, true);
         assert!(!job.should_archive(&memory).unwrap());
     }
 
-    #[test]
-    fn test_archival_reason_never_accessed() {
-        let job = ArchivalJob::new();
+    #[tokio::test]
+    async fn test_archival_reason_never_accessed() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = ArchivalJob::new(storage);
         let memory = create_test_memory(5.0, 0, 200, 200, false);
 
         let reason = job.archival_reason(&memory);
@@ -298,9 +305,10 @@ mod tests {
         assert!(reason.contains("200 days"));
     }
 
-    #[test]
-    fn test_archival_reason_low_importance() {
-        let job = ArchivalJob::new();
+    #[tokio::test]
+    async fn test_archival_reason_low_importance() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = ArchivalJob::new(storage);
         let memory = create_test_memory(2.5, 10, 110, 100, false);
 
         let reason = job.archival_reason(&memory);
@@ -308,9 +316,10 @@ mod tests {
         assert!(reason.contains("2.5"));
     }
 
-    #[test]
-    fn test_archival_reason_very_low_importance() {
-        let job = ArchivalJob::new();
+    #[tokio::test]
+    async fn test_archival_reason_very_low_importance() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = ArchivalJob::new(storage);
         let memory = create_test_memory(1.5, 5, 50, 40, false);
 
         let reason = job.archival_reason(&memory);
@@ -357,9 +366,10 @@ mod tests {
         assert!((days - 30.0).abs() < 1.0);
     }
 
-    #[test]
-    fn test_boundary_conditions() {
-        let job = ArchivalJob::new();
+    #[tokio::test]
+    async fn test_boundary_conditions() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = ArchivalJob::new(storage);
 
         // Exactly at boundary (should NOT archive)
         let memory_180 = create_test_memory(5.0, 0, 180, 180, false);
@@ -378,9 +388,10 @@ mod tests {
         assert!(job.should_archive(&memory_imp2_9).unwrap());
     }
 
-    #[test]
-    fn test_multiple_criteria_met() {
-        let job = ArchivalJob::new();
+    #[tokio::test]
+    async fn test_multiple_criteria_met() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = ArchivalJob::new(storage);
 
         // Meets multiple criteria (never accessed + low importance + old)
         let memory = create_test_memory(1.5, 0, 200, 200, false);

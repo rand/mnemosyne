@@ -393,7 +393,7 @@ mod tests {
         use crate::types::{MemoryType, Namespace};
         use crate::ConnectionMode;
 
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::Memory).await.unwrap());
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
         let job = ConsolidationJob::new(storage);
 
         let m1 = MemoryNote {
@@ -410,14 +410,15 @@ mod tests {
             importance: 5,
             confidence: 0.9,
             links: vec![],
-            agents_read: vec![],
-            agents_write: vec![],
+            related_files: vec![],
+            related_entities: vec![],
             access_count: 0,
             last_accessed_at: Utc::now(),
             expires_at: None,
             is_archived: false,
             superseded_by: None,
             embedding: None,
+            embedding_model: "".to_string(),
         };
 
         let m2 = MemoryNote {
@@ -432,13 +433,46 @@ mod tests {
 
     #[tokio::test]
     async fn test_consolidation_decision_high_similarity() {
+        use crate::types::{MemoryType, Namespace};
         use crate::ConnectionMode;
 
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::Memory).await.unwrap());
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
         let job = ConsolidationJob::new(storage);
 
+        // Create two test memories for the cluster
+        let m1 = MemoryNote {
+            id: MemoryId::new(),
+            namespace: Namespace::Global,
+            created_at: Utc::now() - chrono::Duration::days(1), // Older
+            updated_at: Utc::now(),
+            content: "test1".to_string(),
+            summary: "test1".to_string(),
+            keywords: vec!["rust".to_string()],
+            tags: vec![],
+            context: "".to_string(),
+            memory_type: MemoryType::Insight,
+            importance: 5,
+            confidence: 0.9,
+            links: vec![],
+            related_files: vec![],
+            related_entities: vec![],
+            access_count: 0,
+            last_accessed_at: Utc::now(),
+            expires_at: None,
+            is_archived: false,
+            superseded_by: None,
+            embedding: None,
+            embedding_model: "".to_string(),
+        };
+
+        let m2 = MemoryNote {
+            id: MemoryId::new(),
+            created_at: Utc::now(), // Newer
+            ..m1.clone()
+        };
+
         let cluster = MemoryCluster {
-            memories: vec![],
+            memories: vec![m1, m2],
             similarity_scores: vec![],
             avg_similarity: 0.96,
         };
@@ -451,7 +485,7 @@ mod tests {
     async fn test_consolidation_decision_moderate_similarity() {
         use crate::ConnectionMode;
 
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::Memory).await.unwrap());
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
         let job = ConsolidationJob::new(storage);
 
         let cluster = MemoryCluster {

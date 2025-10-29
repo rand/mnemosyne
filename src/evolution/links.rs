@@ -215,6 +215,7 @@ impl LinkData {
 mod tests {
     use super::*;
     use chrono::Duration as ChronoDuration;
+    use crate::ConnectionMode;
 
     fn create_test_link(
         strength: f32,
@@ -234,9 +235,10 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_calculate_decay_no_decay() {
-        let job = LinkDecayJob::new();
+    #[tokio::test]
+    async fn test_calculate_decay_no_decay() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = LinkDecayJob::new(storage);
 
         // Recent link
         let link_recent = create_test_link(0.8, 10, 5, false);
@@ -249,9 +251,10 @@ mod tests {
         assert_eq!(decay_old, 1.0); // No decay
     }
 
-    #[test]
-    fn test_calculate_decay_strong_decay() {
-        let job = LinkDecayJob::new();
+    #[tokio::test]
+    async fn test_calculate_decay_strong_decay() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = LinkDecayJob::new(storage);
 
         // Not traversed in 6 months
         let link = create_test_link(0.8, 200, 180, false);
@@ -259,9 +262,10 @@ mod tests {
         assert_eq!(decay, 0.25); // Quarter strength
     }
 
-    #[test]
-    fn test_calculate_decay_medium_decay() {
-        let job = LinkDecayJob::new();
+    #[tokio::test]
+    async fn test_calculate_decay_medium_decay() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = LinkDecayJob::new(storage);
 
         // Not traversed in 3 months
         let link = create_test_link(0.8, 100, 90, false);
@@ -269,9 +273,10 @@ mod tests {
         assert_eq!(decay, 0.5); // Half strength
     }
 
-    #[test]
-    fn test_calculate_decay_slight_decay() {
-        let job = LinkDecayJob::new();
+    #[tokio::test]
+    async fn test_calculate_decay_slight_decay() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = LinkDecayJob::new(storage);
 
         // Old link (>365 days), not traversed in 30 days
         let link = create_test_link(0.8, 400, 35, false);
@@ -279,9 +284,10 @@ mod tests {
         assert_eq!(decay, 0.8); // 20% decay
     }
 
-    #[test]
-    fn test_calculate_decay_user_created_no_decay() {
-        let job = LinkDecayJob::new();
+    #[tokio::test]
+    async fn test_calculate_decay_user_created_no_decay() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = LinkDecayJob::new(storage);
 
         // User-created link should never decay
         let link = create_test_link(0.8, 400, 200, true);
@@ -289,9 +295,10 @@ mod tests {
         assert_eq!(decay, 1.0); // No decay for user-created
     }
 
-    #[test]
-    fn test_should_remove() {
-        let job = LinkDecayJob::new();
+    #[tokio::test]
+    async fn test_should_remove() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = LinkDecayJob::new(storage);
 
         assert!(job.should_remove(0.05)); // Below threshold
         assert!(job.should_remove(0.09)); // Below threshold
@@ -300,9 +307,10 @@ mod tests {
         assert!(!job.should_remove(1.0)); // Max strength
     }
 
-    #[test]
-    fn test_decay_application() {
-        let job = LinkDecayJob::new();
+    #[tokio::test]
+    async fn test_decay_application() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = LinkDecayJob::new(storage);
 
         // Link with 0.8 strength, 90-day decay (0.5x)
         let link = create_test_link(0.8, 100, 90, false);
@@ -313,9 +321,10 @@ mod tests {
         assert!(!job.should_remove(new_strength)); // Still above threshold
     }
 
-    #[test]
-    fn test_decay_to_removal() {
-        let job = LinkDecayJob::new();
+    #[tokio::test]
+    async fn test_decay_to_removal() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = LinkDecayJob::new(storage);
 
         // Weak link with 180-day decay (0.25x)
         let link = create_test_link(0.3, 200, 180, false);
@@ -357,9 +366,10 @@ mod tests {
         assert!((days - 30.0).abs() < 1.0);
     }
 
-    #[test]
-    fn test_multiple_decay_applications() {
-        let job = LinkDecayJob::new();
+    #[tokio::test]
+    async fn test_multiple_decay_applications() {
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let job = LinkDecayJob::new(storage);
 
         // Simulate multiple runs with same link
         let mut current_strength = 1.0;
