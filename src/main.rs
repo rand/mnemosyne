@@ -173,6 +173,12 @@ enum Commands {
     /// Show system status
     Status,
 
+    /// Launch Integrated Context Studio (ICS)
+    Ics {
+        /// File to open in ICS
+        file: Option<String>,
+    },
+
     /// Configuration management
     Config {
         #[command(subcommand)]
@@ -581,6 +587,25 @@ async fn main() -> Result<()> {
         Some(Commands::Status) => {
             println!("Mnemosyne v{}", env!("CARGO_PKG_VERSION"));
             println!("Status: Operational (Phase 1 - Core Types)");
+            Ok(())
+        }
+        Some(Commands::Ics { file }) => {
+            use mnemosyne_core::ics::{IcsApp, IcsConfig};
+
+            info!("Launching Integrated Context Studio (ICS)...");
+
+            let config = IcsConfig::default();
+            let mut app = IcsApp::new(config);
+
+            // Load file if provided
+            if let Some(file_path) = file {
+                let path = std::path::PathBuf::from(file_path);
+                app.load_file(path)?;
+            }
+
+            // Run the ICS application
+            app.run().await?;
+
             Ok(())
         }
         Some(Commands::Config { action }) => {
