@@ -11,7 +11,41 @@ use crate::error::{MnemosyneError, Result};
 use crate::types::{ConsolidationDecision, LinkType, MemoryLink, MemoryNote, MemoryType};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
+
+/// Structured JSON response for memory enrichment
+#[derive(Debug, Deserialize, Serialize)]
+struct EnrichmentResponse {
+    summary: String,
+    keywords: Vec<String>,
+    tags: Vec<String>,
+    #[serde(rename = "type")]
+    memory_type: String,
+    importance: u8,
+}
+
+/// Structured JSON response for link generation
+#[derive(Debug, Deserialize, Serialize)]
+struct LinkResponse {
+    links: Vec<LinkEntry>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct LinkEntry {
+    index: usize,
+    #[serde(rename = "type")]
+    link_type: String,
+    strength: f32,
+    reason: String,
+}
+
+/// Structured JSON response for consolidation decision
+#[derive(Debug, Deserialize, Serialize)]
+struct ConsolidationResponse {
+    decision: String,
+    reason: String,
+    superseding_id: Option<String>,
+}
 
 /// Configuration for LLM service
 #[derive(Debug, Clone)]
@@ -119,62 +153,97 @@ Examples:
 Example 1:
 Raw: "Switched from SQLite to PostgreSQL for production due to concurrent write limitations. Migration completed successfully."
 Context: "Database architecture discussion"
-SUMMARY: Migration from SQLite to PostgreSQL completed to support concurrent writes in production
-KEYWORDS: PostgreSQL, SQLite, migration, concurrency, database
-TAGS: architecture, infrastructure
-TYPE: ArchitectureDecision
-IMPORTANCE: 8
+{{
+  "summary": "Migration from SQLite to PostgreSQL completed to support concurrent writes in production",
+  "keywords": ["PostgreSQL", "SQLite", "migration", "concurrency", "database"],
+  "tags": ["architecture", "infrastructure"],
+  "type": "ArchitectureDecision",
+  "importance": 8
+}}
 
 Example 2:
 Raw: "Fixed infinite loop in retry logic by adding max_attempts counter. Bug was causing API timeouts."
 Context: "API reliability improvements"
-SUMMARY: Added max_attempts counter to prevent infinite retry loops causing API timeouts
-KEYWORDS: retry, bugfix, infinite-loop, API, timeout
-TAGS: reliability, api
-TYPE: BugFix
-IMPORTANCE: 7
+{{
+  "summary": "Added max_attempts counter to prevent infinite retry loops causing API timeouts",
+  "keywords": ["retry", "bugfix", "infinite-loop", "API", "timeout"],
+  "tags": ["reliability", "api"],
+  "type": "BugFix",
+  "importance": 7
+}}
 
 Example 3:
 Raw: "User prefers dark mode for terminal interfaces"
 Context: "User interface preferences"
-SUMMARY: User preference for dark mode terminal interfaces
-KEYWORDS: dark-mode, terminal, UI, preferences
-TAGS: preferences, ui
-TYPE: Preference
-IMPORTANCE: 3
+{{
+  "summary": "User preference for dark mode terminal interfaces",
+  "keywords": ["dark-mode", "terminal", "UI", "preferences"],
+  "tags": ["preferences", "ui"],
+  "type": "Preference",
+  "importance": 3
+}}
 
-Now format your response EXACTLY as:
-SUMMARY: <summary>
-KEYWORDS: <keyword1>, <keyword2>, ...
-TAGS: <tag1>, <tag2>, ...
-TYPE: <memory_type>
-IMPORTANCE: <score>
+Now format your response as valid JSON matching this schema:
+{{
+  "summary": "string (1-2 sentences)",
+  "keywords": ["string array (3-5 items)"],
+  "tags": ["string array (2-3 items)"],
+  "type": "ArchitectureDecision|CodePattern|BugFix|Configuration|Constraint|Entity|Insight|Reference|Preference",
+  "importance": number (1-10)
+}}
+
+IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
 "#,
             raw_content, context
         );
 
         let response = self.call_api(&prompt).await?;
 
-        // Parse the structured response
-        let summary = self.extract_field(&response, "SUMMARY:")?;
-        let keywords_str = self.extract_field(&response, "KEYWORDS:")?;
-        let tags_str = self.extract_field(&response, "TAGS:")?;
-        let type_str = self.extract_field(&response, "TYPE:")?;
-        let importance_str = self.extract_field(&response, "IMPORTANCE:")?;
+        // Parse JSON response with fallback to string parsing
+        let enrichment: EnrichmentResponse = match serde_json::from_str(&response) {
+            Ok(data) => data,
+            Err(e) => {
+                warn!("JSON parsing failed: {}, attempting fallback string parsing", e);
+                // Fallback to old string parsing for backward compatibility
+                let summary = self.extract_field(&response, "SUMMARY:").or_else(|_| {
+                    self.extract_field(&response, "summary:")
+                })?;
+                let keywords_str = self.extract_field(&response, "KEYWORDS:").or_else(|_| {
+                    self.extract_field(&response, "keywords:")
+                })?;
+                let tags_str = self.extract_field(&response, "TAGS:").or_else(|_| {
+                    self.extract_field(&response, "tags:")
+                })?;
+                let type_str = self.extract_field(&response, "TYPE:").or_else(|_| {
+                    self.extract_field(&response, "type:")
+                })?;
+                let importance_str = self.extract_field(&response, "IMPORTANCE:").or_else(|_| {
+                    self.extract_field(&response, "importance:")
+                })?;
 
-        let keywords: Vec<String> = keywords_str
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
+                EnrichmentResponse {
+                    summary,
+                    keywords: keywords_str
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect(),
+                    tags: tags_str
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect(),
+                    memory_type: type_str.trim().to_string(),
+                    importance: importance_str
+                        .trim()
+                        .parse::<u8>()
+                        .unwrap_or(5)
+                        .clamp(1, 10),
+                }
+            }
+        };
 
-        let tags: Vec<String> = tags_str
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-
-        let memory_type = match type_str.trim() {
+        let memory_type = match enrichment.memory_type.as_str() {
             "ArchitectureDecision" => MemoryType::ArchitectureDecision,
             "CodePattern" => MemoryType::CodePattern,
             "BugFix" => MemoryType::BugFix,
@@ -187,11 +256,7 @@ IMPORTANCE: <score>
             _ => MemoryType::Insight, // Default fallback
         };
 
-        let importance = importance_str
-            .trim()
-            .parse::<u8>()
-            .unwrap_or(5)
-            .clamp(1, 10);
+        let importance = enrichment.importance.clamp(1, 10);
 
         Ok(MemoryNote {
             id: crate::types::MemoryId::new(),
@@ -199,9 +264,9 @@ IMPORTANCE: <score>
             created_at: Utc::now(),
             updated_at: Utc::now(),
             content: raw_content.to_string(),
-            summary,
-            keywords,
-            tags,
+            summary: enrichment.summary,
+            keywords: enrichment.keywords,
+            tags: enrichment.tags,
             context: context.to_string(),
             memory_type,
             importance,
