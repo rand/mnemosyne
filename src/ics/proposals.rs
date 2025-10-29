@@ -252,6 +252,37 @@ impl<'a> ProposalsPanel<'a> {
             .title(title)
             .style(Style::default().fg(Color::Rgb(180, 180, 200)));
 
+        // Show empty state if no proposals
+        if proposals.is_empty() {
+            let inner = block.inner(area);
+            block.render(area, buf);
+
+            let empty_msg = if state.status_filter.is_some() {
+                "No proposals with this status"
+            } else if self.proposals.is_empty() {
+                "No pending proposals"
+            } else {
+                "No results"
+            };
+
+            let empty_text = vec![
+                Line::from(""),
+                Line::from(Span::styled(
+                    empty_msg,
+                    Style::default().fg(Color::Rgb(140, 140, 160)),
+                )),
+                Line::from(""),
+                Line::from(Span::styled(
+                    "Agent change proposals will appear here",
+                    Style::default().fg(Color::Rgb(120, 120, 140)),
+                )),
+            ];
+
+            let paragraph = Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
+            paragraph.render(inner, buf);
+            return;
+        }
+
         // Create list items
         let items: Vec<ListItem> = proposals
             .iter()

@@ -198,6 +198,37 @@ impl<'a> MemoryPanel<'a> {
                 .collect()
         };
 
+        // Show empty state if no memories
+        if filtered_memories.is_empty() {
+            let inner = block.inner(area);
+            block.render(area, buf);
+
+            let empty_msg = if !state.search_query.is_empty() {
+                "No memories match your search"
+            } else if self.memories.is_empty() {
+                "No memories loaded yet"
+            } else {
+                "No results"
+            };
+
+            let empty_text = vec![
+                Line::from(""),
+                Line::from(Span::styled(
+                    empty_msg,
+                    Style::default().fg(Color::Rgb(140, 140, 160)),
+                )),
+                Line::from(""),
+                Line::from(Span::styled(
+                    "Relevant memories will appear here",
+                    Style::default().fg(Color::Rgb(120, 120, 140)),
+                )),
+            ];
+
+            let paragraph = Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
+            paragraph.render(inner, buf);
+            return;
+        }
+
         // Create list items
         let items: Vec<ListItem> = filtered_memories
             .iter()

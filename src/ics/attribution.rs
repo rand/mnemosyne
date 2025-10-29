@@ -9,7 +9,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState, StatefulWidget, Widget},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, StatefulWidget, Widget},
 };
 use std::time::SystemTime;
 
@@ -193,6 +193,37 @@ impl<'a> StatefulWidget for AttributionPanel<'a> {
             .borders(Borders::ALL)
             .title(title)
             .style(Style::default().fg(Color::Rgb(180, 180, 200)));
+
+        // Show empty state if no entries
+        if filtered_entries.is_empty() {
+            let inner = block.inner(area);
+            block.render(area, buf);
+
+            let empty_msg = if state.author_filter.is_some() {
+                "No changes match filter"
+            } else if self.entries.is_empty() {
+                "No changes recorded"
+            } else {
+                "No results"
+            };
+
+            let empty_text = vec![
+                Line::from(""),
+                Line::from(Span::styled(
+                    empty_msg,
+                    Style::default().fg(Color::Rgb(140, 140, 160)),
+                )),
+                Line::from(""),
+                Line::from(Span::styled(
+                    "Change attribution will appear here",
+                    Style::default().fg(Color::Rgb(120, 120, 140)),
+                )),
+            ];
+
+            let paragraph = Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
+            paragraph.render(inner, buf);
+            return;
+        }
 
         // Create list items
         let items: Vec<ListItem> = filtered_entries

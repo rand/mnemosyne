@@ -8,7 +8,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, StatefulWidget, Widget},
+    widgets::{Block, Borders, List, ListItem, Paragraph, StatefulWidget, Widget},
 };
 use std::time::SystemTime;
 
@@ -136,6 +136,29 @@ impl<'a> StatefulWidget for AgentStatusWidget<'a> {
             .borders(Borders::ALL)
             .title(" Agent Status ")
             .style(Style::default().fg(Color::Rgb(180, 180, 200)));
+
+        // Show empty state if no agents
+        if self.agents.is_empty() {
+            let inner = block.inner(area);
+            block.render(area, buf);
+
+            let empty_text = vec![
+                Line::from(""),
+                Line::from(Span::styled(
+                    "No active agents",
+                    Style::default().fg(Color::Rgb(140, 140, 160)),
+                )),
+                Line::from(""),
+                Line::from(Span::styled(
+                    "Active agents will appear here",
+                    Style::default().fg(Color::Rgb(120, 120, 140)),
+                )),
+            ];
+
+            let paragraph = Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
+            paragraph.render(inner, buf);
+            return;
+        }
 
         // Create list items
         let items: Vec<ListItem> = self
