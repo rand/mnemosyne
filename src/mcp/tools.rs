@@ -256,6 +256,57 @@ impl ToolHandler {
         }
     }
 
+    // === Validation Helpers ===
+
+    /// Validate importance value (must be 1-10)
+    fn validate_importance(importance: u8) -> Result<()> {
+        if importance < 1 || importance > 10 {
+            return Err(crate::error::MnemosyneError::ValidationError(
+                format!("Importance must be between 1-10, got {}", importance)
+            ));
+        }
+        Ok(())
+    }
+
+    /// Validate max_results (must be 1-1000)
+    fn validate_max_results(max_results: usize) -> Result<usize> {
+        if max_results == 0 {
+            return Err(crate::error::MnemosyneError::ValidationError(
+                "max_results must be at least 1".to_string()
+            ));
+        }
+        if max_results > 1000 {
+            warn!("max_results capped at 1000 (requested: {})", max_results);
+            return Ok(1000);
+        }
+        Ok(max_results)
+    }
+
+    /// Validate non-empty string
+    fn validate_non_empty(value: &str, field_name: &str) -> Result<()> {
+        if value.trim().is_empty() {
+            return Err(crate::error::MnemosyneError::ValidationError(
+                format!("{} cannot be empty", field_name)
+            ));
+        }
+        Ok(())
+    }
+
+    /// Validate content length (max 100KB)
+    fn validate_content_length(content: &str) -> Result<()> {
+        const MAX_CONTENT_LENGTH: usize = 100_000; // 100KB
+        if content.len() > MAX_CONTENT_LENGTH {
+            return Err(crate::error::MnemosyneError::ValidationError(
+                format!(
+                    "Content too large: {} bytes (max: {} bytes)",
+                    content.len(),
+                    MAX_CONTENT_LENGTH
+                )
+            ));
+        }
+        Ok(())
+    }
+
     // === OBSERVE Tools ===
 
     async fn recall(&self, params: Value) -> Result<Value> {
@@ -270,6 +321,17 @@ impl ToolHandler {
 
         let params: RecallParams = serde_json::from_value(params)?;
 
+        // Validate query
+        Self::validate_non_empty(&params.query, "query")?;
+
+        // Validate max_results
+        let max_results = Self::validate_max_results(params.max_results.unwrap_or(10))?;
+
+        // Validate min_importance if provided
+        if let Some(min_imp) = params.min_importance {
+            Self::validate_importance(min_imp)?;
+        }
+
         // Parse namespace
         let namespace = if let Some(ns_str) = &params.namespace {
             Some(self.parse_namespace(ns_str)?)
@@ -278,7 +340,6 @@ impl ToolHandler {
         };
 
         // Perform enhanced hybrid search (keyword + vector + graph)
-        let max_results = params.max_results.unwrap_or(10);
         let expand_graph = params.expand_graph.unwrap_or(true);
 
         // Phase 1: Keyword + graph search
@@ -461,6 +522,13 @@ impl ToolHandler {
 
         let params: ContextParams = serde_json::from_value(params)?;
 
+        // Validate memory_ids is not empty
+        if params.memory_ids.is_empty() {
+            return Err(crate::error::MnemosyneError::ValidationError(
+                "memory_ids cannot be empty".to_string()
+            ));
+        }
+
         // Parse memory IDs
         let memory_ids: Result<Vec<MemoryId>> = params
             .memory_ids
@@ -520,6 +588,15 @@ impl ToolHandler {
 
         let params: RememberParams = serde_json::from_value(params)?;
 
+        // Validate content
+        Self::validate_non_empty(&params.content, "content")?;
+        Self::validate_content_length(&params.content)?;
+
+        // Validate importance if provided
+        if let Some(importance) = params.importance {
+            Self::validate_importance(importance)?;
+        }
+
         // Parse namespace
         let namespace = self.parse_namespace(&params.namespace)?;
 
@@ -532,7 +609,7 @@ impl ToolHandler {
         // Override with user-provided values
         memory.namespace = namespace;
         if let Some(importance) = params.importance {
-            memory.importance = importance.clamp(1, 10);
+            memory.importance = importance; // Already validated above
         }
 
         // Auto-generate embedding for vector search
@@ -669,6 +746,17 @@ impl ToolHandler {
 
         let params: UpdateParams = serde_json::from_value(params)?;
 
+        // Validate content if provided
+        if let Some(ref content) = params.content {
+            Self::validate_non_empty(content, "content")?;
+            Self::validate_content_length(content)?;
+        }
+
+        // Validate importance if provided
+        if let Some(importance) = params.importance {
+            Self::validate_importance(importance)?;
+        }
+
         // Parse memory ID
         let memory_id = MemoryId::from_string(&params.memory_id)
             .map_err(|e| crate::error::MnemosyneError::InvalidId(e.to_string()))?;
@@ -694,7 +782,7 @@ impl ToolHandler {
         }
 
         if let Some(importance) = params.importance {
-            memory.importance = importance.clamp(1, 10);
+            memory.importance = importance; // Already validated above
         }
 
         if let Some(tags) = params.tags {
