@@ -607,15 +607,24 @@ impl EvolutionJob for ConsolidationJob {
                     // For now, just log the action
                     // In production, would update database to mark superseded
                     tracing::info!(
-                        "Would supersede {} with {} - {}",
+                        "Superseding {} with {} - {}",
                         superseded_id,
                         superseding_id,
                         decision.reason
                     );
-                    changes_made += 1;
 
-                    // TODO: Execute actual supersede operation in database
-                    // self.storage.mark_superseded(superseded_id, superseding_id).await?;
+                    // Execute supersede operation in database
+                    if let Err(e) = self.storage.mark_superseded(superseded_id, superseding_id).await {
+                        tracing::warn!(
+                            "Failed to mark {} as superseded by {}: {:?}",
+                            superseded_id,
+                            superseding_id,
+                            e
+                        );
+                        errors += 1;
+                    } else {
+                        changes_made += 1;
+                    }
                 }
             }
         }

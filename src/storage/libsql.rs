@@ -1122,6 +1122,64 @@ impl LibsqlStorage {
         Ok(())
     }
 
+    /// Mark a memory as superseded by another memory
+    ///
+    /// This archives the old memory and records which memory supersedes it.
+    /// Used during consolidation when multiple similar memories are merged.
+    ///
+    /// # Arguments
+    /// * `superseded_id` - The memory being superseded (will be archived)
+    /// * `superseding_id` - The memory that supersedes the old one
+    pub async fn mark_superseded(
+        &self,
+        superseded_id: &MemoryId,
+        superseding_id: &MemoryId,
+    ) -> Result<()> {
+        debug!(
+            "Marking memory {} as superseded by {}",
+            superseded_id, superseding_id
+        );
+
+        let conn = self.get_conn()?;
+        let now = Utc::now();
+
+        // Update the superseded memory: archive it and record superseding memory
+        conn.execute(
+            r#"
+            UPDATE memories
+            SET is_archived = 1,
+                superseded_by = ?,
+                updated_at = ?
+            WHERE id = ?
+            "#,
+            params![
+                superseding_id.to_string(),
+                now.to_rfc3339(),
+                superseded_id.to_string()
+            ],
+        )
+        .await?;
+
+        // Log the consolidation in audit log
+        conn.execute(
+            r#"
+            INSERT INTO audit_log (operation, memory_id, metadata)
+            VALUES ('supersede', ?, ?)
+            "#,
+            params![
+                superseded_id.to_string(),
+                serde_json::json!({
+                    "superseded_by": superseding_id.to_string(),
+                    "timestamp": now.to_rfc3339()
+                })
+                .to_string()
+            ],
+        )
+        .await?;
+
+        Ok(())
+    }
+
     /// Record link traversal for decay tracking
     pub async fn record_link_traversal(&self, source_id: &MemoryId, target_id: &MemoryId) -> Result<()> {
         debug!("Recording link traversal: {} -> {}", source_id, target_id);
