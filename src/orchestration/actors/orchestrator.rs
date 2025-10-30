@@ -13,7 +13,7 @@ use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{
     ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage, WorkResult,
 };
-use crate::orchestration::state::{AgentState, Phase, SharedWorkQueue, WorkItem, WorkQueue};
+use crate::orchestration::state::{AgentState, Phase, SharedWorkQueue, WorkItem, WorkItemId, WorkQueue};
 use crate::storage::StorageBackend;
 use crate::types::Namespace;
 use ractor::{Actor, ActorProcessingErr, ActorRef};
@@ -220,8 +220,10 @@ impl OrchestratorActor {
 
     /// Check for deadlocks
     async fn check_deadlocks(state: &mut OrchestratorState) -> Result<()> {
-        let queue = state.work_queue.read().await;
-        let deadlocked = queue.detect_deadlocks();
+        let deadlocked = {
+            let queue = state.work_queue.read().await;
+            queue.detect_deadlocks()
+        };
 
         if !deadlocked.is_empty() {
             tracing::warn!("Deadlock detected: {} items", deadlocked.len());
@@ -235,10 +237,90 @@ impl OrchestratorActor {
                 })
                 .await?;
 
-            // TODO: Implement deadlock resolution strategy
-            // For now, just log and continue
+            // Resolve deadlock using priority-based preemption
+            Self::resolve_deadlock(state, deadlocked).await?;
         }
 
+        Ok(())
+    }
+
+    /// Resolve deadlock using priority-based preemption
+    ///
+    /// Strategy:
+    /// 1. Sort deadlocked items by priority (lowest first)
+    /// 2. Cancel lowest-priority items until deadlock is broken
+    /// 3. Reset canceled items to Ready state for retry
+    /// 4. Notify affected agents
+    async fn resolve_deadlock(
+        state: &mut OrchestratorState,
+        deadlocked_ids: Vec<WorkItemId>,
+    ) -> Result<()> {
+        tracing::info!("Resolving deadlock for {} items", deadlocked_ids.len());
+
+        // Get items with their priorities for sorting
+        let mut deadlocked_items: Vec<(WorkItemId, u8, String)> = {
+            let queue = state.work_queue.read().await;
+            deadlocked_ids
+                .iter()
+                .filter_map(|id| {
+                    queue
+                        .get(id)
+                        .map(|item| (id.clone(), item.priority, item.description.clone()))
+                })
+                .collect()
+        };
+
+        // Sort by priority (lowest first) - these will be preempted
+        deadlocked_items.sort_by_key(|(_, priority, _)| *priority);
+
+        // Cancel lower-priority items (bottom 50%)
+        let cancel_count = (deadlocked_items.len() + 1) / 2;
+        let to_cancel: Vec<_> = deadlocked_items.iter().take(cancel_count).cloned().collect();
+
+        tracing::info!(
+            "Preempting {} lower-priority items out of {}",
+            to_cancel.len(),
+            deadlocked_items.len()
+        );
+
+        // Cancel and reset items
+        let mut preempted_ids = Vec::new();
+        {
+            let mut queue = state.work_queue.write().await;
+            for (id, priority, description) in to_cancel {
+                if let Some(item) = queue.get_mut(&id) {
+                    tracing::info!(
+                        "Preempting item {} (priority {}): {}",
+                        id,
+                        priority,
+                        description
+                    );
+
+                    // Reset to Ready state for retry
+                    item.transition(AgentState::Ready);
+                    item.started_at = None;
+                    item.error = Some(format!(
+                        "Preempted due to deadlock (priority {})",
+                        priority
+                    ));
+
+                    preempted_ids.push(id);
+                }
+            }
+        }
+
+        // Persist resolution event
+        state
+            .events
+            .persist(AgentEvent::DeadlockResolved {
+                blocked_items: preempted_ids,
+                resolution: format!("Preempted {} lower-priority items", cancel_count),
+            })
+            .await?;
+
+        tracing::info!("Deadlock resolved via priority-based preemption");
+
+        // Items reset to Ready state will be picked up by normal work assignment
         Ok(())
     }
 
