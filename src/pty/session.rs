@@ -124,7 +124,7 @@ impl PtySession {
     }
 
     /// Resize PTY
-    pub async fn resize(&self, cols: u16, rows: u16) -> Result<()> {
+    pub async fn resize(&self, _cols: u16, _rows: u16) -> Result<()> {
         // Note: portable_pty doesn't expose resize directly on the master
         // This would need additional implementation
         Ok(())

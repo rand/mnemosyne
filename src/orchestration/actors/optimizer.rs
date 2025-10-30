@@ -147,7 +147,7 @@ impl OptimizerActor {
     /// Load context memories for a work item
     async fn load_context_memories(
         state: &mut OptimizerState,
-        work_item_id: WorkItemId,
+        _work_item_id: WorkItemId,
         query: String,
     ) -> Result<Vec<MemoryId>> {
         tracing::info!("Loading context memories for: {}", query);
@@ -532,7 +532,7 @@ impl OptimizerActor {
         // Load consolidated context if available
         if let Some(consolidated_id) = work_item.consolidated_context_id {
             match state.storage.get_memory(consolidated_id).await {
-                Ok(memory) => {
+                Ok(_memory) => {
                     loaded_memory_ids.push(consolidated_id);
                     tracing::info!(
                         "Loaded consolidated context: {} ({} tokens)",

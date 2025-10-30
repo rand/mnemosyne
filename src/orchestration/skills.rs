@@ -284,13 +284,11 @@ impl SkillsDiscovery {
         }
 
         let mut score = 0.0;
-        let mut matches = 0;
 
         for keyword in keywords {
             // Check skill keywords
             if metadata.keywords.iter().any(|k| k.contains(keyword)) {
                 score += 1.0;
-                matches += 1;
             }
 
             // Check skill name

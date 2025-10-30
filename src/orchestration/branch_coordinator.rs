@@ -129,7 +129,7 @@ impl BranchCoordinator {
         config: BranchCoordinatorConfig,
     ) -> Result<Self> {
         let cross_process = if config.enable_cross_process {
-            if let Some(ref mnemosyne_dir) = config.mnemosyne_dir {
+            if let Some(ref _mnemosyne_dir) = config.mnemosyne_dir {
                 // Cross-process coordinator will be initialized per-agent
                 // For now, store None and initialize on first use
                 None

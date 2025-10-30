@@ -632,8 +632,8 @@ impl RelevanceScorer {
     /// Session weights influence project, project influences global
     pub async fn propagate_learning(
         &self,
-        session_weights: &WeightSet,
-        evaluation_id: &str,
+        _session_weights: &WeightSet,
+        _evaluation_id: &str,
     ) -> Result<()> {
         // Get project and global weights
         // Apply dampened updates: project gets 30% of session's update, global gets 10%
@@ -701,7 +701,7 @@ impl RelevanceScorer {
     }
 
     /// Calculate performance metrics (precision, recall, F1) for a weight set
-    pub async fn calculate_metrics(&self, weight_id: &str) -> Result<(f32, f32, f32)> {
+    pub async fn calculate_metrics(&self, _weight_id: &str) -> Result<(f32, f32, f32)> {
         // Query all evaluations that used these weights
         // Calculate:
         // - Precision: (true positives) / (true positives + false positives)

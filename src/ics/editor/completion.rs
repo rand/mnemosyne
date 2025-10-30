@@ -227,8 +227,8 @@ impl CompletionEngine {
         use nucleo::Utf32Str;
 
         // Convert to UTF-32 strings for nucleo
-        let pattern_chars: Vec<char> = pattern.chars().collect();
-        let text_chars: Vec<char> = text.chars().collect();
+        let _pattern_chars: Vec<char> = pattern.chars().collect();
+        let _text_chars: Vec<char> = text.chars().collect();
 
         let pattern_utf32 = Utf32Str::Ascii(pattern.as_bytes());
         let text_utf32 = Utf32Str::Ascii(text.as_bytes());

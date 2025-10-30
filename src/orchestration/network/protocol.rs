@@ -8,7 +8,7 @@
 use crate::error::{MnemosyneError, Result};
 use crate::orchestration::messages::AgentMessage;
 use iroh::net::endpoint::{RecvStream, SendStream};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 
 /// Agent protocol for P2P communication
 pub struct AgentProtocol;

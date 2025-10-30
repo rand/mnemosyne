@@ -522,7 +522,7 @@ impl FeedbackCollector {
     async fn get_conn(&self) -> Result<libsql::Connection> {
         use crate::storage::libsql::{ConnectionMode, LibsqlStorage};
 
-        let storage = LibsqlStorage::new(ConnectionMode::Local(self.db_path.clone())).await?;
+        let _storage = LibsqlStorage::new(ConnectionMode::Local(self.db_path.clone())).await?;
 
         // Get connection from storage
         // We need to use the internal database instance

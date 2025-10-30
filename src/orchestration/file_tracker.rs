@@ -473,7 +473,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(conflicts.len(), 1);
-        let conflict_id = conflicts[0].id.clone();
+        let _conflict_id = conflicts[0].id.clone();
 
         // Clear one agent
         tracker.clear_agent_files(&agent1).unwrap();

@@ -23,7 +23,7 @@ use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
-    widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
+    widgets::{Block, Borders, Paragraph},
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -889,11 +889,11 @@ impl IcsApp {
                     }
 
                     // Regular cursor movement
-                    (KeyCode::Left, _) => {
+                    (KeyCode::Left, false) => {
                         let _ = buffer.move_cursor(Movement::Left);
                         self.completion_popup.hide(); // Hide on cursor movement
                     }
-                    (KeyCode::Right, _) => {
+                    (KeyCode::Right, false) => {
                         let _ = buffer.move_cursor(Movement::Right);
                         self.completion_popup.hide(); // Hide on cursor movement
                     }
@@ -905,10 +905,10 @@ impl IcsApp {
                         let _ = buffer.move_cursor(Movement::Down);
                         self.completion_popup.hide(); // Hide on cursor movement
                     }
-                    (KeyCode::Home, _) => {
+                    (KeyCode::Home, false) => {
                         let _ = buffer.move_cursor(Movement::LineStart);
                     }
-                    (KeyCode::End, _) => {
+                    (KeyCode::End, false) => {
                         let _ = buffer.move_cursor(Movement::LineEnd);
                     }
 

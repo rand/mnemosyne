@@ -237,7 +237,7 @@ impl FeatureExtractor {
     /// Compute recency (days since context was created)
     async fn compute_recency_days(
         &self,
-        context_id: &str,
+        _context_id: &str,
         context_type: &ContextType,
     ) -> Result<f32> {
         match context_type {
@@ -258,7 +258,7 @@ impl FeatureExtractor {
     /// Compute access frequency (accesses per day)
     async fn compute_access_frequency(
         &self,
-        context_id: &str,
+        _context_id: &str,
         context_type: &ContextType,
     ) -> Result<f32> {
         match context_type {
@@ -273,7 +273,7 @@ impl FeatureExtractor {
     /// Compute days since last use
     async fn compute_last_used_days(
         &self,
-        context_id: &str,
+        _context_id: &str,
         context_type: &ContextType,
     ) -> Result<Option<f32>> {
         match context_type {
@@ -316,8 +316,8 @@ impl FeatureExtractor {
     /// Compute historical success rate for this context
     async fn compute_historical_success(
         &self,
-        context_id: &str,
-        context_type: &ContextType,
+        _context_id: &str,
+        _context_type: &ContextType,
     ) -> Result<Option<f32>> {
         // Query past evaluations for this context
         // Calculate: (times_accessed / times_provided)
@@ -330,8 +330,8 @@ impl FeatureExtractor {
     /// How often does this context appear alongside other useful contexts?
     async fn compute_co_occurrence(
         &self,
-        context_id: &str,
-        session_id: &str,
+        _context_id: &str,
+        _session_id: &str,
     ) -> Result<Option<f32>> {
         // Query other contexts in this session
         // Calculate: (useful_cooccurrences / total_cooccurrences)
@@ -376,7 +376,7 @@ impl FeatureExtractor {
     }
 
     /// Get features for an evaluation
-    pub async fn get_features(&self, evaluation_id: &str) -> Result<RelevanceFeatures> {
+    pub async fn get_features(&self, _evaluation_id: &str) -> Result<RelevanceFeatures> {
         // TODO: Implement database query
         Err(MnemosyneError::Other(
             "Feature retrieval not yet implemented".into(),

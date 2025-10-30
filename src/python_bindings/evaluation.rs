@@ -5,16 +5,14 @@
 //! - FeatureExtractor: Extract privacy-preserving features
 //! - RelevanceScorer: Score context and update weights
 
-use crate::evaluation::feature_extractor::RelevanceFeatures;
 use crate::evaluation::feedback_collector::{
-    ContextEvaluation, ContextType, ErrorContext, ProvidedContext, TaskType, WorkPhase,
+    ContextType, ErrorContext, ProvidedContext, TaskType, WorkPhase,
 };
-use crate::evaluation::relevance_scorer::{Scope, WeightSet};
+use crate::evaluation::relevance_scorer::Scope;
 use crate::evaluation::{FeatureExtractor, FeedbackCollector, RelevanceScorer};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use std::collections::HashMap;
 
 /// Python wrapper for FeedbackCollector
 #[pyclass(name = "FeedbackCollector")]
@@ -230,14 +228,14 @@ impl PyRelevanceScorer {
     fn get_weights(
         &self,
         scope: String,
-        scope_id: String,
-        context_type: String,
-        agent_role: String,
-        work_phase: Option<String>,
-        task_type: Option<String>,
-        error_context: Option<String>,
+        _scope_id: String,
+        _context_type: String,
+        _agent_role: String,
+        _work_phase: Option<String>,
+        _task_type: Option<String>,
+        _error_context: Option<String>,
     ) -> PyResult<Py<PyDict>> {
-        let scope_enum = parse_scope(&scope)?;
+        let _scope_enum = parse_scope(&scope)?;
 
         // TODO: Implement actual weight lookup
         // For now, return default weights
@@ -254,8 +252,8 @@ impl PyRelevanceScorer {
     }
 
     /// Update weights based on feedback
-    fn update_weights(&self, evaluation_id: String) -> PyResult<()> {
-        let runtime = tokio::runtime::Runtime::new()
+    fn update_weights(&self, _evaluation_id: String) -> PyResult<()> {
+        let _runtime = tokio::runtime::Runtime::new()
             .map_err(|e| PyValueError::new_err(format!("Failed to create runtime: {}", e)))?;
 
         // TODO: Implement weight update

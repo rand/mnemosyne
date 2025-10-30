@@ -203,7 +203,7 @@ impl<S: StorageBackend> MemoryAccessControl<S> {
     /// Rules:
     /// - Agent can update memories it created
     /// - Admin can update any memory
-    pub fn can_update(&self, memory: &MemoryNote) -> bool {
+    pub fn can_update(&self, _memory: &MemoryNote) -> bool {
         if self.is_admin() {
             return true;
         }
@@ -218,7 +218,7 @@ impl<S: StorageBackend> MemoryAccessControl<S> {
     /// Rules:
     /// - Agent can delete memories it created
     /// - Admin can delete any memory
-    pub fn can_delete(&self, memory: &MemoryNote) -> bool {
+    pub fn can_delete(&self, _memory: &MemoryNote) -> bool {
         if self.is_admin() {
             return true;
         }
@@ -574,7 +574,7 @@ mod tests {
         // Test with MNEMOSYNE_ADMIN_MODE
         std::env::set_var("MNEMOSYNE_ADMIN_MODE", "1");
         let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("test.db");
+        let _db_path = temp_dir.path().join("test.db");
 
         // We can't easily test this without async, so just verify the logic
         std::env::remove_var("MNEMOSYNE_ADMIN_MODE");

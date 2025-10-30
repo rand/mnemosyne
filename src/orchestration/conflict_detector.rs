@@ -121,7 +121,7 @@ impl ConflictDetector {
         &self,
         existing: &[AgentAssignment],
         new_intent: &WorkIntent,
-        new_agent_id: &AgentId,
+        _new_agent_id: &AgentId,
     ) -> Option<ConflictAssessment> {
         // No conflict if branch is empty
         if existing.is_empty() {
@@ -326,7 +326,7 @@ impl ConflictDetector {
     }
 
     /// Generate resolution suggestions
-    fn generate_suggestions(&self, severity: ConflictSeverity, paths: &[PathBuf]) -> Vec<String> {
+    fn generate_suggestions(&self, severity: ConflictSeverity, _paths: &[PathBuf]) -> Vec<String> {
         match severity {
             ConflictSeverity::Block => vec![
                 "Request isolation on this branch".to_string(),

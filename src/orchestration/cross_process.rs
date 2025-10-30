@@ -20,7 +20,6 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::HashMap;
 use std::fs::OpenOptions;
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// Coordination message for cross-process communication
@@ -230,7 +229,7 @@ impl CrossProcessCoordinator {
         }
 
         // Use file locking
-        let file = OpenOptions::new()
+        let _file = OpenOptions::new()
             .read(true)
             .open(&self.registry_path)
             .map_err(|e| {
@@ -250,7 +249,7 @@ impl CrossProcessCoordinator {
     }
 
     /// Save shared branch registry with file locking
-    pub fn save_registry(&self, registry: &BranchRegistry) -> Result<()> {
+    pub fn save_registry(&self, _registry: &BranchRegistry) -> Result<()> {
         // Registry has built-in persistence
         Ok(())
     }
@@ -562,7 +561,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let agent_id = AgentId::new();
 
-        let coordinator = CrossProcessCoordinator::new(temp_dir.path(), agent_id).unwrap();
+        let _coordinator = CrossProcessCoordinator::new(temp_dir.path(), agent_id).unwrap();
 
         assert!(temp_dir.path().join("coordination_queue").exists());
     }
