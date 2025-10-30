@@ -983,11 +983,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_memory_loading() {
-        let storage = Arc::new(
-            LibsqlStorage::new_with_validation(ConnectionMode::InMemory, true)
-                .await
-                .expect("Failed to create storage"),
-        );
+        let storage = crate::storage::test_utils::create_test_storage_with_embedded_schema()
+            .await
+            .expect("Failed to create storage");
 
         let mem1 = create_test_memory("1", "First memory", 8);
         let mem2 = create_test_memory("2", "Second memory", 5);
@@ -1208,11 +1206,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_memory_sorting_by_importance() {
-        let storage = Arc::new(
-            LibsqlStorage::new_with_validation(ConnectionMode::InMemory, true)
-                .await
-                .expect("Failed to create storage"),
-        );
+        let storage = crate::storage::test_utils::create_test_storage_with_embedded_schema()
+            .await
+            .expect("Failed to create storage");
 
         let mem1 = create_test_memory("1", "Low importance", 3);
         let mem2 = create_test_memory("2", "High importance", 9);

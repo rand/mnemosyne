@@ -355,6 +355,18 @@ impl LibsqlStorage {
         Self::new(mode).await
     }
 
+    /// Create LibsqlStorage directly from a Database instance (for tests)
+    ///
+    /// This bypasses the normal initialization and migration process,
+    /// useful when you need to set up a custom schema for testing.
+    pub(crate) fn from_database(db: Database) -> Self {
+        Self {
+            db,
+            embedding_service: None,
+            search_config: crate::config::SearchConfig::default(),
+        }
+    }
+
     /// Verify database health before operations
     async fn verify_database_health(&self) -> Result<()> {
         let conn = self.get_conn()?;
@@ -499,7 +511,7 @@ impl LibsqlStorage {
     }
 
     /// Get a connection from the database
-    fn get_conn(&self) -> Result<Connection> {
+    pub(crate) fn get_conn(&self) -> Result<Connection> {
         self.db
             .connect()
             .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))

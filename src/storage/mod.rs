@@ -6,6 +6,9 @@
 pub mod libsql;
 pub mod vectors;
 
+#[cfg(test)]
+pub mod test_utils;
+
 use crate::error::Result;
 use crate::types::{MemoryId, MemoryNote, Namespace, SearchResult};
 use async_trait::async_trait;
