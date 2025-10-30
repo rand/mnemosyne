@@ -420,6 +420,15 @@ impl BranchCoordinator {
         Ok(registry.get_assignments(branch))
     }
 
+    /// Get list of all active branches
+    ///
+    /// Returns branches that currently have at least one agent assigned.
+    pub fn get_active_branches(&self) -> Result<Vec<String>> {
+        let registry = self.registry.read()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e)))?;
+        Ok(registry.active_branches())
+    }
+
     /// Get the total count of active conflicts across all branches
     pub fn get_conflict_count(&self) -> Result<usize> {
         self.notifier.get_conflict_count()

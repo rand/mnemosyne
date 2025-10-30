@@ -142,8 +142,31 @@ impl CliHandler {
     async fn handle_status(&self, all: bool) -> Result<CliResult> {
         if all {
             // Show all branch assignments
-            // TODO: Get all branches from registry
-            Ok(CliResult::success("Status for all branches"))
+            let branches = self.coordinator.get_active_branches()?;
+
+            if branches.is_empty() {
+                return Ok(CliResult::success("No active branches"));
+            }
+
+            // Get detailed info for each branch
+            let mut branch_info = Vec::new();
+            for branch in &branches {
+                let assignments = self.coordinator.get_branch_assignments(branch).await?;
+                branch_info.push(serde_json::json!({
+                    "branch": branch,
+                    "agents": assignments.len(),
+                }));
+            }
+
+            let data = serde_json::json!({
+                "branches": branch_info,
+                "total_branches": branches.len(),
+            });
+
+            Ok(CliResult::success_with_data(
+                format!("Active branches: {}", branches.join(", ")),
+                data,
+            ))
         } else {
             // Show current agent's assignment
             let branch = &self.current_agent.branch;
