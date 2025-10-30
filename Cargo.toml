@@ -76,7 +76,6 @@ nix = { version = "0.30.1", features = ["process", "signal"] }
 ractor = "0.13"
 ractor_cluster = { version = "0.13", optional = true }
 iroh = "0.28"
-iroh-net = "0.28"
 
 # TUI framework
 ratatui = "0.29"

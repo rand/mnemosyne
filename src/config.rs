@@ -159,7 +159,7 @@ impl EmbeddingConfig {
     /// - bge-small-en-v1.5: ~130MB, 384 dimensions
     /// - bge-base-en-v1.5: ~440MB, 768 dimensions
     /// - bge-large-en-v1.5: ~1.3GB, 1024 dimensions
-
+    ///
     /// Get the embedding dimensions for the configured model
     pub fn dimensions(&self) -> usize {
         match self.model.as_str() {

@@ -139,7 +139,7 @@ impl EmbeddingService {
             let hash = hasher.finish();
 
             // Spread influence across multiple dimensions
-            let start_dim = (hash as usize % (EMBEDDING_DIM - 32));
+            let start_dim = hash as usize % (EMBEDDING_DIM - 32);
             for offset in 0..32 {
                 let dim = (start_dim + offset) % EMBEDDING_DIM;
                 // Use different hash bits for different dimensions
