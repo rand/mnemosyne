@@ -112,7 +112,11 @@ impl IcsApp {
             agent_status_panel: AgentStatusState::new(),
             agents: Vec::new(), // TODO: track active agents
             attribution_panel: AttributionPanelState::new(),
-            attributions: Vec::new(), // TODO: extract from CRDT
+            // NOTE: Attributions require IcsEditor to use CrdtBuffer instead of TextBuffer.
+            // CrdtBuffer has built-in attribution tracking (see src/ics/editor/crdt_buffer.rs).
+            // Current IcsEditor uses TextBuffer which doesn't track attributions.
+            // Full implementation blocked on editor migration to CrdtBuffer.
+            attributions: Vec::new(),
             proposals_panel: ProposalsPanelState::new(),
             proposals: Vec::new(), // TODO: agent proposals
 
