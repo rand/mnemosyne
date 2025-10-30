@@ -446,6 +446,58 @@ impl IcsApp {
         }
     }
 
+    // Test accessors for internal state
+    #[cfg(test)]
+    pub fn memories(&self) -> &[MemoryNote] {
+        &self.memories
+    }
+
+    #[cfg(test)]
+    pub fn agents(&self) -> &[AgentInfo] {
+        &self.agents
+    }
+
+    #[cfg(test)]
+    pub fn proposals(&self) -> &[ChangeProposal] {
+        &self.proposals
+    }
+
+    #[cfg(test)]
+    pub fn attributions(&self) -> &[AttributionEntry] {
+        &self.attributions
+    }
+
+    #[cfg(test)]
+    pub fn status(&self) -> &str {
+        &self.status
+    }
+
+    #[cfg(test)]
+    pub fn editor(&self) -> &IcsEditor {
+        &self.editor
+    }
+
+    #[cfg(test)]
+    pub fn editor_mut(&mut self) -> &mut IcsEditor {
+        &mut self.editor
+    }
+
+    // Test-only methods for triggering internal operations
+    #[cfg(test)]
+    pub fn test_trigger_semantic_analysis(&mut self) {
+        self.trigger_semantic_analysis()
+    }
+
+    #[cfg(test)]
+    pub async fn test_store_semantic_memories(&self) -> Result<Vec<MemoryId>> {
+        self.store_semantic_memories().await
+    }
+
+    #[cfg(test)]
+    pub fn test_extract_attributions(&mut self) {
+        self.extract_attributions()
+    }
+
     /// Run the ICS application
     pub async fn run(&mut self) -> Result<()> {
         // Initialize terminal
@@ -864,5 +916,321 @@ impl IcsApp {
         })?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        launcher::agents::AgentRole,
+        orchestration::{AgentRegistry, ProposalQueue},
+        ics::proposals::ProposalStatus,
+        ConnectionMode, LibsqlStorage,
+    };
+    use std::sync::Arc;
+    use std::time::SystemTime;
+
+    /// Helper to create test memory
+    fn create_test_memory(id: &str, content: &str, importance: u8) -> MemoryNote {
+        use chrono::Utc;
+        let now = Utc::now();
+        MemoryNote {
+            id: MemoryId::new(),
+            namespace: Namespace::Session {
+                project: "test".to_string(),
+                session_id: id.to_string(),
+            },
+            created_at: now,
+            updated_at: now,
+            content: content.to_string(),
+            summary: format!("Test: {}", content),
+            keywords: vec!["test".to_string()],
+            tags: vec!["integration".to_string()],
+            context: "test context".to_string(),
+            memory_type: MemoryType::Insight,
+            importance,
+            confidence: 0.9,
+            links: Vec::new(),
+            related_files: Vec::new(),
+            related_entities: Vec::new(),
+            access_count: 0,
+            last_accessed_at: now,
+            expires_at: None,
+            is_archived: false,
+            superseded_by: None,
+            embedding: None,
+            embedding_model: String::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_app_initialization_standalone() {
+        let storage = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create storage"),
+        );
+
+        let config = IcsConfig::default();
+        let app = IcsApp::new(config, storage, None, None);
+
+        assert_eq!(app.memories().len(), 0);
+        assert_eq!(app.agents().len(), 0);
+        assert_eq!(app.proposals().len(), 0);
+        assert_eq!(app.attributions().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_memory_loading() {
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(ConnectionMode::InMemory, true)
+                .await
+                .expect("Failed to create storage"),
+        );
+
+        let mem1 = create_test_memory("1", "First memory", 8);
+        let mem2 = create_test_memory("2", "Second memory", 5);
+        let mem3 = create_test_memory("3", "Third memory", 9);
+
+        storage.store_memory(&mem1).await.expect("Failed to store");
+        storage.store_memory(&mem2).await.expect("Failed to store");
+        storage.store_memory(&mem3).await.expect("Failed to store");
+
+        let config = IcsConfig::default();
+        let mut app = IcsApp::new(config, storage, None, None);
+
+        app.load_memories().await.expect("Failed to load memories");
+
+        let loaded = app.memories();
+        assert_eq!(loaded.len(), 3);
+        assert!(loaded.iter().any(|m| m.content == "First memory"));
+        assert!(app.status().contains("Loaded 3 memories"));
+    }
+
+    #[tokio::test]
+    async fn test_agent_tracking_standalone() {
+        let storage = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create storage"),
+        );
+
+        let config = IcsConfig::default();
+        let mut app = IcsApp::new(config, storage, None, None);
+
+        app.load_agents().await;
+
+        assert_eq!(app.agents().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_agent_tracking_orchestration() {
+        let storage = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create storage"),
+        );
+
+        let registry = AgentRegistry::new();
+        registry.register("test-optimizer".to_string(), "Optimizer".to_string(), AgentRole::Optimizer).await;
+        registry.register("test-reviewer".to_string(), "Reviewer".to_string(), AgentRole::Reviewer).await;
+
+        let config = IcsConfig::default();
+        let mut app = IcsApp::new(config, storage, Some(registry), None);
+
+        app.load_agents().await;
+
+        let agents = app.agents();
+        assert_eq!(agents.len(), 2);
+        assert!(agents.iter().any(|a| a.name == "Optimizer"));
+        assert!(agents.iter().any(|a| a.name == "Reviewer"));
+    }
+
+    #[tokio::test]
+    async fn test_proposal_polling_standalone() {
+        let storage = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create storage"),
+        );
+
+        let config = IcsConfig::default();
+        let mut app = IcsApp::new(config, storage, None, None);
+
+        app.poll_proposals().await;
+
+        assert_eq!(app.proposals().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_proposal_polling_orchestration() {
+        let storage = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create storage"),
+        );
+
+        let queue = ProposalQueue::new();
+
+        let proposal = ChangeProposal {
+            id: "prop-1".to_string(),
+            agent: "TestAgent".to_string(),
+            description: "Test proposal".to_string(),
+            original: "old".to_string(),
+            proposed: "new".to_string(),
+            line_range: (10, 20),
+            created_at: SystemTime::now(),
+            status: ProposalStatus::Pending,
+            rationale: "Test".to_string(),
+        };
+
+        queue.send(proposal).expect("Failed to send");
+
+        let config = IcsConfig::default();
+        let mut app = IcsApp::new(config, storage, None, Some(queue));
+
+        app.poll_proposals().await;
+
+        let proposals = app.proposals();
+        assert_eq!(proposals.len(), 1);
+        assert_eq!(proposals[0].id, "prop-1");
+    }
+
+    #[tokio::test]
+    async fn test_file_operations() {
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("ics_test_file.txt");
+        std::fs::write(&test_file, "Initial content").expect("Failed to write");
+
+        let storage = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create storage"),
+        );
+
+        let config = IcsConfig::default();
+        let mut app = IcsApp::new(config, storage, None, None);
+
+        app.load_file(test_file.clone()).expect("Failed to load");
+
+        let buffer = app.editor().active_buffer();
+        let text = buffer.text().expect("Failed to get text");
+        assert_eq!(text, "Initial content");
+
+        let buffer = app.editor_mut().active_buffer_mut();
+        buffer.insert_at_cursor("\nAdded line").expect("Failed to insert");
+
+        app.save_file().expect("Failed to save");
+
+        let saved_content = std::fs::read_to_string(&test_file).expect("Failed to read");
+        assert!(saved_content.contains("Initial content"));
+        assert!(saved_content.contains("Added line"));
+
+        std::fs::remove_file(&test_file).ok();
+    }
+
+    #[tokio::test]
+    async fn test_attribution_extraction() {
+        let storage = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create storage"),
+        );
+
+        let config = IcsConfig::default();
+        let mut app = IcsApp::new(config, storage, None, None);
+
+        let buffer = app.editor_mut().active_buffer_mut();
+        buffer.insert_at_cursor("Line 1\n").expect("Failed to insert");
+        buffer.insert_at_cursor("Line 2\n").expect("Failed to insert");
+
+        app.test_extract_attributions();
+
+        let attributions = app.attributions();
+        assert!(attributions.len() > 0);
+
+        for attr in attributions {
+            assert!(attr.timestamp > SystemTime::UNIX_EPOCH);
+            assert!(!attr.description.is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_dual_mode_support() {
+        let storage1 = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create storage"),
+        );
+        let storage2 = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create storage"),
+        );
+
+        // Standalone mode
+        let config1 = IcsConfig::default();
+        let mut app1 = IcsApp::new(config1, storage1, None, None);
+
+        app1.load_agents().await;
+        app1.poll_proposals().await;
+
+        assert_eq!(app1.agents().len(), 0);
+        assert_eq!(app1.proposals().len(), 0);
+
+        // Orchestration mode
+        let registry = AgentRegistry::new();
+        registry.register("test".to_string(), "Test".to_string(), AgentRole::Optimizer).await;
+
+        let queue = ProposalQueue::new();
+        queue.send(ChangeProposal {
+            id: "test".to_string(),
+            agent: "Test".to_string(),
+            description: "Test".to_string(),
+            original: "old".to_string(),
+            proposed: "new".to_string(),
+            line_range: (1, 2),
+            created_at: SystemTime::now(),
+            status: ProposalStatus::Pending,
+            rationale: "Test".to_string(),
+        }).expect("Failed to send");
+
+        let config2 = IcsConfig::default();
+        let mut app2 = IcsApp::new(config2, storage2, Some(registry), Some(queue));
+
+        app2.load_agents().await;
+        app2.poll_proposals().await;
+
+        assert_eq!(app2.agents().len(), 1);
+        assert_eq!(app2.proposals().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_memory_sorting_by_importance() {
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(ConnectionMode::InMemory, true)
+                .await
+                .expect("Failed to create storage"),
+        );
+
+        let mem1 = create_test_memory("1", "Low importance", 3);
+        let mem2 = create_test_memory("2", "High importance", 9);
+        let mem3 = create_test_memory("3", "Medium importance", 6);
+
+        storage.store_memory(&mem1).await.expect("Failed to store");
+        storage.store_memory(&mem2).await.expect("Failed to store");
+        storage.store_memory(&mem3).await.expect("Failed to store");
+
+        let config = IcsConfig::default();
+        let mut app = IcsApp::new(config, storage, None, None);
+
+        app.load_memories().await.expect("Failed to load");
+
+        let loaded = app.memories();
+        assert_eq!(loaded.len(), 3);
+        assert_eq!(loaded[0].importance, 9);
+        assert_eq!(loaded[1].importance, 6);
+        assert_eq!(loaded[2].importance, 3);
     }
 }
