@@ -16,6 +16,7 @@ use crate::error::{MnemosyneError, Result};
 use crate::evaluation::feedback_collector::{ContextEvaluation, ContextType};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::path::Path;
 use std::sync::Arc;
 use tracing::{debug, warn};
 
@@ -112,7 +113,7 @@ impl FeatureExtractor {
         // Contextual match features
         let work_phase_match = evaluation.work_phase.is_some();
         let task_type_match = evaluation.task_type.is_some();
-        let namespace_match = true; // TODO: Check if context namespace matches task namespace
+        let namespace_match = self.compute_namespace_match(evaluation);
         let file_type_match = self.compute_file_type_match(evaluation);
 
         // Agent affinity (how well this context type suits this agent)
@@ -237,22 +238,50 @@ impl FeatureExtractor {
     /// Compute recency (days since context was created)
     async fn compute_recency_days(
         &self,
-        _context_id: &str,
+        context_id: &str,
         context_type: &ContextType,
     ) -> Result<f32> {
         match context_type {
             ContextType::Memory => {
                 // Fetch memory creation date
                 // TODO: Implement memory lookup
-                Ok(7.0) // Placeholder
+                Ok(7.0) // Placeholder - will implement in Phase 2.2.4
             }
             ContextType::Skill | ContextType::File => {
                 // For skills/files, use file modification time
-                // TODO: Implement file stat lookup
-                Ok(30.0) // Placeholder
+                self.compute_file_recency(context_id).await
             }
             _ => Ok(0.0),
         }
+    }
+
+    /// Compute file recency from filesystem metadata
+    async fn compute_file_recency(&self, file_path: &str) -> Result<f32> {
+        let path = Path::new(file_path);
+
+        if !path.exists() {
+            debug!("File does not exist: {}", file_path);
+            return Ok(365.0); // Treat non-existent files as very old
+        }
+
+        let metadata = std::fs::metadata(path).map_err(|e| {
+            MnemosyneError::Other(format!("Failed to stat file {}: {}", file_path, e))
+        })?;
+
+        let modified = metadata.modified().map_err(|e| {
+            MnemosyneError::Other(format!("Failed to get modified time for {}: {}", file_path, e))
+        })?;
+
+        let duration = std::time::SystemTime::now()
+            .duration_since(modified)
+            .map_err(|e| {
+                MnemosyneError::Other(format!("Time calculation error for {}: {}", file_path, e))
+            })?;
+
+        let days = duration.as_secs() as f32 / 86400.0;
+
+        debug!("File {} is {:.1} days old", file_path, days);
+        Ok(days)
     }
 
     /// Compute access frequency (accesses per day)
@@ -282,6 +311,29 @@ impl FeatureExtractor {
                 Ok(Some(3.0)) // Placeholder
             }
             _ => Ok(None),
+        }
+    }
+
+    /// Compute namespace match
+    ///
+    /// Check if the context's namespace matches the task's namespace.
+    /// For memory contexts, check if memory namespace matches task namespace.
+    /// For skill/file contexts, they're typically global so match any namespace.
+    fn compute_namespace_match(&self, evaluation: &ContextEvaluation) -> bool {
+        match &evaluation.context_type {
+            ContextType::Memory => {
+                // For memories, would need to look up memory's namespace
+                // For now, assume match if task has a namespace
+                !evaluation.namespace.is_empty()
+            }
+            ContextType::Skill | ContextType::File => {
+                // Skills and files are typically global, match any namespace
+                true
+            }
+            ContextType::Plan | ContextType::Commit => {
+                // Plans and commits are session/project-specific
+                !evaluation.namespace.is_empty()
+            }
         }
     }
 
@@ -368,19 +420,141 @@ impl FeatureExtractor {
     pub async fn store_features(&self, features: &RelevanceFeatures) -> Result<()> {
         debug!("Storing features for evaluation {}", features.evaluation_id);
 
-        // TODO: Implement database insert
-        // INSERT INTO relevance_features (evaluation_id, keyword_overlap_score, ...)
-        // VALUES (?, ?, ...)
+        let db = libsql::Builder::new_local(&self.db_path)
+            .build()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
 
+        let conn = db.connect().map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection: {}", e))
+        })?;
+
+        conn.execute(
+            r#"
+            INSERT INTO relevance_features (
+                evaluation_id,
+                keyword_overlap_score,
+                semantic_similarity,
+                recency_days,
+                access_frequency,
+                last_used_days_ago,
+                work_phase_match,
+                task_type_match,
+                agent_role_affinity,
+                namespace_match,
+                file_type_match,
+                historical_success_rate,
+                co_occurrence_score,
+                was_useful
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
+            libsql::params![
+                features.evaluation_id.clone(),
+                features.keyword_overlap_score,
+                features.semantic_similarity,
+                features.recency_days,
+                features.access_frequency,
+                features.last_used_days_ago,
+                if features.work_phase_match { 1 } else { 0 },
+                if features.task_type_match { 1 } else { 0 },
+                features.agent_role_affinity,
+                if features.namespace_match { 1 } else { 0 },
+                if features.file_type_match { 1 } else { 0 },
+                features.historical_success_rate,
+                features.co_occurrence_score,
+                if features.was_useful { 1 } else { 0 },
+            ],
+        )
+        .await
+        .map_err(|e| {
+            MnemosyneError::Database(format!("Failed to insert features: {}", e))
+        })?;
+
+        debug!("Stored features for evaluation {}", features.evaluation_id);
         Ok(())
     }
 
     /// Get features for an evaluation
-    pub async fn get_features(&self, _evaluation_id: &str) -> Result<RelevanceFeatures> {
-        // TODO: Implement database query
-        Err(MnemosyneError::Other(
-            "Feature retrieval not yet implemented".into(),
-        ))
+    pub async fn get_features(&self, evaluation_id: &str) -> Result<RelevanceFeatures> {
+        let db = libsql::Builder::new_local(&self.db_path)
+            .build()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
+
+        let conn = db.connect().map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection: {}", e))
+        })?;
+
+        let mut rows = conn
+            .query(
+                r#"
+                SELECT
+                    evaluation_id,
+                    keyword_overlap_score,
+                    semantic_similarity,
+                    recency_days,
+                    access_frequency,
+                    last_used_days_ago,
+                    work_phase_match,
+                    task_type_match,
+                    agent_role_affinity,
+                    namespace_match,
+                    file_type_match,
+                    historical_success_rate,
+                    co_occurrence_score,
+                    was_useful
+                FROM relevance_features
+                WHERE evaluation_id = ?
+                "#,
+                libsql::params![evaluation_id],
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query features: {}", e))
+            })?;
+
+        let row = rows.next().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to fetch row: {}", e))
+        })?;
+
+        let row = row.ok_or_else(|| {
+            MnemosyneError::NotFound(format!("Features not found for evaluation: {}", evaluation_id))
+        })?;
+
+        Ok(RelevanceFeatures {
+            evaluation_id: row.get::<String>(0).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get evaluation_id: {}", e))
+            })?,
+            keyword_overlap_score: row.get::<f64>(1).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get keyword_overlap_score: {}", e))
+            })? as f32,
+            semantic_similarity: row.get::<Option<f64>>(2).ok().flatten().map(|v| v as f32),
+            recency_days: row.get::<f64>(3).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get recency_days: {}", e))
+            })? as f32,
+            access_frequency: row.get::<f64>(4).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get access_frequency: {}", e))
+            })? as f32,
+            last_used_days_ago: row.get::<Option<f64>>(5).ok().flatten().map(|v| v as f32),
+            work_phase_match: row.get::<i64>(6).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get work_phase_match: {}", e))
+            })? != 0,
+            task_type_match: row.get::<i64>(7).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get task_type_match: {}", e))
+            })? != 0,
+            agent_role_affinity: row.get::<Option<f64>>(8).ok().flatten().map(|v| v as f32).unwrap_or(0.5),
+            namespace_match: row.get::<i64>(9).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get namespace_match: {}", e))
+            })? != 0,
+            file_type_match: row.get::<i64>(10).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get file_type_match: {}", e))
+            })? != 0,
+            historical_success_rate: row.get::<Option<f64>>(11).ok().flatten().map(|v| v as f32),
+            co_occurrence_score: row.get::<Option<f64>>(12).ok().flatten().map(|v| v as f32),
+            was_useful: row.get::<i64>(13).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get was_useful: {}", e))
+            })? != 0,
+        })
     }
 }
 
