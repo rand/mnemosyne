@@ -13,9 +13,12 @@ pub async fn create_test_storage() -> LibsqlStorage {
     // Use a temporary file instead of :memory: because libSQL's :memory: mode
     // creates isolated databases per connection, so migrations wouldn't persist
     let temp_file = format!("/tmp/mnemosyne_test_{}.db", uuid::Uuid::new_v4());
-    let storage = LibsqlStorage::new(ConnectionMode::Local(temp_file.clone()))
-        .await
-        .expect("Failed to create test storage");
+    let storage = LibsqlStorage::new_with_validation(
+        ConnectionMode::Local(temp_file.clone()),
+        true, // create_if_missing - required for test databases
+    )
+    .await
+    .expect("Failed to create test storage");
 
     // Clean up temp file on drop would be ideal, but for now tests are fast enough
     // that OS cleanup is fine

@@ -27,9 +27,12 @@ async fn create_test_storage() -> TestFixture {
     let temp_dir = tempdir().expect("Failed to create temp dir");
     let db_path = temp_dir.path().join("test_rbac.db");
 
-    let storage = LibsqlStorage::new_local(db_path.to_str().unwrap())
-        .await
-        .expect("Failed to create storage");
+    let storage = LibsqlStorage::new_with_validation(
+        mnemosyne_core::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+        true, // create_if_missing - required for test databases
+    )
+    .await
+    .expect("Failed to create storage");
 
     TestFixture {
         storage: Arc::new(storage),
@@ -464,8 +467,7 @@ async fn test_get_agent_role() {
 
 #[tokio::test]
 async fn test_audit_trail_placeholder() {
-    // This test verifies the audit trail API exists and returns correctly
-    // Actual implementation will be added when storage backend supports it
+    // This test verifies the audit trail API tracks memory creation events
     let fixture = create_test_storage().await;
     let access_control = MemoryAccessControl::new(AgentRole::Executor, fixture.storage);
 
@@ -475,14 +477,14 @@ async fn test_audit_trail_placeholder() {
         .await
         .expect("Failed to create memory");
 
-    // Get audit trail (currently returns empty)
+    // Get audit trail - should contain the creation event
     let trail = access_control
         .get_audit_trail(&memory_id)
         .await
         .expect("Should return audit trail");
 
-    // Currently empty, but API is in place
-    assert_eq!(trail.len(), 0);
+    // Should have 1 entry for the memory creation
+    assert_eq!(trail.len(), 1, "Audit trail should contain creation event");
 }
 
 #[tokio::test]

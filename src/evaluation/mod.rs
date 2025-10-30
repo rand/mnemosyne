@@ -25,7 +25,7 @@
 //!
 //! ## What IS Stored
 //!
-//! ```rust
+//! ```rust,ignore
 //! // Evaluation record
 //! ContextEvaluation {
 //!     task_hash: "a3f8e9d1...",  // SHA256, 16 chars
@@ -76,7 +76,7 @@
 //! # Usage
 //!
 //! ```rust,no_run
-//! use mnemosyne_core::evaluation::{FeedbackCollector, ProvidedContext, ContextType};
+//! use mnemosyne_core::evaluation::{ContextType, FeedbackCollector, ProvidedContext};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let collector = FeedbackCollector::new(".mnemosyne/project.db".to_string());
@@ -111,6 +111,6 @@ pub mod relevance_scorer;
 pub mod schema;
 
 pub use feature_extractor::{FeatureExtractor, RelevanceFeatures};
-pub use feedback_collector::{ContextEvaluation, FeedbackCollector, ProvidedContext};
+pub use feedback_collector::{ContextEvaluation, ContextType, FeedbackCollector, ProvidedContext};
 pub use relevance_scorer::{RelevanceScorer, Scope, WeightSet};
 pub use schema::init_evaluation_tables;
