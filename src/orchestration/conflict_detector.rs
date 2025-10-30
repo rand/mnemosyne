@@ -238,15 +238,29 @@ impl ConflictDetector {
 
     /// Check if two paths overlap
     fn check_path_overlap(&self, path1: &Path, path2: &Path) -> Option<PathBuf> {
+        // Check for parent/child relationships
         if path1.starts_with(path2) {
-            Some(path1.to_path_buf())
-        } else if path2.starts_with(path1) {
-            Some(path2.to_path_buf())
-        } else if path1 == path2 {
-            Some(path1.to_path_buf())
-        } else {
-            None
+            return Some(path1.to_path_buf());
         }
+        if path2.starts_with(path1) {
+            return Some(path2.to_path_buf());
+        }
+        if path1 == path2 {
+            return Some(path1.to_path_buf());
+        }
+
+        // Check if both paths are siblings in a critical directory
+        // Example: migrations/001.sql and migrations/002.sql should conflict
+        if let (Some(parent1), Some(parent2)) = (path1.parent(), path2.parent()) {
+            if parent1 == parent2 {
+                let parent_str = parent1.to_string_lossy();
+                if self.is_critical_path(&parent_str) {
+                    return Some(parent1.to_path_buf());
+                }
+            }
+        }
+
+        None
     }
 
     /// Determine severity based on path characteristics
@@ -274,9 +288,17 @@ impl ConflictDetector {
 
     /// Check if path matches critical patterns
     fn is_critical_path(&self, path: &str) -> bool {
-        self.critical_patterns
-            .iter()
-            .any(|pattern| path.contains(pattern))
+        self.critical_patterns.iter().any(|pattern| {
+            // Handle both directory patterns (migrations/) and file patterns (schema.sql)
+            if pattern.ends_with('/') {
+                // Directory pattern - check if path starts with or contains the directory
+                let dir_name = pattern.trim_end_matches('/');
+                path.starts_with(dir_name) || path.contains(pattern)
+            } else {
+                // File or exact match pattern
+                path.contains(pattern)
+            }
+        })
     }
 
     /// Generate human-readable reason

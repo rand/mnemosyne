@@ -439,12 +439,22 @@ mod tests {
     fn test_regular_agent_blocked_without_assignment() {
         let temp_dir = setup_test_repo();
         let mut registry = BranchRegistry::new();
-        let agent_id = AgentId::new();
+
+        // Create agent identity first
+        let agent = AgentIdentity::new(
+            AgentRole::Executor,
+            Namespace::Global,
+            "main".to_string(),
+            temp_dir.path().to_path_buf(),
+        );
+
+        // Use the agent's ID for registry assignment
+        let agent_id = agent.id.clone();
 
         // Assign agent to main
         registry
             .assign_agent(
-                agent_id.clone(),
+                agent_id,
                 "main".to_string(),
                 WorkIntent::FullBranch,
                 CoordinationMode::Isolated,
@@ -454,13 +464,6 @@ mod tests {
         let registry = Arc::new(RwLock::new(registry));
         let guard = BranchGuard::new(registry, temp_dir.path().to_path_buf());
 
-        let agent = AgentIdentity::new(
-            AgentRole::Executor,
-            Namespace::Global,
-            "main".to_string(),
-            temp_dir.path().to_path_buf(),
-        );
-
         // Create feature branch
         std::process::Command::new("git")
             .args(&["branch", "feature"])
@@ -468,7 +471,7 @@ mod tests {
             .output()
             .unwrap();
 
-        // Should be blocked from accessing feature branch
+        // Should be blocked from accessing feature branch (agent assigned to main, trying to access feature)
         let result = guard.validate_branch_access(&agent, "feature", &WorkIntent::FullBranch);
 
         assert!(result.is_err());
