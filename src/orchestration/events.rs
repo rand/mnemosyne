@@ -98,6 +98,28 @@ pub enum AgentEvent {
         to: AgentRole,
         message_type: String,
     },
+
+    /// Review failed for work item
+    ReviewFailed {
+        item_id: WorkItemId,
+        issues: Vec<String>,
+        attempt: u32,
+    },
+
+    /// Work item re-queued after review failure
+    WorkItemRequeued {
+        item_id: WorkItemId,
+        reason: String,
+        review_attempt: u32,
+    },
+
+    /// Context consolidated for work item
+    ContextConsolidated {
+        item_id: WorkItemId,
+        consolidated_memory_id: MemoryId,
+        estimated_tokens: usize,
+        consolidation_level: String,
+    },
 }
 
 impl AgentEvent {
@@ -122,8 +144,11 @@ impl AgentEvent {
             AgentEvent::PhaseTransition { .. } => 9,
             AgentEvent::DeadlockDetected { .. } => 8,
             AgentEvent::ContextCheckpoint { .. } => 8,
+            AgentEvent::ContextConsolidated { .. } => 8,
+            AgentEvent::ReviewFailed { .. } => 7,
             AgentEvent::WorkItemCompleted { .. } => 7,
             AgentEvent::WorkItemFailed { .. } => 7,
+            AgentEvent::WorkItemRequeued { .. } => 6,
             AgentEvent::WorkItemAssigned { .. } => 6,
             AgentEvent::DeadlockResolved { .. } => 6,
             AgentEvent::AgentStateChanged { .. } => 5,
@@ -184,6 +209,39 @@ impl AgentEvent {
                 message_type,
             } => {
                 format!("{:?} → {:?}: {}", from, to, message_type)
+            }
+            AgentEvent::ReviewFailed {
+                item_id,
+                issues,
+                attempt,
+            } => {
+                format!(
+                    "Review failed for {:?} (attempt {}): {} issues",
+                    item_id,
+                    attempt,
+                    issues.len()
+                )
+            }
+            AgentEvent::WorkItemRequeued {
+                item_id,
+                reason,
+                review_attempt,
+            } => {
+                format!(
+                    "Work item {:?} re-queued (attempt {}): {}",
+                    item_id, review_attempt, reason
+                )
+            }
+            AgentEvent::ContextConsolidated {
+                item_id,
+                consolidated_memory_id,
+                estimated_tokens,
+                consolidation_level,
+            } => {
+                format!(
+                    "Context consolidated for {:?}: {} (memory: {}, {} tokens)",
+                    item_id, consolidation_level, consolidated_memory_id, estimated_tokens
+                )
             }
         }
     }

@@ -461,6 +461,7 @@ impl LibsqlStorage {
             "001_initial_schema.sql",
             "002_add_indexes.sql",
             "003_audit_trail.sql",
+            "011_work_items.sql",
             // Note: Vector search uses native embedding column in memories table (F32_BLOB)
             // No need for separate memory_vectors table or vec0 extension
         ];
@@ -2489,5 +2490,634 @@ impl StorageBackend for LibsqlStorage {
 
         debug!("Fetched {} modification stats", stats.len());
         Ok(stats)
+    }
+
+    /// Store a work item for cross-session persistence
+    async fn store_work_item(
+        &self,
+        item: &crate::orchestration::state::WorkItem,
+    ) -> Result<()> {
+        debug!("Storing work item: {:?}", item.id);
+        let conn = self.get_conn()?;
+
+        // Serialize complex fields to JSON
+        let dependencies_json =
+            serde_json::to_string(&item.dependencies).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to serialize dependencies: {}", e))
+            })?;
+
+        let review_feedback_json = serde_json::to_string(&item.review_feedback).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize review_feedback: {}", e))
+        })?;
+
+        let suggested_tests_json = serde_json::to_string(&item.suggested_tests).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize suggested_tests: {}", e))
+        })?;
+
+        let execution_memory_ids_json =
+            serde_json::to_string(&item.execution_memory_ids).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to serialize execution_memory_ids: {}", e))
+            })?;
+
+        let file_scope_json = serde_json::to_string(&item.file_scope).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize file_scope: {}", e))
+        })?;
+
+        // Convert timestamps to Unix epoch milliseconds
+        let created_at = item.created_at.timestamp_millis();
+        let started_at = item.started_at.map(|t| t.timestamp_millis());
+        let completed_at = item.completed_at.map(|t| t.timestamp_millis());
+
+        // Convert AgentState, Phase, and AgentRole to strings
+        let state_str = format!("{:?}", item.state);
+        let phase_str = format!("{:?}", item.phase);
+        let agent_role_str = format!("{:?}", item.agent);
+
+        // Convert timeout duration to seconds
+        let timeout_secs = item.timeout.map(|d| d.as_secs() as i64);
+
+        // Convert consolidated_context_id to string
+        let consolidated_context_id_str = item.consolidated_context_id.map(|id| id.to_string());
+
+        conn.execute(
+            r#"
+            INSERT INTO work_items (
+                id, description, original_intent, agent_role, state, phase, priority,
+                dependencies, created_at, started_at, completed_at, error, timeout_secs,
+                review_feedback, suggested_tests, review_attempt,
+                execution_memory_ids, consolidated_context_id, estimated_context_tokens,
+                assigned_branch, file_scope
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
+            params![
+                item.id.to_string(),
+                item.description.clone(),
+                item.original_intent.clone(),
+                agent_role_str,
+                state_str,
+                phase_str,
+                item.priority as i64,
+                dependencies_json,
+                created_at,
+                started_at,
+                completed_at,
+                item.error.clone(),
+                timeout_secs,
+                review_feedback_json,
+                suggested_tests_json,
+                item.review_attempt as i64,
+                execution_memory_ids_json,
+                consolidated_context_id_str,
+                item.estimated_context_tokens as i64,
+                item.assigned_branch.clone(),
+                file_scope_json,
+            ],
+        )
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Failed to store work item: {}", e)))?;
+
+        debug!("Work item stored successfully: {:?}", item.id);
+        Ok(())
+    }
+
+    /// Load a work item by ID
+    async fn load_work_item(
+        &self,
+        id: &crate::orchestration::state::WorkItemId,
+    ) -> Result<crate::orchestration::state::WorkItem> {
+        debug!("Loading work item: {:?}", id);
+        let conn = self.get_conn()?;
+
+        let id_str = id.to_string();
+
+        let mut stmt = conn
+            .prepare(
+                r#"
+                SELECT id, description, original_intent, agent_role, state, phase, priority,
+                       dependencies, created_at, started_at, completed_at, error, timeout_secs,
+                       review_feedback, suggested_tests, review_attempt,
+                       execution_memory_ids, consolidated_context_id, estimated_context_tokens,
+                       assigned_branch, file_scope
+                FROM work_items
+                WHERE id = ?
+                "#,
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to prepare load_work_item query: {}", e))
+            })?;
+
+        let row = stmt
+            .query_row(params![id_str])
+            .await
+            .map_err(|e| MnemosyneError::NotFound(format!("Work item not found: {}", e)))?;
+
+        // Parse fields from row
+        let description: String = row.get(1).unwrap();
+        let original_intent: String = row.get(2).unwrap();
+        let agent_role_str: String = row.get(3).unwrap();
+        let state_str: String = row.get(4).unwrap();
+        let phase_str: String = row.get(5).unwrap();
+        let priority: i64 = row.get(6).unwrap();
+        let dependencies_json: String = row.get(7).unwrap();
+        let created_at_ms: i64 = row.get(8).unwrap();
+        let started_at_ms: Option<i64> = row.get(9).unwrap();
+        let completed_at_ms: Option<i64> = row.get(10).unwrap();
+        let error: Option<String> = row.get(11).unwrap();
+        let timeout_secs: Option<i64> = row.get(12).unwrap();
+        let review_feedback_json: String = row.get(13).unwrap();
+        let suggested_tests_json: String = row.get(14).unwrap();
+        let review_attempt: i64 = row.get(15).unwrap();
+        let execution_memory_ids_json: String = row.get(16).unwrap();
+        let consolidated_context_id_str: Option<String> = row.get(17).unwrap();
+        let estimated_context_tokens: i64 = row.get(18).unwrap();
+        let assigned_branch: Option<String> = row.get(19).unwrap();
+        let file_scope_json: String = row.get(20).unwrap();
+
+        // Deserialize JSON fields
+        let dependencies: Vec<crate::orchestration::state::WorkItemId> =
+            serde_json::from_str(&dependencies_json).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to deserialize dependencies: {}", e))
+            })?;
+
+        let review_feedback: Option<Vec<String>> =
+            serde_json::from_str(&review_feedback_json).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to deserialize review_feedback: {}", e))
+            })?;
+
+        let suggested_tests: Option<Vec<String>> =
+            serde_json::from_str(&suggested_tests_json).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to deserialize suggested_tests: {}", e))
+            })?;
+
+        let execution_memory_ids: Vec<crate::types::MemoryId> =
+            serde_json::from_str(&execution_memory_ids_json).map_err(|e| {
+                MnemosyneError::Database(format!(
+                    "Failed to deserialize execution_memory_ids: {}",
+                    e
+                ))
+            })?;
+
+        let file_scope: Option<Vec<std::path::PathBuf>> =
+            serde_json::from_str(&file_scope_json).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to deserialize file_scope: {}", e))
+            })?;
+
+        // Parse enums using string matching
+        let agent = match agent_role_str.as_str() {
+            "Orchestrator" => crate::launcher::agents::AgentRole::Orchestrator,
+            "Optimizer" => crate::launcher::agents::AgentRole::Optimizer,
+            "Executor" => crate::launcher::agents::AgentRole::Executor,
+            "Reviewer" => crate::launcher::agents::AgentRole::Reviewer,
+            _ => {
+                return Err(MnemosyneError::Database(format!(
+                    "Invalid agent_role: {}",
+                    agent_role_str
+                )))
+            }
+        };
+
+        let state = match state_str.as_str() {
+            "Idle" => crate::orchestration::state::AgentState::Idle,
+            "Ready" => crate::orchestration::state::AgentState::Ready,
+            "Active" => crate::orchestration::state::AgentState::Active,
+            "Waiting" => crate::orchestration::state::AgentState::Waiting,
+            "Blocked" => crate::orchestration::state::AgentState::Blocked,
+            "PendingReview" => crate::orchestration::state::AgentState::PendingReview,
+            "Complete" => crate::orchestration::state::AgentState::Complete,
+            "Error" => crate::orchestration::state::AgentState::Error,
+            _ => {
+                return Err(MnemosyneError::Database(format!(
+                    "Invalid state: {}",
+                    state_str
+                )))
+            }
+        };
+
+        let phase = match phase_str.as_str() {
+            "PromptToSpec" => crate::orchestration::state::Phase::PromptToSpec,
+            "SpecToFullSpec" => crate::orchestration::state::Phase::SpecToFullSpec,
+            "FullSpecToPlan" => crate::orchestration::state::Phase::FullSpecToPlan,
+            "PlanToArtifacts" => crate::orchestration::state::Phase::PlanToArtifacts,
+            "Complete" => crate::orchestration::state::Phase::Complete,
+            _ => {
+                return Err(MnemosyneError::Database(format!(
+                    "Invalid phase: {}",
+                    phase_str
+                )))
+            }
+        };
+
+        // Parse timestamps
+        let created_at = chrono::DateTime::<chrono::Utc>::from_timestamp_millis(created_at_ms)
+            .ok_or_else(|| {
+                MnemosyneError::Database(format!("Invalid created_at timestamp: {}", created_at_ms))
+            })?;
+
+        let started_at = started_at_ms
+            .map(|ms| {
+                chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ms).ok_or_else(|| {
+                    MnemosyneError::Database(format!("Invalid started_at timestamp: {}", ms))
+                })
+            })
+            .transpose()?;
+
+        let completed_at = completed_at_ms
+            .map(|ms| {
+                chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ms).ok_or_else(|| {
+                    MnemosyneError::Database(format!("Invalid completed_at timestamp: {}", ms))
+                })
+            })
+            .transpose()?;
+
+        // Parse timeout duration
+        let timeout = timeout_secs.map(|secs| std::time::Duration::from_secs(secs as u64));
+
+        // Parse consolidated_context_id
+        let consolidated_context_id = consolidated_context_id_str
+            .map(|s| {
+                crate::types::MemoryId::from_string(&s).map_err(|e| {
+                    MnemosyneError::Database(format!(
+                        "Failed to parse consolidated_context_id: {}",
+                        e
+                    ))
+                })
+            })
+            .transpose()?;
+
+        // Reconstruct WorkItem
+        let work_item = crate::orchestration::state::WorkItem {
+            id: id.clone(),
+            description,
+            original_intent,
+            agent,
+            state,
+            phase,
+            priority: priority as u8,
+            dependencies,
+            created_at,
+            started_at,
+            completed_at,
+            error,
+            timeout,
+            assigned_branch,
+            estimated_duration: None, // Not persisted
+            file_scope,
+            review_feedback,
+            suggested_tests,
+            review_attempt: review_attempt as u32,
+            execution_memory_ids,
+            consolidated_context_id,
+            estimated_context_tokens: estimated_context_tokens as usize,
+        };
+
+        debug!("Work item loaded successfully: {:?}", id);
+        Ok(work_item)
+    }
+
+    /// Update an existing work item
+    async fn update_work_item(
+        &self,
+        item: &crate::orchestration::state::WorkItem,
+    ) -> Result<()> {
+        debug!("Updating work item: {:?}", item.id);
+        let conn = self.get_conn()?;
+
+        // Serialize complex fields to JSON
+        let dependencies_json =
+            serde_json::to_string(&item.dependencies).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to serialize dependencies: {}", e))
+            })?;
+
+        let review_feedback_json = serde_json::to_string(&item.review_feedback).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize review_feedback: {}", e))
+        })?;
+
+        let suggested_tests_json = serde_json::to_string(&item.suggested_tests).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize suggested_tests: {}", e))
+        })?;
+
+        let execution_memory_ids_json =
+            serde_json::to_string(&item.execution_memory_ids).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to serialize execution_memory_ids: {}", e))
+            })?;
+
+        let file_scope_json = serde_json::to_string(&item.file_scope).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize file_scope: {}", e))
+        })?;
+
+        // Convert timestamps to Unix epoch milliseconds
+        let started_at = item.started_at.map(|t| t.timestamp_millis());
+        let completed_at = item.completed_at.map(|t| t.timestamp_millis());
+
+        // Convert AgentState, Phase, and AgentRole to strings
+        let state_str = format!("{:?}", item.state);
+        let phase_str = format!("{:?}", item.phase);
+        let agent_role_str = format!("{:?}", item.agent);
+
+        // Convert timeout duration to seconds
+        let timeout_secs = item.timeout.map(|d| d.as_secs() as i64);
+
+        // Convert consolidated_context_id to string
+        let consolidated_context_id_str = item.consolidated_context_id.map(|id| id.to_string());
+
+        conn.execute(
+            r#"
+            UPDATE work_items SET
+                description = ?,
+                original_intent = ?,
+                agent_role = ?,
+                state = ?,
+                phase = ?,
+                priority = ?,
+                dependencies = ?,
+                started_at = ?,
+                completed_at = ?,
+                error = ?,
+                timeout_secs = ?,
+                review_feedback = ?,
+                suggested_tests = ?,
+                review_attempt = ?,
+                execution_memory_ids = ?,
+                consolidated_context_id = ?,
+                estimated_context_tokens = ?,
+                assigned_branch = ?,
+                file_scope = ?
+            WHERE id = ?
+            "#,
+            params![
+                item.description.clone(),
+                item.original_intent.clone(),
+                agent_role_str,
+                state_str,
+                phase_str,
+                item.priority as i64,
+                dependencies_json,
+                started_at,
+                completed_at,
+                item.error.clone(),
+                timeout_secs,
+                review_feedback_json,
+                suggested_tests_json,
+                item.review_attempt as i64,
+                execution_memory_ids_json,
+                consolidated_context_id_str,
+                item.estimated_context_tokens as i64,
+                item.assigned_branch.clone(),
+                file_scope_json,
+                item.id.to_string(),
+            ],
+        )
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Failed to update work item: {}", e)))?;
+
+        debug!("Work item updated successfully: {:?}", item.id);
+        Ok(())
+    }
+
+    /// Load work items by state (for recovery)
+    async fn load_work_items_by_state(
+        &self,
+        state: crate::orchestration::state::AgentState,
+    ) -> Result<Vec<crate::orchestration::state::WorkItem>> {
+        debug!("Loading work items by state: {:?}", state);
+        let conn = self.get_conn()?;
+
+        let state_str = format!("{:?}", state);
+
+        let stmt = conn
+            .prepare(
+                r#"
+                SELECT id, description, original_intent, agent_role, state, phase, priority,
+                       dependencies, created_at, started_at, completed_at, error, timeout_secs,
+                       review_feedback, suggested_tests, review_attempt,
+                       execution_memory_ids, consolidated_context_id, estimated_context_tokens,
+                       assigned_branch, file_scope
+                FROM work_items
+                WHERE state = ?
+                ORDER BY priority DESC, created_at ASC
+                "#,
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!(
+                    "Failed to prepare load_work_items_by_state query: {}",
+                    e
+                ))
+            })?;
+
+        let mut rows = stmt
+            .query(params![state_str])
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query work items by state: {}", e))
+            })?;
+
+        let mut work_items = Vec::new();
+
+        // Process each row
+        while let Some(row) = rows.next().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to fetch work item row: {}", e))
+        })? {
+            // Parse fields from row
+            let id_str: String = row.get(0).unwrap();
+            let description: String = row.get(1).unwrap();
+            let original_intent: String = row.get(2).unwrap();
+            let agent_role_str: String = row.get(3).unwrap();
+            let state_str: String = row.get(4).unwrap();
+            let phase_str: String = row.get(5).unwrap();
+            let priority: i64 = row.get(6).unwrap();
+            let dependencies_json: String = row.get(7).unwrap();
+            let created_at_ms: i64 = row.get(8).unwrap();
+            let started_at_ms: Option<i64> = row.get(9).unwrap();
+            let completed_at_ms: Option<i64> = row.get(10).unwrap();
+            let error: Option<String> = row.get(11).unwrap();
+            let timeout_secs: Option<i64> = row.get(12).unwrap();
+            let review_feedback_json: String = row.get(13).unwrap();
+            let suggested_tests_json: String = row.get(14).unwrap();
+            let review_attempt: i64 = row.get(15).unwrap();
+            let execution_memory_ids_json: String = row.get(16).unwrap();
+            let consolidated_context_id_str: Option<String> = row.get(17).unwrap();
+            let estimated_context_tokens: i64 = row.get(18).unwrap();
+            let assigned_branch: Option<String> = row.get(19).unwrap();
+            let file_scope_json: String = row.get(20).unwrap();
+
+            // Deserialize JSON fields
+            let dependencies: Vec<crate::orchestration::state::WorkItemId> =
+                serde_json::from_str(&dependencies_json).map_err(|e| {
+                    MnemosyneError::Database(format!("Failed to deserialize dependencies: {}", e))
+                })?;
+
+            let review_feedback: Option<Vec<String>> =
+                serde_json::from_str(&review_feedback_json).map_err(|e| {
+                    MnemosyneError::Database(format!(
+                        "Failed to deserialize review_feedback: {}",
+                        e
+                    ))
+                })?;
+
+            let suggested_tests: Option<Vec<String>> =
+                serde_json::from_str(&suggested_tests_json).map_err(|e| {
+                    MnemosyneError::Database(format!(
+                        "Failed to deserialize suggested_tests: {}",
+                        e
+                    ))
+                })?;
+
+            let execution_memory_ids: Vec<crate::types::MemoryId> =
+                serde_json::from_str(&execution_memory_ids_json).map_err(|e| {
+                    MnemosyneError::Database(format!(
+                        "Failed to deserialize execution_memory_ids: {}",
+                        e
+                    ))
+                })?;
+
+            let file_scope: Option<Vec<std::path::PathBuf>> =
+                serde_json::from_str(&file_scope_json).map_err(|e| {
+                    MnemosyneError::Database(format!("Failed to deserialize file_scope: {}", e))
+                })?;
+
+            // Parse ID (WorkItemId wraps a UUID)
+            let uuid = uuid::Uuid::parse_str(&id_str).map_err(|e| {
+                MnemosyneError::Database(format!("Invalid work item ID UUID: {}", e))
+            })?;
+            let id = crate::orchestration::state::WorkItemId::from(uuid);
+
+            // Parse enums using string matching
+            let agent = match agent_role_str.as_str() {
+                "Orchestrator" => crate::launcher::agents::AgentRole::Orchestrator,
+                "Optimizer" => crate::launcher::agents::AgentRole::Optimizer,
+                "Executor" => crate::launcher::agents::AgentRole::Executor,
+                "Reviewer" => crate::launcher::agents::AgentRole::Reviewer,
+                _ => {
+                    return Err(MnemosyneError::Database(format!(
+                        "Invalid agent_role: {}",
+                        agent_role_str
+                    )))
+                }
+            };
+
+            let state_enum = match state_str.as_str() {
+                "Idle" => crate::orchestration::state::AgentState::Idle,
+                "Ready" => crate::orchestration::state::AgentState::Ready,
+                "Active" => crate::orchestration::state::AgentState::Active,
+                "Waiting" => crate::orchestration::state::AgentState::Waiting,
+                "Blocked" => crate::orchestration::state::AgentState::Blocked,
+                "PendingReview" => crate::orchestration::state::AgentState::PendingReview,
+                "Complete" => crate::orchestration::state::AgentState::Complete,
+                "Error" => crate::orchestration::state::AgentState::Error,
+                _ => {
+                    return Err(MnemosyneError::Database(format!(
+                        "Invalid state: {}",
+                        state_str
+                    )))
+                }
+            };
+
+            let phase = match phase_str.as_str() {
+                "PromptToSpec" => crate::orchestration::state::Phase::PromptToSpec,
+                "SpecToFullSpec" => crate::orchestration::state::Phase::SpecToFullSpec,
+                "FullSpecToPlan" => crate::orchestration::state::Phase::FullSpecToPlan,
+                "PlanToArtifacts" => crate::orchestration::state::Phase::PlanToArtifacts,
+                "Complete" => crate::orchestration::state::Phase::Complete,
+                _ => {
+                    return Err(MnemosyneError::Database(format!(
+                        "Invalid phase: {}",
+                        phase_str
+                    )))
+                }
+            };
+
+            // Parse timestamps
+            let created_at =
+                chrono::DateTime::<chrono::Utc>::from_timestamp_millis(created_at_ms).ok_or_else(
+                    || {
+                        MnemosyneError::Database(format!(
+                            "Invalid created_at timestamp: {}",
+                            created_at_ms
+                        ))
+                    },
+                )?;
+
+            let started_at = started_at_ms
+                .map(|ms| {
+                    chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ms).ok_or_else(|| {
+                        MnemosyneError::Database(format!("Invalid started_at timestamp: {}", ms))
+                    })
+                })
+                .transpose()?;
+
+            let completed_at = completed_at_ms
+                .map(|ms| {
+                    chrono::DateTime::<chrono::Utc>::from_timestamp_millis(ms).ok_or_else(|| {
+                        MnemosyneError::Database(format!("Invalid completed_at timestamp: {}", ms))
+                    })
+                })
+                .transpose()?;
+
+            // Parse timeout duration
+            let timeout = timeout_secs.map(|secs| std::time::Duration::from_secs(secs as u64));
+
+            // Parse consolidated_context_id
+            let consolidated_context_id = consolidated_context_id_str
+                .map(|s| {
+                    crate::types::MemoryId::from_string(&s).map_err(|e| {
+                        MnemosyneError::Database(format!(
+                            "Failed to parse consolidated_context_id: {}",
+                            e
+                        ))
+                    })
+                })
+                .transpose()?;
+
+            // Reconstruct WorkItem
+            let work_item = crate::orchestration::state::WorkItem {
+                id,
+                description,
+                original_intent,
+                agent,
+                state: state_enum,
+                phase,
+                priority: priority as u8,
+                dependencies,
+                created_at,
+                started_at,
+                completed_at,
+                error,
+                timeout,
+                assigned_branch,
+                estimated_duration: None, // Not persisted
+                file_scope,
+                review_feedback,
+                suggested_tests,
+                review_attempt: review_attempt as u32,
+                execution_memory_ids,
+                consolidated_context_id,
+                estimated_context_tokens: estimated_context_tokens as usize,
+            };
+
+            work_items.push(work_item);
+        }
+
+        debug!("Loaded {} work items by state: {:?}", work_items.len(), state);
+        Ok(work_items)
+    }
+
+    /// Delete a work item (when permanently completed)
+    async fn delete_work_item(
+        &self,
+        id: &crate::orchestration::state::WorkItemId,
+    ) -> Result<()> {
+        debug!("Deleting work item: {:?}", id);
+        let conn = self.get_conn()?;
+
+        let id_str = id.to_string();
+
+        conn.execute("DELETE FROM work_items WHERE id = ?", params![id_str])
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to delete work item: {}", e)))?;
+
+        debug!("Work item deleted successfully: {:?}", id);
+        Ok(())
     }
 }

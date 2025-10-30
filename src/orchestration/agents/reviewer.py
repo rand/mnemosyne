@@ -18,23 +18,28 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
 
 class QualityGate(Enum):
-    """Quality gates that must pass."""
+    """Quality gates that must pass (8 total: 5 existing + 3 pillars)."""
+    # Existing gates
     INTENT_SATISFIED = "intent_satisfied"
     TESTS_PASSING = "tests_passing"
     DOCUMENTATION_COMPLETE = "documentation_complete"
     NO_ANTIPATTERNS = "no_antipatterns"
-    FACTS_VERIFIED = "facts_verified"
     CONSTRAINTS_MAINTAINED = "constraints_maintained"
-    NO_TODOS = "no_todos"
+    # Three-pillar gates
+    COMPLETENESS = "completeness"
+    CORRECTNESS = "correctness"
+    PRINCIPLED_IMPLEMENTATION = "principled_implementation"
 
 
 @dataclass
 class ReviewResult:
-    """Result of quality review."""
+    """Result of quality review with three-pillar validation."""
     passed: bool
     gate_results: Dict[QualityGate, bool]
     issues: List[str]
     recommendations: List[str]
+    suggested_tests: List[str]  # New: tests suggested by Reviewer
+    execution_context: List[str]  # New: memory IDs from execution
     confidence: float
 
 
@@ -82,31 +87,37 @@ class ReviewerAgent:
     REVIEWER_SYSTEM_PROMPT = """You are the Reviewer Agent in a multi-agent orchestration system.
 
 Your role:
-- Quality assurance and validation specialist
-- Validate intent satisfaction, documentation, test coverage
+- Quality assurance and validation specialist with three-pillar validation
+- Validate completeness, correctness, and principled implementation
+- Check intent satisfaction, documentation, test coverage
 - Fact-check claims, references, external dependencies
 - Check for anti-patterns and technical debt
+- Suggest missing tests
 - Block work until quality standards met
-- Mark "COMPLETE" only when all 7 quality gates pass
+- Mark "COMPLETE" only when all 8 quality gates pass
 
 Quality Gates (ALL must pass):
 1. Intent Satisfied - Implementation fulfills original requirements
 2. Tests Passing - All tests pass, coverage ≥ 70%
 3. Documentation Complete - Overview, usage, examples present
 4. No Anti-patterns - No TODO/FIXME/HACK/stub/mock markers
-5. Facts Verified - All claims and references validated
-6. Constraints Maintained - No constraint violations
-7. No TODOs - No placeholder or incomplete code
+5. Constraints Maintained - No constraint violations
+6. Completeness - No TODOs, partial implementations, or unfilled typed holes
+7. Correctness - Logic is sound, no errors or failed validations
+8. Principled Implementation - No hacks, workarounds, or architectural inconsistencies
 
 Your Review Process:
 1. Read and understand the work artifact
 2. Evaluate each quality gate rigorously
-3. Provide specific, actionable feedback on failures
-4. Suggest concrete improvements
-5. BLOCK work if any required gate fails (strict mode)
-6. Only mark COMPLETE when ALL gates pass
+3. Verify completeness (no incomplete work)
+4. Verify correctness (logic is sound)
+5. Verify principled implementation (clean architecture)
+6. Suggest missing tests for untested scenarios
+7. Provide specific, actionable feedback on failures
+8. BLOCK work if any required gate fails (strict mode)
+9. Only mark COMPLETE when ALL gates pass
 
-Be thorough but constructive. Identify real issues, not nitpicks."""
+Be thorough but constructive. Identify real issues, not nitpicks. Suggest tests for edge cases."""
 
     def __init__(self, config: ReviewerConfig, coordinator, storage):
         """
@@ -188,6 +199,12 @@ Be thorough but constructive. Identify real issues, not nitpicks."""
                 work_artifact
             )
 
+            # Suggest missing tests
+            suggested_tests = self._suggest_missing_tests(work_artifact, issues)
+
+            # Extract execution context (memory IDs from execution)
+            execution_context = work_artifact.get("execution_memory_ids", [])
+
             # Determine overall pass/fail
             required_gates_passed = all(
                 gate_results.get(gate, False)
@@ -210,6 +227,8 @@ Be thorough but constructive. Identify real issues, not nitpicks."""
                 gate_results=gate_results,
                 issues=issues,
                 recommendations=recommendations,
+                suggested_tests=suggested_tests,
+                execution_context=execution_context,
                 confidence=confidence
             )
 
@@ -232,11 +251,49 @@ Be thorough but constructive. Identify real issues, not nitpicks."""
             self.coordinator.update_agent_state(self.config.agent_id, "failed")
             raise RuntimeError(f"Review failed: {e}") from e
 
+    def _suggest_missing_tests(self, artifact: Dict[str, Any], issues: List[str]) -> List[str]:
+        """Suggest missing tests based on work artifact and detected issues."""
+        suggestions = []
+
+        # Check if work involves error handling
+        code = str(artifact.get("code", ""))
+        if "error" in code.lower() and not any("error" in str(t).lower() for t in artifact.get("tests", [])):
+            suggestions.append("Add tests for error handling and edge cases")
+
+        # Check for async code without async tests
+        if "async" in code.lower() and not any("async" in str(t).lower() for t in artifact.get("tests", [])):
+            suggestions.append("Add tests for async behavior and concurrency scenarios")
+
+        # Check for null/None handling
+        if ("null" in code.lower() or "none" in code.lower()) and not any("null" in str(t).lower() or "none" in str(t).lower() for t in artifact.get("tests", [])):
+            suggestions.append("Add tests for null/None handling")
+
+        # Check for boundary conditions
+        if "boundary" in code.lower() and not any("boundary" in str(t).lower() for t in artifact.get("tests", [])):
+            suggestions.append("Add boundary condition tests")
+
+        # Check for integration points
+        if "integration" in code.lower() and not any("integration" in str(t).lower() for t in artifact.get("tests", [])):
+            suggestions.append("Add integration tests for component interactions")
+
+        # If completeness gate failed, suggest implementation coverage tests
+        if any("completeness" in issue.lower() or "incomplete" in issue.lower() for issue in issues):
+            suggestions.append("Add tests to verify all required features are implemented")
+
+        # If correctness gate failed, suggest logic validation tests
+        if any("correctness" in issue.lower() or "logic" in issue.lower() for issue in issues):
+            suggestions.append("Add tests to validate core logic and invariants")
+
+        # Remove duplicates
+        suggestions = list(set(suggestions))
+
+        return suggestions
+
     def _build_review_prompt(self, artifact: Dict[str, Any]) -> str:
-        """Build comprehensive review prompt for Claude."""
+        """Build comprehensive review prompt for Claude with three-pillar validation."""
         prompt_parts = [
             "# Quality Review Request\n\n",
-            "Review this work artifact against all 7 quality gates:\n\n",
+            "Review this work artifact against all 8 quality gates (5 standard + 3 pillars):\n\n",
             f"**Artifact**: {json.dumps(artifact, indent=2)}\n\n",
             "## Quality Gates to Evaluate:\n\n",
         ]
@@ -255,6 +312,7 @@ Be thorough but constructive. Identify real issues, not nitpicks."""
 - Do all tests pass?
 - Is coverage ≥ {self.config.min_test_coverage:.0%}?
 - Are edge cases tested?
+- Suggest any missing tests
 """)
 
         if QualityGate.DOCUMENTATION_COMPLETE in self.config.required_gates:
@@ -273,27 +331,38 @@ Be thorough but constructive. Identify real issues, not nitpicks."""
 - No obvious code smells?
 """)
 
-        if QualityGate.FACTS_VERIFIED in self.config.required_gates:
-            prompt_parts.append("""
-### 5. Facts Verified
-- Are claims validated?
-- Are references accessible?
-- Are dependencies verified?
-""")
-
         if QualityGate.CONSTRAINTS_MAINTAINED in self.config.required_gates:
             prompt_parts.append("""
-### 6. Constraints Maintained
+### 5. Constraints Maintained
 - Are specified constraints respected?
 - No violations of requirements?
 """)
 
-        if QualityGate.NO_TODOS in self.config.required_gates:
+        if QualityGate.COMPLETENESS in self.config.required_gates:
             prompt_parts.append("""
-### 7. No TODOs
-- No incomplete code?
-- No deferred work?
+### 6. Completeness (Three-Pillar Gate #1)
+- No TODOs, FIXME, or incomplete markers?
+- No partial implementations?
 - All typed holes filled?
+- No placeholder code?
+""")
+
+        if QualityGate.CORRECTNESS in self.config.required_gates:
+            prompt_parts.append("""
+### 7. Correctness (Three-Pillar Gate #2)
+- Logic is sound and correct?
+- No runtime errors or panics?
+- Error handling is appropriate?
+- No logic bugs or incorrect behavior?
+""")
+
+        if QualityGate.PRINCIPLED_IMPLEMENTATION in self.config.required_gates:
+            prompt_parts.append("""
+### 8. Principled Implementation (Three-Pillar Gate #3)
+- No hacks or workarounds?
+- Consistent with architectural patterns?
+- Clean, maintainable code?
+- No temporary fixes or code smells?
 """)
 
         prompt_parts.append("""
@@ -302,9 +371,10 @@ For each gate:
 1. Evaluate: PASS or FAIL
 2. If FAIL: Provide specific issues
 3. Suggest actionable improvements
+4. Suggest missing tests (especially for gates 2, 6, 7, 8)
 
 Format your response clearly with gate-by-gate analysis.
-Be thorough but constructive.""")
+Be thorough but constructive. Focus on real issues.""")
 
         return "".join(prompt_parts)
 

@@ -156,33 +156,58 @@ impl OrchestratorActor {
         Ok(())
     }
 
-    /// Handle work completion
+    /// Handle work completion - transitions to PendingReview
     async fn handle_work_completed(
         state: &mut OrchestratorState,
         item_id: crate::orchestration::state::WorkItemId,
         result: WorkResult,
     ) -> Result<()> {
-        tracing::info!("Work completed: {:?}", item_id);
+        tracing::info!("Work completed, sending for review: {:?}", item_id);
 
-        // Mark as completed in queue
-        {
+        // Get work item and update execution memories
+        let work_item = {
             let mut queue = state.work_queue.write().await;
-            queue.mark_completed(&item_id);
+            if let Some(item) = queue.get_mut(&item_id) {
+                // Transition to PendingReview
+                item.transition(AgentState::PendingReview);
+
+                // Store execution memory IDs for context consolidation
+                item.execution_memory_ids = result.memory_ids.clone();
+
+                Some(item.clone())
+            } else {
+                None
+            }
+        };
+
+        if let Some(work_item) = work_item {
+            // Send to Reviewer
+            if let Some(ref reviewer) = state.reviewer {
+                reviewer
+                    .cast(ReviewerMessage::ReviewWork {
+                        item_id: item_id.clone(),
+                        result: result.clone(),
+                        work_item,
+                    })
+                    .map_err(|e| {
+                        tracing::error!("Failed to send work to Reviewer: {:?}", e);
+                        crate::error::MnemosyneError::Other(format!(
+                            "Failed to send work to Reviewer: {:?}",
+                            e
+                        ))
+                    })?;
+
+                tracing::info!("Work sent to Reviewer for quality gates: {:?}", item_id);
+            } else {
+                tracing::warn!("No reviewer available, marking as completed");
+
+                // Fallback: mark as completed if no reviewer
+                let mut queue = state.work_queue.write().await;
+                queue.mark_completed(&item_id);
+            }
+        } else {
+            tracing::warn!("Work item not found: {:?}", item_id);
         }
-
-        // Persist event
-        state
-            .events
-            .persist(AgentEvent::WorkItemCompleted {
-                agent: AgentRole::Executor, // TODO: Track actual agent
-                item_id,
-                duration_ms: result.duration.as_millis() as u64,
-                memory_ids: result.memory_ids,
-            })
-            .await?;
-
-        // Dispatch next items
-        Self::dispatch_work(state).await?;
 
         Ok(())
     }
@@ -380,6 +405,179 @@ impl OrchestratorActor {
 
         Ok(())
     }
+
+    /// Handle review completion from Reviewer
+    async fn handle_review_completed(
+        state: &mut OrchestratorState,
+        item_id: WorkItemId,
+        passed: bool,
+        feedback: crate::orchestration::messages::ReviewFeedback,
+    ) -> Result<()> {
+        tracing::info!(
+            "Review completed for {:?}: {}",
+            item_id,
+            if passed { "PASS" } else { "FAIL" }
+        );
+
+        if passed {
+            // Review passed - mark as complete
+            {
+                let mut queue = state.work_queue.write().await;
+                queue.mark_completed(&item_id);
+            }
+
+            // Persist completion event
+            state
+                .events
+                .persist(AgentEvent::WorkItemCompleted {
+                    agent: AgentRole::Executor,
+                    item_id: item_id.clone(),
+                    duration_ms: 0, // Duration tracked separately
+                    memory_ids: feedback.execution_context,
+                })
+                .await?;
+
+            tracing::info!("Work item passed all quality gates: {:?}", item_id);
+
+            // Dispatch next items
+            Self::dispatch_work(state).await?;
+        } else {
+            // Review failed - consolidate context and re-queue
+            tracing::warn!(
+                "Work item failed review ({} issues): {:?}",
+                feedback.issues.len(),
+                item_id
+            );
+
+            // Get work item for context consolidation
+            let work_item = {
+                let queue = state.work_queue.read().await;
+                queue.get(&item_id).cloned()
+            };
+
+            if let Some(mut work_item) = work_item {
+                // Increment review attempt
+                work_item.review_attempt += 1;
+
+                // Store review feedback
+                let mut all_feedback = work_item.review_feedback.unwrap_or_default();
+                all_feedback.extend(feedback.issues.clone());
+                work_item.review_feedback = Some(all_feedback);
+
+                // Store suggested tests
+                let mut all_tests = work_item.suggested_tests.unwrap_or_default();
+                all_tests.extend(feedback.suggested_tests.clone());
+                work_item.suggested_tests = Some(all_tests);
+
+                // Send to Optimizer for context consolidation
+                if let Some(ref optimizer) = state.optimizer {
+                    optimizer
+                        .cast(OptimizerMessage::ConsolidateWorkItemContext {
+                            item_id: item_id.clone(),
+                            execution_memory_ids: work_item.execution_memory_ids.clone(),
+                            review_feedback: feedback.issues,
+                            suggested_tests: feedback.suggested_tests,
+                            review_attempt: work_item.review_attempt,
+                        })
+                        .map_err(|e| {
+                            tracing::error!("Failed to send to Optimizer: {:?}", e);
+                            crate::error::MnemosyneError::Other(format!(
+                                "Failed to send to Optimizer: {:?}",
+                                e
+                            ))
+                        })?;
+
+                    tracing::info!(
+                        "Sent work item to Optimizer for context consolidation (attempt {})",
+                        work_item.review_attempt
+                    );
+
+                    // Update work item in queue with review feedback
+                    {
+                        let mut queue = state.work_queue.write().await;
+                        if let Some(item) = queue.get_mut(&item_id) {
+                            item.review_feedback = work_item.review_feedback.clone();
+                            item.suggested_tests = work_item.suggested_tests.clone();
+                            item.review_attempt = work_item.review_attempt;
+                        }
+                    }
+                } else {
+                    tracing::error!("No optimizer available for context consolidation");
+                }
+            } else {
+                tracing::error!("Work item not found for review feedback: {:?}", item_id);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Handle context consolidation from Optimizer
+    async fn handle_context_consolidated(
+        state: &mut OrchestratorState,
+        item_id: WorkItemId,
+        consolidated_memory_id: crate::types::MemoryId,
+        estimated_tokens: usize,
+    ) -> Result<()> {
+        tracing::info!(
+            "Context consolidated for {:?}: {} tokens",
+            item_id,
+            estimated_tokens
+        );
+
+        // Update work item with consolidated context
+        let work_item = {
+            let mut queue = state.work_queue.write().await;
+            if let Some(item) = queue.get_mut(&item_id) {
+                item.consolidated_context_id = Some(consolidated_memory_id);
+                item.estimated_context_tokens = estimated_tokens;
+
+                // Reset to Ready for re-execution
+                item.transition(AgentState::Ready);
+                item.started_at = None;
+
+                Some(item.clone())
+            } else {
+                None
+            }
+        };
+
+        if let Some(work_item) = work_item {
+            // Re-enqueue the work item
+            {
+                let mut queue = state.work_queue.write().await;
+                queue
+                    .re_enqueue(work_item.clone())
+                    .map_err(|e| crate::error::MnemosyneError::Other(e))?;
+            }
+
+            // Persist event
+            state
+                .events
+                .persist(AgentEvent::WorkItemRequeued {
+                    item_id: item_id.clone(),
+                    reason: format!(
+                        "Review failed (attempt {}), context consolidated",
+                        work_item.review_attempt
+                    ),
+                    review_attempt: work_item.review_attempt,
+                })
+                .await?;
+
+            tracing::info!(
+                "Work item re-queued with consolidated context: {:?} (attempt {})",
+                item_id,
+                work_item.review_attempt
+            );
+
+            // Dispatch work (will pick up re-queued item)
+            Self::dispatch_work(state).await?;
+        } else {
+            tracing::error!("Work item not found for context consolidation: {:?}", item_id);
+        }
+
+        Ok(())
+    }
 }
 
 #[ractor::async_trait]
@@ -464,6 +662,29 @@ impl Actor for OrchestratorActor {
                 Self::handle_phase_transition(state, from, to)
                     .await
                     .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+            }
+            OrchestratorMessage::ReviewCompleted {
+                item_id,
+                passed,
+                feedback,
+            } => {
+                Self::handle_review_completed(state, item_id, passed, feedback)
+                    .await
+                    .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+            }
+            OrchestratorMessage::ContextConsolidated {
+                item_id,
+                consolidated_memory_id,
+                estimated_tokens,
+            } => {
+                Self::handle_context_consolidated(
+                    state,
+                    item_id,
+                    consolidated_memory_id,
+                    estimated_tokens,
+                )
+                .await
+                .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
             }
         }
 

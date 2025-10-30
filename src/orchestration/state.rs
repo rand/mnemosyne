@@ -101,6 +101,12 @@ impl std::fmt::Display for WorkItemId {
     }
 }
 
+impl From<Uuid> for WorkItemId {
+    fn from(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+}
+
 /// Work item with dependencies and state
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkItem {
@@ -286,6 +292,24 @@ impl WorkQueue {
             item.transition(AgentState::Complete);
         }
         self.completed.insert(id.clone());
+    }
+
+    /// Re-enqueue a work item (for review failures)
+    ///
+    /// This is used when a work item fails review and needs to be retried.
+    /// The work item is updated with review feedback and reset to Ready state.
+    pub fn re_enqueue(&mut self, item: WorkItem) -> std::result::Result<(), String> {
+        if item.state != AgentState::Ready {
+            return Err(format!(
+                "Cannot re-enqueue work item {:?} in state {:?}, must be Ready",
+                item.id, item.state
+            ));
+        }
+
+        // Update or insert the work item
+        self.items.insert(item.id.clone(), item);
+
+        Ok(())
     }
 
     /// Get all ready work items (dependencies satisfied)

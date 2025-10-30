@@ -309,6 +309,293 @@ impl OptimizerActor {
 
         Ok(())
     }
+
+    /// Consolidate work item context using ACE principles
+    ///
+    /// Applies progressive consolidation based on review attempt:
+    /// - Attempt 1: Detailed feedback (preserve all context)
+    /// - Attempt 2-3: Structured summary (key issues + patterns)
+    /// - Attempt 4+: Compressed essentials (critical blockers only)
+    async fn consolidate_work_item_context(
+        state: &mut OptimizerState,
+        item_id: WorkItemId,
+        execution_memory_ids: Vec<MemoryId>,
+        review_feedback: Vec<String>,
+        suggested_tests: Vec<String>,
+        review_attempt: u32,
+    ) -> Result<(MemoryId, usize)> {
+        tracing::info!(
+            "Consolidating context for work item {:?} (attempt {})",
+            item_id,
+            review_attempt
+        );
+
+        // ACE Principle 1: Incremental Updates
+        // Load existing consolidated context if available
+        let mut accumulated_context = String::new();
+
+        // Retrieve execution memories
+        let mut execution_summaries = Vec::new();
+        for memory_id in &execution_memory_ids {
+            match state.storage.get_memory(*memory_id).await {
+                Ok(memory) => {
+                    execution_summaries.push(format!(
+                        "- {}: {}",
+                        memory.summary,
+                        memory.content.chars().take(200).collect::<String>()
+                    ));
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to retrieve memory {}: {:?}", memory_id, e);
+                }
+            }
+        }
+
+        // ACE Principle 2: Structured Accumulation
+        // Progressive consolidation based on review attempt
+        let consolidation_level = match review_attempt {
+            1 => {
+                // Attempt 1: Detailed feedback (preserve all context)
+                accumulated_context.push_str("## Review Feedback (Attempt 1)\n\n");
+                for (i, issue) in review_feedback.iter().enumerate() {
+                    accumulated_context.push_str(&format!("{}. {}\n", i + 1, issue));
+                }
+                accumulated_context.push_str("\n## Suggested Tests\n\n");
+                for (i, test) in suggested_tests.iter().enumerate() {
+                    accumulated_context.push_str(&format!("{}. {}\n", i + 1, test));
+                }
+                accumulated_context.push_str("\n## Execution Context\n\n");
+                for summary in &execution_summaries {
+                    accumulated_context.push_str(&format!("{}\n", summary));
+                }
+                "detailed"
+            }
+            2..=3 => {
+                // Attempt 2-3: Structured summary (key issues + patterns)
+                accumulated_context.push_str(&format!(
+                    "## Review Summary (Attempt {})\n\n",
+                    review_attempt
+                ));
+                accumulated_context.push_str("### Key Issues\n");
+                for issue in review_feedback.iter().take(5) {
+                    accumulated_context.push_str(&format!("- {}\n", issue));
+                }
+                if review_feedback.len() > 5 {
+                    accumulated_context.push_str(&format!(
+                        "\n_({} more issues)_\n",
+                        review_feedback.len() - 5
+                    ));
+                }
+                accumulated_context.push_str("\n### Critical Tests\n");
+                for test in suggested_tests.iter().take(3) {
+                    accumulated_context.push_str(&format!("- {}\n", test));
+                }
+                "summary"
+            }
+            _ => {
+                // Attempt 4+: Compressed essentials (critical blockers only)
+                accumulated_context.push_str(&format!(
+                    "## Critical Blockers (Attempt {})\n\n",
+                    review_attempt
+                ));
+                // Filter for critical/blocker keywords
+                let critical_issues: Vec<&String> = review_feedback
+                    .iter()
+                    .filter(|issue| {
+                        let lower = issue.to_lowercase();
+                        lower.contains("critical")
+                            || lower.contains("blocker")
+                            || lower.contains("fail")
+                            || lower.contains("error")
+                    })
+                    .take(3)
+                    .collect();
+
+                let critical_count = critical_issues.len();
+                for issue in critical_issues {
+                    accumulated_context.push_str(&format!("- {}\n", issue));
+                }
+
+                if review_feedback.len() > 3 {
+                    accumulated_context.push_str(&format!(
+                        "\n_Focus on resolving these {} critical issues first_\n",
+                        critical_count
+                    ));
+                }
+                "compressed"
+            }
+        };
+
+        // ACE Principle 3: Strategy Preservation
+        // Add strategic guidance based on review history
+        accumulated_context.push_str("\n## Strategy\n\n");
+        if review_attempt == 1 {
+            accumulated_context.push_str("- Address all quality gate failures\n");
+            accumulated_context.push_str("- Implement suggested tests\n");
+            accumulated_context.push_str("- Verify completeness, correctness, and principled implementation\n");
+        } else {
+            accumulated_context.push_str(&format!(
+                "- Previous attempt failed {} quality gates\n",
+                review_feedback.len()
+            ));
+            accumulated_context.push_str("- Focus on systematic fixes, not quick patches\n");
+            accumulated_context.push_str("- Verify each fix before proceeding\n");
+        }
+
+        // Estimate token count (rough approximation: 1 token ≈ 4 characters)
+        let estimated_tokens = accumulated_context.len() / 4;
+
+        // Create consolidated memory
+        let consolidated_memory = crate::types::MemoryNote {
+            id: MemoryId::new(),
+            namespace: state.events.namespace.clone(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            content: accumulated_context.clone(),
+            summary: format!(
+                "Review feedback for work item (attempt {}, {} issues)",
+                review_attempt,
+                review_feedback.len()
+            ),
+            keywords: vec![
+                "review_feedback".to_string(),
+                "work_item".to_string(),
+                format!("attempt_{}", review_attempt),
+            ],
+            tags: vec![
+                "optimization".to_string(),
+                "context_consolidation".to_string(),
+            ],
+            context: format!("Consolidated context for work item {:?}", item_id),
+            memory_type: crate::types::MemoryType::Insight,
+            importance: 8 + review_attempt.min(2) as u8, // Increase importance with attempts
+            confidence: 1.0,
+            links: execution_memory_ids
+                .iter()
+                .map(|id| crate::types::MemoryLink {
+                    target_id: *id,
+                    link_type: crate::types::LinkType::References,
+                    strength: 1.0,
+                    reason: "Execution context".to_string(),
+                    created_at: chrono::Utc::now(),
+                })
+                .collect(),
+            related_files: vec![],
+            related_entities: vec![],
+            access_count: 0,
+            last_accessed_at: chrono::Utc::now(),
+            expires_at: None,
+            is_archived: false,
+            superseded_by: None,
+            embedding: None,
+            embedding_model: String::new(),
+        };
+
+        let memory_id = consolidated_memory.id;
+        state.storage.store_memory(&consolidated_memory).await?;
+
+        // Persist event
+        state
+            .events
+            .persist(AgentEvent::ContextConsolidated {
+                item_id: item_id.clone(),
+                consolidated_memory_id: memory_id,
+                estimated_tokens,
+                consolidation_level: consolidation_level.to_string(),
+            })
+            .await?;
+
+        tracing::info!(
+            "Context consolidated: {} tokens ({}), memory: {}",
+            estimated_tokens,
+            consolidation_level,
+            memory_id
+        );
+
+        Ok((memory_id, estimated_tokens))
+    }
+
+    /// Load optimized context for work item dispatch
+    ///
+    /// Retrieves consolidated context and execution history for a work item
+    /// that's being dispatched after review failure. Optimizes for efficiency
+    /// by loading only the most relevant context.
+    async fn load_work_item_context(
+        state: &mut OptimizerState,
+        item_id: WorkItemId,
+        work_item: crate::orchestration::state::WorkItem,
+    ) -> Result<Vec<MemoryId>> {
+        tracing::info!("Loading optimized context for work item {:?}", item_id);
+
+        let mut loaded_memory_ids = Vec::new();
+
+        // Load consolidated context if available
+        if let Some(consolidated_id) = work_item.consolidated_context_id {
+            match state.storage.get_memory(consolidated_id).await {
+                Ok(memory) => {
+                    loaded_memory_ids.push(consolidated_id);
+                    tracing::info!(
+                        "Loaded consolidated context: {} ({} tokens)",
+                        consolidated_id,
+                        work_item.estimated_context_tokens
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to load consolidated context {}: {:?}",
+                        consolidated_id,
+                        e
+                    );
+                }
+            }
+        }
+
+        // Load execution history (most recent memories from last attempt)
+        let recent_execution_memories: Vec<MemoryId> = work_item
+            .execution_memory_ids
+            .iter()
+            .rev()
+            .take(3) // Only load 3 most recent
+            .cloned()
+            .collect();
+
+        for memory_id in recent_execution_memories {
+            match state.storage.get_memory(memory_id).await {
+                Ok(_) => {
+                    loaded_memory_ids.push(memory_id);
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to load execution memory {}: {:?}", memory_id, e);
+                }
+            }
+        }
+
+        // Load relevant memories based on original work intent
+        let intent_query = work_item.original_intent.clone();
+        let relevant_results = state
+            .storage
+            .hybrid_search(&intent_query, None, 5, false)
+            .await?;
+
+        for result in relevant_results {
+            loaded_memory_ids.push(result.memory.id);
+        }
+
+        // Update loaded memories tracking
+        state.loaded_memories.extend(loaded_memory_ids.clone());
+        state.loaded_memories.dedup();
+
+        tracing::info!(
+            "Loaded {} memories for work item context (total: {})",
+            loaded_memory_ids.len(),
+            state.loaded_memories.len()
+        );
+
+        // Update context metrics
+        Self::monitor_context(state).await?;
+
+        Ok(loaded_memory_ids)
+    }
 }
 
 #[ractor::async_trait]
@@ -385,6 +672,47 @@ impl Actor for OptimizerActor {
             }
             OptimizerMessage::CheckpointContext { reason } => {
                 Self::checkpoint_context(state, reason)
+                    .await
+                    .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+            }
+            OptimizerMessage::ConsolidateWorkItemContext {
+                item_id,
+                execution_memory_ids,
+                review_feedback,
+                suggested_tests,
+                review_attempt,
+            } => {
+                let (consolidated_memory_id, estimated_tokens) = Self::consolidate_work_item_context(
+                    state,
+                    item_id.clone(),
+                    execution_memory_ids,
+                    review_feedback,
+                    suggested_tests,
+                    review_attempt,
+                )
+                .await
+                .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+
+                // Send result to Orchestrator
+                if let Some(ref orchestrator) = state.orchestrator {
+                    orchestrator
+                        .cast(OrchestratorMessage::ContextConsolidated {
+                            item_id,
+                            consolidated_memory_id,
+                            estimated_tokens,
+                        })
+                        .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+
+                    tracing::info!("Context consolidation result sent to Orchestrator");
+                } else {
+                    tracing::warn!("No orchestrator reference to send consolidation result");
+                }
+            }
+            OptimizerMessage::LoadWorkItemContext {
+                item_id,
+                work_item,
+            } => {
+                Self::load_work_item_context(state, item_id, work_item)
                     .await
                     .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
             }

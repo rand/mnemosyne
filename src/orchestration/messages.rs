@@ -42,6 +42,20 @@ pub enum OrchestratorMessage {
 
     /// Phase transition requested
     PhaseTransition { from: Phase, to: Phase },
+
+    /// Review completed for work item
+    ReviewCompleted {
+        item_id: WorkItemId,
+        passed: bool,
+        feedback: ReviewFeedback,
+    },
+
+    /// Context consolidated for work item
+    ContextConsolidated {
+        item_id: WorkItemId,
+        consolidated_memory_id: MemoryId,
+        estimated_tokens: usize,
+    },
 }
 
 /// Messages for the Optimizer agent
@@ -70,6 +84,37 @@ pub enum OptimizerMessage {
 
     /// Checkpoint context at threshold
     CheckpointContext { reason: String },
+
+    /// Consolidate work item context (review feedback + execution memories)
+    ConsolidateWorkItemContext {
+        item_id: WorkItemId,
+        execution_memory_ids: Vec<MemoryId>,
+        review_feedback: Vec<String>,
+        suggested_tests: Vec<String>,
+        review_attempt: u32,
+    },
+
+    /// Load optimized context for work item dispatch
+    LoadWorkItemContext {
+        item_id: WorkItemId,
+        work_item: WorkItem,
+    },
+}
+
+/// Review feedback from Reviewer to Orchestrator
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReviewFeedback {
+    /// All quality gates results
+    pub gates_passed: bool,
+
+    /// Specific issues found
+    pub issues: Vec<String>,
+
+    /// Tests suggested by Reviewer
+    pub suggested_tests: Vec<String>,
+
+    /// Execution context memory IDs
+    pub execution_context: Vec<MemoryId>,
 }
 
 /// Messages for the Reviewer agent
@@ -78,10 +123,11 @@ pub enum ReviewerMessage {
     /// Initialize reviewer
     Initialize,
 
-    /// Review work item results
+    /// Review work item results (with full work item for context)
     ReviewWork {
         item_id: WorkItemId,
         result: WorkResult,
+        work_item: WorkItem,
     },
 
     /// Validate phase transition

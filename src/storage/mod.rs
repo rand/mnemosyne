@@ -9,6 +9,9 @@ pub mod vectors;
 #[cfg(test)]
 pub mod test_utils;
 
+#[cfg(test)]
+pub mod libsql_workitem_tests;
+
 use crate::agents::access_control::{ModificationLog, ModificationType};
 use crate::agents::AgentRole;
 use crate::error::Result;
@@ -98,6 +101,30 @@ pub trait StorageBackend: Send + Sync {
         &self,
         agent_role: AgentRole,
     ) -> Result<Vec<(ModificationType, u32)>>;
+
+    // Work Item Persistence (for cross-session resilience)
+
+    /// Store a work item
+    async fn store_work_item(&self, item: &crate::orchestration::state::WorkItem) -> Result<()>;
+
+    /// Load a work item by ID
+    async fn load_work_item(
+        &self,
+        id: &crate::orchestration::state::WorkItemId,
+    ) -> Result<crate::orchestration::state::WorkItem>;
+
+    /// Update an existing work item
+    async fn update_work_item(&self, item: &crate::orchestration::state::WorkItem) -> Result<()>;
+
+    /// Load work items by state (for recovery)
+    async fn load_work_items_by_state(
+        &self,
+        state: crate::orchestration::state::AgentState,
+    ) -> Result<Vec<crate::orchestration::state::WorkItem>>;
+
+    /// Delete a work item (when permanently completed)
+    async fn delete_work_item(&self, id: &crate::orchestration::state::WorkItemId)
+        -> Result<()>;
 }
 
 /// Sort order for listing memories
