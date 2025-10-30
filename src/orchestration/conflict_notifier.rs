@@ -435,6 +435,20 @@ impl ConflictNotifier {
         let conflicts = self.file_tracker.get_agent_conflicts(agent_id)?;
         Ok(conflicts.len())
     }
+
+    /// Get all active conflicts
+    ///
+    /// Returns all conflicts currently tracked across all agents.
+    pub fn get_all_conflicts(&self) -> crate::error::Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
+        self.file_tracker.get_active_conflicts()
+    }
+
+    /// Get conflicts for a specific agent
+    ///
+    /// Returns conflicts involving the specified agent.
+    pub fn get_agent_conflicts(&self, agent_id: &AgentId) -> crate::error::Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
+        self.file_tracker.get_agent_conflicts(agent_id)
+    }
 }
 
 /// Format duration as human-readable "ago" string

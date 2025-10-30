@@ -271,9 +271,41 @@ impl CliHandler {
     }
 
     /// Handle conflicts command
-    async fn handle_conflicts(&self, _all: bool) -> Result<CliResult> {
-        // TODO: Get conflicts from file tracker via coordinator
-        Ok(CliResult::success("No active conflicts"))
+    async fn handle_conflicts(&self, all: bool) -> Result<CliResult> {
+        let conflicts = if all {
+            self.coordinator.get_all_conflicts()?
+        } else {
+            self.coordinator.get_agent_conflicts(&self.current_agent.id)?
+        };
+
+        if conflicts.is_empty() {
+            return Ok(CliResult::success("No active conflicts"));
+        }
+
+        // Format conflict information
+        let mut conflicts_info = Vec::new();
+        for conflict in &conflicts {
+            conflicts_info.push(serde_json::json!({
+                "id": conflict.id,
+                "path": conflict.path,
+                "agents": conflict.agents.iter().map(|a| a.to_string()).collect::<Vec<_>>(),
+                "severity": format!("{:?}", conflict.severity),
+                "detected_at": conflict.detected_at.to_rfc3339(),
+            }));
+        }
+
+        let data = serde_json::json!({
+            "conflicts": conflicts_info,
+            "total": conflicts.len(),
+        });
+
+        let message = if all {
+            format!("{} total active conflict(s)", conflicts.len())
+        } else {
+            format!("{} conflict(s) for current agent", conflicts.len())
+        };
+
+        Ok(CliResult::success_with_data(message, data))
     }
 
     /// Handle switch command

@@ -439,6 +439,16 @@ impl BranchCoordinator {
         self.notifier.get_agent_conflict_count(agent_id)
     }
 
+    /// Get all active conflicts
+    pub fn get_all_conflicts(&self) -> Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
+        self.notifier.get_all_conflicts()
+    }
+
+    /// Get conflicts for a specific agent
+    pub fn get_agent_conflicts(&self, agent_id: &AgentId) -> Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
+        self.notifier.get_agent_conflicts(agent_id)
+    }
+
     /// Initialize cross-process coordinator for an agent
     pub async fn initialize_cross_process(
         &mut self,
