@@ -52,6 +52,19 @@ pub struct OptimizerState {
 
     /// Context monitoring interval
     monitor_interval: Duration,
+
+    // Real metrics tracking
+    /// Loaded memory IDs (tracks project context)
+    loaded_memories: Vec<MemoryId>,
+
+    /// Average tokens per memory (for estimation)
+    avg_memory_tokens: usize,
+
+    /// Estimated tokens per skill
+    tokens_per_skill: usize,
+
+    /// Critical context tokens (always loaded)
+    critical_tokens: usize,
 }
 
 impl OptimizerState {
@@ -65,6 +78,10 @@ impl OptimizerState {
             loaded_skills: 0,
             max_skills: 7,
             monitor_interval: Duration::from_secs(5),
+            loaded_memories: Vec::new(),
+            avg_memory_tokens: 500,  // Estimated average tokens per memory
+            tokens_per_skill: 3000,  // Estimated tokens per skill (~300 lines)
+            critical_tokens: 80_000, // CRITICAL_BUDGET * context_budget
         }
     }
 
@@ -121,7 +138,11 @@ impl OptimizerActor {
             .map(|r| r.memory.id)
             .collect();
 
-        tracing::info!("Loaded {} memories", memory_ids.len());
+        // Track loaded memories for real metrics
+        state.loaded_memories.extend(memory_ids.clone());
+        state.loaded_memories.dedup();  // Remove duplicates
+
+        tracing::info!("Loaded {} memories (total: {})", memory_ids.len(), state.loaded_memories.len());
 
         // Persist event
         state
@@ -138,15 +159,21 @@ impl OptimizerActor {
 
     /// Monitor context usage
     async fn monitor_context(state: &mut OptimizerState) -> Result<()> {
-        // Simulate context monitoring
-        // In production, this would query the actual context size
+        // Calculate actual context usage based on loaded resources
 
-        // Calculate used budget
-        let critical_used = (state.context_budget as f32 * CRITICAL_BUDGET) as usize;
-        let skills_used = (state.context_budget as f32 * SKILLS_BUDGET *
-                          (state.loaded_skills as f32 / state.max_skills as f32)) as usize;
-        let project_used = (state.context_budget as f32 * PROJECT_BUDGET * 0.5) as usize;
-        let general_used = (state.context_budget as f32 * GENERAL_BUDGET * 0.3) as usize;
+        // Critical tokens (CLAUDE.md, system prompts, instructions)
+        let critical_used = state.critical_tokens;
+
+        // Skills tokens (actual loaded skills × tokens per skill)
+        let skills_used = state.loaded_skills * state.tokens_per_skill;
+
+        // Project tokens (actual loaded memories × avg tokens per memory)
+        let project_used = state.loaded_memories.len() * state.avg_memory_tokens;
+
+        // General tokens (estimated overhead: agent messages, state, etc.)
+        // Use 10% of remaining budget
+        let used_so_far = critical_used + skills_used + project_used;
+        let general_used = (state.context_budget.saturating_sub(used_so_far) as f32 * 0.10) as usize;
 
         let total_used = critical_used + skills_used + project_used + general_used;
         state.context_usage = total_used as f32 / state.context_budget as f32;
@@ -185,9 +212,19 @@ impl OptimizerActor {
             target_pct * 100.0
         );
 
-        // Simulate compaction by reducing loaded skills
+        // Unload low-priority skills first (keep at least 3)
         if state.loaded_skills > 3 {
-            state.loaded_skills -= 2;
+            let skills_to_unload = state.loaded_skills - 3;
+            state.loaded_skills -= skills_to_unload;
+            tracing::info!("Unloaded {} skills", skills_to_unload);
+        }
+
+        // Clear older memories if still over budget
+        Self::monitor_context(state).await?;
+        if state.context_usage > target_pct {
+            let memories_to_remove = (state.loaded_memories.len() / 2).max(1);
+            state.loaded_memories.drain(0..memories_to_remove);
+            tracing::info!("Removed {} older memories", memories_to_remove);
         }
 
         // Recalculate usage
