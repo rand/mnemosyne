@@ -140,6 +140,12 @@ impl EvolutionJob for ImportanceRecalibrator {
                 .await
                 .unwrap_or((0, None));
 
+            // Count incoming links from database
+            let incoming_links_count = self.storage
+                .count_incoming_links(&memory.id)
+                .await
+                .unwrap_or(0);
+
             // Convert MemoryNote to MemoryData for calculation
             let memory_data = MemoryData {
                 id: memory.id.to_string(),
@@ -147,7 +153,7 @@ impl EvolutionJob for ImportanceRecalibrator {
                 access_count,
                 created_at: memory.created_at,
                 last_accessed_at,
-                incoming_links_count: 0, // TODO: Count incoming links from database
+                incoming_links_count,
                 outgoing_links_count: memory.links.len(),
             };
 

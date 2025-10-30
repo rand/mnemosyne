@@ -1262,6 +1262,28 @@ impl LibsqlStorage {
         Ok(())
     }
 
+    /// Count incoming links to a memory
+    ///
+    /// Returns the number of memories that link TO this memory.
+    /// This is useful for importance scoring - memories referenced by many others are more important.
+    pub async fn count_incoming_links(&self, memory_id: &MemoryId) -> Result<usize> {
+        let conn = self.get_conn()?;
+
+        let mut rows = conn
+            .query(
+                "SELECT COUNT(*) FROM memory_links WHERE target_id = ?",
+                params![memory_id.to_string()],
+            )
+            .await?;
+
+        if let Some(row) = rows.next().await? {
+            let count: i64 = row.get(0)?;
+            Ok(count as usize)
+        } else {
+            Ok(0)
+        }
+    }
+
     /// Get memory access statistics
     pub async fn get_access_stats(&self, memory_id: &MemoryId) -> Result<(u32, Option<chrono::DateTime<Utc>>)> {
         let conn = self.get_conn()?;
