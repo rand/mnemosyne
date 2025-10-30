@@ -105,7 +105,7 @@ impl<'a> EditorWidget<'a> {
 
     /// Get line number width (for gutter)
     fn line_number_width(&self) -> usize {
-        let line_count = self.buffer.line_count();
+        let line_count = self.buffer.line_count().unwrap_or(0);
         if line_count == 0 {
             return 3; // Min width
         }
@@ -206,7 +206,7 @@ impl<'a> StatefulWidget for EditorWidget<'a> {
 impl<'a> EditorWidget<'a> {
     /// Render line numbers in the gutter
     fn render_line_numbers(&self, area: Rect, buf: &mut RatatuiBuffer, state: &EditorState) {
-        let line_count = self.buffer.line_count();
+        let line_count = self.buffer.line_count().unwrap_or(0);
         let viewport_height = area.height as usize;
 
         for i in 0..viewport_height {
@@ -261,7 +261,7 @@ impl<'a> EditorWidget<'a> {
 
     /// Render editor content
     fn render_content(&self, area: Rect, buf: &mut RatatuiBuffer, state: &EditorState) {
-        let line_count = self.buffer.line_count();
+        let line_count = self.buffer.line_count().unwrap_or(0);
         let viewport_height = area.height as usize;
         let viewport_width = area.width as usize;
 
@@ -273,7 +273,7 @@ impl<'a> EditorWidget<'a> {
                 break;
             }
 
-            if let Some(line_text) = self.buffer.line(line_num) {
+            if let Ok(Some(line_text)) = self.buffer.line(line_num) {
                 let is_cursor_line = line_num == self.buffer.cursor.position.line;
 
                 // Apply horizontal scroll
@@ -397,7 +397,8 @@ mod tests {
 
     #[test]
     fn test_line_number_width() {
-        let buffer = TextBuffer::new(0, None);
+        use super::Actor;
+        let buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
         let widget = EditorWidget::new(&buffer);
 
         // Empty buffer should have min width
@@ -406,7 +407,8 @@ mod tests {
 
     #[test]
     fn test_line_diagnostic() {
-        let buffer = TextBuffer::new(0, None);
+        use super::Actor;
+        let buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
         let diagnostics = vec![
             Diagnostic {
                 position: Position { line: 5, column: 10 },
@@ -449,7 +451,8 @@ mod tests {
 
     #[test]
     fn test_diagnostic_at() {
-        let buffer = TextBuffer::new(0, None);
+        use super::Actor;
+        let buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
         let diagnostics = vec![
             Diagnostic {
                 position: Position { line: 5, column: 10 },
@@ -483,7 +486,8 @@ mod tests {
 
     #[test]
     fn test_severity_ordering() {
-        let buffer = TextBuffer::new(0, None);
+        use super::Actor;
+        let buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
         let diagnostics = vec![
             Diagnostic {
                 position: Position { line: 0, column: 0 },
