@@ -4,10 +4,9 @@
 
 use mnemosyne_core::config::LlmConfig;
 use mnemosyne_core::services::embeddings::EmbeddingService;
-use mnemosyne_core::services::llm::LlmService;
-use mnemosyne_core::storage::libsql::LibsqlStorage;
+use mnemosyne_core::storage::libsql::{ConnectionMode, LibsqlStorage};
 use mnemosyne_core::storage::StorageBackend;
-use mnemosyne_core::types::{Memory, MemoryId, MemoryType, Namespace};
+use mnemosyne_core::types::{MemoryId, MemoryNote, MemoryType, Namespace};
 use std::sync::Arc;
 use tempfile::TempDir;
 
@@ -18,9 +17,12 @@ async fn test_embedding_regeneration_on_content_update() {
 
     // Create storage backend
     let storage: Arc<dyn StorageBackend> = Arc::new(
-        LibsqlStorage::new(db_path.to_str().unwrap(), true)
-            .await
-            .unwrap(),
+        LibsqlStorage::new_with_validation(
+            ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+            true, // create_if_missing
+        )
+        .await
+        .unwrap(),
     );
 
     // Create embedding service
@@ -31,7 +33,9 @@ async fn test_embedding_regeneration_on_content_update() {
     ));
 
     // Create initial memory with content
-    let namespace = Namespace::project("test-project");
+    let namespace = Namespace::Project {
+        name: "test-project".to_string(),
+    };
     let memory_id = MemoryId::new();
     let initial_content = "Rust programming language features memory safety";
 
@@ -41,13 +45,30 @@ async fn test_embedding_regeneration_on_content_update() {
         .await
         .expect("Failed to generate initial embedding");
 
-    let mut memory = Memory::new(
-        memory_id.clone(),
-        namespace.clone(),
-        initial_content.to_string(),
-        MemoryType::Insight,
-    );
-    memory.embedding = Some(initial_embedding.clone());
+    let memory = MemoryNote {
+        id: memory_id.clone(),
+        namespace: namespace.clone(),
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+        content: initial_content.to_string(),
+        summary: format!("Summary: {}", initial_content),
+        keywords: vec!["rust".to_string(), "memory".to_string()],
+        tags: vec!["test".to_string()],
+        context: "Test memory".to_string(),
+        memory_type: MemoryType::Insight,
+        importance: 5,
+        confidence: 0.9,
+        links: vec![],
+        related_files: vec![],
+        related_entities: vec![],
+        access_count: 0,
+        last_accessed_at: chrono::Utc::now(),
+        expires_at: None,
+        is_archived: false,
+        superseded_by: None,
+        embedding: Some(initial_embedding.clone()),
+        embedding_model: "test-model".to_string(),
+    };
 
     // Store memory
     storage
@@ -62,21 +83,22 @@ async fn test_embedding_regeneration_on_content_update() {
         .await
         .expect("Failed to generate updated embedding");
 
-    memory.content = updated_content.to_string();
-    memory.embedding = Some(updated_embedding.clone());
+    let mut updated_memory = memory.clone();
+    updated_memory.content = updated_content.to_string();
+    updated_memory.embedding = Some(updated_embedding.clone());
+    updated_memory.updated_at = chrono::Utc::now();
 
     // Update in storage
     storage
-        .update_memory(&memory)
+        .update_memory(&updated_memory)
         .await
         .expect("Failed to update memory");
 
     // Retrieve and verify
     let retrieved = storage
-        .get_memory(&memory_id)
+        .get_memory(memory_id.clone())
         .await
-        .expect("Failed to retrieve memory")
-        .expect("Memory not found");
+        .expect("Failed to retrieve memory");
 
     // Verify content was updated
     assert_eq!(retrieved.content, updated_content);
@@ -121,16 +143,19 @@ async fn test_embedding_consistency() {
     let temp_dir = TempDir::new().unwrap();
     let db_path = temp_dir.path().join("test_embedding_consistency.db");
 
-    let storage: Arc<dyn StorageBackend> = Arc::new(
-        LibsqlStorage::new(db_path.to_str().unwrap(), true)
-            .await
-            .unwrap(),
+    let _storage: Arc<dyn StorageBackend> = Arc::new(
+        LibsqlStorage::new_with_validation(
+            ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+            true, // create_if_missing
+        )
+        .await
+        .unwrap(),
     );
 
     let llm_config = LlmConfig::default();
     let embeddings = Arc::new(EmbeddingService::new(
         "test-key".to_string(),
-        llm_config.clone(),
+        llm_config,
     ));
 
     // Test that same content produces similar embeddings
