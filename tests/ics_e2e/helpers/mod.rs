@@ -52,8 +52,8 @@ impl TestContext {
     /// Add text to active buffer
     pub fn add_text(&mut self, text: &str) {
         let buffer = self.editor.active_buffer_mut();
-        // Insert at cursor position or end of buffer
-        let pos = buffer.cursor.offset;
+        // Insert at end of buffer
+        let pos = buffer.text_len().expect("Failed to get text length");
         buffer.insert(pos, text).expect("Failed to insert text");
     }
 

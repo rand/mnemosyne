@@ -11,8 +11,8 @@ use mnemosyne_core::ics::editor::*;
 use mnemosyne_core::ics::*;
 
 /// Assert buffer contains exact text
-pub fn assert_buffer_contains(buffer: &TextBuffer, expected: &str) {
-    let content = buffer.content.to_string();
+pub fn assert_buffer_contains(buffer: &CrdtBuffer, expected: &str) {
+    let content = buffer.text().expect("Should get text");
     assert!(
         content.contains(expected),
         "Buffer should contain '{}' but was '{}'",
@@ -22,14 +22,14 @@ pub fn assert_buffer_contains(buffer: &TextBuffer, expected: &str) {
 }
 
 /// Assert buffer equals exact text
-pub fn assert_buffer_equals(buffer: &TextBuffer, expected: &str) {
-    let content = buffer.content.to_string();
+pub fn assert_buffer_equals(buffer: &CrdtBuffer, expected: &str) {
+    let content = buffer.text().expect("Should get text");
     assert_eq!(content, expected, "Buffer content mismatch");
 }
 
 /// Assert buffer is empty
-pub fn assert_buffer_empty(buffer: &TextBuffer) {
-    let content = buffer.content.to_string();
+pub fn assert_buffer_empty(buffer: &CrdtBuffer) {
+    let content = buffer.text().expect("Should get text");
     assert!(
         content.is_empty(),
         "Buffer should be empty but contained: '{}'",
@@ -38,8 +38,9 @@ pub fn assert_buffer_empty(buffer: &TextBuffer) {
 }
 
 /// Assert buffer line count
-pub fn assert_buffer_lines(buffer: &TextBuffer, expected_lines: usize) {
-    let line_count = buffer.content.len_lines();
+pub fn assert_buffer_lines(buffer: &CrdtBuffer, expected_lines: usize) {
+    let content = buffer.text().expect("Should get text");
+    let line_count = content.lines().count();
     assert_eq!(
         line_count, expected_lines,
         "Expected {} lines but got {}",
@@ -48,7 +49,7 @@ pub fn assert_buffer_lines(buffer: &TextBuffer, expected_lines: usize) {
 }
 
 /// Assert cursor position
-pub fn assert_cursor_at(buffer: &TextBuffer, line: usize, column: usize) {
+pub fn assert_cursor_at(buffer: &CrdtBuffer, line: usize, column: usize) {
     let pos = &buffer.cursor.position;
     assert_eq!(
         (pos.line, pos.column),
@@ -262,10 +263,11 @@ mod tests {
 
     #[test]
     fn test_buffer_assertions() {
-        let mut buffer = TextBuffer::new(0, None);
+        let mut buffer = CrdtBuffer::new(0, Actor::Human, None).expect("Should create buffer");
         assert_buffer_empty(&buffer);
 
-        buffer.insert("test");
+        let pos = buffer.text_len().expect("Should get text length");
+        buffer.insert(pos, "test").expect("Should insert");
         assert_buffer_contains(&buffer, "test");
         assert_buffer_equals(&buffer, "test");
     }

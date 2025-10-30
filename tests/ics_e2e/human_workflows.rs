@@ -11,7 +11,7 @@
 //! - H8: Save/load workflow
 
 use crate::ics_e2e::*;
-use mnemosyne_core::ics::editor::Severity;
+use mnemosyne_core::ics::editor::{Actor, CrdtBuffer, Severity};
 use mnemosyne_core::ics::HoleKind;
 
 /// H1: Document creation & basic editing
@@ -198,9 +198,11 @@ async fn h8_save_load_workflow() {
     let file_path = temp_dir.path().join("test.md");
 
     // Create buffer with content
-    let mut buffer = TextBuffer::new(0, Some(file_path.clone()));
-    buffer.insert("# Test Document\n\n");
-    buffer.insert("Content here.\n");
+    let mut buffer = CrdtBuffer::new(0, Actor::Human, Some(file_path.clone())).expect("Should create buffer");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "# Test Document\n\n").expect("Should insert");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "Content here.\n").expect("Should insert");
 
     // Save
     buffer.save_file().expect("Should save");

@@ -21,12 +21,15 @@ async fn test_editor_to_semantic_analysis_workflow() {
     let buffer = editor.active_buffer_mut();
 
     // Insert text with semantic patterns
-    buffer.insert("The system is distributed.\n");
-    buffer.insert("The agent has memory.\n");
-    buffer.insert("Service requires authentication.\n");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "The system is distributed.\n").expect("Should insert");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "The agent has memory.\n").expect("Should insert");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "Service requires authentication.\n").expect("Should insert");
 
     // Get buffer content
-    let text = buffer.content.to_string();
+    let text = buffer.text().expect("Should get text");
 
     // Create semantic analyzer
     let mut analyzer = SemanticAnalyzer::new();
@@ -435,24 +438,28 @@ fn test_editor_multiple_buffers() {
     assert_eq!(editor.active_buffer().id, buffer2_id);
 
     // Add text to buffer 2
-    editor.active_buffer_mut().insert("Buffer 2 content");
+    let buffer = editor.active_buffer_mut();
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "Buffer 2 content").expect("Should insert");
 
     // Switch to buffer 3
     editor.set_active_buffer(buffer3_id);
-    editor.active_buffer_mut().insert("Buffer 3 content");
+    let buffer = editor.active_buffer_mut();
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "Buffer 3 content").expect("Should insert");
 
     // Verify buffer contents are independent
     assert!(editor
         .buffer(buffer2_id)
         .unwrap()
-        .content
-        .to_string()
+        .text()
+        .expect("Should get text")
         .contains("Buffer 2"));
     assert!(editor
         .buffer(buffer3_id)
         .unwrap()
-        .content
-        .to_string()
+        .text()
+        .expect("Should get text")
         .contains("Buffer 3"));
 }
 
@@ -463,11 +470,14 @@ async fn test_full_ics_workflow() {
     let mut editor = IcsEditor::new();
     let buffer = editor.active_buffer_mut();
 
-    buffer.insert("TODO: Add authentication\n");
-    buffer.insert("The system is fast. However, the system is slow.\n");
-    buffer.insert("Service requires authentication.\n");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "TODO: Add authentication\n").expect("Should insert");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "The system is fast. However, the system is slow.\n").expect("Should insert");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "Service requires authentication.\n").expect("Should insert");
 
-    let text = buffer.content.to_string();
+    let text = buffer.text().expect("Should get text");
 
     // 2. Run semantic analysis
     let mut analyzer = SemanticAnalyzer::new();

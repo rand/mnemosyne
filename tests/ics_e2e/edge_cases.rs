@@ -52,12 +52,11 @@ async fn e2_malformed_analysis_input() {
     // Either outcome is acceptable
 
     // Test malformed markup
-    ctx.editor
-        .active_buffer_mut()
-        .insert("# Unclosed header [[[[[");
-    ctx.editor
-        .active_buffer_mut()
-        .insert("{{{{{{ Unbalanced braces");
+    let buffer = ctx.editor.active_buffer_mut();
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "# Unclosed header [[[[[").expect("Should insert");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "{{{{{{ Unbalanced braces").expect("Should insert");
 
     let analysis_result = ctx.analyze().await;
     // Should handle gracefully (either succeed or fail cleanly)
@@ -75,7 +74,9 @@ async fn e2_malformed_analysis_input() {
 
     // Test extremely long line
     let long_line = "a".repeat(10000);
-    ctx.editor.active_buffer_mut().insert(&long_line);
+    let buffer = ctx.editor.active_buffer_mut();
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, &long_line).expect("Should insert");
 
     // Should handle without panic
     let content = ctx.buffer_content();
@@ -123,7 +124,8 @@ async fn e3_concurrent_proposal_conflicts() {
     }
 
     // Verify system remains stable after conflict
-    assert!(ctx.editor.active_buffer().content.len_lines() > 0);
+    let content = ctx.editor.active_buffer().text().expect("Should get text");
+    assert!(content.lines().count() > 0);
 }
 
 /// E4: Panel state persistence

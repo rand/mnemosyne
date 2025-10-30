@@ -8,7 +8,7 @@
 //! - W5: Large document performance
 
 use crate::ics_e2e::*;
-use mnemosyne_core::ics::editor::TextBuffer;
+use mnemosyne_core::ics::editor::{Actor, CrdtBuffer};
 use mnemosyne_core::ics::{AgentActivity, ProposalStatus};
 
 /// W1: Complete document lifecycle
@@ -20,9 +20,11 @@ async fn w1_complete_document_lifecycle() {
     let file_path = temp_dir.path().join("document.md");
 
     // Phase 1: Creation
-    let mut buffer = TextBuffer::new(0, Some(file_path.clone()));
-    buffer.insert("# Project Plan\n\n");
-    buffer.insert("TODO: Define objectives\n");
+    let mut buffer = CrdtBuffer::new(0, Actor::Human, Some(file_path.clone())).expect("Should create buffer");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "# Project Plan\n\n").expect("Should insert");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "TODO: Define objectives\n").expect("Should insert");
 
     // Phase 2: Analysis
     let mut ctx = TestContext::new();
@@ -44,7 +46,8 @@ async fn w1_complete_document_lifecycle() {
     }
 
     // Phase 5: Save
-    buffer.insert("Objectives defined based on analysis.\n");
+    let pos = buffer.text_len().expect("Should get text length");
+    buffer.insert(pos, "Objectives defined based on analysis.\n").expect("Should insert");
     buffer.save_file().expect("Should save");
     assert!(!buffer.dirty);
     assert!(file_path.exists());
