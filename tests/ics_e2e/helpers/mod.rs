@@ -52,12 +52,17 @@ impl TestContext {
     /// Add text to active buffer
     pub fn add_text(&mut self, text: &str) {
         let buffer = self.editor.active_buffer_mut();
-        buffer.insert(text);
+        // Insert at cursor position or end of buffer
+        let pos = buffer.cursor.offset;
+        buffer.insert(pos, text).expect("Failed to insert text");
     }
 
     /// Get active buffer content as string
     pub fn buffer_content(&self) -> String {
-        self.editor.active_buffer().content.to_string()
+        self.editor
+            .active_buffer()
+            .text()
+            .expect("Failed to get buffer text")
     }
 
     /// Trigger semantic analysis and wait for result

@@ -381,7 +381,11 @@ mod tests {
 
         // Should find root from nested directory
         let root = GitState::find_repo_root(&nested).unwrap();
-        assert_eq!(root, repo_path);
+        // Canonicalize paths to handle macOS symlinks (/var vs /private/var)
+        assert_eq!(
+            root.canonicalize().unwrap(),
+            repo_path.canonicalize().unwrap()
+        );
     }
 
     #[test]
@@ -487,26 +491,24 @@ mod tests {
     #[test]
     fn test_git_state_tracker() {
         let temp_dir = setup_git_repo();
-        let _original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
+        let repo_path = temp_dir.path();
 
-        let mut tracker = GitStateTracker::new().unwrap();
+        // Use GitState directly to avoid changing current directory (thread-safe)
+        let state = GitState::from_repo_root(repo_path).unwrap();
+        assert!(state.current_branch == "main" || state.current_branch == "master");
+        assert!(state.is_clean);
+        assert!(state.modified_files.is_empty());
 
-        let branch = tracker.current_branch().unwrap();
-        assert!(branch == "main" || branch == "master");
+        // Modify file using explicit path (no directory change needed)
+        fs::write(repo_path.join("README.md"), "Modified").unwrap();
 
-        assert!(tracker.is_clean().unwrap());
-
-        // Modify file
-        fs::write("README.md", "Modified").unwrap();
-
-        // Force refresh
-        tracker.refresh().unwrap();
-        assert!(!tracker.is_clean().unwrap());
-
-        let modified = tracker.modified_files().unwrap();
-        assert_eq!(modified.len(), 1);
-
-        std::env::set_current_dir(_original_dir).unwrap();
+        // Re-query state (equivalent to refresh)
+        let state = GitState::from_repo_root(repo_path).unwrap();
+        assert!(!state.is_clean);
+        assert_eq!(state.modified_files.len(), 1);
+        assert!(state
+            .modified_files[0]
+            .to_string_lossy()
+            .contains("README.md"));
     }
 }

@@ -11,7 +11,7 @@
 //! - H8: Save/load workflow
 
 use crate::ics_e2e::*;
-use mnemosyne_core::ics::editor::{Severity, TextBuffer};
+use mnemosyne_core::ics::editor::Severity;
 use mnemosyne_core::ics::HoleKind;
 
 /// H1: Document creation & basic editing

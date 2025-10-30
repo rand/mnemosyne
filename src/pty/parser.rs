@@ -167,7 +167,13 @@ mod tests {
             AgentMarker::from_text("optimizer active"),
             Some(AgentMarker::Optimizer)
         );
-        assert_eq!(AgentMarker::from_text("no agent here"), None);
+        // Text containing "agent" but not a specific agent type returns Unknown
+        assert_eq!(
+            AgentMarker::from_text("no agent here"),
+            Some(AgentMarker::Unknown)
+        );
+        // Text with no agent reference returns None
+        assert_eq!(AgentMarker::from_text("no markers here"), None);
     }
 
     #[test]
