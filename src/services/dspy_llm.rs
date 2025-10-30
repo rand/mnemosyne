@@ -24,10 +24,7 @@
 //! 4. Measuring performance and cost
 
 use crate::error::{MnemosyneError, Result};
-use crate::types::{MemoryNote, MemoryType};
-use chrono::Utc;
-use dspy_rs::core::lm::LM;
-use dspy_rs::sign;
+use crate::types::MemoryNote;
 use tracing::{debug, info};
 
 /// DSPy-based LLM service for memory intelligence

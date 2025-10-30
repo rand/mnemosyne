@@ -5,7 +5,6 @@
 //! - Same database file as libsql
 //! - Vector search functionality
 
-use mnemosyne_core::error::Result;
 use mnemosyne_core::storage::vectors::SqliteVectorStorage;
 use mnemosyne_core::types::MemoryId;
 use tempfile::TempDir;

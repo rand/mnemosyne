@@ -7,7 +7,6 @@
 //! - Fuzzy matching using nucleo
 
 use super::Position;
-use anyhow::Result;
 use nucleo::Matcher;
 
 /// Completion item

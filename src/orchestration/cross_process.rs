@@ -12,13 +12,13 @@
 //! - Polling interval: 2 seconds
 
 use crate::error::{MnemosyneError, Result};
-use crate::orchestration::branch_registry::{AgentAssignment, BranchRegistry};
+use crate::orchestration::branch_registry::BranchRegistry;
 use crate::orchestration::identity::AgentId;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::fs::OpenOptions;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -239,7 +239,7 @@ impl CrossProcessCoordinator {
 
         #[cfg(unix)]
         {
-            use std::os::unix::fs::OpenOptionsExt;
+            
             // flock is non-blocking on read
         }
 

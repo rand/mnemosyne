@@ -4,8 +4,6 @@
 //! providing intelligent memory preloading to reduce latency.
 
 use crate::agents::AgentRole;
-use crate::types::MemoryId;
-use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 

@@ -13,12 +13,11 @@
 //! - Integrate all components: BranchRegistry, BranchGuard, ConflictNotifier, CrossProcessCoordinator
 
 use crate::error::{MnemosyneError, Result};
-use crate::orchestration::branch_guard::{BranchGuard, BranchGuardConfig};
+use crate::orchestration::branch_guard::BranchGuard;
 use crate::orchestration::branch_registry::{
-    AgentAssignment, BranchRegistry, CoordinationMode, SharedBranchRegistry, WorkIntent,
+    AgentAssignment, CoordinationMode, SharedBranchRegistry, WorkIntent,
 };
-use crate::orchestration::conflict_detector::ConflictAction;
-use crate::orchestration::conflict_notifier::{ConflictNotifier, NotificationConfig};
+use crate::orchestration::conflict_notifier::ConflictNotifier;
 use crate::orchestration::cross_process::{
     CoordinationMessage, CrossProcessCoordinator, MessageType,
 };
@@ -27,8 +26,7 @@ use crate::orchestration::identity::{AgentId, AgentIdentity};
 use crate::orchestration::state::WorkItemId;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 /// Branch coordinator configuration

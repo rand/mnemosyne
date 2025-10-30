@@ -8,7 +8,6 @@ use crate::pty::ClaudeCodeWrapper;
 use anyhow::Result;
 use crossterm::event::KeyCode;
 use ratatui::layout::{Constraint, Direction, Layout};
-use tokio::sync::mpsc;
 
 /// Application state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

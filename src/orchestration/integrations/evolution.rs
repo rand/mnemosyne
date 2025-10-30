@@ -4,13 +4,12 @@
 //! to be executed through the orchestration engine as work items.
 
 use crate::error::Result;
-use crate::evolution::{EvolutionJob, JobConfig, JobReport};
+use crate::evolution::{EvolutionJob, JobConfig};
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::messages::{OrchestratorMessage, WorkResult};
 use crate::orchestration::state::{Phase, WorkItem, WorkItemId};
 use ractor::ActorRef;
 use std::sync::Arc;
-use std::time::Duration;
 use tracing::{debug, info};
 
 /// Integration layer between evolution jobs and orchestration

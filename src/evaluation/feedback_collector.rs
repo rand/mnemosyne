@@ -10,12 +10,9 @@
 //! Privacy-preserving design: stores hashes and metrics, not raw content.
 
 use crate::error::{MnemosyneError, Result};
-use crate::storage::StorageBackend;
-use crate::types::MemoryId;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 

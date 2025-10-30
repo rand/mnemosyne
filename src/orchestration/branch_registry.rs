@@ -13,11 +13,11 @@
 //! - **Auto-cleanup**: Remove stale assignments from crashed agents
 
 use crate::error::{MnemosyneError, Result};
-use crate::orchestration::identity::{AgentId, AgentIdentity};
+use crate::orchestration::identity::AgentId;
 use crate::orchestration::state::{Phase, WorkItemId};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 

@@ -9,7 +9,6 @@ use crate::error::{MnemosyneError, Result};
 use iroh::base::node_addr::NodeAddr;
 use iroh::net::key::SecretKey;
 use iroh::net::{Endpoint as IrohEndpoint, NodeId};
-use std::sync::Arc;
 
 /// Agent keypair for identity
 pub struct AgentKeypair {

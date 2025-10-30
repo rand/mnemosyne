@@ -12,11 +12,11 @@
 //! - **Fail safely**: Return clear errors when operations are blocked
 
 use crate::error::{MnemosyneError, Result};
-use crate::orchestration::branch_registry::{BranchRegistry, WorkIntent};
+use crate::orchestration::branch_registry::BranchRegistry;
 use crate::orchestration::identity::AgentId;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Output};
 use std::sync::{Arc, RwLock};
 

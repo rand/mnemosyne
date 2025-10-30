@@ -7,7 +7,6 @@
 //! - Soft warnings (not blocking errors)
 
 use super::Position;
-use anyhow::Result;
 
 /// Validation diagnostic
 #[derive(Debug, Clone)]

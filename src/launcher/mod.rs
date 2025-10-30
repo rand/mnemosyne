@@ -138,7 +138,7 @@ impl ClaudeCodeLauncher {
             max_concurrent_agents: self.config.max_concurrent_agents as usize,
         };
 
-        let mut orchestration_engine = match crate::orchestration::OrchestrationEngine::new(
+        let orchestration_engine = match crate::orchestration::OrchestrationEngine::new(
             storage.clone(),
             orchestration_config
         ).await {

@@ -4,7 +4,6 @@
 
 use mnemosyne_core::agents::{
     AgentMemoryView, AgentRole, MemoryAccessControl, MemoryMetadata, MemoryUpdates,
-    ModificationType,
 };
 use mnemosyne_core::storage::libsql::LibsqlStorage;
 use mnemosyne_core::types::{MemoryType, Namespace};

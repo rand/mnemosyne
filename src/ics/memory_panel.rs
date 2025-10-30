@@ -7,7 +7,6 @@
 //! - Progressive disclosure (hidden by default)
 
 use crate::types::MemoryNote;
-use anyhow::Result;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},

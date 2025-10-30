@@ -7,13 +7,12 @@
 //! - Change attribution (color-coded by actor)
 //! - Inline diagnostic indicators (gutter icons and text underlines)
 
-use super::{Attribution, CrdtBuffer, CursorState, Diagnostic, Severity};
+use super::{CrdtBuffer, CursorState, Diagnostic, Severity};
 use ratatui::{
     buffer::Buffer as RatatuiBuffer,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
+    widgets::{Block, StatefulWidget, Widget},
 };
 
 /// Editor widget state

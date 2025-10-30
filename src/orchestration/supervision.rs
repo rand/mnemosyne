@@ -22,7 +22,7 @@ use crate::orchestration::proposal_queue::ProposalQueue;
 use crate::orchestration::registry::AgentRegistry;
 use crate::storage::StorageBackend;
 use crate::types::Namespace;
-use ractor::{Actor, ActorRef, SupervisionEvent};
+use ractor::{Actor, ActorRef};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

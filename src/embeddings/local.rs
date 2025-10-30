@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use std::sync::{Arc, Mutex};
 use tokio::task;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Local embedding service using fastembed
 pub struct LocalEmbeddingService {

@@ -13,8 +13,7 @@ use mnemosyne_core::evaluation::feedback_collector::{
     ContextType, ErrorContext, FeedbackCollector, ProvidedContext, TaskType, WorkPhase,
     ContextEvaluation,
 };
-use mnemosyne_core::evaluation::feature_extractor::{FeatureExtractor, RelevanceFeatures};
-use mnemosyne_core::evaluation::relevance_scorer::{RelevanceScorer, Scope, WeightSet};
+use mnemosyne_core::evaluation::feature_extractor::FeatureExtractor;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -590,7 +589,7 @@ async fn test_no_pii_in_features() {
 #[tokio::test]
 async fn test_optimizer_hash_task_description() {
     // Test that Python optimizer._hash_task_description produces consistent 16-char hashes
-    use sha2::{Digest, Sha256};
+    
 
     let task1 = "Implement user authentication";
     let task2 = "Implement user authentication"; // Same task
@@ -620,7 +619,7 @@ async fn test_optimizer_hash_task_description() {
 
 #[test]
 fn test_hash_generation() {
-    use sha2::{Digest, Sha256};
+    
 
     let task = "Test task";
     let hash = hash_task(task);

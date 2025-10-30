@@ -4,7 +4,6 @@
 //! different agents to prioritize memories differently based on their needs.
 
 use crate::agents::AgentRole;
-use crate::types::MemoryNote;
 use serde::{Deserialize, Serialize};
 
 /// Importance scoring weights

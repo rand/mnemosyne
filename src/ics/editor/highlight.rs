@@ -6,7 +6,7 @@
 use super::Language;
 use anyhow::Result;
 use ratatui::style::Color;
-use tree_sitter::{Parser, Query, QueryCursor, Tree};
+use tree_sitter::{Parser, Tree};
 
 /// Highlight span with color
 #[derive(Debug, Clone)]

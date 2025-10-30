@@ -14,8 +14,6 @@
 use crate::embeddings::{cosine_similarity, EmbeddingService, LocalEmbeddingService};
 use crate::error::{MnemosyneError, Result};
 use crate::evaluation::feedback_collector::{ContextEvaluation, ContextType};
-use crate::storage::StorageBackend;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
