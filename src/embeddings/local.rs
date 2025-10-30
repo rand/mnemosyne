@@ -65,12 +65,10 @@ impl LocalEmbeddingService {
         init_options.cache_dir = cache_dir;
 
         // Load model in blocking task (may download if not cached)
-        let model = task::spawn_blocking(move || {
-            TextEmbedding::try_new(init_options)
-        })
-        .await
-        .map_err(|e| MnemosyneError::Other(format!("Task join error: {}", e)))?
-        .map_err(|e| MnemosyneError::EmbeddingError(format!("Failed to load model: {}", e)))?;
+        let model = task::spawn_blocking(move || TextEmbedding::try_new(init_options))
+            .await
+            .map_err(|e| MnemosyneError::Other(format!("Task join error: {}", e)))?
+            .map_err(|e| MnemosyneError::EmbeddingError(format!("Failed to load model: {}", e)))?;
 
         let dimensions = config.dimensions();
 
@@ -276,7 +274,10 @@ mod tests {
         // Similar texts should have similar embeddings
         let embed1 = service.embed("The cat sat on the mat").await.unwrap();
         let embed2 = service.embed("A feline rested on the rug").await.unwrap();
-        let embed3 = service.embed("Quantum physics is fascinating").await.unwrap();
+        let embed3 = service
+            .embed("Quantum physics is fascinating")
+            .await
+            .unwrap();
 
         // Calculate cosine similarity
         let sim_similar = crate::embeddings::cosine_similarity(&embed1, &embed2);

@@ -263,11 +263,8 @@ mod tests {
             PathBuf::from("/test"),
         );
 
-        let subagent = AgentIdentity::new_subagent(
-            &parent,
-            AgentRole::Reviewer,
-            "feature/child".to_string(),
-        );
+        let subagent =
+            AgentIdentity::new_subagent(&parent, AgentRole::Reviewer, "feature/child".to_string());
 
         assert!(subagent.is_subagent());
         assert_eq!(subagent.parent_id, Some(parent.id.clone()));
@@ -338,7 +335,8 @@ mod tests {
         assert!(!display.contains("sub-agent"));
 
         // Test sub-agent display
-        let subagent = AgentIdentity::new_subagent(&identity, AgentRole::Reviewer, "main".to_string());
+        let subagent =
+            AgentIdentity::new_subagent(&identity, AgentRole::Reviewer, "main".to_string());
         let sub_display = subagent.to_string();
         assert!(sub_display.contains("(sub-agent)"));
     }

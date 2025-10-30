@@ -11,10 +11,9 @@
 //! - Filesystem caching for performance
 //! - Storage backend integration
 
-use crate::ics::editor::Position;
 use crate::ics::symbols::{CompletionCandidate, SharedSymbolRegistry, SymbolKind};
 use crate::storage::{MemorySortOrder, StorageBackend};
-use crate::types::{MemoryNote, Namespace};
+use crate::types::Namespace;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -140,11 +139,7 @@ impl CompletionEngine {
     }
 
     /// Get completions based on context
-    pub async fn get_completions(
-        &self,
-        line: &str,
-        column: usize,
-    ) -> Vec<CompletionCandidate> {
+    pub async fn get_completions(&self, line: &str, column: usize) -> Vec<CompletionCandidate> {
         let (context, prefix) = self.detect_context(line, column);
 
         match context {
@@ -171,14 +166,14 @@ impl CompletionEngine {
 
         // Sort by score (highest first)
         all_completions.sort_by(|a, b| {
-            b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal)
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Deduplicate by text
         let mut seen = HashMap::new();
-        all_completions.retain(|c| {
-            seen.insert(c.text.clone(), ()).is_none()
-        });
+        all_completions.retain(|c| seen.insert(c.text.clone(), ()).is_none());
 
         all_completions
     }
@@ -199,14 +194,14 @@ impl CompletionEngine {
 
         // Sort by score
         registry_completions.sort_by(|a, b| {
-            b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal)
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Deduplicate
         let mut seen = HashMap::new();
-        registry_completions.retain(|c| {
-            seen.insert(c.text.clone(), ()).is_none()
-        });
+        registry_completions.retain(|c| seen.insert(c.text.clone(), ()).is_none());
 
         registry_completions
     }
@@ -217,7 +212,15 @@ impl CompletionEngine {
         // This is a simplified version - in production you'd use semantic search
         let prefix_lower = prefix.to_lowercase();
 
-        match self.storage.list_memories(Some(self.namespace.clone()), 20, MemorySortOrder::Importance).await {
+        match self
+            .storage
+            .list_memories(
+                Some(self.namespace.clone()),
+                20,
+                MemorySortOrder::Importance,
+            )
+            .await
+        {
             Ok(memories) => {
                 memories
                     .into_iter()

@@ -291,7 +291,12 @@ async fn w4_search_retrieval_workflow() {
     assert!(all_results.len() >= 5, "Should return multiple memories");
 
     // Verify results are ranked by importance
-    assert_sorted_by_importance(&all_results.iter().map(|r| r.memory.clone()).collect::<Vec<_>>());
+    assert_sorted_by_importance(
+        &all_results
+            .iter()
+            .map(|r| r.memory.clone())
+            .collect::<Vec<_>>(),
+    );
 }
 
 /// W5: Proposal generation and acceptance workflow
@@ -430,11 +435,7 @@ async fn w6_cross_session_continuity() {
         .expect("Session 2 search");
 
     // Session 2 is new, so should have no memories yet
-    assert_eq!(
-        session2_results.len(),
-        0,
-        "New session should start empty"
-    );
+    assert_eq!(session2_results.len(), 0, "New session should start empty");
 
     // Create memory in session 2
     let session2_memory = create_test_memory(

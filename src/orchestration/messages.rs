@@ -29,29 +29,19 @@ pub enum OrchestratorMessage {
     },
 
     /// Work item failed
-    WorkFailed {
-        item_id: WorkItemId,
-        error: String,
-    },
+    WorkFailed { item_id: WorkItemId, error: String },
 
     /// Query for ready work items
     GetReadyWork,
 
     /// Deadlock detected in work queue
-    DeadlockDetected {
-        blocked_items: Vec<WorkItemId>,
-    },
+    DeadlockDetected { blocked_items: Vec<WorkItemId> },
 
     /// Context utilization threshold reached
-    ContextThresholdReached {
-        current_pct: f32,
-    },
+    ContextThresholdReached { current_pct: f32 },
 
     /// Phase transition requested
-    PhaseTransition {
-        from: Phase,
-        to: Phase,
-    },
+    PhaseTransition { from: Phase, to: Phase },
 }
 
 /// Messages for the Optimizer agent
@@ -76,14 +66,10 @@ pub enum OptimizerMessage {
     MonitorContext,
 
     /// Compact context (remove non-critical)
-    CompactContext {
-        target_pct: f32,
-    },
+    CompactContext { target_pct: f32 },
 
     /// Checkpoint context at threshold
-    CheckpointContext {
-        reason: String,
-    },
+    CheckpointContext { reason: String },
 }
 
 /// Messages for the Reviewer agent
@@ -99,15 +85,10 @@ pub enum ReviewerMessage {
     },
 
     /// Validate phase transition
-    ValidatePhaseTransition {
-        from: Phase,
-        to: Phase,
-    },
+    ValidatePhaseTransition { from: Phase, to: Phase },
 
     /// Check quality gates
-    CheckQualityGates {
-        item_id: WorkItemId,
-    },
+    CheckQualityGates { item_id: WorkItemId },
 }
 
 /// Messages for the Executor agent
@@ -120,9 +101,7 @@ pub enum ExecutorMessage {
     ExecuteWork(WorkItem),
 
     /// Spawn a sub-agent for parallel work
-    SpawnSubAgent {
-        work_item: WorkItem,
-    },
+    SpawnSubAgent { work_item: WorkItem },
 
     /// Sub-agent completed
     SubAgentCompleted {

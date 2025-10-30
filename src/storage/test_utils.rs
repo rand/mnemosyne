@@ -14,10 +14,13 @@ use std::sync::Arc;
 /// dependencies that can be unreliable in test contexts.
 pub async fn create_test_storage() -> Result<Arc<LibsqlStorage>> {
     // Create in-memory storage WITHOUT schema validation
-    let storage = Arc::new(LibsqlStorage::new_with_validation(
-        ConnectionMode::InMemory,
-        true  // create_if_missing - will run migrations
-    ).await?);
+    let storage = Arc::new(
+        LibsqlStorage::new_with_validation(
+            ConnectionMode::InMemory,
+            true, // create_if_missing - will run migrations
+        )
+        .await?,
+    );
 
     Ok(storage)
 }
@@ -139,7 +142,11 @@ pub async fn create_test_storage_with_embedded_schema() -> Result<Arc<LibsqlStor
 
     // Create a temporary file for the database
     // This ensures all connections see the same schema and tests don't conflict
-    let temp_path = env::temp_dir().join(format!("mnemosyne_test_{}_{}.db", std::process::id(), counter));
+    let temp_path = env::temp_dir().join(format!(
+        "mnemosyne_test_{}_{}.db",
+        std::process::id(),
+        counter
+    ));
 
     // Clean up any existing test database
     let _ = std::fs::remove_file(&temp_path);
@@ -147,7 +154,9 @@ pub async fn create_test_storage_with_embedded_schema() -> Result<Arc<LibsqlStor
     let db = libsql::Builder::new_local(&temp_path)
         .build()
         .await
-        .map_err(|e| crate::error::MnemosyneError::Database(format!("Failed to create test database: {}", e)))?;
+        .map_err(|e| {
+            crate::error::MnemosyneError::Database(format!("Failed to create test database: {}", e))
+        })?;
 
     // Create storage instance using the test constructor
     let storage = LibsqlStorage::from_database(db);
@@ -170,20 +179,31 @@ pub async fn create_test_storage_with_embedded_schema() -> Result<Arc<LibsqlStor
 
         if !statement.is_empty() {
             eprintln!("Executing: {}", &statement[..statement.len().min(80)]);
-            conn.execute(&statement, params![]).await
-                .map_err(|e| crate::error::MnemosyneError::Database(format!("Failed to execute statement: {} - Error: {}", &statement[..statement.len().min(100)], e)))?;
+            conn.execute(&statement, params![]).await.map_err(|e| {
+                crate::error::MnemosyneError::Database(format!(
+                    "Failed to execute statement: {} - Error: {}",
+                    &statement[..statement.len().min(100)],
+                    e
+                ))
+            })?;
         }
     }
 
     // Verify tables were created
     let mut rows = conn
-        .query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", params![])
+        .query(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name",
+            params![],
+        )
         .await
-        .map_err(|e| crate::error::MnemosyneError::Database(format!("Failed to query tables: {}", e)))?;
+        .map_err(|e| {
+            crate::error::MnemosyneError::Database(format!("Failed to query tables: {}", e))
+        })?;
 
     let mut tables = Vec::new();
-    while let Some(row) = rows.next().await
-        .map_err(|e| crate::error::MnemosyneError::Database(format!("Failed to get next row: {}", e)))? {
+    while let Some(row) = rows.next().await.map_err(|e| {
+        crate::error::MnemosyneError::Database(format!("Failed to get next row: {}", e))
+    })? {
         if let Ok(name) = row.get::<String>(0) {
             tables.push(name);
         }
@@ -193,7 +213,7 @@ pub async fn create_test_storage_with_embedded_schema() -> Result<Arc<LibsqlStor
 
     if !tables.contains(&"memories".to_string()) {
         return Err(crate::error::MnemosyneError::Database(
-            "Schema creation failed: memories table not found".to_string()
+            "Schema creation failed: memories table not found".to_string(),
         ));
     }
 
@@ -243,10 +263,16 @@ mod tests {
             embedding_model: String::new(),
         };
 
-        storage.store_memory(&memory).await.expect("Failed to store memory");
+        storage
+            .store_memory(&memory)
+            .await
+            .expect("Failed to store memory");
 
         // Verify we can retrieve it
-        let retrieved = storage.get_memory(memory.id).await.expect("Failed to retrieve memory");
+        let retrieved = storage
+            .get_memory(memory.id)
+            .await
+            .expect("Failed to retrieve memory");
         assert_eq!(retrieved.content, "Test content");
     }
 }

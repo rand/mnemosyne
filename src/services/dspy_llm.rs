@@ -89,14 +89,19 @@ impl DspyLlmService {
         // For now, return a placeholder to verify the module compiles
         // We'll implement the actual DSPy integration next
 
-        info!("DSPy enrichment prototype - raw_content length: {}, context: {}",
-              raw_content.len(), context);
+        info!(
+            "DSPy enrichment prototype - raw_content length: {}, context: {}",
+            raw_content.len(),
+            context
+        );
 
         // TODO: Implement DSPy signature and module
         // TODO: Call Anthropic API via DSPy
         // TODO: Parse structured response
 
-        Err(MnemosyneError::Other("DSPy enrichment not yet implemented".to_string()))
+        Err(MnemosyneError::Other(
+            "DSPy enrichment not yet implemented".to_string(),
+        ))
     }
 }
 

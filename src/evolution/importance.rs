@@ -141,7 +141,8 @@ impl EvolutionJob for ImportanceRecalibrator {
                 .unwrap_or((0, None));
 
             // Count incoming links from database
-            let incoming_links_count = self.storage
+            let incoming_links_count = self
+                .storage
                 .count_incoming_links(&memory.id)
                 .await
                 .unwrap_or(0);
@@ -169,7 +170,11 @@ impl EvolutionJob for ImportanceRecalibrator {
 
             // Update if change is significant
             if self.is_significant_change(memory.importance as f32, new_importance) {
-                match self.storage.update_importance(&memory.id, new_importance).await {
+                match self
+                    .storage
+                    .update_importance(&memory.id, new_importance)
+                    .await
+                {
                     Ok(_) => {
                         changes_made += 1;
                         tracing::debug!(
@@ -241,8 +246,8 @@ impl MemoryData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration as ChronoDuration;
     use crate::ConnectionMode;
+    use chrono::Duration as ChronoDuration;
 
     fn create_test_memory(
         importance: f32,

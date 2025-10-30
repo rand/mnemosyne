@@ -35,9 +35,21 @@ async fn e1_consolidation_detection() {
         6,
     );
 
-    storage.storage().store_memory(&mem1).await.expect("Store 1");
-    storage.storage().store_memory(&mem2).await.expect("Store 2");
-    storage.storage().store_memory(&mem3).await.expect("Store 3");
+    storage
+        .storage()
+        .store_memory(&mem1)
+        .await
+        .expect("Store 1");
+    storage
+        .storage()
+        .store_memory(&mem2)
+        .await
+        .expect("Store 2");
+    storage
+        .storage()
+        .store_memory(&mem3)
+        .await
+        .expect("Store 3");
 
     // Load in ICS
     let results = storage
@@ -126,21 +138,20 @@ async fn e3_link_decay() {
     let storage = StorageFixture::new().await.expect("Storage setup failed");
 
     // Create two linked memories
-    let mut memory_a = create_test_memory(
-        "Memory A",
-        MemoryType::CodePattern,
-        Namespace::Global,
-        7,
-    );
-    let memory_b = create_test_memory(
-        "Memory B",
-        MemoryType::Insight,
-        Namespace::Global,
-        6,
-    );
+    let mut memory_a =
+        create_test_memory("Memory A", MemoryType::CodePattern, Namespace::Global, 7);
+    let memory_b = create_test_memory("Memory B", MemoryType::Insight, Namespace::Global, 6);
 
-    storage.storage().store_memory(&memory_a).await.expect("Store A");
-    storage.storage().store_memory(&memory_b).await.expect("Store B");
+    storage
+        .storage()
+        .store_memory(&memory_a)
+        .await
+        .expect("Store A");
+    storage
+        .storage()
+        .store_memory(&memory_b)
+        .await
+        .expect("Store B");
 
     // Create link with high strength
     let link = mnemosyne_core::types::MemoryLink {
@@ -185,7 +196,7 @@ async fn e3_link_decay() {
 
     // Simulate traversal (access increases strength)
     final_state.links[0].strength = 0.85; // Restored partially
-    // Would update again to persist strengthened link
+                                          // Would update again to persist strengthened link
 }
 
 /// E4: Archival of unused ICS content
@@ -194,12 +205,8 @@ async fn e4_archival_of_unused_content() {
     let storage = StorageFixture::new().await.expect("Storage setup failed");
 
     // Create old, unused memory
-    let mut old_memory = create_test_memory(
-        "Old unused note",
-        MemoryType::Insight,
-        Namespace::Global,
-        5,
-    );
+    let mut old_memory =
+        create_test_memory("Old unused note", MemoryType::Insight, Namespace::Global, 5);
 
     // Simulate old timestamp (90 days ago would be set in real impl)
     old_memory.access_count = 0;
@@ -319,8 +326,16 @@ async fn e6_evolution_rollback() {
         6,
     );
 
-    storage.storage().store_memory(&mem1).await.expect("Store 1");
-    storage.storage().store_memory(&mem2).await.expect("Store 2");
+    storage
+        .storage()
+        .store_memory(&mem1)
+        .await
+        .expect("Store 1");
+    storage
+        .storage()
+        .store_memory(&mem2)
+        .await
+        .expect("Store 2");
 
     // Simulate consolidation (merge into single memory)
     let merged = create_test_memory(

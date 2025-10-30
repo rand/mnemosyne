@@ -19,12 +19,7 @@ async fn v1_embedding_generation() {
 
     // Create memory
     let content = "Authentication system uses JWT tokens with 1-hour expiration";
-    let mut memory = create_test_memory(
-        content,
-        MemoryType::CodePattern,
-        Namespace::Global,
-        8,
-    );
+    let mut memory = create_test_memory(content, MemoryType::CodePattern, Namespace::Global, 8);
 
     // Generate embedding
     let embedding = embedding_service
@@ -38,7 +33,10 @@ async fn v1_embedding_generation() {
         384,
         "all-MiniLM-L6-v2 produces 384-dimensional embeddings"
     );
-    assert!(embedding.iter().all(|&x| x.is_finite()), "All values finite");
+    assert!(
+        embedding.iter().all(|&x| x.is_finite()),
+        "All values finite"
+    );
 
     // Attach to memory
     memory.embedding = Some(embedding);
@@ -179,15 +177,19 @@ async fn v4_semantic_relevance_ranking() {
 
     // Create memories with varying semantic similarity to query
     let memories = vec![
-        ("User authentication with JWT tokens", 9),         // High relevance
-        ("Session management and token refresh", 8),        // Medium relevance
-        ("Database schema migration scripts", 7),           // Low relevance
-        ("Frontend component styling with CSS", 6),         // Very low relevance
+        ("User authentication with JWT tokens", 9), // High relevance
+        ("Session management and token refresh", 8), // Medium relevance
+        ("Database schema migration scripts", 7),   // Low relevance
+        ("Frontend component styling with CSS", 6), // Very low relevance
     ];
 
     for (content, importance) in memories {
-        let mut memory =
-            create_test_memory(content, MemoryType::CodePattern, Namespace::Global, importance);
+        let mut memory = create_test_memory(
+            content,
+            MemoryType::CodePattern,
+            Namespace::Global,
+            importance,
+        );
 
         let embedding = embedding_service.embed(content).await.expect("Embed");
         memory.embedding = Some(embedding);
@@ -319,7 +321,10 @@ async fn v6_large_scale_vector_search() {
             .expect("Store");
     }
     let write_duration = start.elapsed();
-    println!("Stored 100 memories with embeddings in {:?}", write_duration);
+    println!(
+        "Stored 100 memories with embeddings in {:?}",
+        write_duration
+    );
 
     // Perform vector search
     let query = "Database operations with async patterns";

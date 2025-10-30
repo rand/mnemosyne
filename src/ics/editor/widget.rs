@@ -148,13 +148,11 @@ impl<'a> EditorWidget<'a> {
     fn diagnostic_at(&self, line: usize, column: usize) -> Option<&Diagnostic> {
         let diagnostics = self.diagnostics?;
 
-        diagnostics
-            .iter()
-            .find(|d| {
-                d.position.line == line
-                    && column >= d.position.column
-                    && column < d.position.column + d.length
-            })
+        diagnostics.iter().find(|d| {
+            d.position.line == line
+                && column >= d.position.column
+                && column < d.position.column + d.length
+        })
     }
 }
 
@@ -183,10 +181,7 @@ impl<'a> StatefulWidget for EditorWidget<'a> {
 
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length(line_num_width),
-                Constraint::Min(10),
-            ])
+            .constraints([Constraint::Length(line_num_width), Constraint::Min(10)])
             .split(inner_area);
 
         let line_num_area = chunks[0];
@@ -232,12 +227,7 @@ impl<'a> EditorWidget<'a> {
             let available_width = area.width.saturating_sub(2) as usize; // Reserve 2 chars for icon
             let line_num_text = format!("{:>width$}", line_num + 1, width = available_width);
 
-            buf.set_string(
-                area.x,
-                area.y + i as u16,
-                &line_num_text,
-                line_num_style,
-            );
+            buf.set_string(area.x, area.y + i as u16, &line_num_text, line_num_style);
 
             // Render diagnostic icon if present
             if let Some(diag) = diagnostic {
@@ -298,7 +288,8 @@ impl<'a> EditorWidget<'a> {
                 if is_cursor_line && self.focused {
                     let cursor_col = self.buffer.cursor.position.column;
                     if cursor_col >= state.h_scroll_offset
-                        && cursor_col < state.h_scroll_offset + viewport_width {
+                        && cursor_col < state.h_scroll_offset + viewport_width
+                    {
                         let cursor_x = area.x + (cursor_col - state.h_scroll_offset) as u16;
                         let cursor_y = area.y + i as u16;
 
@@ -384,7 +375,10 @@ mod tests {
         let mut cursor = CursorState::default();
 
         // Cursor at line 50, viewport height 20
-        cursor.position = Position { line: 50, column: 0 };
+        cursor.position = Position {
+            line: 50,
+            column: 0,
+        };
         state.ensure_cursor_visible(&cursor, 20);
 
         // Should scroll to show cursor
@@ -410,21 +404,30 @@ mod tests {
         let buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
         let diagnostics = vec![
             Diagnostic {
-                position: Position { line: 5, column: 10 },
+                position: Position {
+                    line: 5,
+                    column: 10,
+                },
                 length: 5,
                 severity: Severity::Error,
                 message: "Error on line 5".to_string(),
                 suggestion: None,
             },
             Diagnostic {
-                position: Position { line: 5, column: 20 },
+                position: Position {
+                    line: 5,
+                    column: 20,
+                },
                 length: 3,
                 severity: Severity::Warning,
                 message: "Warning on line 5".to_string(),
                 suggestion: None,
             },
             Diagnostic {
-                position: Position { line: 10, column: 0 },
+                position: Position {
+                    line: 10,
+                    column: 0,
+                },
                 length: 1,
                 severity: Severity::Hint,
                 message: "Hint on line 10".to_string(),
@@ -452,15 +455,16 @@ mod tests {
     fn test_diagnostic_at() {
         use crate::ics::editor::Actor;
         let buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
-        let diagnostics = vec![
-            Diagnostic {
-                position: Position { line: 5, column: 10 },
-                length: 5, // covers columns 10-14
-                severity: Severity::Error,
-                message: "Error".to_string(),
-                suggestion: None,
+        let diagnostics = vec![Diagnostic {
+            position: Position {
+                line: 5,
+                column: 10,
             },
-        ];
+            length: 5, // covers columns 10-14
+            severity: Severity::Error,
+            message: "Error".to_string(),
+            suggestion: None,
+        }];
 
         let widget = EditorWidget::new(&buffer).diagnostics(&diagnostics);
 
@@ -503,7 +507,10 @@ mod tests {
                 suggestion: None,
             },
             Diagnostic {
-                position: Position { line: 0, column: 10 },
+                position: Position {
+                    line: 0,
+                    column: 10,
+                },
                 length: 1,
                 severity: Severity::Error,
                 message: "Error".to_string(),

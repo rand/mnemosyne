@@ -59,19 +59,19 @@ impl HighlightKind {
     /// Uses calm, muted colors that don't distract
     pub fn color(&self) -> Color {
         match self {
-            HighlightKind::Heading => Color::Rgb(180, 180, 220),      // Soft blue
-            HighlightKind::Bold => Color::Rgb(200, 200, 200),          // Light gray
-            HighlightKind::Italic => Color::Rgb(160, 160, 180),        // Muted purple
-            HighlightKind::CodeInline => Color::Rgb(180, 200, 180),    // Soft green
-            HighlightKind::CodeBlock => Color::Rgb(170, 190, 170),     // Muted green
-            HighlightKind::Link => Color::Rgb(150, 180, 210),          // Soft cyan
-            HighlightKind::ListMarker => Color::Rgb(190, 170, 150),    // Soft orange
-            HighlightKind::Quote => Color::Rgb(160, 160, 160),         // Gray
-            HighlightKind::Comment => Color::Rgb(140, 140, 140),       // Dark gray
-            HighlightKind::Keyword => Color::Rgb(180, 160, 200),       // Soft purple
-            HighlightKind::String => Color::Rgb(180, 200, 160),        // Soft yellow-green
-            HighlightKind::Number => Color::Rgb(200, 180, 160),        // Soft tan
-            HighlightKind::Operator => Color::Rgb(170, 170, 190),      // Soft lavender
+            HighlightKind::Heading => Color::Rgb(180, 180, 220), // Soft blue
+            HighlightKind::Bold => Color::Rgb(200, 200, 200),    // Light gray
+            HighlightKind::Italic => Color::Rgb(160, 160, 180),  // Muted purple
+            HighlightKind::CodeInline => Color::Rgb(180, 200, 180), // Soft green
+            HighlightKind::CodeBlock => Color::Rgb(170, 190, 170), // Muted green
+            HighlightKind::Link => Color::Rgb(150, 180, 210),    // Soft cyan
+            HighlightKind::ListMarker => Color::Rgb(190, 170, 150), // Soft orange
+            HighlightKind::Quote => Color::Rgb(160, 160, 160),   // Gray
+            HighlightKind::Comment => Color::Rgb(140, 140, 140), // Dark gray
+            HighlightKind::Keyword => Color::Rgb(180, 160, 200), // Soft purple
+            HighlightKind::String => Color::Rgb(180, 200, 160),  // Soft yellow-green
+            HighlightKind::Number => Color::Rgb(200, 180, 160),  // Soft tan
+            HighlightKind::Operator => Color::Rgb(170, 170, 190), // Soft lavender
             HighlightKind::Text => Color::White,
         }
     }

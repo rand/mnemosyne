@@ -205,11 +205,9 @@ impl RemoteEmbeddingService {
 
                 Ok(voyage_response)
             }
-            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                Err(MnemosyneError::AuthenticationError(
-                    "Invalid or missing API key".to_string(),
-                ))
-            }
+            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => Err(
+                MnemosyneError::AuthenticationError("Invalid or missing API key".to_string()),
+            ),
             StatusCode::TOO_MANY_REQUESTS => Err(MnemosyneError::RateLimitExceeded(
                 "Voyage AI rate limit exceeded".to_string(),
             )),

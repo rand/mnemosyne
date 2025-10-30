@@ -53,15 +53,14 @@ impl McpServer {
                     let response = self.process_request(line).await;
 
                     // Write response to stdout
-                    let response_json = serde_json::to_string(&response)
-                        .unwrap_or_else(|e| {
-                            error!("Failed to serialize response: {}", e);
-                            serde_json::to_string(&JsonRpcResponse::error(
-                                None,
-                                JsonRpcError::internal_error(format!("Serialization error: {}", e)),
-                            ))
-                            .unwrap()
-                        });
+                    let response_json = serde_json::to_string(&response).unwrap_or_else(|e| {
+                        error!("Failed to serialize response: {}", e);
+                        serde_json::to_string(&JsonRpcResponse::error(
+                            None,
+                            JsonRpcError::internal_error(format!("Serialization error: {}", e)),
+                        ))
+                        .unwrap()
+                    });
 
                     debug!("Sending response: {}", response_json);
 
@@ -120,10 +119,9 @@ impl McpServer {
             "tools/call" => self.handle_tools_call(request).await,
 
             // Unknown method
-            _ => JsonRpcResponse::error(
-                request.id,
-                JsonRpcError::method_not_found(&request.method),
-            ),
+            _ => {
+                JsonRpcResponse::error(request.id, JsonRpcError::method_not_found(&request.method))
+            }
         }
     }
 

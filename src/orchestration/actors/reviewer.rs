@@ -16,7 +16,6 @@ use crate::storage::StorageBackend;
 use crate::types::Namespace;
 use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::sync::Arc;
-use std::time::Duration;
 
 /// Quality gates that must pass
 #[derive(Debug, Clone)]
@@ -168,16 +167,25 @@ impl ReviewerActor {
                     let summary_lower = memory.summary.to_lowercase();
 
                     // Look for test failure indicators
-                    let failure_indicators = ["test failed", "tests failed", "failing test", "test error"];
+                    let failure_indicators =
+                        ["test failed", "tests failed", "failing test", "test error"];
                     for indicator in &failure_indicators {
                         if content_lower.contains(indicator) || summary_lower.contains(indicator) {
-                            tracing::warn!("Test failure detected in memory {}: {}", memory_id, indicator);
+                            tracing::warn!(
+                                "Test failure detected in memory {}: {}",
+                                memory_id,
+                                indicator
+                            );
                             return Ok(false);
                         }
                     }
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to retrieve memory {} for test verification: {:?}", memory_id, e);
+                    tracing::warn!(
+                        "Failed to retrieve memory {} for test verification: {:?}",
+                        memory_id,
+                        e
+                    );
                     // Don't fail the gate if we can't retrieve memory
                 }
             }
@@ -196,9 +204,15 @@ impl ReviewerActor {
     async fn check_anti_patterns(state: &ReviewerState, result: &WorkResult) -> Result<bool> {
         // Define anti-pattern keywords to check
         let anti_patterns = [
-            "TODO:", "FIXME:", "HACK:", "XXX:",
-            "NOT IMPLEMENTED", "STUB", "MOCK",
-            "PLACEHOLDER", "TEMPORARY",
+            "TODO:",
+            "FIXME:",
+            "HACK:",
+            "XXX:",
+            "NOT IMPLEMENTED",
+            "STUB",
+            "MOCK",
+            "PLACEHOLDER",
+            "TEMPORARY",
         ];
 
         for memory_id in &result.memory_ids {
@@ -219,7 +233,11 @@ impl ReviewerActor {
                     }
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to retrieve memory {} for anti-pattern check: {:?}", memory_id, e);
+                    tracing::warn!(
+                        "Failed to retrieve memory {} for anti-pattern check: {:?}",
+                        memory_id,
+                        e
+                    );
                     // Don't fail the gate if we can't retrieve memory
                 }
             }
@@ -276,7 +294,11 @@ impl ReviewerActor {
                     tracing::debug!("Memory {} passed constraint validation", memory_id);
                 }
                 Err(e) => {
-                    tracing::warn!("Failed to retrieve memory {} for constraint verification: {:?}", memory_id, e);
+                    tracing::warn!(
+                        "Failed to retrieve memory {} for constraint verification: {:?}",
+                        memory_id,
+                        e
+                    );
                     // Fail the gate if we can't retrieve memory - this is a constraint violation
                     return Ok(false);
                 }
@@ -323,10 +345,7 @@ impl ReviewerActor {
     }
 
     /// Check quality gates for a work item
-    async fn check_quality_gates(
-        state: &ReviewerState,
-        item_id: WorkItemId,
-    ) -> Result<bool> {
+    async fn check_quality_gates(state: &ReviewerState, item_id: WorkItemId) -> Result<bool> {
         tracing::info!("Checking quality gates for: {:?}", item_id);
 
         if let Some(gates) = state.quality_results.get(&item_id) {

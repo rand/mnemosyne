@@ -234,7 +234,10 @@ mod tests {
 
         // Check normalization
         let magnitude: f32 = embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!((magnitude - 1.0).abs() < 0.01, "Vector should be normalized");
+        assert!(
+            (magnitude - 1.0).abs() < 0.01,
+            "Vector should be normalized"
+        );
     }
 
     #[test]

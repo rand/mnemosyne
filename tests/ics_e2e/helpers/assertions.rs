@@ -7,8 +7,8 @@
 //! - Agent activity
 //! - CRDT attribution
 
-use mnemosyne_core::ics::*;
 use mnemosyne_core::ics::editor::*;
+use mnemosyne_core::ics::*;
 
 /// Assert buffer contains exact text
 pub fn assert_buffer_contains(buffer: &TextBuffer, expected: &str) {
@@ -24,10 +24,7 @@ pub fn assert_buffer_contains(buffer: &TextBuffer, expected: &str) {
 /// Assert buffer equals exact text
 pub fn assert_buffer_equals(buffer: &TextBuffer, expected: &str) {
     let content = buffer.content.to_string();
-    assert_eq!(
-        content, expected,
-        "Buffer content mismatch"
-    );
+    assert_eq!(content, expected, "Buffer content mismatch");
 }
 
 /// Assert buffer is empty
@@ -57,7 +54,10 @@ pub fn assert_cursor_at(buffer: &TextBuffer, line: usize, column: usize) {
         (pos.line, pos.column),
         (line, column),
         "Expected cursor at ({}, {}) but was at ({}, {})",
-        line, column, pos.line, pos.column
+        line,
+        column,
+        pos.line,
+        pos.column
     );
 }
 
@@ -167,7 +167,8 @@ pub fn assert_agent_idle(agent: &AgentInfo) {
     assert!(
         matches!(agent.activity, AgentActivity::Idle),
         "Expected agent '{}' to be idle but was {:?}",
-        agent.name, agent.activity
+        agent.name,
+        agent.activity
     );
 }
 
@@ -176,7 +177,8 @@ pub fn assert_agent_analyzing(agent: &AgentInfo) {
     assert!(
         matches!(agent.activity, AgentActivity::Analyzing),
         "Expected agent '{}' to be analyzing but was {:?}",
-        agent.name, agent.activity
+        agent.name,
+        agent.activity
     );
 }
 
@@ -185,7 +187,8 @@ pub fn assert_agent_proposing(agent: &AgentInfo) {
     assert!(
         matches!(agent.activity, AgentActivity::Proposing),
         "Expected agent '{}' to be proposing but was {:?}",
-        agent.name, agent.activity
+        agent.name,
+        agent.activity
     );
 }
 
@@ -199,8 +202,15 @@ pub fn assert_diagnostic_severity(diagnostic: &Diagnostic, expected_severity: Se
 }
 
 /// Assert diagnostics count by severity
-pub fn assert_diagnostics_count(diagnostics: &[Diagnostic], severity: Severity, expected_count: usize) {
-    let count = diagnostics.iter().filter(|d| d.severity == severity).count();
+pub fn assert_diagnostics_count(
+    diagnostics: &[Diagnostic],
+    severity: Severity,
+    expected_count: usize,
+) {
+    let count = diagnostics
+        .iter()
+        .filter(|d| d.severity == severity)
+        .count();
     assert_eq!(
         count, expected_count,
         "Expected {} diagnostics with severity {:?} but found {}",
@@ -223,7 +233,9 @@ pub fn assert_attribution_by_actor(attributions: &[Attribution], actor: Actor, m
     assert!(
         count >= min_count,
         "Expected at least {} attributions by {:?} but found {}",
-        min_count, actor, count
+        min_count,
+        actor,
+        count
     );
 }
 
@@ -234,9 +246,9 @@ pub fn assert_attribution_in_range(
     end: usize,
     expected_actor: Actor,
 ) {
-    let found = attributions.iter().any(|a| {
-        a.range.0 <= start && a.range.1 >= end && a.actor == expected_actor
-    });
+    let found = attributions
+        .iter()
+        .any(|a| a.range.0 <= start && a.range.1 >= end && a.actor == expected_actor);
     assert!(
         found,
         "Expected attribution by {:?} in range ({}, {}) not found",
@@ -261,25 +273,21 @@ mod tests {
     #[test]
     fn test_semantic_assertions() {
         let analysis = SemanticAnalysis {
-            triples: vec![
-                Triple {
-                    subject: "System".to_string(),
-                    predicate: "is".to_string(),
-                    object: "distributed".to_string(),
-                    source_line: 0,
-                    confidence: 80,
-                },
-            ],
-            holes: vec![
-                TypedHole {
-                    name: "TODO".to_string(),
-                    kind: HoleKind::Incomplete,
-                    line: 5,
-                    column: 0,
-                    context: "TODO: implement".to_string(),
-                    suggestions: vec![],
-                },
-            ],
+            triples: vec![Triple {
+                subject: "System".to_string(),
+                predicate: "is".to_string(),
+                object: "distributed".to_string(),
+                source_line: 0,
+                confidence: 80,
+            }],
+            holes: vec![TypedHole {
+                name: "TODO".to_string(),
+                kind: HoleKind::Incomplete,
+                line: 5,
+                column: 0,
+                context: "TODO: implement".to_string(),
+                suggestions: vec![],
+            }],
             entities: [("System".to_string(), 2)].into_iter().collect(),
             relationships: vec![],
         };

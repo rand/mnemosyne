@@ -15,8 +15,6 @@
 use crate::ics::editor::{Diagnostic, Position, Severity};
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use std::collections::HashMap;
-use std::fmt;
-use std::ops::Range;
 
 /// Diagnostic renderer using ariadne
 pub struct DiagnosticRenderer {
@@ -310,11 +308,17 @@ mod tests {
 
     #[test]
     fn test_diagnostic_builder() {
-        let diagnostic = DiagnosticBuilder::new(Position { line: 5, column: 10 }, Severity::Warning)
-            .with_length(5)
-            .with_message("Test warning")
-            .with_suggestion("Fix it like this")
-            .build();
+        let diagnostic = DiagnosticBuilder::new(
+            Position {
+                line: 5,
+                column: 10,
+            },
+            Severity::Warning,
+        )
+        .with_length(5)
+        .with_message("Test warning")
+        .with_suggestion("Fix it like this")
+        .build();
 
         assert_eq!(diagnostic.position.line, 5);
         assert_eq!(diagnostic.position.column, 10);
@@ -327,7 +331,10 @@ mod tests {
     #[test]
     fn test_format_diagnostic_summary() {
         let diagnostic = Diagnostic {
-            position: Position { line: 10, column: 5 },
+            position: Position {
+                line: 10,
+                column: 5,
+            },
             length: 3,
             severity: Severity::Error,
             message: "Test error".to_string(),

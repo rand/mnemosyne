@@ -16,8 +16,8 @@ mod common;
 use common::{create_real_llm_service, create_test_storage, sample_memory};
 
 /// Shared LLM service instance - only accesses keychain once per test run
-static SHARED_LLM_SERVICE: Lazy<Option<Arc<mnemosyne_core::LlmService>>> = Lazy::new(|| {
-    match create_real_llm_service() {
+static SHARED_LLM_SERVICE: Lazy<Option<Arc<mnemosyne_core::LlmService>>> =
+    Lazy::new(|| match create_real_llm_service() {
         Some(llm) => {
             eprintln!("✓ LLM service initialized (keychain accessed once)");
             Some(llm)
@@ -28,8 +28,7 @@ static SHARED_LLM_SERVICE: Lazy<Option<Arc<mnemosyne_core::LlmService>>> = Lazy:
             eprintln!("  Or: export ANTHROPIC_API_KEY=sk-ant-...");
             None
         }
-    }
-});
+    });
 
 /// Helper to get LLM service or skip test
 fn get_llm_service_or_skip() -> Arc<mnemosyne_core::LlmService> {
@@ -69,13 +68,14 @@ async fn test_enrich_memory_architecture_decision() {
     // Note: Summary might be longer than very terse content - that's OK
     // The important thing is that a summary was generated
     println!("Summary: {}", enriched.summary);
-    println!("Content length: {}, Summary length: {}", enriched.content.len(), enriched.summary.len());
+    println!(
+        "Content length: {}, Summary length: {}",
+        enriched.content.len(),
+        enriched.summary.len()
+    );
 
     // Assert: LLM extracted relevant keywords
-    assert!(
-        !enriched.keywords.is_empty(),
-        "LLM should extract keywords"
-    );
+    assert!(!enriched.keywords.is_empty(), "LLM should extract keywords");
     assert!(
         enriched.keywords.len() >= 3,
         "Should extract at least 3 keywords"
@@ -238,7 +238,10 @@ async fn test_consolidation_decision_merge() {
             );
         }
         mnemosyne_core::ConsolidationDecision::Supersede { kept, superseded } => {
-            println!("Decision: Supersede - keep {:?}, archive {:?}", kept, superseded);
+            println!(
+                "Decision: Supersede - keep {:?}, archive {:?}",
+                kept, superseded
+            );
             assert!(
                 (kept == mem1.id && superseded == mem2.id)
                     || (kept == mem2.id && superseded == mem1.id),

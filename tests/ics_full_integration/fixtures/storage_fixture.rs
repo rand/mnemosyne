@@ -26,11 +26,9 @@ impl StorageFixture {
         let db_path_str = db_path.to_string_lossy().to_string();
 
         // Use new_with_validation with create_if_missing=true for tests
-        let storage = LibsqlStorage::new_with_validation(
-            ConnectionMode::Local(db_path_str.clone()),
-            true,
-        )
-        .await?;
+        let storage =
+            LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path_str.clone()), true)
+                .await?;
 
         Ok(Self {
             _temp_dir: temp_dir,
@@ -92,8 +90,8 @@ pub fn create_test_memory(
     namespace: Namespace,
     importance: u8,
 ) -> MemoryNote {
-    use mnemosyne_core::types::MemoryId;
     use chrono::Utc;
+    use mnemosyne_core::types::MemoryId;
 
     MemoryNote {
         id: MemoryId::new(),

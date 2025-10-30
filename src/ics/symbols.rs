@@ -8,8 +8,8 @@
 //! - Jump-to-definition
 //! - Reference finding
 
-use crate::ics::semantic::{SemanticAnalysis, TypedHole};
 use crate::ics::editor::Position;
+use crate::ics::semantic::{SemanticAnalysis, TypedHole};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -103,14 +103,10 @@ pub enum FileResolution {
     },
 
     /// File not found, but here are suggestions
-    NotFound {
-        suggestions: Vec<PathBuf>,
-    },
+    NotFound { suggestions: Vec<PathBuf> },
 
     /// Multiple files match (ambiguous)
-    Ambiguous {
-        candidates: Vec<PathBuf>,
-    },
+    Ambiguous { candidates: Vec<PathBuf> },
 }
 
 /// Information about an entity
@@ -142,7 +138,13 @@ impl SymbolRegistry {
     }
 
     /// Register a symbol from @mention
-    pub fn register_symbol(&mut self, name: &str, pos: Position, kind: SymbolKind, doc: Option<String>) {
+    pub fn register_symbol(
+        &mut self,
+        name: &str,
+        pos: Position,
+        kind: SymbolKind,
+        doc: Option<String>,
+    ) {
         let name = name.trim_start_matches('@').to_string();
 
         if let Some(info) = self.symbols.get_mut(&name) {
@@ -151,14 +153,17 @@ impl SymbolRegistry {
             info.ref_count += 1;
         } else {
             // New symbol
-            self.symbols.insert(name.clone(), SymbolInfo {
-                name: name.clone(),
-                kind,
-                definition_location: pos,
-                references: vec![pos],
-                doc_comment: doc,
-                ref_count: 1,
-            });
+            self.symbols.insert(
+                name.clone(),
+                SymbolInfo {
+                    name: name.clone(),
+                    kind,
+                    definition_location: pos,
+                    references: vec![pos],
+                    doc_comment: doc,
+                    ref_count: 1,
+                },
+            );
         }
 
         // Update position index
@@ -174,16 +179,20 @@ impl SymbolRegistry {
             info.references.push(pos);
         } else {
             // New file
-            self.files.insert(path.clone(), FileInfo {
-                path: path.clone(),
-                definition_location: pos,
-                references: vec![pos],
-                resolution,
-            });
+            self.files.insert(
+                path.clone(),
+                FileInfo {
+                    path: path.clone(),
+                    definition_location: pos,
+                    references: vec![pos],
+                    resolution,
+                },
+            );
         }
 
         // Update position index
-        self.position_index.push((pos, path.to_string_lossy().to_string(), SymbolKind::File));
+        self.position_index
+            .push((pos, path.to_string_lossy().to_string(), SymbolKind::File));
     }
 
     /// Register entity from semantic analysis
@@ -194,12 +203,15 @@ impl SymbolRegistry {
             info.frequency += 1;
         } else {
             // New entity
-            self.entities.insert(text.to_string(), EntityInfo {
-                text: text.to_string(),
-                first_occurrence: pos,
-                occurrences: vec![pos],
-                frequency: 1,
-            });
+            self.entities.insert(
+                text.to_string(),
+                EntityInfo {
+                    text: text.to_string(),
+                    first_occurrence: pos,
+                    occurrences: vec![pos],
+                    frequency: 1,
+                },
+            );
         }
     }
 
@@ -254,14 +266,20 @@ impl SymbolRegistry {
     /// - Partial filename matches
     /// - Path component matches
     /// - Levenshtein distance for filenames
-    fn fuzzy_file_search(target_path: &Path, project_root: &Path, max_results: usize) -> Vec<PathBuf> {
+    fn fuzzy_file_search(
+        target_path: &Path,
+        project_root: &Path,
+        max_results: usize,
+    ) -> Vec<PathBuf> {
         let mut scored_files: Vec<(PathBuf, f32)> = Vec::new();
 
         // Extract target filename and extension for matching
-        let target_filename = target_path.file_name()
+        let target_filename = target_path
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("");
-        let target_extension = target_path.extension()
+        let target_extension = target_path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("");
 
@@ -273,8 +291,8 @@ impl SymbolRegistry {
                 target_filename,
                 target_extension,
                 &mut scored_files,
-                0,  // depth
-                3,  // max_depth
+                0, // depth
+                3, // max_depth
             );
         }
 
@@ -285,7 +303,11 @@ impl SymbolRegistry {
         scored_files
             .into_iter()
             .take(max_results)
-            .filter_map(|(path, _)| path.strip_prefix(project_root).ok().map(|p| p.to_path_buf()))
+            .filter_map(|(path, _)| {
+                path.strip_prefix(project_root)
+                    .ok()
+                    .map(|p| p.to_path_buf())
+            })
             .collect()
     }
 
@@ -308,7 +330,11 @@ impl SymbolRegistry {
 
             // Skip hidden files and common build/cache directories
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if name.starts_with('.') || name == "target" || name == "node_modules" || name == "__pycache__" {
+                if name.starts_with('.')
+                    || name == "target"
+                    || name == "node_modules"
+                    || name == "__pycache__"
+                {
                     continue;
                 }
             }
@@ -339,13 +365,13 @@ impl SymbolRegistry {
     /// Score similarity between a candidate file and target
     ///
     /// Returns a score from 0.0 (no match) to 100.0 (perfect match)
-    fn score_file_similarity(candidate: &Path, target_filename: &str, target_extension: &str) -> f32 {
-        let candidate_filename = candidate.file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
-        let candidate_extension = candidate.extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+    fn score_file_similarity(
+        candidate: &Path,
+        target_filename: &str,
+        target_extension: &str,
+    ) -> f32 {
+        let candidate_filename = candidate.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        let candidate_extension = candidate.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         let mut score = 0.0;
 
@@ -424,14 +450,18 @@ impl SymbolRegistry {
 
         for i in 1..=len1 {
             for j in 1..=len2 {
-                let cost = if s1_chars[i - 1] == s2_chars[j - 1] { 0 } else { 1 };
+                let cost = if s1_chars[i - 1] == s2_chars[j - 1] {
+                    0
+                } else {
+                    1
+                };
 
                 matrix[i][j] = std::cmp::min(
                     std::cmp::min(
-                        matrix[i - 1][j] + 1,      // deletion
-                        matrix[i][j - 1] + 1,      // insertion
+                        matrix[i - 1][j] + 1, // deletion
+                        matrix[i][j - 1] + 1, // insertion
                     ),
-                    matrix[i - 1][j - 1] + cost,   // substitution
+                    matrix[i - 1][j - 1] + cost, // substitution
                 );
             }
         }
@@ -450,7 +480,7 @@ impl SymbolRegistry {
                 text: format!("@{}", sym.name),
                 kind: sym.kind,
                 detail: sym.doc_comment.clone(),
-                score: sym.ref_count as f32,  // More refs = higher score
+                score: sym.ref_count as f32, // More refs = higher score
             })
             .collect()
     }
@@ -462,15 +492,16 @@ impl SymbolRegistry {
         self.files
             .values()
             .filter(|file| {
-                file.path.to_string_lossy().to_lowercase().contains(&prefix_lower)
+                file.path
+                    .to_string_lossy()
+                    .to_lowercase()
+                    .contains(&prefix_lower)
             })
             .map(|file| CompletionCandidate {
                 text: format!("#{}", file.path.display()),
                 kind: SymbolKind::File,
                 detail: match &file.resolution {
-                    FileResolution::Exists { size, .. } => {
-                        Some(format!("{} bytes", size))
-                    }
+                    FileResolution::Exists { size, .. } => Some(format!("{} bytes", size)),
                     FileResolution::NotFound { .. } => Some("not found".to_string()),
                     FileResolution::Ambiguous { candidates } => {
                         Some(format!("{} matches", candidates.len()))
@@ -492,7 +523,11 @@ impl SymbolRegistry {
     }
 
     /// Update registry from semantic analysis
-    pub fn sync_from_analysis(&mut self, analysis: &SemanticAnalysis, _project_root: Option<&Path>) {
+    pub fn sync_from_analysis(
+        &mut self,
+        analysis: &SemanticAnalysis,
+        _project_root: Option<&Path>,
+    ) {
         // Update holes
         self.holes.clear();
         for hole in &analysis.holes {
@@ -559,8 +594,21 @@ mod tests {
     fn test_register_symbol() {
         let mut registry = SymbolRegistry::new();
 
-        registry.register_symbol("@foo", Position { line: 0, column: 0 }, SymbolKind::Variable, None);
-        registry.register_symbol("@foo", Position { line: 5, column: 10 }, SymbolKind::Variable, None);
+        registry.register_symbol(
+            "@foo",
+            Position { line: 0, column: 0 },
+            SymbolKind::Variable,
+            None,
+        );
+        registry.register_symbol(
+            "@foo",
+            Position {
+                line: 5,
+                column: 10,
+            },
+            SymbolKind::Variable,
+            None,
+        );
 
         let sym = registry.resolve_symbol("@foo").unwrap();
         assert_eq!(sym.name, "foo");
@@ -577,7 +625,7 @@ mod tests {
         registry.register_symbol("@baz", Position::default(), SymbolKind::Type, None);
 
         let completions = registry.complete_symbol("@fo");
-        assert_eq!(completions.len(), 2);  // foo and foobar
+        assert_eq!(completions.len(), 2); // foo and foobar
         assert!(completions.iter().any(|c| c.text == "@foo"));
         assert!(completions.iter().any(|c| c.text == "@foobar"));
     }

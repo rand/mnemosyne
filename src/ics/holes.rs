@@ -77,9 +77,7 @@ impl HoleNavigator {
     pub fn update_holes(&mut self, holes: Vec<TypedHole>) {
         // Sort holes by position (line, then column)
         let mut sorted_holes = holes;
-        sorted_holes.sort_by(|a, b| {
-            a.line.cmp(&b.line).then_with(|| a.column.cmp(&b.column))
-        });
+        sorted_holes.sort_by(|a, b| a.line.cmp(&b.line).then_with(|| a.column.cmp(&b.column)));
 
         self.holes = sorted_holes;
 
@@ -380,7 +378,10 @@ mod tests {
         assert_eq!(next.unwrap().name, "second");
 
         // Previous hole from end
-        let prev = nav.previous_hole(Position { line: 15, column: 0 });
+        let prev = nav.previous_hole(Position {
+            line: 15,
+            column: 0,
+        });
         assert_eq!(prev.unwrap().name, "third");
 
         // Go to specific hole

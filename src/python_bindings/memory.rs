@@ -3,8 +3,10 @@
 //! Exposes core types (MemoryId, Namespace, MemoryNote) to Python
 //! with efficient serialization and zero-copy where possible.
 
+use crate::types::{
+    MemoryId as RustMemoryId, MemoryNote as RustMemoryNote, Namespace as RustNamespace,
+};
 use pyo3::prelude::*;
-use crate::types::{MemoryId as RustMemoryId, Namespace as RustNamespace, MemoryNote as RustMemoryNote};
 
 /// Python wrapper for MemoryId.
 #[pyclass]
@@ -28,9 +30,7 @@ impl PyMemoryId {
     fn parse(s: &str) -> PyResult<Self> {
         let id = RustMemoryId::from_string(s)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
-        Ok(PyMemoryId {
-            inner: id,
-        })
+        Ok(PyMemoryId { inner: id })
     }
 
     /// Convert to string.
@@ -72,7 +72,10 @@ impl PyNamespace {
     #[staticmethod]
     fn session(project: String, session_id: String) -> Self {
         PyNamespace {
-            inner: RustNamespace::Session { project, session_id },
+            inner: RustNamespace::Session {
+                project,
+                session_id,
+            },
         }
     }
 
@@ -80,8 +83,8 @@ impl PyNamespace {
     #[staticmethod]
     fn parse(s: &str) -> PyResult<Self> {
         use crate::python_bindings::storage::parse_namespace;
-        let ns = parse_namespace(s)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
+        let ns =
+            parse_namespace(s).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
         Ok(PyNamespace { inner: ns })
     }
 

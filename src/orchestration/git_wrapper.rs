@@ -12,7 +12,7 @@
 //! - **Fail safely**: Return clear errors when operations are blocked
 
 use crate::error::{MnemosyneError, Result};
-use crate::orchestration::branch_registry::{BranchRegistry, WorkIntent};
+use crate::orchestration::branch_registry::BranchRegistry;
 use crate::orchestration::identity::AgentId;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -133,7 +133,14 @@ impl GitWrapper {
             .map_err(|e| MnemosyneError::Other(format!("Failed to execute git: {}", e)))?;
 
         // Log successful operation
-        self.log_operation(agent_id, args, operation_type, true, None, Some(output.status.code()));
+        self.log_operation(
+            agent_id,
+            args,
+            operation_type,
+            true,
+            None,
+            Some(output.status.code()),
+        );
 
         Ok(output)
     }
@@ -185,13 +192,14 @@ impl GitWrapper {
 
     /// Validate write operation
     fn validate_write_operation(&self, agent_id: &AgentId, args: &[String]) -> Result<()> {
-        let registry = self.registry.read().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to read registry: {}", e))
-        })?;
+        let registry = self
+            .registry
+            .read()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to read registry: {}", e)))?;
 
-        let assignment = registry
-            .get_agent_assignment(agent_id)
-            .ok_or_else(|| MnemosyneError::NotFound(format!("No assignment for agent {}", agent_id)))?;
+        let assignment = registry.get_agent_assignment(agent_id).ok_or_else(|| {
+            MnemosyneError::NotFound(format!("No assignment for agent {}", agent_id))
+        })?;
 
         // Extract file paths from git command
         let files = self.extract_file_paths(args);
@@ -216,13 +224,14 @@ impl GitWrapper {
             return Ok(()); // Not a switch, allow (e.g., "git branch" to list)
         }
 
-        let registry = self.registry.read().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to read registry: {}", e))
-        })?;
+        let registry = self
+            .registry
+            .read()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to read registry: {}", e)))?;
 
-        let assignment = registry
-            .get_agent_assignment(agent_id)
-            .ok_or_else(|| MnemosyneError::NotFound(format!("No assignment for agent {}", agent_id)))?;
+        let assignment = registry.get_agent_assignment(agent_id).ok_or_else(|| {
+            MnemosyneError::NotFound(format!("No assignment for agent {}", agent_id))
+        })?;
 
         let target_branch = self.extract_target_branch(args);
 
@@ -372,12 +381,14 @@ impl GitWrapper {
     /// Persist audit log to disk
     fn persist_audit_log(&self) -> Result<()> {
         if let Some(path) = &self.audit_log_path {
-            let log = self.audit_log.read().map_err(|e| {
-                MnemosyneError::Other(format!("Failed to read audit log: {}", e))
-            })?;
+            let log = self
+                .audit_log
+                .read()
+                .map_err(|e| MnemosyneError::Other(format!("Failed to read audit log: {}", e)))?;
 
-            let json = serde_json::to_string_pretty(&*log)
-                .map_err(|e| MnemosyneError::Other(format!("Failed to serialize audit log: {}", e)))?;
+            let json = serde_json::to_string_pretty(&*log).map_err(|e| {
+                MnemosyneError::Other(format!("Failed to serialize audit log: {}", e))
+            })?;
 
             std::fs::write(path, json).map_err(|e| {
                 MnemosyneError::Io(std::io::Error::new(
@@ -462,7 +473,10 @@ mod tests {
         let agent_id = AgentId::new();
 
         // Even without assignment, read should work
-        let result = wrapper.execute(&agent_id, &["status".to_string(), "--porcelain".to_string()]);
+        let result = wrapper.execute(
+            &agent_id,
+            &["status".to_string(), "--porcelain".to_string()],
+        );
         assert!(result.is_ok());
     }
 

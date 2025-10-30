@@ -91,15 +91,16 @@ impl StatusLine {
 
     /// Format as JSON for programmatic consumption
     pub fn format_json(&self) -> Result<String> {
-        serde_json::to_string(self)
-            .map_err(|e| crate::error::MnemosyneError::Other(format!("JSON serialization failed: {}", e)))
+        serde_json::to_string(self).map_err(|e| {
+            crate::error::MnemosyneError::Other(format!("JSON serialization failed: {}", e))
+        })
     }
 
     /// Create color-coded ANSI string (for terminal display)
     pub fn format_ansi(&self) -> String {
         let branch_color = "\x1b[36m"; // Cyan
         let mode_color = match self.mode {
-            CoordinationMode::Isolated => "\x1b[33m", // Yellow
+            CoordinationMode::Isolated => "\x1b[33m",    // Yellow
             CoordinationMode::Coordinated => "\x1b[32m", // Green
         };
         let conflict_color = "\x1b[31m"; // Red
@@ -161,7 +162,9 @@ impl StatusLineProvider {
         let agent_count = assignments.len();
 
         // Get conflict count from coordinator
-        let conflict_count = self.coordinator.get_agent_conflict_count(&self.agent.id)
+        let conflict_count = self
+            .coordinator
+            .get_agent_conflict_count(&self.agent.id)
             .unwrap_or(0); // Gracefully handle errors by showing 0 conflicts
 
         // Agent is blocked if it has unresolved conflicts

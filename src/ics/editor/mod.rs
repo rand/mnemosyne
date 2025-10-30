@@ -12,15 +12,15 @@ mod syntax;
 mod validation;
 mod widget;
 
-pub use buffer::{BufferId};
+pub use buffer::BufferId;
 pub use completion::{CompletionEngine, CompletionItem, CompletionKind};
 pub use crdt_buffer::{Actor, Attribution, CrdtBuffer};
-pub use cursor::{CursorState, Position, Movement};
-pub use highlight::{Highlighter, HighlightSpan, HighlightKind as HighlightKindEnum};
+pub use cursor::{CursorState, Movement, Position};
+pub use highlight::{HighlightKind as HighlightKindEnum, HighlightSpan, Highlighter};
 pub use sync::{Awareness, AwarenessTracker, SyncCoordinator, SyncMessage, SyncPayload};
-pub use syntax::{Language, HighlightKind};
+pub use syntax::{HighlightKind, Language};
 pub use validation::{Diagnostic, Severity, Validator};
-pub use widget::{EditorWidget, EditorState};
+pub use widget::{EditorState, EditorWidget};
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -50,8 +50,8 @@ impl IcsEditor {
         };
 
         // Create initial empty buffer (maintains invariant: buffer 0 always exists)
-        let initial_buffer = CrdtBuffer::new(0, Actor::Human, None)
-            .expect("Failed to create initial buffer");
+        let initial_buffer =
+            CrdtBuffer::new(0, Actor::Human, None).expect("Failed to create initial buffer");
         editor.buffers.insert(0, initial_buffer);
 
         editor
@@ -62,8 +62,7 @@ impl IcsEditor {
         let id = self.next_buffer_id;
         self.next_buffer_id += 1;
 
-        let buffer = CrdtBuffer::new(id, Actor::Human, path)
-            .expect("Failed to create buffer");
+        let buffer = CrdtBuffer::new(id, Actor::Human, path).expect("Failed to create buffer");
         self.buffers.insert(id, buffer);
 
         id

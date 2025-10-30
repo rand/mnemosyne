@@ -206,7 +206,10 @@ mod e2e_tests {
         let response2 = coordinator.handle_join_request(request2).await.unwrap();
 
         match response2 {
-            JoinResponse::Denied { reason, suggestions } => {
+            JoinResponse::Denied {
+                reason,
+                suggestions,
+            } => {
                 assert!(reason.contains("conflict") || reason.contains("assigned"));
                 assert!(!suggestions.is_empty());
             }
@@ -284,20 +287,14 @@ mod e2e_tests {
         coordinator.handle_join_request(request).await.unwrap();
 
         // Verify assignment exists
-        let assignments = coordinator
-            .get_branch_assignments("main")
-            .await
-            .unwrap();
+        let assignments = coordinator.get_branch_assignments("main").await.unwrap();
         assert_eq!(assignments.len(), 1);
 
         // Release assignment
         coordinator.release_assignment(&agent_id).await.unwrap();
 
         // Verify assignment removed
-        let assignments_after = coordinator
-            .get_branch_assignments("main")
-            .await
-            .unwrap();
+        let assignments_after = coordinator.get_branch_assignments("main").await.unwrap();
         assert_eq!(assignments_after.len(), 0);
     }
 
@@ -378,9 +375,10 @@ mod e2e_tests {
             JoinResponse::Denied { suggestions, .. } => {
                 // Should suggest alternatives
                 assert!(!suggestions.is_empty());
-                assert!(suggestions
-                    .iter()
-                    .any(|s| s.contains("Coordinated") || s.contains("ReadOnly") || s.contains("Wait") || s.contains("branch")));
+                assert!(suggestions.iter().any(|s| s.contains("Coordinated")
+                    || s.contains("ReadOnly")
+                    || s.contains("Wait")
+                    || s.contains("branch")));
             }
             _ => panic!("Expected Denied with suggestions"),
         }
@@ -402,10 +400,7 @@ mod e2e_tests {
             work_items: vec![],
         };
 
-        coordinator
-            .handle_join_request(request_read)
-            .await
-            .unwrap();
+        coordinator.handle_join_request(request_read).await.unwrap();
 
         // Writer should be able to join (coordinated mode)
         let request_write = JoinRequest {

@@ -138,11 +138,7 @@ async fn test_importance_weighting() {
     );
     high_importance.keywords = vec!["design".to_string()];
 
-    let mut low_importance = sample_memory(
-        "Minor design tweak",
-        MemoryType::Configuration,
-        3,
-    );
+    let mut low_importance = sample_memory("Minor design tweak", MemoryType::Configuration, 3);
     low_importance.keywords = vec!["design".to_string()];
 
     storage.store_memory(&high_importance).await.unwrap();
@@ -252,11 +248,7 @@ async fn test_large_result_set_with_limit() {
 
     // Create 20 memories all with same keyword
     for i in 0..20 {
-        let mut mem = sample_memory(
-            &format!("Test memory number {}", i),
-            MemoryType::Insight,
-            5,
-        );
+        let mut mem = sample_memory(&format!("Test memory number {}", i), MemoryType::Insight, 5);
         mem.keywords = vec!["common".to_string()];
         storage.store_memory(&mem).await.unwrap();
     }
@@ -296,7 +288,9 @@ async fn test_namespace_filtering() {
     global_mem.keywords = vec!["searchterm".to_string()];
 
     let mut project_mem = sample_memory("Project memory", MemoryType::Insight, 5);
-    project_mem.namespace = Namespace::Project { name: "test-project".to_string() };
+    project_mem.namespace = Namespace::Project {
+        name: "test-project".to_string(),
+    };
     project_mem.keywords = vec!["searchterm".to_string()];
 
     storage.store_memory(&global_mem).await.unwrap();
@@ -306,7 +300,9 @@ async fn test_namespace_filtering() {
     let results = storage
         .hybrid_search(
             "searchterm",
-            Some(Namespace::Project { name: "test-project".to_string() }),
+            Some(Namespace::Project {
+                name: "test-project".to_string(),
+            }),
             10,
             false,
         )
@@ -314,10 +310,16 @@ async fn test_namespace_filtering() {
         .unwrap();
 
     // Assert: Only project namespace returned
-    assert_eq!(results.len(), 1, "Should return only 1 memory from namespace");
+    assert_eq!(
+        results.len(),
+        1,
+        "Should return only 1 memory from namespace"
+    );
     assert_eq!(
         results[0].memory.namespace,
-        Namespace::Project { name: "test-project".to_string() },
+        Namespace::Project {
+            name: "test-project".to_string()
+        },
         "Should be from test-project namespace"
     );
 }

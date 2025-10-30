@@ -9,8 +9,11 @@ use pyo3::Bound;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::storage::{libsql::{ConnectionMode, LibsqlStorage}, MemorySortOrder, StorageBackend};
-use crate::types::{MemoryNote, MemoryId, Namespace};
+use crate::storage::{
+    libsql::{ConnectionMode, LibsqlStorage},
+    MemorySortOrder, StorageBackend,
+};
+use crate::types::{MemoryId, MemoryNote, Namespace};
 
 /// Python wrapper for Mnemosyne storage.
 ///
@@ -39,9 +42,9 @@ impl PyStorage {
             format!("{}/.local/share/mnemosyne/mnemosyne.db", home)
         });
 
-        let storage = runtime.block_on(async {
-            LibsqlStorage::new(ConnectionMode::Local(db_path)).await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        let storage = runtime
+            .block_on(async { LibsqlStorage::new(ConnectionMode::Local(db_path)).await })
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Ok(PyStorage {
             inner: Arc::new(Mutex::new(storage)),
@@ -60,10 +63,12 @@ impl PyStorage {
         let note = self.dict_to_memory_note(memory)?;
         let id = note.id.clone();
 
-        self.runtime.block_on(async {
-            let storage = self.inner.lock().await;
-            storage.store_memory(&note).await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        self.runtime
+            .block_on(async {
+                let storage = self.inner.lock().await;
+                storage.store_memory(&note).await
+            })
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Ok(id.to_string())
     }
@@ -102,18 +107,31 @@ impl PyStorage {
     /// Returns:
     ///     list[dict]: List of matching memories as dictionaries
     #[pyo3(signature = (query, namespace=None, limit=None))]
-    fn search(&self, query: String, namespace: Option<String>, limit: Option<usize>) -> PyResult<Vec<PyObject>> {
-        let ns = namespace.as_ref().map(|s| parse_namespace(s))
+    fn search(
+        &self,
+        query: String,
+        namespace: Option<String>,
+        limit: Option<usize>,
+    ) -> PyResult<Vec<PyObject>> {
+        let ns = namespace
+            .as_ref()
+            .map(|s| parse_namespace(s))
             .transpose()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
 
-        let results = self.runtime.block_on(async {
-            let storage = self.inner.lock().await;
-            storage.hybrid_search(&query, ns, limit.unwrap_or(10), true).await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        let results = self
+            .runtime
+            .block_on(async {
+                let storage = self.inner.lock().await;
+                storage
+                    .hybrid_search(&query, ns, limit.unwrap_or(10), true)
+                    .await
+            })
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Python::with_gil(|py| {
-            results.iter()
+            results
+                .iter()
                 .map(|r| self.memory_note_to_dict(py, &r.memory))
                 .collect::<PyResult<Vec<_>>>()
         })
@@ -128,18 +146,30 @@ impl PyStorage {
     /// Returns:
     ///     list[dict]: List of recent memories
     #[pyo3(signature = (namespace=None, limit=None))]
-    fn list_recent(&self, namespace: Option<String>, limit: Option<usize>) -> PyResult<Vec<PyObject>> {
-        let ns = namespace.as_ref().map(|s| parse_namespace(s))
+    fn list_recent(
+        &self,
+        namespace: Option<String>,
+        limit: Option<usize>,
+    ) -> PyResult<Vec<PyObject>> {
+        let ns = namespace
+            .as_ref()
+            .map(|s| parse_namespace(s))
             .transpose()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
 
-        let results = self.runtime.block_on(async {
-            let storage = self.inner.lock().await;
-            storage.list_memories(ns, limit.unwrap_or(20), MemorySortOrder::Recent).await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        let results = self
+            .runtime
+            .block_on(async {
+                let storage = self.inner.lock().await;
+                storage
+                    .list_memories(ns, limit.unwrap_or(20), MemorySortOrder::Recent)
+                    .await
+            })
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Python::with_gil(|py| {
-            results.iter()
+            results
+                .iter()
                 .map(|note| self.memory_note_to_dict(py, note))
                 .collect::<PyResult<Vec<_>>>()
         })
@@ -151,14 +181,19 @@ impl PyStorage {
     ///     dict: Statistics with keys: total_memories
     #[pyo3(signature = (namespace=None))]
     fn get_stats(&self, namespace: Option<String>) -> PyResult<PyObject> {
-        let ns = namespace.as_ref().map(|s| parse_namespace(s))
+        let ns = namespace
+            .as_ref()
+            .map(|s| parse_namespace(s))
             .transpose()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
 
-        let count = self.runtime.block_on(async {
-            let storage = self.inner.lock().await;
-            storage.count_memories(ns).await
-        }).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        let count = self
+            .runtime
+            .block_on(async {
+                let storage = self.inner.lock().await;
+                storage.count_memories(ns).await
+            })
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
         Python::with_gil(|py| {
             let dict = PyDict::new_bound(py);
@@ -176,10 +211,12 @@ pub(crate) fn parse_namespace(s: &str) -> Result<Namespace, String> {
 
     let parts: Vec<&str> = s.split(':').collect();
     match parts.as_slice() {
-        ["project", name] => Ok(Namespace::Project { name: name.to_string() }),
+        ["project", name] => Ok(Namespace::Project {
+            name: name.to_string(),
+        }),
         ["session", project, session_id] => Ok(Namespace::Session {
             project: project.to_string(),
-            session_id: session_id.to_string()
+            session_id: session_id.to_string(),
         }),
         _ => Err(format!("Invalid namespace format: {}", s)),
     }
@@ -188,19 +225,26 @@ pub(crate) fn parse_namespace(s: &str) -> Result<Namespace, String> {
 // Helper methods for type conversion
 impl PyStorage {
     fn dict_to_memory_note(&self, dict: &Bound<'_, PyDict>) -> PyResult<MemoryNote> {
-        let content: String = dict.get_item("content")?
+        let content: String = dict
+            .get_item("content")?
             .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("Missing 'content' key"))?
             .extract()?;
 
-        let namespace_str: String = dict.get_item("namespace")?
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("Missing 'namespace' key"))?
+        let namespace_str: String = dict
+            .get_item("namespace")?
+            .ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyKeyError, _>("Missing 'namespace' key")
+            })?
             .extract()?;
 
         let namespace = parse_namespace(&namespace_str)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
 
-        let importance: u8 = dict.get_item("importance")?
-            .ok_or_else(|| PyErr::new::<pyo3::exceptions::PyKeyError, _>("Missing 'importance' key"))?
+        let importance: u8 = dict
+            .get_item("importance")?
+            .ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyKeyError, _>("Missing 'importance' key")
+            })?
             .extract()?;
 
         let now = chrono::Utc::now();
@@ -212,16 +256,51 @@ impl PyStorage {
             created_at: now,
             updated_at: now,
             content,
-            summary: dict.get_item("summary").ok().flatten().and_then(|v| v.extract().ok()).unwrap_or_default(),
-            keywords: dict.get_item("keywords").ok().flatten().and_then(|v| v.extract().ok()).unwrap_or_default(),
-            tags: dict.get_item("tags").ok().flatten().and_then(|v| v.extract().ok()).unwrap_or_default(),
-            context: dict.get_item("context").ok().flatten().and_then(|v| v.extract().ok()).unwrap_or_default(),
+            summary: dict
+                .get_item("summary")
+                .ok()
+                .flatten()
+                .and_then(|v| v.extract().ok())
+                .unwrap_or_default(),
+            keywords: dict
+                .get_item("keywords")
+                .ok()
+                .flatten()
+                .and_then(|v| v.extract().ok())
+                .unwrap_or_default(),
+            tags: dict
+                .get_item("tags")
+                .ok()
+                .flatten()
+                .and_then(|v| v.extract().ok())
+                .unwrap_or_default(),
+            context: dict
+                .get_item("context")
+                .ok()
+                .flatten()
+                .and_then(|v| v.extract().ok())
+                .unwrap_or_default(),
             memory_type: crate::types::MemoryType::Insight, // Default, could parse from dict
             importance,
-            confidence: dict.get_item("confidence").ok().flatten().and_then(|v| v.extract().ok()).unwrap_or(1.0),
+            confidence: dict
+                .get_item("confidence")
+                .ok()
+                .flatten()
+                .and_then(|v| v.extract().ok())
+                .unwrap_or(1.0),
             links: vec![],
-            related_files: dict.get_item("related_files").ok().flatten().and_then(|v| v.extract().ok()).unwrap_or_default(),
-            related_entities: dict.get_item("related_entities").ok().flatten().and_then(|v| v.extract().ok()).unwrap_or_default(),
+            related_files: dict
+                .get_item("related_files")
+                .ok()
+                .flatten()
+                .and_then(|v| v.extract().ok())
+                .unwrap_or_default(),
+            related_entities: dict
+                .get_item("related_entities")
+                .ok()
+                .flatten()
+                .and_then(|v| v.extract().ok())
+                .unwrap_or_default(),
             access_count: 0,
             last_accessed_at: now,
             expires_at: None,

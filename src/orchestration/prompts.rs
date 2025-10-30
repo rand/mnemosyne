@@ -108,12 +108,18 @@ impl InteractivePrompter {
         println!("║      Branch Join Request                  ║");
         println!("╚═══════════════════════════════════════════╝\n");
 
-        println!("Agent {} wants to join branch '{}'", prompt.agent_id, prompt.branch);
+        println!(
+            "Agent {} wants to join branch '{}'",
+            prompt.agent_id, prompt.branch
+        );
         println!("Intent: {:?}", prompt.intent);
         println!("Mode: {:?}", prompt.mode);
 
         if !prompt.other_agents.is_empty() {
-            println!("\n⚠ {} other agent(s) currently on this branch:", prompt.other_agents.len());
+            println!(
+                "\n⚠ {} other agent(s) currently on this branch:",
+                prompt.other_agents.len()
+            );
             for (i, agent_id) in prompt.other_agents.iter().enumerate() {
                 println!("  {}. {}", i + 1, agent_id);
             }
@@ -346,7 +352,10 @@ impl InteractivePrompter {
             "y" | "yes" => Ok(true),
             "n" | "no" => Ok(false),
             _ => {
-                println!("Invalid input. Defaulting to {}.", if default_yes { "yes" } else { "no" });
+                println!(
+                    "Invalid input. Defaulting to {}.",
+                    if default_yes { "yes" } else { "no" }
+                );
                 Ok(default_yes)
             }
         }

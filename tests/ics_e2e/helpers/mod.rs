@@ -1,11 +1,11 @@
 //! Test helpers for ICS E2E tests
 
-pub mod fixtures;
 pub mod actors;
 pub mod assertions;
+pub mod fixtures;
 
-use mnemosyne_core::ics::editor::{IcsEditor, BufferId, Diagnostic};
-use mnemosyne_core::ics::{SemanticAnalyzer, SemanticAnalysis, ChangeProposal};
+use mnemosyne_core::ics::editor::{BufferId, Diagnostic, IcsEditor};
+use mnemosyne_core::ics::{ChangeProposal, SemanticAnalysis, SemanticAnalyzer};
 use mnemosyne_core::types::MemoryNote;
 
 /// Test context that holds all necessary components for E2E tests

@@ -189,7 +189,10 @@ impl MockAgent {
         if let Some(ref proposal_fn) = self.proposal_fn {
             self.set_activity_mut(AgentActivity::Proposing, Some("Analyzing text".to_string()));
             let proposals = proposal_fn(text);
-            self.set_activity_mut(AgentActivity::Waiting, Some("Waiting for review".to_string()));
+            self.set_activity_mut(
+                AgentActivity::Waiting,
+                Some("Waiting for review".to_string()),
+            );
             proposals
         } else {
             Vec::new()

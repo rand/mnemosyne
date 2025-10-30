@@ -13,9 +13,9 @@ pub async fn init_evaluation_tables(db_path: &str) -> Result<()> {
         .await
         .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
 
-    let conn = db.connect().map_err(|e| {
-        MnemosyneError::Database(format!("Failed to get connection: {}", e))
-    })?;
+    let conn = db
+        .connect()
+        .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
 
     // Create context_evaluations table
     conn.execute(

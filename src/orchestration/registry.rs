@@ -124,10 +124,7 @@ impl AgentRegistry {
     /// Get all active agents
     pub async fn list_agents(&self) -> Vec<AgentInfo> {
         let agents = self.agents.read().await;
-        agents
-            .values()
-            .map(|status| status.to_info())
-            .collect()
+        agents.values().map(|status| status.to_info()).collect()
     }
 
     /// Get agent by ID

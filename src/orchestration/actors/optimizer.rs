@@ -11,7 +11,7 @@ use crate::error::Result;
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{OptimizerMessage, OrchestratorMessage};
-use crate::orchestration::skills::{SkillsDiscovery, get_skills_directory};
+use crate::orchestration::skills::{get_skills_directory, SkillsDiscovery};
 use crate::orchestration::state::WorkItemId;
 use crate::storage::StorageBackend;
 use crate::types::{MemoryId, Namespace};
@@ -126,11 +126,7 @@ impl OptimizerActor {
             match state.skills_discovery.load_skill(skill_match).await {
                 Ok(content) => skills.push(content),
                 Err(e) => {
-                    tracing::warn!(
-                        "Failed to load skill {}: {}",
-                        skill_match.metadata.name,
-                        e
-                    );
+                    tracing::warn!("Failed to load skill {}: {}", skill_match.metadata.name, e);
                 }
             }
         }
@@ -140,7 +136,10 @@ impl OptimizerActor {
         tracing::info!(
             "Discovered {} skills: {:?}",
             state.loaded_skills,
-            skill_matches.iter().map(|m| &m.metadata.name).collect::<Vec<_>>()
+            skill_matches
+                .iter()
+                .map(|m| &m.metadata.name)
+                .collect::<Vec<_>>()
         );
         Ok(skills)
     }
@@ -154,21 +153,19 @@ impl OptimizerActor {
         tracing::info!("Loading context memories for: {}", query);
 
         // Search for relevant memories
-        let results = state
-            .storage
-            .hybrid_search(&query, None, 10, false)
-            .await?;
+        let results = state.storage.hybrid_search(&query, None, 10, false).await?;
 
-        let memory_ids: Vec<MemoryId> = results
-            .into_iter()
-            .map(|r| r.memory.id)
-            .collect();
+        let memory_ids: Vec<MemoryId> = results.into_iter().map(|r| r.memory.id).collect();
 
         // Track loaded memories for real metrics
         state.loaded_memories.extend(memory_ids.clone());
-        state.loaded_memories.dedup();  // Remove duplicates
+        state.loaded_memories.dedup(); // Remove duplicates
 
-        tracing::info!("Loaded {} memories (total: {})", memory_ids.len(), state.loaded_memories.len());
+        tracing::info!(
+            "Loaded {} memories (total: {})",
+            memory_ids.len(),
+            state.loaded_memories.len()
+        );
 
         // Persist event
         state
@@ -199,7 +196,8 @@ impl OptimizerActor {
         // General tokens (estimated overhead: agent messages, state, etc.)
         // Use 10% of remaining budget
         let used_so_far = critical_used + skills_used + project_used;
-        let general_used = (state.context_budget.saturating_sub(used_so_far) as f32 * 0.10) as usize;
+        let general_used =
+            (state.context_budget.saturating_sub(used_so_far) as f32 * 0.10) as usize;
 
         let total_used = critical_used + skills_used + project_used + general_used;
         state.context_usage = total_used as f32 / state.context_budget as f32;
@@ -218,9 +216,7 @@ impl OptimizerActor {
                     .cast(OrchestratorMessage::ContextThresholdReached {
                         current_pct: state.context_usage,
                     })
-                    .map_err(|e| {
-                        tracing::warn!("Failed to notify orchestrator: {:?}", e)
-                    });
+                    .map_err(|e| tracing::warn!("Failed to notify orchestrator: {:?}", e));
             }
         }
 
@@ -228,10 +224,7 @@ impl OptimizerActor {
     }
 
     /// Compact context by removing non-critical elements
-    async fn compact_context(
-        state: &mut OptimizerState,
-        target_pct: f32,
-    ) -> Result<()> {
+    async fn compact_context(state: &mut OptimizerState, target_pct: f32) -> Result<()> {
         tracing::info!(
             "Compacting context from {:.1}% to {:.1}%",
             state.context_usage * 100.0,
@@ -262,10 +255,7 @@ impl OptimizerActor {
     }
 
     /// Checkpoint context at threshold
-    async fn checkpoint_context(
-        state: &mut OptimizerState,
-        reason: String,
-    ) -> Result<()> {
+    async fn checkpoint_context(state: &mut OptimizerState, reason: String) -> Result<()> {
         tracing::info!("Checkpointing context: {}", reason);
 
         // Create a checkpoint memory

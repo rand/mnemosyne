@@ -149,7 +149,10 @@ impl<S: StorageBackend> AgentMemoryView<S> {
     /// ensuring agents only see relevant memories.
     pub async fn search(&self, query: &str, limit: usize) -> Result<Vec<MemoryNote>> {
         // Use hybrid search from storage backend
-        let results = self.storage.hybrid_search(query, None, limit, false).await?;
+        let results = self
+            .storage
+            .hybrid_search(query, None, limit, false)
+            .await?;
 
         // Filter by role-specific memory types
         let relevant_types = self.role.memory_types();
@@ -174,7 +177,10 @@ impl<S: StorageBackend> AgentMemoryView<S> {
         limit: usize,
     ) -> Result<Vec<MemoryNote>> {
         // Use hybrid search from storage backend
-        let results = self.storage.hybrid_search(query, namespace, limit * 2, false).await?;
+        let results = self
+            .storage
+            .hybrid_search(query, namespace, limit * 2, false)
+            .await?;
 
         // Filter by role-specific memory types and importance
         let relevant_types = self.role.memory_types();
@@ -197,7 +203,10 @@ impl<S: StorageBackend> AgentMemoryView<S> {
     /// ordered by last_accessed_at descending.
     pub async fn list_recent(&self, limit: usize) -> Result<Vec<MemoryNote>> {
         // Get recent memories from storage
-        let memories = self.storage.list_memories(None, limit * 2, MemorySortOrder::Recent).await?;
+        let memories = self
+            .storage
+            .list_memories(None, limit * 2, MemorySortOrder::Recent)
+            .await?;
 
         // Filter by role-specific memory types
         let relevant_types = self.role.memory_types();
@@ -213,9 +222,16 @@ impl<S: StorageBackend> AgentMemoryView<S> {
     /// List high-importance memories
     ///
     /// Returns memories with importance >= threshold, filtered by role-specific types.
-    pub async fn list_high_importance(&self, threshold: u8, limit: usize) -> Result<Vec<MemoryNote>> {
+    pub async fn list_high_importance(
+        &self,
+        threshold: u8,
+        limit: usize,
+    ) -> Result<Vec<MemoryNote>> {
         // Get important memories sorted by importance
-        let memories = self.storage.list_memories(None, limit * 2, MemorySortOrder::Importance).await?;
+        let memories = self
+            .storage
+            .list_memories(None, limit * 2, MemorySortOrder::Importance)
+            .await?;
 
         // Filter by role-specific memory types and importance threshold
         let relevant_types = self.role.memory_types();
@@ -282,7 +298,11 @@ mod tests {
 
         assert_eq!(
             AgentRole::Executor.memory_types(),
-            vec![MemoryType::CodePattern, MemoryType::BugFix, MemoryType::Entity]
+            vec![
+                MemoryType::CodePattern,
+                MemoryType::BugFix,
+                MemoryType::Entity
+            ]
         );
     }
 
@@ -301,8 +321,14 @@ mod tests {
     fn test_agent_role_from_str() {
         use std::str::FromStr;
 
-        assert_eq!(AgentRole::from_str("orchestrator").unwrap(), AgentRole::Orchestrator);
-        assert_eq!(AgentRole::from_str("Executor").unwrap(), AgentRole::Executor);
+        assert_eq!(
+            AgentRole::from_str("orchestrator").unwrap(),
+            AgentRole::Orchestrator
+        );
+        assert_eq!(
+            AgentRole::from_str("Executor").unwrap(),
+            AgentRole::Executor
+        );
         assert!(AgentRole::from_str("invalid").is_err());
     }
 
@@ -315,8 +341,12 @@ mod tests {
 
         // Mock storage for testing visibility
         // In real usage, we'd check visible_to field from database
-        assert!(executor.memory_types().contains(&pattern_memory.memory_type));
-        assert!(!executor.memory_types().contains(&decision_memory.memory_type));
+        assert!(executor
+            .memory_types()
+            .contains(&pattern_memory.memory_type));
+        assert!(!executor
+            .memory_types()
+            .contains(&decision_memory.memory_type));
     }
 
     #[tokio::test]

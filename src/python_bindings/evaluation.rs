@@ -5,14 +5,12 @@
 //! - FeatureExtractor: Extract privacy-preserving features
 //! - RelevanceScorer: Score context and update weights
 
-use crate::evaluation::{
-    FeedbackCollector, FeatureExtractor, RelevanceScorer,
-};
+use crate::evaluation::feature_extractor::RelevanceFeatures;
 use crate::evaluation::feedback_collector::{
     ContextEvaluation, ContextType, ErrorContext, ProvidedContext, TaskType, WorkPhase,
 };
-use crate::evaluation::feature_extractor::RelevanceFeatures;
 use crate::evaluation::relevance_scorer::{Scope, WeightSet};
+use crate::evaluation::{FeatureExtractor, FeedbackCollector, RelevanceScorer};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
@@ -170,7 +168,11 @@ impl PyFeatureExtractor {
 
         // Extract features
         let features = runtime
-            .block_on(async { self.extractor.extract_features(&evaluation, &context_keywords).await })
+            .block_on(async {
+                self.extractor
+                    .extract_features(&evaluation, &context_keywords)
+                    .await
+            })
             .map_err(|e| PyValueError::new_err(format!("Failed to extract features: {}", e)))?;
 
         // Convert to Python dictionary
@@ -273,7 +275,10 @@ fn parse_context_type(s: &str) -> PyResult<ContextType> {
         "file" => Ok(ContextType::File),
         "commit" => Ok(ContextType::Commit),
         "plan" => Ok(ContextType::Plan),
-        _ => Err(PyValueError::new_err(format!("Invalid context_type: {}", s))),
+        _ => Err(PyValueError::new_err(format!(
+            "Invalid context_type: {}",
+            s
+        ))),
     }
 }
 
@@ -309,7 +314,10 @@ fn parse_error_context(s: &str) -> PyResult<ErrorContext> {
         "test_failure" => Ok(ErrorContext::TestFailure),
         "lint" => Ok(ErrorContext::Lint),
         "none" => Ok(ErrorContext::None),
-        _ => Err(PyValueError::new_err(format!("Invalid error_context: {}", s))),
+        _ => Err(PyValueError::new_err(format!(
+            "Invalid error_context: {}",
+            s
+        ))),
     }
 }
 

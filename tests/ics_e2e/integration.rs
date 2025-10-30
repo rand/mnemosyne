@@ -8,8 +8,8 @@
 //! - W5: Large document performance
 
 use crate::ics_e2e::*;
-use mnemosyne_core::ics::{ProposalStatus, AgentActivity};
 use mnemosyne_core::ics::editor::TextBuffer;
+use mnemosyne_core::ics::{AgentActivity, ProposalStatus};
 
 /// W1: Complete document lifecycle
 #[tokio::test]
@@ -78,7 +78,10 @@ async fn w2_collaborative_refinement_session() {
 
     // Round 2: Optimizer adds precision
     let mut optimizer = actors::MockAgent::optimizer();
-    optimizer.set_activity(AgentActivity::Analyzing, Some("Analyzing performance claims".to_string()));
+    optimizer.set_activity(
+        AgentActivity::Analyzing,
+        Some("Analyzing performance claims".to_string()),
+    );
 
     let opt_proposals = optimizer.propose(&ctx.buffer_content());
 
@@ -128,7 +131,10 @@ async fn w3_error_recovery_workflow() {
     assert_agent_analyzing(&agent.info);
 
     // Phase 6: Successful analysis
-    let analysis = ctx.analyze().await.expect("Analysis should succeed after recovery");
+    let analysis = ctx
+        .analyze()
+        .await
+        .expect("Analysis should succeed after recovery");
     assert!(analysis.triples.len() >= 0);
 }
 
@@ -145,11 +151,20 @@ async fn w4_memory_driven_context_building() {
     edit_ctx.add_text("# Authentication Design\n\n");
 
     // Phase 2: Search relevant memories
-    let auth_memories: Vec<_> = ctx.memories.iter()
-        .filter(|m| m.keywords.iter().any(|k| k.contains("auth") || k.contains("security")))
+    let auth_memories: Vec<_> = ctx
+        .memories
+        .iter()
+        .filter(|m| {
+            m.keywords
+                .iter()
+                .any(|k| k.contains("auth") || k.contains("security"))
+        })
         .collect();
 
-    assert!(!auth_memories.is_empty(), "Should find auth-related memories");
+    assert!(
+        !auth_memories.is_empty(),
+        "Should find auth-related memories"
+    );
 
     // Phase 3: Agent uses memory context for proposals
     let reviewer = actors::MockAgent::reviewer();
@@ -192,14 +207,22 @@ async fn w5_large_document_performance() {
     let insert_duration = start.elapsed();
 
     // Should be fast (< 100ms for 1000 lines)
-    assert!(insert_duration.as_millis() < 100, "Insert should be fast: {:?}", insert_duration);
+    assert!(
+        insert_duration.as_millis() < 100,
+        "Insert should be fast: {:?}",
+        insert_duration
+    );
 
     // Measure content retrieval
     let start = Instant::now();
     let content = ctx.buffer_content();
     let read_duration = start.elapsed();
 
-    assert!(read_duration.as_millis() < 50, "Read should be fast: {:?}", read_duration);
+    assert!(
+        read_duration.as_millis() < 50,
+        "Read should be fast: {:?}",
+        read_duration
+    );
     assert!(content.len() > 10000, "Should have large content");
 
     // Measure analysis performance
@@ -208,10 +231,17 @@ async fn w5_large_document_performance() {
     let analysis_duration = start.elapsed();
 
     // Analysis may take longer but should complete
-    assert!(analysis_duration.as_secs() < 5, "Analysis should complete: {:?}", analysis_duration);
+    assert!(
+        analysis_duration.as_secs() < 5,
+        "Analysis should complete: {:?}",
+        analysis_duration
+    );
 
     // Verify analysis found semantic content
-    assert!(analysis.triples.len() > 0, "Should extract triples from large document");
+    assert!(
+        analysis.triples.len() > 0,
+        "Should extract triples from large document"
+    );
     assert!(analysis.entities.len() > 0, "Should extract entities");
 
     // Measure agent proposal generation
@@ -220,6 +250,10 @@ async fn w5_large_document_performance() {
     let proposals = agent.propose(&content);
     let proposal_duration = start.elapsed();
 
-    assert!(proposal_duration.as_millis() < 100, "Proposals should be fast: {:?}", proposal_duration);
+    assert!(
+        proposal_duration.as_millis() < 100,
+        "Proposals should be fast: {:?}",
+        proposal_duration
+    );
     assert!(proposals.len() >= 0, "Should generate proposals");
 }

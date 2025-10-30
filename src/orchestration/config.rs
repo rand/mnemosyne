@@ -263,9 +263,8 @@ impl BranchIsolationConfig {
             ))
         })?;
 
-        let config: BranchIsolationConfig = toml::from_str(&content).map_err(|e| {
-            MnemosyneError::Other(format!("Failed to parse config file: {}", e))
-        })?;
+        let config: BranchIsolationConfig = toml::from_str(&content)
+            .map_err(|e| MnemosyneError::Other(format!("Failed to parse config file: {}", e)))?;
 
         tracing::info!("Loaded configuration from {:?}", path);
         Ok(config)

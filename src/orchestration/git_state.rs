@@ -87,11 +87,7 @@ impl GitState {
 
             match current.parent() {
                 Some(parent) => current = parent.to_path_buf(),
-                None => {
-                    return Err(MnemosyneError::Other(
-                        "Not in a git repository".to_string(),
-                    ))
-                }
+                None => return Err(MnemosyneError::Other("Not in a git repository".to_string())),
             }
         }
     }
@@ -156,9 +152,7 @@ impl GitState {
             .arg("--porcelain")
             .current_dir(repo_root)
             .output()
-            .map_err(|e| {
-                MnemosyneError::Other(format!("Failed to execute git status: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Other(format!("Failed to execute git status: {}", e)))?;
 
         if !output.status.success() {
             return Err(MnemosyneError::Other(format!(

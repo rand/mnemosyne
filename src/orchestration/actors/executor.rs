@@ -68,10 +68,7 @@ impl ExecutorActor {
     }
 
     /// Execute a work item
-    async fn execute_work(
-        state: &mut ExecutorState,
-        item: WorkItem,
-    ) -> Result<()> {
+    async fn execute_work(state: &mut ExecutorState, item: WorkItem) -> Result<()> {
         tracing::info!("Executing work: {}", item.description);
 
         let item_id = item.id.clone();
@@ -130,10 +127,7 @@ impl ExecutorActor {
     }
 
     /// Spawn a sub-agent for parallel work
-    async fn spawn_sub_agent(
-        state: &mut ExecutorState,
-        work_item: WorkItem,
-    ) -> Result<()> {
+    async fn spawn_sub_agent(state: &mut ExecutorState, work_item: WorkItem) -> Result<()> {
         tracing::info!("Spawning sub-agent for: {}", work_item.description);
 
         // Check if we can spawn more sub-agents
@@ -163,15 +157,17 @@ impl ExecutorActor {
             (storage, namespace),
         )
         .await
-        .map_err(|e| crate::error::MnemosyneError::Other(
-            format!("Failed to spawn sub-agent: {:?}", e)
-        ))?;
+        .map_err(|e| {
+            crate::error::MnemosyneError::Other(format!("Failed to spawn sub-agent: {:?}", e))
+        })?;
 
         // Register orchestrator reference with child so it can report completion
         if let Some(ref orchestrator) = state.orchestrator {
             let _ = child_ref
                 .cast(ExecutorMessage::RegisterOrchestrator(orchestrator.clone()))
-                .map_err(|e| tracing::warn!("Failed to register orchestrator with sub-agent: {:?}", e));
+                .map_err(|e| {
+                    tracing::warn!("Failed to register orchestrator with sub-agent: {:?}", e)
+                });
         }
 
         // Store child reference for tracking
@@ -180,11 +176,17 @@ impl ExecutorActor {
         // Send work to child
         child_ref
             .cast(ExecutorMessage::ExecuteWork(work_item))
-            .map_err(|e| crate::error::MnemosyneError::Other(
-                format!("Failed to send work to sub-agent: {:?}", e)
-            ))?;
+            .map_err(|e| {
+                crate::error::MnemosyneError::Other(format!(
+                    "Failed to send work to sub-agent: {:?}",
+                    e
+                ))
+            })?;
 
-        tracing::debug!("Sub-agent spawned successfully, {} active sub-agents", state.sub_agents.len());
+        tracing::debug!(
+            "Sub-agent spawned successfully, {} active sub-agents",
+            state.sub_agents.len()
+        );
 
         Ok(())
     }

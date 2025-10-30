@@ -1,12 +1,14 @@
 //! Custom assertions for integration tests
 
-use mnemosyne_core::types::{MemoryNote, Namespace};
 use mnemosyne_core::ics::SemanticAnalysis;
+use mnemosyne_core::types::{MemoryNote, Namespace};
 
 /// Assert memory exists in list
 pub fn assert_memory_exists(memories: &[MemoryNote], content_substring: &str) {
     assert!(
-        memories.iter().any(|m| m.content.contains(content_substring)),
+        memories
+            .iter()
+            .any(|m| m.content.contains(content_substring)),
         "Expected memory containing '{}' not found. Found {} memories",
         content_substring,
         memories.len()
@@ -65,7 +67,10 @@ pub fn assert_min_triples(analysis: &SemanticAnalysis, min: usize) {
 pub fn assert_has_entities(analysis: &SemanticAnalysis, expected_entities: &[&str]) {
     for entity in expected_entities {
         assert!(
-            analysis.entities.iter().any(|(name, _count)| name.contains(entity)),
+            analysis
+                .entities
+                .iter()
+                .any(|(name, _count)| name.contains(entity)),
             "Expected entity '{}' not found in analysis",
             entity
         );

@@ -6,10 +6,10 @@
 //! - Output parsing for semantic highlighting
 //! - Bidirectional communication with wrapped process
 
-mod session;
 mod parser;
+mod session;
 mod wrapper;
 
-pub use session::{PtySession, PtyConfig, PtyOutput};
 pub use parser::{AgentMarker, OutputParser, ParsedChunk};
+pub use session::{PtyConfig, PtyOutput, PtySession};
 pub use wrapper::ClaudeCodeWrapper;

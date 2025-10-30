@@ -120,7 +120,8 @@ impl TextBuffer {
         // Reverse the edit
         if !edit.inserted.is_empty() {
             // Was insertion, remove it
-            self.content.remove(edit.position..edit.position + edit.inserted.len());
+            self.content
+                .remove(edit.position..edit.position + edit.inserted.len());
         }
         if !edit.deleted.is_empty() {
             // Was deletion, reinsert it
@@ -140,7 +141,8 @@ impl TextBuffer {
         // Replay the edit
         if !edit.deleted.is_empty() {
             // Was deletion, delete again
-            self.content.remove(edit.position..edit.position + edit.deleted.len());
+            self.content
+                .remove(edit.position..edit.position + edit.deleted.len());
         }
         if !edit.inserted.is_empty() {
             // Was insertion, insert again
@@ -155,7 +157,9 @@ impl TextBuffer {
 
     /// Convert cursor position to character index
     fn cursor_to_char_idx(&self) -> usize {
-        let line_idx = self.content.line_to_char(self.cursor.position.line.min(self.content.len_lines() - 1));
+        let line_idx = self
+            .content
+            .line_to_char(self.cursor.position.line.min(self.content.len_lines() - 1));
         line_idx + self.cursor.position.column
     }
 
@@ -195,7 +199,9 @@ impl TextBuffer {
 
     /// Save buffer to disk
     pub fn save_file(&mut self) -> Result<()> {
-        let path = self.path.as_ref()
+        let path = self
+            .path
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("No file path set"))?;
 
         let content = self.content.to_string();
@@ -339,7 +345,11 @@ mod tests {
         // Move to line end
         buffer.move_cursor(Movement::LineEnd);
         // Rope lines include newlines, so line length includes '\n'
-        let line_len = buffer.line(buffer.cursor.position.line).unwrap().trim_end().len();
+        let line_len = buffer
+            .line(buffer.cursor.position.line)
+            .unwrap()
+            .trim_end()
+            .len();
         assert_eq!(buffer.cursor.position.column, line_len);
 
         // Move to line start

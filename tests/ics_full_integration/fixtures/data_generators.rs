@@ -1,7 +1,7 @@
 //! Data generators for creating realistic test data
 
-use mnemosyne_core::types::{MemoryNote, MemoryType, Namespace};
 use super::storage_fixture::create_test_memory;
+use mnemosyne_core::types::{MemoryNote, MemoryType, Namespace};
 
 /// Generate a batch of related memories
 pub fn generate_memory_batch(

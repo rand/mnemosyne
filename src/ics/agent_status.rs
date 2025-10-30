@@ -155,7 +155,8 @@ impl<'a> StatefulWidget for AgentStatusWidget<'a> {
                 )),
             ];
 
-            let paragraph = Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
+            let paragraph =
+                Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
             paragraph.render(inner, buf);
             return;
         }

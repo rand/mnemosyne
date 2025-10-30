@@ -127,9 +127,10 @@ impl BranchGuard {
             return Ok(());
         }
 
-        let registry = self.registry.read().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to read registry: {}", e))
-        })?;
+        let registry = self
+            .registry
+            .read()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to read registry: {}", e)))?;
 
         // Check if agent already assigned
         if let Some(current_assignment) = registry.get_agent_assignment(&agent_identity.id) {
@@ -191,9 +192,10 @@ impl BranchGuard {
         agent_identity: &AgentIdentity,
         new_intent: &WorkIntent,
     ) -> Result<()> {
-        let registry = self.registry.read().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to read registry: {}", e))
-        })?;
+        let registry = self
+            .registry
+            .read()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to read registry: {}", e)))?;
 
         let current_assignment = registry
             .get_agent_assignment(&agent_identity.id)
@@ -244,11 +246,7 @@ impl BranchGuard {
     ///
     /// * `agent_id` - Agent executing command
     /// * `args` - Git command arguments
-    pub fn execute_git(
-        &self,
-        agent_id: &AgentId,
-        args: &[String],
-    ) -> Result<std::process::Output> {
+    pub fn execute_git(&self, agent_id: &AgentId, args: &[String]) -> Result<std::process::Output> {
         if !self.config.enabled {
             // If disabled, execute directly without validation
             return std::process::Command::new("git")
@@ -275,9 +273,10 @@ impl BranchGuard {
             return Ok(());
         }
 
-        let registry = self.registry.read().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to read registry: {}", e))
-        })?;
+        let registry = self
+            .registry
+            .read()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to read registry: {}", e)))?;
 
         let assignment = registry.get_agent_assignment(agent_id).ok_or_else(|| {
             MnemosyneError::NotFound(format!("No assignment for agent {}", agent_id))
@@ -305,9 +304,10 @@ impl BranchGuard {
             return Ok(());
         }
 
-        let registry = self.registry.read().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to read registry: {}", e))
-        })?;
+        let registry = self
+            .registry
+            .read()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to read registry: {}", e)))?;
 
         let assignment = registry.get_agent_assignment(agent_id).ok_or_else(|| {
             MnemosyneError::NotFound(format!("No assignment for agent {}", agent_id))
@@ -429,11 +429,8 @@ mod tests {
         );
 
         // Orchestrator should bypass restrictions
-        let result = guard.validate_branch_access(
-            &orchestrator,
-            "any-branch",
-            &WorkIntent::FullBranch,
-        );
+        let result =
+            guard.validate_branch_access(&orchestrator, "any-branch", &WorkIntent::FullBranch);
 
         assert!(result.is_ok());
     }

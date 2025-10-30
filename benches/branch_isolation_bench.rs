@@ -7,17 +7,16 @@
 //! - Persistence: <20ms for save/load
 //! - Notifications: <5ms per notification
 
+use chrono::Utc;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use mnemosyne_core::launcher::agents::AgentRole;
 use mnemosyne_core::orchestration::{
-    AgentId, AgentIdentity, BranchRegistry, ConflictDetector, ConflictNotifier,
-    CrossProcessCoordinator, FileTracker, ModificationType, NotificationConfig,
-    WorkIntent, CoordinationMode,
+    AgentId, AgentIdentity, BranchRegistry, ConflictDetector, ConflictNotifier, CoordinationMode,
+    CrossProcessCoordinator, FileTracker, ModificationType, NotificationConfig, WorkIntent,
 };
 use mnemosyne_core::types::Namespace;
 use std::path::PathBuf;
 use std::sync::Arc;
-use chrono::Utc;
 use tempfile::TempDir;
 
 /// Create test agent identity
@@ -46,14 +45,16 @@ fn bench_registry_operations(c: &mut Criterion) {
             let agent_id = AgentId::new();
             let agent = create_test_agent(agent_id.clone());
 
-            registry.assign_branch(
-                black_box(&agent_id),
-                black_box(&agent),
-                black_box("main"),
-                black_box(WorkIntent::FullBranch),
-                black_box(CoordinationMode::Isolated),
-                black_box(vec![]),
-            ).unwrap();
+            registry
+                .assign_branch(
+                    black_box(&agent_id),
+                    black_box(&agent),
+                    black_box("main"),
+                    black_box(WorkIntent::FullBranch),
+                    black_box(CoordinationMode::Isolated),
+                    black_box(vec![]),
+                )
+                .unwrap();
         });
     });
 
@@ -62,8 +63,16 @@ fn bench_registry_operations(c: &mut Criterion) {
         let mut registry = BranchRegistry::new();
         let agent_id = AgentId::new();
         let agent = create_test_agent(agent_id.clone());
-        registry.assign_branch(&agent_id, &agent, "main", WorkIntent::FullBranch,
-                             CoordinationMode::Isolated, vec![]).unwrap();
+        registry
+            .assign_branch(
+                &agent_id,
+                &agent,
+                "main",
+                WorkIntent::FullBranch,
+                CoordinationMode::Isolated,
+                vec![],
+            )
+            .unwrap();
 
         b.iter(|| {
             let assignments = registry.get_assignments(black_box("main"));
@@ -78,8 +87,16 @@ fn bench_registry_operations(c: &mut Criterion) {
                 let mut registry = BranchRegistry::new();
                 let agent_id = AgentId::new();
                 let agent = create_test_agent(agent_id.clone());
-                registry.assign_branch(&agent_id, &agent, "main", WorkIntent::FullBranch,
-                                     CoordinationMode::Isolated, vec![]).unwrap();
+                registry
+                    .assign_branch(
+                        &agent_id,
+                        &agent,
+                        "main",
+                        WorkIntent::FullBranch,
+                        CoordinationMode::Isolated,
+                        vec![],
+                    )
+                    .unwrap();
                 (registry, agent_id)
             },
             |(mut registry, agent_id)| {
@@ -109,11 +126,13 @@ fn bench_conflict_detection(c: &mut Criterion) {
 
                 b.iter(|| {
                     for i in 0..num_files {
-                        file_tracker.track_modification(
-                            black_box(&agent_id),
-                            black_box(&PathBuf::from(format!("file_{}.rs", i))),
-                            black_box(ModificationType::Modified),
-                        ).unwrap();
+                        file_tracker
+                            .track_modification(
+                                black_box(&agent_id),
+                                black_box(&PathBuf::from(format!("file_{}.rs", i))),
+                                black_box(ModificationType::Modified),
+                            )
+                            .unwrap();
                     }
                 });
             },
@@ -131,8 +150,12 @@ fn bench_conflict_detection(c: &mut Criterion) {
                 // Setup: Both agents modify the same files
                 for i in 0..num_files {
                     let path = PathBuf::from(format!("file_{}.rs", i));
-                    file_tracker.track_modification(&agent1, &path, ModificationType::Modified).unwrap();
-                    file_tracker.track_modification(&agent2, &path, ModificationType::Modified).unwrap();
+                    file_tracker
+                        .track_modification(&agent1, &path, ModificationType::Modified)
+                        .unwrap();
+                    file_tracker
+                        .track_modification(&agent2, &path, ModificationType::Modified)
+                        .unwrap();
                 }
 
                 b.iter(|| {
@@ -216,14 +239,16 @@ fn bench_persistence(c: &mut Criterion) {
                 for i in 0..10 {
                     let agent_id = AgentId::new();
                     let agent = create_test_agent(agent_id.clone());
-                    registry.assign_branch(
-                        &agent_id,
-                        &agent,
-                        &format!("branch_{}", i),
-                        WorkIntent::FullBranch,
-                        CoordinationMode::Isolated,
-                        vec![],
-                    ).unwrap();
+                    registry
+                        .assign_branch(
+                            &agent_id,
+                            &agent,
+                            &format!("branch_{}", i),
+                            WorkIntent::FullBranch,
+                            CoordinationMode::Isolated,
+                            vec![],
+                        )
+                        .unwrap();
                 }
                 registry
             },
@@ -258,8 +283,12 @@ fn bench_notifications(c: &mut Criterion) {
         let agent1 = AgentId::new();
         let agent2 = AgentId::new();
         let path = PathBuf::from("src/main.rs");
-        file_tracker.track_modification(&agent1, &path, ModificationType::Modified).unwrap();
-        file_tracker.track_modification(&agent2, &path, ModificationType::Modified).unwrap();
+        file_tracker
+            .track_modification(&agent1, &path, ModificationType::Modified)
+            .unwrap();
+        file_tracker
+            .track_modification(&agent2, &path, ModificationType::Modified)
+            .unwrap();
 
         b.iter(|| {
             let notification = notifier.notify_on_save(black_box(&agent1), black_box(&path));
@@ -283,8 +312,12 @@ fn bench_notifications(c: &mut Criterion) {
         for i in 0..5 {
             let agent2 = AgentId::new();
             let path = PathBuf::from(format!("src/file_{}.rs", i));
-            file_tracker.track_modification(&agent1, &path, ModificationType::Modified).unwrap();
-            file_tracker.track_modification(&agent2, &path, ModificationType::Modified).unwrap();
+            file_tracker
+                .track_modification(&agent1, &path, ModificationType::Modified)
+                .unwrap();
+            file_tracker
+                .track_modification(&agent2, &path, ModificationType::Modified)
+                .unwrap();
         }
 
         b.iter(|| {

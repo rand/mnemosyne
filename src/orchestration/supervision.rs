@@ -158,7 +158,11 @@ impl SupervisionTree {
 
         // Register in registry
         self.registry
-            .register(optimizer_id.clone(), "Optimizer".to_string(), AgentRole::Optimizer)
+            .register(
+                optimizer_id.clone(),
+                "Optimizer".to_string(),
+                AgentRole::Optimizer,
+            )
             .await;
 
         self.optimizer = Some(optimizer_ref);
@@ -179,7 +183,11 @@ impl SupervisionTree {
 
         // Register in registry
         self.registry
-            .register(reviewer_id.clone(), "Reviewer".to_string(), AgentRole::Reviewer)
+            .register(
+                reviewer_id.clone(),
+                "Reviewer".to_string(),
+                AgentRole::Reviewer,
+            )
             .await;
 
         self.reviewer = Some(reviewer_ref);
@@ -200,7 +208,11 @@ impl SupervisionTree {
 
         // Register in registry
         self.registry
-            .register(executor_id.clone(), "Executor".to_string(), AgentRole::Executor)
+            .register(
+                executor_id.clone(),
+                "Executor".to_string(),
+                AgentRole::Executor,
+            )
             .await;
 
         self.executor = Some(executor_ref);
@@ -221,7 +233,11 @@ impl SupervisionTree {
 
         // Register in registry
         self.registry
-            .register(orchestrator_id.clone(), "Orchestrator".to_string(), AgentRole::Orchestrator)
+            .register(
+                orchestrator_id.clone(),
+                "Orchestrator".to_string(),
+                AgentRole::Orchestrator,
+            )
             .await;
 
         self.orchestrator = Some(orchestrator_ref);
@@ -300,11 +316,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_supervision_tree() {
-        let storage = Arc::new(
-            LibsqlStorage::new(ConnectionMode::InMemory)
-                .await
-                .unwrap(),
-        );
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
 
         let network = Arc::new(network::NetworkLayer::new().await.unwrap());
 

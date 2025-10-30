@@ -17,7 +17,7 @@ use crate::orchestration::branch_guard::BranchGuard;
 use crate::orchestration::branch_registry::{
     AgentAssignment, CoordinationMode, SharedBranchRegistry, WorkIntent,
 };
-use crate::orchestration::conflict_notifier::{ConflictNotifier, NotificationConfig};
+use crate::orchestration::conflict_notifier::ConflictNotifier;
 use crate::orchestration::cross_process::{
     CoordinationMessage, CrossProcessCoordinator, MessageType,
 };
@@ -187,8 +187,9 @@ impl BranchCoordinator {
 
     /// Auto-approve read-only access
     async fn approve_readonly_access(&self, request: JoinRequest) -> Result<JoinResponse> {
-        let mut registry = self.registry.write()
-            .map_err(|e| MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e)))?;
+        let mut registry = self.registry.write().map_err(|e| {
+            MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e))
+        })?;
 
         registry.assign_agent(
             request.agent_identity.id.clone(),
@@ -216,8 +217,9 @@ impl BranchCoordinator {
 
     /// Approve coordinator access (orchestrator bypass)
     async fn approve_coordinator_access(&self, request: JoinRequest) -> Result<JoinResponse> {
-        let mut registry = self.registry.write()
-            .map_err(|e| MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e)))?;
+        let mut registry = self.registry.write().map_err(|e| {
+            MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e))
+        })?;
 
         registry.assign_agent(
             request.agent_identity.id.clone(),
@@ -245,8 +247,9 @@ impl BranchCoordinator {
 
     /// Create assignment after validation succeeds
     async fn create_assignment(&self, request: JoinRequest) -> Result<JoinResponse> {
-        let mut registry = self.registry.write()
-            .map_err(|e| MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e)))?;
+        let mut registry = self.registry.write().map_err(|e| {
+            MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e))
+        })?;
 
         // Check if there are other agents on this branch
         let existing = registry
@@ -275,7 +278,8 @@ impl BranchCoordinator {
             })
         } else {
             // Other agents present, requires coordination
-            let other_agent_ids: Vec<AgentId> = existing.iter().map(|a| a.agent_id.clone()).collect();
+            let other_agent_ids: Vec<AgentId> =
+                existing.iter().map(|a| a.agent_id.clone()).collect();
 
             // Send coordination notifications
             self.notify_coordination_required(&request.agent_identity.id, &other_agent_ids)
@@ -375,8 +379,9 @@ impl BranchCoordinator {
 
         // If cross-process coordination enabled, send messages
         if let Some(ref coordinator) = self.cross_process {
-            let coordinator = coordinator.read()
-                .map_err(|e| MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e)))?;
+            let coordinator = coordinator.read().map_err(|e| {
+                MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e))
+            })?;
             for agent_id in existing_agents {
                 let message = CoordinationMessage {
                     id: uuid::Uuid::new_v4().to_string(),
@@ -399,8 +404,9 @@ impl BranchCoordinator {
 
     /// Release an agent's assignment
     pub async fn release_assignment(&self, agent_id: &AgentId) -> Result<()> {
-        let mut registry = self.registry.write()
-            .map_err(|e| MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e)))?;
+        let mut registry = self.registry.write().map_err(|e| {
+            MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e))
+        })?;
         registry.release_assignment(agent_id)?;
 
         tracing::info!("Released assignment for agent {}", agent_id);
@@ -409,12 +415,10 @@ impl BranchCoordinator {
     }
 
     /// Get active assignments for a branch
-    pub async fn get_branch_assignments(
-        &self,
-        branch: &str,
-    ) -> Result<Vec<AgentAssignment>> {
-        let registry = self.registry.read()
-            .map_err(|e| MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e)))?;
+    pub async fn get_branch_assignments(&self, branch: &str) -> Result<Vec<AgentAssignment>> {
+        let registry = self.registry.read().map_err(|e| {
+            MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e))
+        })?;
         Ok(registry.get_assignments(branch))
     }
 
@@ -422,8 +426,9 @@ impl BranchCoordinator {
     ///
     /// Returns branches that currently have at least one agent assigned.
     pub fn get_active_branches(&self) -> Result<Vec<String>> {
-        let registry = self.registry.read()
-            .map_err(|e| MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e)))?;
+        let registry = self.registry.read().map_err(|e| {
+            MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e))
+        })?;
         Ok(registry.active_branches())
     }
 
@@ -438,20 +443,22 @@ impl BranchCoordinator {
     }
 
     /// Get all active conflicts
-    pub fn get_all_conflicts(&self) -> Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
+    pub fn get_all_conflicts(
+        &self,
+    ) -> Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
         self.notifier.get_all_conflicts()
     }
 
     /// Get conflicts for a specific agent
-    pub fn get_agent_conflicts(&self, agent_id: &AgentId) -> Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
+    pub fn get_agent_conflicts(
+        &self,
+        agent_id: &AgentId,
+    ) -> Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
         self.notifier.get_agent_conflicts(agent_id)
     }
 
     /// Initialize cross-process coordinator for an agent
-    pub async fn initialize_cross_process(
-        &mut self,
-        agent_id: AgentId,
-    ) -> Result<()> {
+    pub async fn initialize_cross_process(&mut self, agent_id: AgentId) -> Result<()> {
         if !self.config.enable_cross_process {
             return Ok(());
         }
@@ -469,8 +476,9 @@ impl BranchCoordinator {
     /// Process incoming cross-process messages
     pub async fn process_cross_process_messages(&self) -> Result<Vec<CoordinationMessage>> {
         if let Some(ref coordinator) = self.cross_process {
-            let coordinator = coordinator.read()
-                .map_err(|e| MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e)))?;
+            let coordinator = coordinator.read().map_err(|e| {
+                MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e))
+            })?;
             coordinator.receive_messages()
         } else {
             Ok(vec![])
@@ -480,8 +488,9 @@ impl BranchCoordinator {
     /// Send heartbeat (if cross-process enabled)
     pub async fn send_heartbeat(&self) -> Result<()> {
         if let Some(ref coordinator) = self.cross_process {
-            let mut coordinator = coordinator.write()
-                .map_err(|e| MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e)))?;
+            let mut coordinator = coordinator.write().map_err(|e| {
+                MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e))
+            })?;
             coordinator.heartbeat()?;
         }
         Ok(())
@@ -490,8 +499,9 @@ impl BranchCoordinator {
     /// Cleanup stale processes (if cross-process enabled)
     pub async fn cleanup_stale_processes(&self) -> Result<Vec<AgentId>> {
         if let Some(ref coordinator) = self.cross_process {
-            let coordinator = coordinator.read()
-                .map_err(|e| MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e)))?;
+            let coordinator = coordinator.read().map_err(|e| {
+                MnemosyneError::Other(format!("Failed to acquire cross-process lock: {}", e))
+            })?;
             coordinator.cleanup_stale_processes()
         } else {
             Ok(vec![])

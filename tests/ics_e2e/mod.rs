@@ -13,18 +13,13 @@
 //! - Custom assertions for E2E validation
 //! - Helpers for common test operations
 
-pub mod helpers;
-pub mod human_workflows;
 pub mod agent_workflows;
 pub mod collaborative;
-pub mod integration;
 pub mod edge_cases;
+pub mod helpers;
+pub mod human_workflows;
+pub mod integration;
 
 // Re-export test helpers for use in test modules
 #[allow(unused_imports)]
-pub use helpers::{
-    fixtures,
-    actors,
-    assertions::*,
-    TestContext,
-};
+pub use helpers::{actors, assertions::*, fixtures, TestContext};

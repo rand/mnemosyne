@@ -44,7 +44,11 @@ fn test_store_and_retrieve_vector() {
     assert!(retrieved.is_some(), "Vector should be found");
 
     let retrieved = retrieved.unwrap();
-    assert_eq!(retrieved.len(), 1536, "Vector should have correct dimensions");
+    assert_eq!(
+        retrieved.len(),
+        1536,
+        "Vector should have correct dimensions"
+    );
 
     // Check values are close (floating point comparison)
     for (a, b) in embedding.iter().zip(retrieved.iter()) {
@@ -64,7 +68,10 @@ fn test_dimension_mismatch_error() {
     let result = storage.store_vector(&memory_id, &wrong_embedding);
     assert!(result.is_err(), "Should fail with dimension mismatch");
     assert!(
-        result.unwrap_err().to_string().contains("dimension mismatch"),
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("dimension mismatch"),
         "Error should mention dimension mismatch"
     );
 }
@@ -305,7 +312,11 @@ fn test_empty_search_returns_empty() {
     let query = generate_embedding(0, 1536);
     let results = storage.search_similar(&query, 10, 0.0).unwrap();
 
-    assert_eq!(results.len(), 0, "Should return empty results for empty storage");
+    assert_eq!(
+        results.len(),
+        0,
+        "Should return empty results for empty storage"
+    );
 }
 
 #[test]
@@ -333,7 +344,12 @@ fn test_search_performance_10k_vectors() {
     let batch_size = 1000;
     for batch in 0..10 {
         let vectors: Vec<(MemoryId, Vec<f32>)> = (0..batch_size)
-            .map(|i| (MemoryId::new(), generate_embedding(batch * batch_size + i, 1536)))
+            .map(|i| {
+                (
+                    MemoryId::new(),
+                    generate_embedding(batch * batch_size + i, 1536),
+                )
+            })
             .collect();
         storage.batch_store_vectors(&vectors).unwrap();
     }

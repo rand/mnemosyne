@@ -227,14 +227,21 @@ impl BackgroundScheduler {
                     Some(JobReport {
                         memories_processed: 0,
                         changes_made: 0,
-                        duration: start_time.signed_duration_since(Utc::now()).to_std().unwrap_or_default(),
+                        duration: start_time
+                            .signed_duration_since(Utc::now())
+                            .to_std()
+                            .unwrap_or_default(),
                         errors: 1,
                         error_message: Some(e.to_string()),
                     }),
                 )
             }
             Err(_) => {
-                tracing::error!("Job {} timed out after {:?}", job_name, job_config.max_duration);
+                tracing::error!(
+                    "Job {} timed out after {:?}",
+                    job_name,
+                    job_config.max_duration
+                );
                 (
                     JobStatus::Timeout,
                     Some(JobReport {
@@ -261,7 +268,9 @@ impl BackgroundScheduler {
         self.record_job_run(&job_run).await?;
 
         report.ok_or_else(|| {
-            SchedulerError::JobError(JobError::ExecutionError("Job completed but no report generated".to_string()))
+            SchedulerError::JobError(JobError::ExecutionError(
+                "Job completed but no report generated".to_string(),
+            ))
         })
     }
 
@@ -281,15 +290,19 @@ impl BackgroundScheduler {
                     max_duration: Duration::from_secs(300), // 5 minutes
                 });
             }
-            _ => return Err(SchedulerError::JobError(
-                JobError::ConfigError(format!("Unknown job name: {}", job_name))
-            )),
+            _ => {
+                return Err(SchedulerError::JobError(JobError::ConfigError(format!(
+                    "Unknown job name: {}",
+                    job_name
+                ))))
+            }
         };
 
         if !config.enabled {
-            return Err(SchedulerError::JobError(
-                JobError::ConfigError(format!("Job {} is disabled", job_name))
-            ));
+            return Err(SchedulerError::JobError(JobError::ConfigError(format!(
+                "Job {} is disabled",
+                job_name
+            ))));
         }
 
         Ok(config.clone())
@@ -312,7 +325,11 @@ impl BackgroundScheduler {
     async fn record_job_run(&self, _job_run: &JobRun) -> Result<(), SchedulerError> {
         // In full implementation, this would insert into evolution_job_runs table
         // For now, just log
-        tracing::debug!("Job run recorded: {} - {:?}", _job_run.job_name, _job_run.status);
+        tracing::debug!(
+            "Job run recorded: {} - {:?}",
+            _job_run.job_name,
+            _job_run.status
+        );
         Ok(())
     }
 

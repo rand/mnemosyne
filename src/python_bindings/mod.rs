@@ -6,10 +6,10 @@
 //! - High-frequency context monitoring (10ms polling)
 //! - Shared memory coordination between agents
 
-mod storage;
-mod memory;
 mod coordination;
 mod evaluation;
+mod memory;
+mod storage;
 
 use pyo3::prelude::*;
 

@@ -203,23 +203,26 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
         let enrichment: EnrichmentResponse = match serde_json::from_str(&response) {
             Ok(data) => data,
             Err(e) => {
-                warn!("JSON parsing failed: {}, attempting fallback string parsing", e);
+                warn!(
+                    "JSON parsing failed: {}, attempting fallback string parsing",
+                    e
+                );
                 // Fallback to old string parsing for backward compatibility
-                let summary = self.extract_field(&response, "SUMMARY:").or_else(|_| {
-                    self.extract_field(&response, "summary:")
-                })?;
-                let keywords_str = self.extract_field(&response, "KEYWORDS:").or_else(|_| {
-                    self.extract_field(&response, "keywords:")
-                })?;
-                let tags_str = self.extract_field(&response, "TAGS:").or_else(|_| {
-                    self.extract_field(&response, "tags:")
-                })?;
-                let type_str = self.extract_field(&response, "TYPE:").or_else(|_| {
-                    self.extract_field(&response, "type:")
-                })?;
-                let importance_str = self.extract_field(&response, "IMPORTANCE:").or_else(|_| {
-                    self.extract_field(&response, "importance:")
-                })?;
+                let summary = self
+                    .extract_field(&response, "SUMMARY:")
+                    .or_else(|_| self.extract_field(&response, "summary:"))?;
+                let keywords_str = self
+                    .extract_field(&response, "KEYWORDS:")
+                    .or_else(|_| self.extract_field(&response, "keywords:"))?;
+                let tags_str = self
+                    .extract_field(&response, "TAGS:")
+                    .or_else(|_| self.extract_field(&response, "tags:"))?;
+                let type_str = self
+                    .extract_field(&response, "TYPE:")
+                    .or_else(|_| self.extract_field(&response, "type:"))?;
+                let importance_str = self
+                    .extract_field(&response, "IMPORTANCE:")
+                    .or_else(|_| self.extract_field(&response, "importance:"))?;
 
                 EnrichmentResponse {
                     summary,
@@ -403,7 +406,10 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
         let link_response: LinkResponse = match serde_json::from_str(&response) {
             Ok(data) => data,
             Err(e) => {
-                warn!("JSON parsing failed: {}, attempting fallback string parsing", e);
+                warn!(
+                    "JSON parsing failed: {}, attempting fallback string parsing",
+                    e
+                );
                 // Fallback to old string parsing for backward compatibility
                 if response.trim() == "NO_LINKS" {
                     return Ok(vec![]);
@@ -417,7 +423,11 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
                             if let Ok(index) = parts[0].trim().parse::<usize>() {
                                 if index < candidates.len() {
                                     let link_type = parts[1].trim().to_string();
-                                    let strength = parts[2].trim().parse::<f32>().unwrap_or(0.5).clamp(0.0, 1.0);
+                                    let strength = parts[2]
+                                        .trim()
+                                        .parse::<f32>()
+                                        .unwrap_or(0.5)
+                                        .clamp(0.0, 1.0);
                                     let reason = parts[3..].join(",").trim().to_string();
 
                                     link_entries.push(LinkEntry {
@@ -431,7 +441,9 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
                         }
                     }
                 }
-                LinkResponse { links: link_entries }
+                LinkResponse {
+                    links: link_entries,
+                }
             }
         };
 
@@ -439,7 +451,11 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
         let mut links = Vec::new();
         for entry in link_response.links {
             if entry.index >= candidates.len() {
-                warn!("Link index {} out of bounds for {} candidates", entry.index, candidates.len());
+                warn!(
+                    "Link index {} out of bounds for {} candidates",
+                    entry.index,
+                    candidates.len()
+                );
                 continue;
             }
 
@@ -556,17 +572,22 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
         let consolidation_response: ConsolidationResponse = match serde_json::from_str(&response) {
             Ok(data) => data,
             Err(e) => {
-                warn!("JSON parsing failed: {}, attempting fallback string parsing", e);
+                warn!(
+                    "JSON parsing failed: {}, attempting fallback string parsing",
+                    e
+                );
                 // Fallback to old string parsing for backward compatibility
-                let decision_str = self.extract_field(&response, "DECISION:").or_else(|_| {
-                    self.extract_field(&response, "decision:")
-                })?;
-                let reason = self.extract_field(&response, "REASON:").or_else(|_| {
-                    self.extract_field(&response, "reason:")
-                }).unwrap_or_else(|_| "No reason provided".to_string());
-                let superseding_str = self.extract_field(&response, "SUPERSEDING_ID:").or_else(|_| {
-                    self.extract_field(&response, "superseding_id:")
-                }).ok();
+                let decision_str = self
+                    .extract_field(&response, "DECISION:")
+                    .or_else(|_| self.extract_field(&response, "decision:"))?;
+                let reason = self
+                    .extract_field(&response, "REASON:")
+                    .or_else(|_| self.extract_field(&response, "reason:"))
+                    .unwrap_or_else(|_| "No reason provided".to_string());
+                let superseding_str = self
+                    .extract_field(&response, "SUPERSEDING_ID:")
+                    .or_else(|_| self.extract_field(&response, "superseding_id:"))
+                    .ok();
 
                 ConsolidationResponse {
                     decision: decision_str.trim().to_string(),
@@ -633,9 +654,9 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
     pub async fn call_api(&self, prompt: &str) -> Result<String> {
         // Check for API key before making request
         if self.config.api_key.is_empty() {
-            return Err(MnemosyneError::Config(
-                config::ConfigError::Message("ANTHROPIC_API_KEY not set".to_string()),
-            ));
+            return Err(MnemosyneError::Config(config::ConfigError::Message(
+                "ANTHROPIC_API_KEY not set".to_string(),
+            )));
         }
 
         debug!("Calling Anthropic API");
@@ -713,9 +734,7 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
             .find(|line| line.starts_with(field))
             .and_then(|line| line.strip_prefix(field))
             .map(|s| s.trim().to_string())
-            .ok_or_else(|| {
-                MnemosyneError::LlmApi(format!("Failed to extract field: {}", field))
-            })
+            .ok_or_else(|| MnemosyneError::LlmApi(format!("Failed to extract field: {}", field)))
     }
 }
 

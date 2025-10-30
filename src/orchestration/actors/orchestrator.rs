@@ -13,7 +13,9 @@ use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{
     ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage, WorkResult,
 };
-use crate::orchestration::state::{AgentState, Phase, SharedWorkQueue, WorkItem, WorkItemId, WorkQueue};
+use crate::orchestration::state::{
+    AgentState, Phase, SharedWorkQueue, WorkItem, WorkItemId, WorkQueue,
+};
 use crate::storage::StorageBackend;
 use crate::types::Namespace;
 use ractor::{Actor, ActorProcessingErr, ActorRef};
@@ -83,10 +85,7 @@ impl OrchestratorActor {
     }
 
     /// Handle work submission
-    async fn handle_submit_work(
-        state: &mut OrchestratorState,
-        item: WorkItem,
-    ) -> Result<()> {
+    async fn handle_submit_work(state: &mut OrchestratorState, item: WorkItem) -> Result<()> {
         tracing::info!("Submitting work: {}", item.description);
 
         // Add to work queue
@@ -275,7 +274,11 @@ impl OrchestratorActor {
 
         // Cancel lower-priority items (bottom 50%)
         let cancel_count = (deadlocked_items.len() + 1) / 2;
-        let to_cancel: Vec<_> = deadlocked_items.iter().take(cancel_count).cloned().collect();
+        let to_cancel: Vec<_> = deadlocked_items
+            .iter()
+            .take(cancel_count)
+            .cloned()
+            .collect();
 
         tracing::info!(
             "Preempting {} lower-priority items out of {}",
@@ -299,10 +302,7 @@ impl OrchestratorActor {
                     // Reset to Ready state for retry
                     item.transition(AgentState::Ready);
                     item.started_at = None;
-                    item.error = Some(format!(
-                        "Preempted due to deadlock (priority {})",
-                        priority
-                    ));
+                    item.error = Some(format!("Preempted due to deadlock (priority {})", priority));
 
                     preempted_ids.push(id);
                 }
@@ -342,7 +342,8 @@ impl OrchestratorActor {
         // Update work queue phase
         {
             let mut queue = state.work_queue.write().await;
-            queue.transition_phase(to)
+            queue
+                .transition_phase(to)
                 .map_err(|e| crate::error::MnemosyneError::Other(e))?;
         }
 
@@ -364,10 +365,7 @@ impl OrchestratorActor {
         state: &mut OrchestratorState,
         current_pct: f32,
     ) -> Result<()> {
-        tracing::warn!(
-            "Context threshold reached: {:.1}%",
-            current_pct * 100.0
-        );
+        tracing::warn!("Context threshold reached: {:.1}%", current_pct * 100.0);
 
         state.context_usage_pct = current_pct;
 

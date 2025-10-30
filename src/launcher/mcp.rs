@@ -48,7 +48,10 @@ impl McpConfigGenerator {
         let mut env = HashMap::new();
         env.insert("MNEMOSYNE_NAMESPACE".to_string(), self.namespace.clone());
         env.insert("MNEMOSYNE_DB_PATH".to_string(), self.db_path.clone());
-        env.insert("MNEMOSYNE_AGENT_ROLE".to_string(), self.agent_role.as_str().to_string());
+        env.insert(
+            "MNEMOSYNE_AGENT_ROLE".to_string(),
+            self.agent_role.as_str().to_string(),
+        );
         env.insert("RUST_LOG".to_string(), "info".to_string());
 
         let server_config = McpServerConfig {
@@ -73,7 +76,10 @@ impl McpConfigGenerator {
         let mut env = HashMap::new();
         env.insert("MNEMOSYNE_NAMESPACE".to_string(), self.namespace.clone());
         env.insert("MNEMOSYNE_DB_PATH".to_string(), self.db_path.clone());
-        env.insert("MNEMOSYNE_AGENT_ROLE".to_string(), self.agent_role.as_str().to_string());
+        env.insert(
+            "MNEMOSYNE_AGENT_ROLE".to_string(),
+            self.agent_role.as_str().to_string(),
+        );
         env.insert("RUST_LOG".to_string(), "info".to_string());
 
         let server_config = McpServerConfig {
@@ -117,10 +123,7 @@ mod tests {
             config["mcpServers"]["mnemosyne"]["command"],
             "/usr/local/bin/mnemosyne"
         );
-        assert_eq!(
-            config["mcpServers"]["mnemosyne"]["args"][0],
-            "serve"
-        );
+        assert_eq!(config["mcpServers"]["mnemosyne"]["args"][0], "serve");
         assert_eq!(
             config["mcpServers"]["mnemosyne"]["env"]["MNEMOSYNE_NAMESPACE"],
             "project:test"
@@ -144,7 +147,9 @@ mod tests {
             agent_role: AgentRole::Orchestrator,
         };
 
-        let config_json = generator.generate_config_with_name("mnemosyne-global").unwrap();
+        let config_json = generator
+            .generate_config_with_name("mnemosyne-global")
+            .unwrap();
         let config: serde_json::Value = serde_json::from_str(&config_json).unwrap();
 
         assert!(config["mcpServers"]["mnemosyne-global"].is_object());

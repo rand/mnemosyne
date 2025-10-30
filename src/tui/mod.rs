@@ -11,16 +11,16 @@
 //! - Shared widget components
 //! - View components (Chat, Dashboard, ICS Panel)
 
-mod terminal;
+mod app;
 mod events;
 mod layout;
-mod widgets;
+mod terminal;
 mod views;
-mod app;
+mod widgets;
 
-pub use terminal::{TerminalManager, TerminalConfig};
-pub use events::{TuiEvent, EventHandler, EventLoop};
-pub use layout::{LayoutManager, PanelConfig, Split};
-pub use widgets::{Command, CommandCategory, CommandPalette, ScrollableList, StatusBar};
-pub use views::{ChatView, Dashboard, IcsPanel};
 pub use app::TuiApp;
+pub use events::{EventHandler, EventLoop, TuiEvent};
+pub use layout::{LayoutManager, PanelConfig, Split};
+pub use terminal::{TerminalConfig, TerminalManager};
+pub use views::{ChatView, Dashboard, IcsPanel};
+pub use widgets::{Command, CommandCategory, CommandPalette, ScrollableList, StatusBar};

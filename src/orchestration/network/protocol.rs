@@ -15,10 +15,7 @@ pub struct AgentProtocol;
 
 impl AgentProtocol {
     /// Send a message over a stream
-    pub async fn send_message(
-        send: &mut SendStream,
-        message: &AgentMessage,
-    ) -> Result<()> {
+    pub async fn send_message(send: &mut SendStream, message: &AgentMessage) -> Result<()> {
         // Serialize message with bincode
         let data = bincode::serialize(message)
             .map_err(|e| MnemosyneError::SerializationError(e.to_string()))?;
@@ -54,9 +51,10 @@ impl AgentProtocol {
 
         // Validate length (max 10MB)
         if len > 10 * 1024 * 1024 {
-            return Err(MnemosyneError::NetworkError(
-                format!("Message too large: {} bytes", len)
-            ));
+            return Err(MnemosyneError::NetworkError(format!(
+                "Message too large: {} bytes",
+                len
+            )));
         }
 
         // Read message data

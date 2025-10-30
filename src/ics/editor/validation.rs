@@ -39,9 +39,9 @@ impl Severity {
     pub fn color(&self) -> ratatui::style::Color {
         use ratatui::style::Color;
         match self {
-            Severity::Hint => Color::Rgb(140, 140, 160),     // Soft blue-gray
-            Severity::Warning => Color::Rgb(200, 180, 120),  // Soft yellow
-            Severity::Error => Color::Rgb(200, 140, 140),    // Soft red
+            Severity::Hint => Color::Rgb(140, 140, 160), // Soft blue-gray
+            Severity::Warning => Color::Rgb(200, 180, 120), // Soft yellow
+            Severity::Error => Color::Rgb(200, 140, 140), // Soft red
         }
     }
 }
@@ -114,7 +114,10 @@ impl Validator {
                             length: 1,
                             severity: Severity::Warning,
                             message: format!("Unmatched closing '{}'", close),
-                            suggestion: Some(format!("Remove '{}' or add matching '{}'", close, open)),
+                            suggestion: Some(format!(
+                                "Remove '{}' or add matching '{}'",
+                                close, open
+                            )),
                         });
                     } else {
                         stack.pop();
@@ -239,12 +242,16 @@ mod tests {
         // Unmatched opening
         let text = "This has (unmatched";
         let diagnostics = validator.validate(text);
-        assert!(diagnostics.iter().any(|d| d.message.contains("Unmatched opening")));
+        assert!(diagnostics
+            .iter()
+            .any(|d| d.message.contains("Unmatched opening")));
 
         // Unmatched closing
         let text = "This has unmatched)";
         let diagnostics = validator.validate(text);
-        assert!(diagnostics.iter().any(|d| d.message.contains("Unmatched closing")));
+        assert!(diagnostics
+            .iter()
+            .any(|d| d.message.contains("Unmatched closing")));
     }
 
     #[test]
@@ -263,7 +270,9 @@ mod tests {
         // Unclosed quote
         let text = r#"This has "unclosed"#;
         let diagnostics = validator.validate(text);
-        assert!(diagnostics.iter().any(|d| d.message.contains("Unclosed quote")));
+        assert!(diagnostics
+            .iter()
+            .any(|d| d.message.contains("Unclosed quote")));
     }
 
     #[test]

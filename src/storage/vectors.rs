@@ -30,7 +30,10 @@ impl SqliteVectorStorage {
     /// ```
     pub fn new<P: AsRef<Path>>(db_path: P, dimensions: usize) -> Result<Self> {
         let path_str = db_path.as_ref().to_string_lossy();
-        info!("Opening vector storage at: {} (dimensions: {})", path_str, dimensions);
+        info!(
+            "Opening vector storage at: {} (dimensions: {})",
+            path_str, dimensions
+        );
 
         // Load sqlite-vec extension BEFORE opening connection
         // Register it as an auto-extension so it's available for all connections
@@ -39,7 +42,7 @@ impl SqliteVectorStorage {
             use rusqlite::ffi::sqlite3_auto_extension;
 
             sqlite3_auto_extension(Some(std::mem::transmute(
-                sqlite_vec::sqlite3_vec_init as *const ()
+                sqlite_vec::sqlite3_vec_init as *const (),
             )));
         }
 
@@ -57,7 +60,10 @@ impl SqliteVectorStorage {
     /// This should be called once during initialization or migration.
     /// It's safe to call multiple times (uses IF NOT EXISTS).
     pub fn create_vec_table(&self) -> Result<()> {
-        info!("Creating vec0 virtual table for vectors (dimensions: {})", self.dimensions);
+        info!(
+            "Creating vec0 virtual table for vectors (dimensions: {})",
+            self.dimensions
+        );
 
         let sql = format!(
             "CREATE VIRTUAL TABLE IF NOT EXISTS memory_vectors USING vec0(
@@ -119,9 +125,7 @@ impl SqliteVectorStorage {
                  VALUES (?, vec_f32(?))",
                 rusqlite::params![id, embedding_json],
             )
-            .map_err(|e| {
-                MnemosyneError::Database(format!("Failed to store vector: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Database(format!("Failed to store vector: {}", e)))?;
 
         debug!("Vector stored successfully for memory: {}", memory_id);
         Ok(())
@@ -329,8 +333,9 @@ impl SqliteVectorStorage {
             }
         }
 
-        tx.commit()
-            .map_err(|e| MnemosyneError::Database(format!("Failed to commit transaction: {}", e)))?;
+        tx.commit().map_err(|e| {
+            MnemosyneError::Database(format!("Failed to commit transaction: {}", e))
+        })?;
 
         info!("Batch stored {} vectors successfully", count);
         Ok(count)
@@ -379,7 +384,10 @@ mod tests {
 
         let result = storage.store_vector(&memory_id, &wrong_embedding);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("dimension mismatch"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("dimension mismatch"));
     }
 
     #[test]
@@ -438,9 +446,15 @@ mod tests {
         assert_eq!(storage.count_vectors().unwrap(), 0);
 
         // Store some vectors
-        storage.store_vector(&MemoryId::new(), &[1.0, 0.0, 0.0]).unwrap();
-        storage.store_vector(&MemoryId::new(), &[0.0, 1.0, 0.0]).unwrap();
-        storage.store_vector(&MemoryId::new(), &[0.0, 0.0, 1.0]).unwrap();
+        storage
+            .store_vector(&MemoryId::new(), &[1.0, 0.0, 0.0])
+            .unwrap();
+        storage
+            .store_vector(&MemoryId::new(), &[0.0, 1.0, 0.0])
+            .unwrap();
+        storage
+            .store_vector(&MemoryId::new(), &[0.0, 0.0, 1.0])
+            .unwrap();
 
         assert_eq!(storage.count_vectors().unwrap(), 3);
     }

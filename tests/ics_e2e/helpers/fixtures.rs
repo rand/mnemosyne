@@ -6,9 +6,9 @@
 //! - Proposals from different agents
 //! - Diagnostics (errors, warnings, hints)
 
+use mnemosyne_core::ics::editor::{Diagnostic, Position, Severity};
 use mnemosyne_core::ics::{ChangeProposal, ProposalStatus};
-use mnemosyne_core::ics::editor::{Diagnostic, Severity, Position};
-use mnemosyne_core::types::{MemoryNote, MemoryType, MemoryId, Namespace};
+use mnemosyne_core::types::{MemoryId, MemoryNote, MemoryType, Namespace};
 use std::time::SystemTime;
 
 /// Sample markdown document with semantic patterns
@@ -109,7 +109,11 @@ pub fn sample_memories() -> Vec<MemoryNote> {
             updated_at: chrono::Utc::now(),
             content: "The system uses Rust for performance and memory safety".to_string(),
             summary: "Rust architecture decision".to_string(),
-            keywords: vec!["rust".to_string(), "performance".to_string(), "architecture".to_string()],
+            keywords: vec![
+                "rust".to_string(),
+                "performance".to_string(),
+                "architecture".to_string(),
+            ],
             tags: vec!["Architecture".to_string()],
             context: "Technical decision for programming language".to_string(),
             memory_type: MemoryType::ArchitectureDecision,
@@ -133,7 +137,11 @@ pub fn sample_memories() -> Vec<MemoryNote> {
             updated_at: chrono::Utc::now(),
             content: "Authentication uses JWT tokens with 1-hour expiration".to_string(),
             summary: "JWT authentication pattern".to_string(),
-            keywords: vec!["jwt".to_string(), "auth".to_string(), "security".to_string()],
+            keywords: vec![
+                "jwt".to_string(),
+                "auth".to_string(),
+                "security".to_string(),
+            ],
             tags: vec!["Security".to_string()],
             context: "API security implementation".to_string(),
             memory_type: MemoryType::CodePattern,
@@ -157,7 +165,11 @@ pub fn sample_memories() -> Vec<MemoryNote> {
             updated_at: chrono::Utc::now(),
             content: "Distributed architecture uses event-driven communication".to_string(),
             summary: "Event-driven architecture".to_string(),
-            keywords: vec!["distributed".to_string(), "events".to_string(), "architecture".to_string()],
+            keywords: vec![
+                "distributed".to_string(),
+                "events".to_string(),
+                "architecture".to_string(),
+            ],
             tags: vec!["Architecture".to_string()],
             context: "System design pattern".to_string(),
             memory_type: MemoryType::ArchitectureDecision,
@@ -227,21 +239,30 @@ pub fn sample_diagnostics() -> Vec<Diagnostic> {
             suggestion: Some("Complete or remove TODO".to_string()),
         },
         Diagnostic {
-            position: Position { line: 15, column: 0 },
+            position: Position {
+                line: 15,
+                column: 0,
+            },
             length: 7,
             severity: Severity::Error,
             message: "Contradictory statements detected".to_string(),
             suggestion: Some("Resolve contradiction".to_string()),
         },
         Diagnostic {
-            position: Position { line: 20, column: 20 },
+            position: Position {
+                line: 20,
+                column: 20,
+            },
             length: 12,
             severity: Severity::Error,
             message: "Undefined reference: @rate_limiter".to_string(),
             suggestion: Some("Define @rate_limiter".to_string()),
         },
         Diagnostic {
-            position: Position { line: 20, column: 37 },
+            position: Position {
+                line: 20,
+                column: 37,
+            },
             length: 17,
             severity: Severity::Error,
             message: "Undefined reference: #monitoring_config".to_string(),

@@ -99,10 +99,7 @@ impl TuiApp {
     /// Run the application
     pub async fn run(mut self) -> Result<()> {
         // Set up output receiver if wrapper exists
-        let mut output_rx = self
-            .wrapper
-            .as_mut()
-            .and_then(|w| w.take_output_receiver());
+        let mut output_rx = self.wrapper.as_mut().and_then(|w| w.take_output_receiver());
 
         loop {
             // Render UI
@@ -146,7 +143,9 @@ impl TuiApp {
             TuiEvent::Key(key) => {
                 // Handle command palette toggle
                 if key.code == KeyCode::Char('p')
-                    && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
+                    && key
+                        .modifiers
+                        .contains(crossterm::event::KeyModifiers::CONTROL)
                 {
                     self.command_palette.toggle();
                     return Ok(());
@@ -154,7 +153,9 @@ impl TuiApp {
 
                 // Handle ICS toggle
                 if key.code == KeyCode::Char('e')
-                    && key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL)
+                    && key
+                        .modifiers
+                        .contains(crossterm::event::KeyModifiers::CONTROL)
                 {
                     self.ics_panel.toggle();
                     return Ok(());
@@ -235,8 +236,8 @@ impl TuiApp {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Min(10),      // Chat + ICS
-                    Constraint::Length(6),    // Dashboard
+                    Constraint::Min(10),   // Chat + ICS
+                    Constraint::Length(6), // Dashboard
                 ])
                 .split(size);
 
@@ -245,8 +246,8 @@ impl TuiApp {
                 Layout::default()
                     .direction(Direction::Horizontal)
                     .constraints([
-                        Constraint::Percentage(60),  // Chat
-                        Constraint::Percentage(40),  // ICS
+                        Constraint::Percentage(60), // Chat
+                        Constraint::Percentage(40), // ICS
                     ])
                     .split(chunks[0])
                     .to_vec()

@@ -8,11 +8,11 @@
 //!
 //! Events are stored as Mnemosyne memories with type `AgentEvent`.
 
+use crate::error::Result;
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::state::{AgentState, Phase, WorkItemId};
 use crate::storage::StorageBackend;
 use crate::types::{MemoryId, MemoryNote, MemoryType, Namespace};
-use crate::error::Result;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -136,13 +136,17 @@ impl AgentEvent {
     /// Convert event to a summary string
     pub fn summary(&self) -> String {
         match self {
-            AgentEvent::WorkItemAssigned { agent, description, .. } => {
+            AgentEvent::WorkItemAssigned {
+                agent, description, ..
+            } => {
                 format!("{:?} assigned: {}", agent, description)
             }
             AgentEvent::WorkItemStarted { agent, .. } => {
                 format!("{:?} started work", agent)
             }
-            AgentEvent::WorkItemCompleted { agent, duration_ms, .. } => {
+            AgentEvent::WorkItemCompleted {
+                agent, duration_ms, ..
+            } => {
                 format!("{:?} completed work in {}ms", agent, duration_ms)
             }
             AgentEvent::WorkItemFailed { agent, error, .. } => {
@@ -151,8 +155,14 @@ impl AgentEvent {
             AgentEvent::PhaseTransition { from, to, .. } => {
                 format!("Phase transition: {:?} → {:?}", from, to)
             }
-            AgentEvent::ContextCheckpoint { usage_pct, reason, .. } => {
-                format!("Context checkpoint at {:.1}%: {}", usage_pct * 100.0, reason)
+            AgentEvent::ContextCheckpoint {
+                usage_pct, reason, ..
+            } => {
+                format!(
+                    "Context checkpoint at {:.1}%: {}",
+                    usage_pct * 100.0,
+                    reason
+                )
             }
             AgentEvent::DeadlockDetected { blocked_items, .. } => {
                 format!("Deadlock detected: {} items blocked", blocked_items.len())
@@ -160,13 +170,19 @@ impl AgentEvent {
             AgentEvent::DeadlockResolved { resolution, .. } => {
                 format!("Deadlock resolved: {}", resolution)
             }
-            AgentEvent::AgentStateChanged { agent, from, to, .. } => {
+            AgentEvent::AgentStateChanged {
+                agent, from, to, ..
+            } => {
                 format!("{:?} state: {:?} → {:?}", agent, from, to)
             }
             AgentEvent::SubAgentSpawned { parent, child, .. } => {
                 format!("{:?} spawned {:?}", parent, child)
             }
-            AgentEvent::MessageSent { from, to, message_type } => {
+            AgentEvent::MessageSent {
+                from,
+                to,
+                message_type,
+            } => {
                 format!("{:?} → {:?}: {}", from, to, message_type)
             }
         }
@@ -243,7 +259,8 @@ impl EventReplay {
     pub async fn load_events(&self) -> Result<Vec<AgentEvent>> {
         // Query all memories in the namespace and filter by type
         // Use semantic search with empty query to get all memories
-        let memories = self.storage
+        let memories = self
+            .storage
             .hybrid_search("", Some(self.namespace.clone()), 10000, false)
             .await?;
 
@@ -266,7 +283,10 @@ impl EventReplay {
         events_with_time.sort_by_key(|(created_at, _)| *created_at);
 
         // Extract just the events
-        let events: Vec<AgentEvent> = events_with_time.into_iter().map(|(_, event)| event).collect();
+        let events: Vec<AgentEvent> = events_with_time
+            .into_iter()
+            .map(|(_, event)| event)
+            .collect();
 
         tracing::info!("Loaded {} events from storage", events.len());
 

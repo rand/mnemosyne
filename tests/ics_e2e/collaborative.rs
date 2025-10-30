@@ -9,7 +9,7 @@
 //! - C6: Emergency agent override
 
 use crate::ics_e2e::*;
-use mnemosyne_core::ics::{ProposalStatus, AgentActivity, ChangeProposal};
+use mnemosyne_core::ics::{AgentActivity, ChangeProposal, ProposalStatus};
 
 /// C1: CRDT concurrent edits
 #[tokio::test]
@@ -58,8 +58,12 @@ async fn c2_agent_coordination_pattern() {
     let semantic_proposals = semantic.propose(&content);
 
     // Verify agents focused on different aspects
-    let total_proposals = reviewer_proposals.len() + optimizer_proposals.len() + semantic_proposals.len();
-    assert!(total_proposals > 0, "Agents should coordinate to provide diverse proposals");
+    let total_proposals =
+        reviewer_proposals.len() + optimizer_proposals.len() + semantic_proposals.len();
+    assert!(
+        total_proposals > 0,
+        "Agents should coordinate to provide diverse proposals"
+    );
 
     // Verify no duplicate proposals (agents coordinated)
     let mut all_proposals = reviewer_proposals;
@@ -67,10 +71,12 @@ async fn c2_agent_coordination_pattern() {
     all_proposals.extend(semantic_proposals);
 
     // Check proposal diversity
-    let unique_originals: std::collections::HashSet<_> = all_proposals.iter()
-        .map(|p| &p.original)
-        .collect();
-    assert!(unique_originals.len() >= 1, "Agents should target different issues");
+    let unique_originals: std::collections::HashSet<_> =
+        all_proposals.iter().map(|p| &p.original).collect();
+    assert!(
+        unique_originals.len() >= 1,
+        "Agents should target different issues"
+    );
 }
 
 /// C3: Review-revise cycle
@@ -189,14 +195,20 @@ async fn c6_emergency_agent_override() {
     let mut agent = actors::MockAgent::optimizer();
 
     // Agent starts working
-    agent.set_activity(AgentActivity::Analyzing, Some("Analyzing document".to_string()));
+    agent.set_activity(
+        AgentActivity::Analyzing,
+        Some("Analyzing document".to_string()),
+    );
     assert_agent_analyzing(&agent.info);
 
     // Emergency: User needs to edit immediately
     ctx.add_text("URGENT: System is down\n");
 
     // User overrides agent work
-    agent.set_activity(AgentActivity::Idle, Some("Paused for user edit".to_string()));
+    agent.set_activity(
+        AgentActivity::Idle,
+        Some("Paused for user edit".to_string()),
+    );
     assert_agent_idle(&agent.info);
 
     // User makes emergency edit
@@ -204,7 +216,10 @@ async fn c6_emergency_agent_override() {
     ctx.add_text("Fix: Restart connection pool\n");
 
     // Agent resumes after user completes
-    agent.set_activity(AgentActivity::Analyzing, Some("Resuming analysis".to_string()));
+    agent.set_activity(
+        AgentActivity::Analyzing,
+        Some("Resuming analysis".to_string()),
+    );
     assert_agent_analyzing(&agent.info);
 
     // Verify user edit preserved

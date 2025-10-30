@@ -8,7 +8,7 @@
 //! - E5: Buffer limit handling
 
 use crate::ics_e2e::*;
-use mnemosyne_core::ics::{ProposalStatus, AgentActivity};
+use mnemosyne_core::ics::{AgentActivity, ProposalStatus};
 
 /// E1: Rapid panel toggling
 #[tokio::test]
@@ -52,8 +52,12 @@ async fn e2_malformed_analysis_input() {
     // Either outcome is acceptable
 
     // Test malformed markup
-    ctx.editor.active_buffer_mut().insert("# Unclosed header [[[[[");
-    ctx.editor.active_buffer_mut().insert("{{{{{{ Unbalanced braces");
+    ctx.editor
+        .active_buffer_mut()
+        .insert("# Unclosed header [[[[[");
+    ctx.editor
+        .active_buffer_mut()
+        .insert("{{{{{{ Unbalanced braces");
 
     let analysis_result = ctx.analyze().await;
     // Should handle gracefully (either succeed or fail cleanly)
@@ -144,16 +148,12 @@ async fn e4_panel_state_persistence() {
     assert!(ctx.proposals.iter().all(|p| p.id.len() > 0));
 
     // Test filtering persists
-    let filtered: Vec<_> = ctx.memories.iter()
-        .filter(|m| m.importance >= 8)
-        .collect();
+    let filtered: Vec<_> = ctx.memories.iter().filter(|m| m.importance >= 8).collect();
 
     assert_eq!(filtered.len(), 2);
 
     // Re-filter to verify state consistency
-    let filtered_again: Vec<_> = ctx.memories.iter()
-        .filter(|m| m.importance >= 8)
-        .collect();
+    let filtered_again: Vec<_> = ctx.memories.iter().filter(|m| m.importance >= 8).collect();
 
     assert_eq!(filtered.len(), filtered_again.len());
 }
@@ -208,7 +208,8 @@ async fn e5_buffer_limit_handling() {
     assert!(unicode_content.contains("🚀"));
 
     // Test extremely nested structure
-    let nested = "# Level 1\n## Level 2\n### Level 3\n#### Level 4\n##### Level 5\n###### Level 6\n";
+    let nested =
+        "# Level 1\n## Level 2\n### Level 3\n#### Level 4\n##### Level 5\n###### Level 6\n";
     let mut nested_ctx = TestContext::new();
     nested_ctx.add_text(nested);
     assert!(nested_ctx.buffer_content().contains("Level 6"));

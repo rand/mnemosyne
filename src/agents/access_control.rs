@@ -256,7 +256,9 @@ impl<S: StorageBackend> MemoryAccessControl<S> {
         let now = Utc::now();
 
         // Determine visibility
-        let visible_to = metadata.visible_to.unwrap_or_else(|| self.default_visibility());
+        let visible_to = metadata
+            .visible_to
+            .unwrap_or_else(|| self.default_visibility());
 
         // Create the memory note
         let memory = MemoryNote {
@@ -357,12 +359,18 @@ impl<S: StorageBackend> MemoryAccessControl<S> {
         }
 
         if let Some(importance) = updates.importance {
-            changes.push(format!("importance: {} -> {}", memory.importance, importance));
+            changes.push(format!(
+                "importance: {} -> {}",
+                memory.importance, importance
+            ));
             memory.importance = importance;
         }
 
         if let Some(confidence) = updates.confidence {
-            changes.push(format!("confidence: {:.2} -> {:.2}", memory.confidence, confidence));
+            changes.push(format!(
+                "confidence: {:.2} -> {:.2}",
+                memory.confidence, confidence
+            ));
             memory.confidence = confidence;
         }
 

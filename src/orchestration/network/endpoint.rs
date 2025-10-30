@@ -102,7 +102,10 @@ impl AgentEndpoint {
     pub async fn open_stream(
         &self,
         conn: &iroh::net::endpoint::Connection,
-    ) -> Result<(iroh::net::endpoint::SendStream, iroh::net::endpoint::RecvStream)> {
+    ) -> Result<(
+        iroh::net::endpoint::SendStream,
+        iroh::net::endpoint::RecvStream,
+    )> {
         conn.open_bi()
             .await
             .map_err(|e| MnemosyneError::NetworkError(e.to_string()))
@@ -116,7 +119,9 @@ impl AgentEndpoint {
     /// Close the endpoint
     pub async fn close(self) -> Result<()> {
         // Close with graceful shutdown (code 0, no reason)
-        self.endpoint.close(0u32.into(), b"shutdown").await
+        self.endpoint
+            .close(0u32.into(), b"shutdown")
+            .await
             .map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
         Ok(())
     }

@@ -15,13 +15,13 @@ use crate::error::{MnemosyneError, Result};
 use crate::orchestration::branch_registry::BranchRegistry;
 use crate::orchestration::identity::AgentId;
 use chrono::{DateTime, Utc};
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use hmac::{Hmac, Mac};
-use sha2::Sha256;
 
 /// Coordination message for cross-process communication
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -207,7 +207,10 @@ impl CrossProcessCoordinator {
         self.sign_current_registration()?;
 
         let mut processes = self.load_process_registry()?;
-        processes.insert(self.current_process.agent_id.clone(), self.current_process.clone());
+        processes.insert(
+            self.current_process.agent_id.clone(),
+            self.current_process.clone(),
+        );
         self.save_process_registry(&processes)?;
         Ok(())
     }
@@ -239,7 +242,7 @@ impl CrossProcessCoordinator {
 
         #[cfg(unix)]
         {
-            
+
             // flock is non-blocking on read
         }
 
@@ -256,7 +259,11 @@ impl CrossProcessCoordinator {
     pub fn send_message(&self, message: CoordinationMessage) -> Result<()> {
         // Security: Validate message ID to prevent path traversal
         // Message IDs must be valid UUIDs (alphanumeric + hyphens only)
-        if !message.id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+        if !message
+            .id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+        {
             return Err(MnemosyneError::Other(format!(
                 "Invalid message ID: contains illegal characters"
             )));
@@ -420,7 +427,9 @@ impl CrossProcessCoordinator {
         })?;
 
         let all_processes: HashMap<AgentId, ProcessRegistration> = serde_json::from_str(&json)
-            .map_err(|e| MnemosyneError::Other(format!("Failed to deserialize process registry: {}", e)))?;
+            .map_err(|e| {
+                MnemosyneError::Other(format!("Failed to deserialize process registry: {}", e))
+            })?;
 
         // Security: Verify signatures and filter out invalid registrations
         let mut verified_processes = HashMap::new();
@@ -435,9 +444,13 @@ impl CrossProcessCoordinator {
     }
 
     /// Save process registry
-    fn save_process_registry(&self, processes: &HashMap<AgentId, ProcessRegistration>) -> Result<()> {
-        let json = serde_json::to_string_pretty(processes)
-            .map_err(|e| MnemosyneError::Other(format!("Failed to serialize process registry: {}", e)))?;
+    fn save_process_registry(
+        &self,
+        processes: &HashMap<AgentId, ProcessRegistration>,
+    ) -> Result<()> {
+        let json = serde_json::to_string_pretty(processes).map_err(|e| {
+            MnemosyneError::Other(format!("Failed to serialize process registry: {}", e))
+        })?;
 
         std::fs::write(&self.process_registry_path, json).map_err(|e| {
             MnemosyneError::Io(std::io::Error::new(
@@ -471,7 +484,10 @@ impl CrossProcessCoordinator {
         let result = mac.finalize();
         let bytes = result.into_bytes();
         // Convert to hex string
-        Ok(bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>())
+        Ok(bytes
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>())
     }
 
     /// Sign the current process registration
@@ -485,7 +501,10 @@ impl CrossProcessCoordinator {
     fn verify_signature(&self, registration: &ProcessRegistration) -> bool {
         let Some(ref provided_sig) = registration.signature else {
             // No signature - reject for security
-            tracing::warn!("Registration missing signature for agent {}", registration.agent_id);
+            tracing::warn!(
+                "Registration missing signature for agent {}",
+                registration.agent_id
+            );
             return false;
         };
 
@@ -555,7 +574,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let agent_id = AgentId::new();
 
-        let mut coordinator = CrossProcessCoordinator::new(temp_dir.path(), agent_id.clone()).unwrap();
+        let mut coordinator =
+            CrossProcessCoordinator::new(temp_dir.path(), agent_id.clone()).unwrap();
         coordinator.register().unwrap();
 
         let processes = coordinator.get_active_processes().unwrap();
@@ -597,7 +617,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let agent_id = AgentId::new();
 
-        let mut coordinator = CrossProcessCoordinator::new(temp_dir.path(), agent_id.clone()).unwrap();
+        let mut coordinator =
+            CrossProcessCoordinator::new(temp_dir.path(), agent_id.clone()).unwrap();
         coordinator.register().unwrap();
 
         let initial_heartbeat = coordinator.current_process.last_heartbeat;
@@ -614,7 +635,8 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let agent_id = AgentId::new();
 
-        let mut coordinator = CrossProcessCoordinator::new(temp_dir.path(), agent_id.clone()).unwrap();
+        let mut coordinator =
+            CrossProcessCoordinator::new(temp_dir.path(), agent_id.clone()).unwrap();
         coordinator.register().unwrap();
 
         assert_eq!(coordinator.get_active_processes().unwrap().len(), 1);

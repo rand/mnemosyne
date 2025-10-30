@@ -56,7 +56,10 @@ impl ConsolidationJob {
     }
 
     /// Find duplicate candidate pairs using vector similarity
-    async fn find_duplicate_candidates(&self, batch_size: usize) -> Result<Vec<(MemoryNote, MemoryNote, f32)>, JobError> {
+    async fn find_duplicate_candidates(
+        &self,
+        batch_size: usize,
+    ) -> Result<Vec<(MemoryNote, MemoryNote, f32)>, JobError> {
         // Get active memories
         let memories = self
             .storage
@@ -102,7 +105,11 @@ impl ConsolidationJob {
 
                 // High similarity indicates potential duplicate
                 // Use 0.90 threshold for vector similarity, 0.80 for keyword overlap
-                let threshold = if memory_embeddings.contains_key(&mem1.id) { 0.90 } else { 0.80 };
+                let threshold = if memory_embeddings.contains_key(&mem1.id) {
+                    0.90
+                } else {
+                    0.80
+                };
 
                 if similarity > threshold {
                     candidates.push((mem1.clone(), mem2.clone(), similarity));
@@ -161,8 +168,14 @@ impl ConsolidationJob {
         let mut similarity_map: HashMap<(MemoryId, MemoryId), f32> = HashMap::new();
 
         for (m1, m2, sim) in candidates {
-            graph.entry(m1.id.clone()).or_default().insert(m2.id.clone());
-            graph.entry(m2.id.clone()).or_default().insert(m1.id.clone());
+            graph
+                .entry(m1.id.clone())
+                .or_default()
+                .insert(m2.id.clone());
+            graph
+                .entry(m2.id.clone())
+                .or_default()
+                .insert(m1.id.clone());
 
             memory_map.insert(m1.id.clone(), m1.clone());
             memory_map.insert(m2.id.clone(), m2.clone());
@@ -312,10 +325,7 @@ impl ConsolidationJob {
                 match self.make_llm_consolidation_decision(cluster).await {
                     Ok(decision) => Ok(decision),
                     Err(e) => {
-                        tracing::warn!(
-                            "LLM decision failed, falling back to heuristics: {}",
-                            e
-                        );
+                        tracing::warn!("LLM decision failed, falling back to heuristics: {}", e);
                         Ok(self.make_heuristic_decision(cluster))
                     }
                 }
@@ -396,9 +406,10 @@ impl ConsolidationJob {
         cluster: &MemoryCluster,
     ) -> Result<ConsolidationDecision, JobError> {
         // Check if LLM service is available
-        let llm = self.llm.as_ref().ok_or_else(|| {
-            JobError::ExecutionError("LLM service not available".to_string())
-        })?;
+        let llm = self
+            .llm
+            .as_ref()
+            .ok_or_else(|| JobError::ExecutionError("LLM service not available".to_string()))?;
 
         // Build prompt for cluster
         let prompt = self.build_cluster_prompt(cluster);
@@ -477,8 +488,8 @@ Respond in JSON format:
         cluster: &MemoryCluster,
     ) -> Result<ConsolidationDecision, JobError> {
         // Try to parse JSON response
-        let llm_decision: LlmConsolidationResponse = serde_json::from_str(response)
-            .map_err(|e| {
+        let llm_decision: LlmConsolidationResponse =
+            serde_json::from_str(response).map_err(|e| {
                 JobError::ExecutionError(format!(
                     "Failed to parse LLM response as JSON: {}. Response: {}",
                     e, response
@@ -487,33 +498,27 @@ Respond in JSON format:
 
         // Convert to ConsolidationDecision based on action
         match llm_decision.action.to_uppercase().as_str() {
-            "MERGE" => {
-                Ok(ConsolidationDecision {
-                    action: ConsolidationAction::Merge,
-                    memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
-                    superseded_id: None,
-                    superseding_id: Some(llm_decision.primary_memory_id),
-                    reason: llm_decision.rationale,
-                })
-            }
-            "SUPERSEDE" => {
-                Ok(ConsolidationDecision {
-                    action: ConsolidationAction::Supersede,
-                    memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
-                    superseded_id: llm_decision.secondary_memory_ids.first().copied(),
-                    superseding_id: Some(llm_decision.primary_memory_id),
-                    reason: llm_decision.rationale,
-                })
-            }
-            "KEEP" => {
-                Ok(ConsolidationDecision {
-                    action: ConsolidationAction::Keep,
-                    memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
-                    superseded_id: None,
-                    superseding_id: None,
-                    reason: llm_decision.rationale,
-                })
-            }
+            "MERGE" => Ok(ConsolidationDecision {
+                action: ConsolidationAction::Merge,
+                memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
+                superseded_id: None,
+                superseding_id: Some(llm_decision.primary_memory_id),
+                reason: llm_decision.rationale,
+            }),
+            "SUPERSEDE" => Ok(ConsolidationDecision {
+                action: ConsolidationAction::Supersede,
+                memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
+                superseded_id: llm_decision.secondary_memory_ids.first().copied(),
+                superseding_id: Some(llm_decision.primary_memory_id),
+                reason: llm_decision.rationale,
+            }),
+            "KEEP" => Ok(ConsolidationDecision {
+                action: ConsolidationAction::Keep,
+                memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
+                superseded_id: None,
+                superseding_id: None,
+                reason: llm_decision.rationale,
+            }),
             _ => Err(JobError::ExecutionError(format!(
                 "Unknown action from LLM: {}",
                 llm_decision.action
@@ -532,7 +537,6 @@ struct LlmConsolidationResponse {
     preserved_content: String,
 }
 
-
 #[async_trait]
 impl EvolutionJob for ConsolidationJob {
     fn name(&self) -> &str {
@@ -545,7 +549,10 @@ impl EvolutionJob for ConsolidationJob {
         let mut changes_made = 0;
         let mut errors = 0;
 
-        tracing::info!("Starting consolidation job (batch_size: {})", config.batch_size);
+        tracing::info!(
+            "Starting consolidation job (batch_size: {})",
+            config.batch_size
+        );
 
         // 1. Find duplicate candidates
         tracing::debug!("Finding duplicate candidates...");
@@ -614,7 +621,11 @@ impl EvolutionJob for ConsolidationJob {
                     );
 
                     // Execute supersede operation in database
-                    if let Err(e) = self.storage.mark_superseded(superseded_id, superseding_id).await {
+                    if let Err(e) = self
+                        .storage
+                        .mark_superseded(superseded_id, superseding_id)
+                        .await
+                    {
                         tracing::warn!(
                             "Failed to mark {} as superseded by {}: {:?}",
                             superseded_id,

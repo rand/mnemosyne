@@ -10,7 +10,7 @@
 //! - A7: Agent activity timeline
 
 use crate::ics_e2e::*;
-use mnemosyne_core::ics::{ProposalStatus, AgentActivity, ChangeProposal};
+use mnemosyne_core::ics::{AgentActivity, ChangeProposal, ProposalStatus};
 
 /// A1: Single agent proposal workflow
 #[tokio::test]
@@ -50,17 +50,19 @@ async fn a2_multi_agent_concurrent_proposals() {
     let mut agents = actors::create_mock_agents();
 
     // Agents analyze concurrently
-    let all_proposals = actors::simulate_concurrent_agents(&mut agents, &ctx.buffer_content()).await;
+    let all_proposals =
+        actors::simulate_concurrent_agents(&mut agents, &ctx.buffer_content()).await;
 
     // Verify each agent type created proposals
     let total_proposals: usize = all_proposals.iter().map(|p| p.len()).sum();
-    assert!(total_proposals > 0, "At least one agent should create proposals");
+    assert!(
+        total_proposals > 0,
+        "At least one agent should create proposals"
+    );
 
     // Verify proposals from different agents
     let flat_proposals: Vec<_> = all_proposals.into_iter().flatten().collect();
-    let agent_types: Vec<_> = flat_proposals.iter()
-        .map(|p| &p.agent)
-        .collect();
+    let agent_types: Vec<_> = flat_proposals.iter().map(|p| &p.agent).collect();
 
     // Should have proposals from multiple agent types
     assert!(agent_types.len() > 0, "Should have agent proposals");
@@ -75,12 +77,18 @@ async fn a3_agent_status_monitoring() {
     assert_agent_idle(&agent.info);
 
     // Set to analyzing
-    agent.set_activity(AgentActivity::Analyzing, Some("Analyzing document".to_string()));
+    agent.set_activity(
+        AgentActivity::Analyzing,
+        Some("Analyzing document".to_string()),
+    );
     assert_agent_analyzing(&agent.info);
     assert_eq!(agent.info.message, Some("Analyzing document".to_string()));
 
     // Set to proposing
-    agent.set_activity(AgentActivity::Proposing, Some("Creating proposal".to_string()));
+    agent.set_activity(
+        AgentActivity::Proposing,
+        Some("Creating proposal".to_string()),
+    );
     assert_agent_proposing(&agent.info);
 
     // Set to waiting
@@ -175,8 +183,7 @@ async fn a6_agent_driven_semantic_improvements() {
     if !proposals.is_empty() {
         let proposal = &proposals[0];
         assert!(
-            proposal.rationale.contains("TODO") ||
-            proposal.rationale.contains("should"),
+            proposal.rationale.contains("TODO") || proposal.rationale.contains("should"),
             "Proposal should address detected issues"
         );
     }
@@ -191,12 +198,20 @@ async fn a7_agent_activity_timeline() {
     // Simulate agent activities over time
     for agent in &mut agents {
         agent.set_activity(AgentActivity::Idle, None);
-        timeline.push((agent.info.name.clone(), agent.info.activity.clone(), agent.info.last_active));
+        timeline.push((
+            agent.info.name.clone(),
+            agent.info.activity.clone(),
+            agent.info.last_active,
+        ));
 
         tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
 
         agent.set_activity(AgentActivity::Analyzing, Some("Working".to_string()));
-        timeline.push((agent.info.name.clone(), agent.info.activity.clone(), agent.info.last_active));
+        timeline.push((
+            agent.info.name.clone(),
+            agent.info.activity.clone(),
+            agent.info.last_active,
+        ));
     }
 
     // Verify timeline has events
@@ -205,7 +220,7 @@ async fn a7_agent_activity_timeline() {
     // Verify timestamps are ordered
     for i in 1..timeline.len() {
         assert!(
-            timeline[i].2 >= timeline[i-1].2,
+            timeline[i].2 >= timeline[i - 1].2,
             "Timeline should be chronologically ordered"
         );
     }

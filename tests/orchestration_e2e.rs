@@ -9,10 +9,10 @@
 //! - Error handling and recovery
 
 use mnemosyne_core::{
-    ConnectionMode, LibsqlStorage,
-    orchestration::{*, state::WorkItemId},
-    types::Namespace,
     launcher::agents::AgentRole,
+    orchestration::{state::WorkItemId, *},
+    types::Namespace,
+    ConnectionMode, LibsqlStorage,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -126,14 +126,14 @@ async fn test_event_persistence_connection() {
         .await
         .expect("Failed to persist event");
 
-    assert!(!memory_id.to_string().is_empty(), "Event should be persisted");
+    assert!(
+        !memory_id.to_string().is_empty(),
+        "Event should be persisted"
+    );
 
     // Test loading events
     let replay = EventReplay::new(storage, namespace);
-    let events = replay
-        .load_events()
-        .await
-        .expect("Failed to load events");
+    let events = replay.load_events().await.expect("Failed to load events");
 
     assert_eq!(events.len(), 1, "Should have loaded 1 event");
 }
@@ -214,13 +214,10 @@ async fn test_single_work_item_submission() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -413,13 +410,10 @@ async fn test_work_completion_notification() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -457,7 +451,9 @@ async fn test_work_completion_notification() {
     let replay = EventReplay::new(storage.clone(), namespace);
     let events = replay.load_events().await.expect("Failed to load events");
 
-    let has_completed = events.iter().any(|e| matches!(e, AgentEvent::WorkItemCompleted { .. }));
+    let has_completed = events
+        .iter()
+        .any(|e| matches!(e, AgentEvent::WorkItemCompleted { .. }));
     assert!(has_completed, "Should have WorkItemCompleted event");
 
     engine.stop().await.expect("Failed to stop");
@@ -474,13 +470,10 @@ async fn test_valid_phase_transitions() {
 
     // Create engine with explicit namespace
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -576,13 +569,10 @@ async fn test_phase_transition_with_reviewer_validation() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -624,13 +614,10 @@ async fn test_phase_tracking_in_work_queue() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -683,10 +670,7 @@ async fn test_phase_tracking_in_work_queue() {
         .filter(|e| matches!(e, AgentEvent::WorkItemAssigned { .. }))
         .count();
 
-    assert_eq!(
-        work_assigned_count, 2,
-        "Should have 2 work items assigned"
-    );
+    assert_eq!(work_assigned_count, 2, "Should have 2 work items assigned");
 
     engine.stop().await.expect("Failed to stop");
 }
@@ -697,13 +681,10 @@ async fn test_complete_work_plan_protocol_flow() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -719,12 +700,7 @@ async fn test_complete_work_plan_protocol_flow() {
 
     for (from, to) in phases {
         // Submit work for current phase
-        let work = WorkItem::new(
-            format!("Work in {:?}", from),
-            AgentRole::Executor,
-            from,
-            5,
-        );
+        let work = WorkItem::new(format!("Work in {:?}", from), AgentRole::Executor, from, 5);
 
         orchestrator
             .cast(OrchestratorMessage::SubmitWork(work))
@@ -787,7 +763,10 @@ async fn test_event_persistence_and_replay() {
     ];
 
     for event in &events_to_persist {
-        persistence.persist(event.clone()).await.expect("Failed to persist event");
+        persistence
+            .persist(event.clone())
+            .await
+            .expect("Failed to persist event");
     }
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -799,9 +778,18 @@ async fn test_event_persistence_and_replay() {
     assert_eq!(loaded_events.len(), 3, "Should have loaded 3 events");
 
     // Verify event types
-    assert!(matches!(loaded_events[0], AgentEvent::WorkItemAssigned { .. }));
-    assert!(matches!(loaded_events[1], AgentEvent::WorkItemStarted { .. }));
-    assert!(matches!(loaded_events[2], AgentEvent::PhaseTransition { .. }));
+    assert!(matches!(
+        loaded_events[0],
+        AgentEvent::WorkItemAssigned { .. }
+    ));
+    assert!(matches!(
+        loaded_events[1],
+        AgentEvent::WorkItemStarted { .. }
+    ));
+    assert!(matches!(
+        loaded_events[2],
+        AgentEvent::PhaseTransition { .. }
+    ));
 }
 
 #[tokio::test]
@@ -861,9 +849,17 @@ async fn test_state_reconstruction_from_events() {
     let state = replay.replay().await.expect("Failed to replay");
 
     // Verify reconstructed state
-    assert_eq!(state.completed_items.len(), 1, "Should have 1 completed item");
+    assert_eq!(
+        state.completed_items.len(),
+        1,
+        "Should have 1 completed item"
+    );
     assert_eq!(state.failed_items.len(), 1, "Should have 1 failed item");
-    assert_eq!(state.current_phase, Phase::SpecToFullSpec, "Should be in SpecToFullSpec phase");
+    assert_eq!(
+        state.current_phase,
+        Phase::SpecToFullSpec,
+        "Should be in SpecToFullSpec phase"
+    );
 }
 
 #[tokio::test]
@@ -874,13 +870,10 @@ async fn test_crash_recovery_simulation() {
     // First session: Start work and crash
     {
         let config = SupervisionConfig::default();
-        let mut engine = OrchestrationEngine::new_with_namespace(
-            storage.clone(),
-            config,
-            namespace.clone(),
-        )
-        .await
-        .expect("Failed to create engine");
+        let mut engine =
+            OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+                .await
+                .expect("Failed to create engine");
 
         engine.start().await.expect("Failed to start");
 
@@ -913,20 +906,25 @@ async fn test_crash_recovery_simulation() {
         let events = replay.load_events().await.expect("Failed to load events");
 
         // Should have at least WorkItemAssigned event
-        assert!(!events.is_empty(), "Should have events from crashed session");
+        assert!(
+            !events.is_empty(),
+            "Should have events from crashed session"
+        );
 
-        let has_work_assigned = events.iter().any(|e| matches!(e, AgentEvent::WorkItemAssigned { .. }));
-        assert!(has_work_assigned, "Should have work assignment from before crash");
+        let has_work_assigned = events
+            .iter()
+            .any(|e| matches!(e, AgentEvent::WorkItemAssigned { .. }));
+        assert!(
+            has_work_assigned,
+            "Should have work assignment from before crash"
+        );
 
         // Can restart engine with same namespace
         let config = SupervisionConfig::default();
-        let mut engine = OrchestrationEngine::new_with_namespace(
-            storage.clone(),
-            config,
-            namespace.clone(),
-        )
-        .await
-        .expect("Failed to create recovery engine");
+        let mut engine =
+            OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+                .await
+                .expect("Failed to create recovery engine");
 
         engine.start().await.expect("Failed to start recovery");
         engine.stop().await.expect("Failed to stop recovery");
@@ -985,7 +983,11 @@ async fn test_cross_session_event_persistence() {
         let replay = EventReplay::new(storage, namespace);
         let events = replay.load_events().await.expect("Failed to load events");
 
-        assert_eq!(events.len(), 8, "All events from all sessions should be available");
+        assert_eq!(
+            events.len(),
+            8,
+            "All events from all sessions should be available"
+        );
     }
 }
 
@@ -1023,9 +1025,21 @@ async fn test_event_ordering_preservation() {
 
     // Verify events are in the correct order
     for (i, event) in events.iter().enumerate() {
-        if let AgentEvent::WorkItemAssigned { description, item_id, .. } = event {
-            assert_eq!(*description, format!("Task {}", i), "Events should be in insertion order");
-            assert_eq!(*item_id, item_ids[i], "Item IDs should match insertion order");
+        if let AgentEvent::WorkItemAssigned {
+            description,
+            item_id,
+            ..
+        } = event
+        {
+            assert_eq!(
+                *description,
+                format!("Task {}", i),
+                "Events should be in insertion order"
+            );
+            assert_eq!(
+                *item_id, item_ids[i],
+                "Item IDs should match insertion order"
+            );
         } else {
             panic!("Unexpected event type");
         }
@@ -1042,13 +1056,10 @@ async fn test_work_item_failure_handling() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -1083,7 +1094,9 @@ async fn test_work_item_failure_handling() {
     let replay = EventReplay::new(storage.clone(), namespace);
     let events = replay.load_events().await.expect("Failed to load events");
 
-    let has_failure = events.iter().any(|e| matches!(e, AgentEvent::WorkItemFailed { .. }));
+    let has_failure = events
+        .iter()
+        .any(|e| matches!(e, AgentEvent::WorkItemFailed { .. }));
     assert!(has_failure, "Work failure should be recorded");
 
     engine.stop().await.expect("Failed to stop");
@@ -1095,13 +1108,10 @@ async fn test_deadlock_detection() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -1158,13 +1168,10 @@ async fn test_timeout_handling() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -1203,13 +1210,10 @@ async fn test_invalid_phase_transition_error() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -1237,13 +1241,10 @@ async fn test_context_threshold_handling() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -1251,9 +1252,7 @@ async fn test_context_threshold_handling() {
 
     // Simulate context threshold reached
     orchestrator
-        .cast(OrchestratorMessage::ContextThresholdReached {
-            current_pct: 0.75,
-        })
+        .cast(OrchestratorMessage::ContextThresholdReached { current_pct: 0.75 })
         .expect("Failed to send context threshold");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -1270,13 +1269,10 @@ async fn test_multiple_concurrent_failures() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -1332,13 +1328,10 @@ async fn test_error_propagation_through_dependencies() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -1387,7 +1380,9 @@ async fn test_error_propagation_through_dependencies() {
     let replay = EventReplay::new(storage.clone(), namespace);
     let events = replay.load_events().await.expect("Failed to load events");
 
-    let has_failure = events.iter().any(|e| matches!(e, AgentEvent::WorkItemFailed { .. }));
+    let has_failure = events
+        .iter()
+        .any(|e| matches!(e, AgentEvent::WorkItemFailed { .. }));
     assert!(has_failure, "Dependency failure should be recorded");
 
     engine.stop().await.expect("Failed to stop");
@@ -1399,13 +1394,10 @@ async fn test_graceful_degradation() {
     let namespace = create_test_namespace();
 
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_namespace(
-        storage.clone(),
-        config,
-        namespace.clone(),
-    )
-    .await
-    .expect("Failed to create engine");
+    let mut engine =
+        OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace.clone())
+            .await
+            .expect("Failed to create engine");
 
     engine.start().await.expect("Failed to start");
 
@@ -1465,8 +1457,12 @@ async fn test_graceful_degradation() {
     let replay = EventReplay::new(storage.clone(), namespace);
     let events = replay.load_events().await.expect("Failed to load events");
 
-    let has_success = events.iter().any(|e| matches!(e, AgentEvent::WorkItemCompleted { .. }));
-    let has_failure = events.iter().any(|e| matches!(e, AgentEvent::WorkItemFailed { .. }));
+    let has_success = events
+        .iter()
+        .any(|e| matches!(e, AgentEvent::WorkItemCompleted { .. }));
+    let has_failure = events
+        .iter()
+        .any(|e| matches!(e, AgentEvent::WorkItemFailed { .. }));
 
     assert!(has_success, "Successful work should complete");
     assert!(has_failure, "Failed work should be recorded");

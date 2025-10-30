@@ -157,7 +157,10 @@ impl McpDaemon {
                 cmd.pre_exec(|| {
                     // Create new session
                     nix::unistd::setsid().map_err(|e| {
-                        std::io::Error::new(std::io::ErrorKind::Other, format!("setsid failed: {}", e))
+                        std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            format!("setsid failed: {}", e),
+                        )
                     })?;
                     Ok(())
                 });
@@ -165,9 +168,9 @@ impl McpDaemon {
         }
 
         // Spawn the process
-        let child = cmd.spawn().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to spawn MCP server: {}", e))
-        })?;
+        let child = cmd
+            .spawn()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to spawn MCP server: {}", e)))?;
 
         let pid = child.id();
 
@@ -204,8 +207,9 @@ impl McpDaemon {
                     use nix::sys::signal::{kill, Signal};
                     use nix::unistd::Pid;
 
-                    kill(Pid::from_raw(pid as i32), Signal::SIGTERM)
-                        .map_err(|e| MnemosyneError::Other(format!("Failed to send SIGTERM: {}", e)))?;
+                    kill(Pid::from_raw(pid as i32), Signal::SIGTERM).map_err(|e| {
+                        MnemosyneError::Other(format!("Failed to send SIGTERM: {}", e))
+                    })?;
 
                     info!("Sent SIGTERM to process {}", pid);
                 }
@@ -258,13 +262,13 @@ impl McpDaemon {
         }
 
         // Read PID from file
-        let pid_str = fs::read_to_string(&self.config.pid_file).map_err(|e| {
-            MnemosyneError::Other(format!("Failed to read PID file: {}", e))
-        })?;
+        let pid_str = fs::read_to_string(&self.config.pid_file)
+            .map_err(|e| MnemosyneError::Other(format!("Failed to read PID file: {}", e)))?;
 
-        let pid: u32 = pid_str.trim().parse().map_err(|e| {
-            MnemosyneError::Other(format!("Invalid PID in file: {}", e))
-        })?;
+        let pid: u32 = pid_str
+            .trim()
+            .parse()
+            .map_err(|e| MnemosyneError::Other(format!("Invalid PID in file: {}", e)))?;
 
         // Check if process is running
         if is_process_running(pid) {
@@ -307,7 +311,10 @@ impl McpDaemon {
 
     /// Monitor daemon - check health periodically
     pub async fn monitor(&self, check_interval_secs: u64) -> Result<()> {
-        info!("Starting daemon monitor (check interval: {}s)", check_interval_secs);
+        info!(
+            "Starting daemon monitor (check interval: {}s)",
+            check_interval_secs
+        );
 
         loop {
             tokio::time::sleep(tokio::time::Duration::from_secs(check_interval_secs)).await;
@@ -329,9 +336,8 @@ impl McpDaemon {
 
     /// Write PID file
     fn write_pid_file(&self, pid: u32) -> Result<()> {
-        fs::write(&self.config.pid_file, pid.to_string()).map_err(|e| {
-            MnemosyneError::Other(format!("Failed to write PID file: {}", e))
-        })?;
+        fs::write(&self.config.pid_file, pid.to_string())
+            .map_err(|e| MnemosyneError::Other(format!("Failed to write PID file: {}", e)))?;
 
         debug!("Wrote PID {} to {}", pid, self.config.pid_file.display());
         Ok(())
@@ -340,9 +346,8 @@ impl McpDaemon {
     /// Remove PID file
     fn remove_pid_file(&self) -> Result<()> {
         if self.config.pid_file.exists() {
-            fs::remove_file(&self.config.pid_file).map_err(|e| {
-                MnemosyneError::Other(format!("Failed to remove PID file: {}", e))
-            })?;
+            fs::remove_file(&self.config.pid_file)
+                .map_err(|e| MnemosyneError::Other(format!("Failed to remove PID file: {}", e)))?;
 
             debug!("Removed PID file: {}", self.config.pid_file.display());
         }

@@ -10,7 +10,6 @@ use crate::orchestration::messages::{OrchestratorMessage, WorkResult};
 use crate::orchestration::state::{Phase, WorkItem, WorkItemId};
 use ractor::ActorRef;
 use std::sync::Arc;
-use std::time::Duration;
 use tracing::{debug, info};
 
 /// Integration layer between evolution jobs and orchestration
@@ -38,7 +37,7 @@ impl EvolutionIntegration {
         let work_item = WorkItem::new(
             format!("Evolution: {}", job_name),
             AgentRole::Optimizer, // Evolution jobs are handled by Optimizer
-            Phase::PromptToSpec,   // Evolution jobs are simple, start at first phase
+            Phase::PromptToSpec,  // Evolution jobs are simple, start at first phase
             priority,
         );
 
@@ -185,13 +184,10 @@ mod tests {
         let namespace = create_test_namespace();
 
         let config = SupervisionConfig::default();
-        let mut engine = OrchestrationEngine::new_with_namespace(
-            storage.clone(),
-            config,
-            namespace,
-        )
-        .await
-        .expect("Failed to create engine");
+        let mut engine =
+            OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace)
+                .await
+                .expect("Failed to create engine");
 
         engine.start().await.expect("Failed to start");
 
@@ -229,13 +225,10 @@ mod tests {
         let namespace = create_test_namespace();
 
         let config = SupervisionConfig::default();
-        let mut engine = OrchestrationEngine::new_with_namespace(
-            storage.clone(),
-            config,
-            namespace,
-        )
-        .await
-        .expect("Failed to create engine");
+        let mut engine =
+            OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace)
+                .await
+                .expect("Failed to create engine");
 
         engine.start().await.expect("Failed to start");
 
@@ -273,13 +266,10 @@ mod tests {
         let namespace = create_test_namespace();
 
         let config = SupervisionConfig::default();
-        let mut engine = OrchestrationEngine::new_with_namespace(
-            storage.clone(),
-            config,
-            namespace,
-        )
-        .await
-        .expect("Failed to create engine");
+        let mut engine =
+            OrchestrationEngine::new_with_namespace(storage.clone(), config, namespace)
+                .await
+                .expect("Failed to create engine");
 
         engine.start().await.expect("Failed to start");
 

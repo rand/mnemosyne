@@ -105,7 +105,9 @@ impl NamespaceDetector {
     /// (e.g., architectural decisions, configuration, constraints).
     pub fn detect_project_namespace(&mut self) -> Result<Namespace> {
         match self.detect_project_metadata()? {
-            Some(metadata) => Ok(Namespace::Project { name: metadata.name }),
+            Some(metadata) => Ok(Namespace::Project {
+                name: metadata.name,
+            }),
             None => Ok(Namespace::Global),
         }
     }
@@ -342,7 +344,10 @@ mod tests {
 
     #[test]
     fn test_parse_claude_md_with_title() {
-        let temp = create_test_repo(true, Some("# My Awesome Project\n\nThis is a great project."));
+        let temp = create_test_repo(
+            true,
+            Some("# My Awesome Project\n\nThis is a great project."),
+        );
         let detector = NamespaceDetector::with_base_dir(temp.path().to_path_buf());
 
         let metadata = detector
@@ -351,7 +356,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(metadata.name, "My Awesome Project");
-        assert_eq!(metadata.description, Some("This is a great project.".to_string()));
+        assert_eq!(
+            metadata.description,
+            Some("This is a great project.".to_string())
+        );
     }
 
     #[test]
@@ -403,7 +411,10 @@ Additional content here.
         let namespace = detector.detect_session_namespace().unwrap();
 
         match namespace {
-            Namespace::Session { project, session_id } => {
+            Namespace::Session {
+                project,
+                session_id,
+            } => {
                 assert_eq!(project, "test-project");
                 assert_eq!(session_id.len(), 8); // Short UUID
             }

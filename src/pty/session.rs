@@ -67,9 +67,13 @@ impl PtySession {
             .context("Failed to create PTY")?;
 
         // Get reader and writer
-        let reader = pty_pair.master.try_clone_reader()
+        let reader = pty_pair
+            .master
+            .try_clone_reader()
             .context("Failed to clone PTY reader")?;
-        let writer = pty_pair.master.take_writer()
+        let writer = pty_pair
+            .master
+            .take_writer()
             .context("Failed to take PTY writer")?;
 
         // Build command
@@ -79,7 +83,9 @@ impl PtySession {
         }
 
         // Spawn child process
-        let _child = pty_pair.slave.spawn_command(cmd)
+        let _child = pty_pair
+            .slave
+            .spawn_command(cmd)
             .context("Failed to spawn command")?;
 
         Ok(Self {
@@ -104,9 +110,7 @@ impl PtySession {
                     is_stderr: false,
                 }))
             }
-            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                Ok(None)
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => Ok(None),
             Err(e) => Err(e.into()),
         }
     }

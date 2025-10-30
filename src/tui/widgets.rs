@@ -57,7 +57,10 @@ impl<'a> Widget for StatusBar<'a> {
             if i > 0 {
                 left_spans.push(Span::raw(" | "));
             }
-            left_spans.push(Span::styled(*label, Style::default().add_modifier(Modifier::BOLD)));
+            left_spans.push(Span::styled(
+                *label,
+                Style::default().add_modifier(Modifier::BOLD),
+            ));
             left_spans.push(Span::raw(": "));
             left_spans.push(Span::raw(*value));
         }
@@ -68,7 +71,10 @@ impl<'a> Widget for StatusBar<'a> {
             if i > 0 {
                 right_spans.push(Span::raw(" | "));
             }
-            right_spans.push(Span::styled(*label, Style::default().add_modifier(Modifier::BOLD)));
+            right_spans.push(Span::styled(
+                *label,
+                Style::default().add_modifier(Modifier::BOLD),
+            ));
             right_spans.push(Span::raw(": "));
             right_spans.push(Span::raw(*value));
         }
@@ -82,7 +88,15 @@ impl<'a> Widget for StatusBar<'a> {
         // Combine sections
         let mut spans = left_spans;
         if right_width > 0 && padding_width > 0 {
-            spans.push(Span::raw(" ".repeat((padding_width.saturating_sub(spans.iter().map(|s| s.content.len()).sum::<usize>() as u16)) as usize)));
+            spans.push(
+                Span::raw(
+                    " ".repeat(
+                        (padding_width.saturating_sub(
+                            spans.iter().map(|s| s.content.len()).sum::<usize>() as u16,
+                        )) as usize,
+                    ),
+                ),
+            );
             spans.extend(right_spans);
         }
 
@@ -389,7 +403,11 @@ impl Widget for &CommandPalette {
         let block = Block::default()
             .title(title)
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+            .border_style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            );
 
         let inner = block.inner(area);
         block.render(area, buf);
@@ -401,8 +419,7 @@ impl Widget for &CommandPalette {
             } else {
                 "No matching commands"
             };
-            let paragraph = Paragraph::new(msg)
-                .style(Style::default().fg(Color::DarkGray));
+            let paragraph = Paragraph::new(msg).style(Style::default().fg(Color::DarkGray));
             paragraph.render(inner, buf);
             return;
         }

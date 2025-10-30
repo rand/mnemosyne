@@ -132,7 +132,7 @@ impl Dashboard {
     /// Gather system metrics using ps command
     ///
     /// Returns (memory_mb, cpu_percent)
-    fn gather_system_metrics() -> (f64, f64) {
+    fn gather_system_metrics() -> (f32, f32) {
         use std::process::Command;
 
         // Get current process ID
@@ -157,10 +157,10 @@ impl Dashboard {
 
                 if parts.len() >= 2 {
                     // Parse RSS (in KB) and convert to MB
-                    let memory_mb = parts[0].parse::<f64>().unwrap_or(0.0) / 1024.0;
+                    let memory_mb = parts[0].parse::<f32>().unwrap_or(0.0) / 1024.0;
 
                     // Parse CPU percentage
-                    let cpu_percent = parts[1].parse::<f64>().unwrap_or(0.0);
+                    let cpu_percent = parts[1].parse::<f32>().unwrap_or(0.0);
 
                     return (memory_mb, cpu_percent);
                 }
@@ -179,7 +179,10 @@ impl Dashboard {
     pub fn render(&self, frame: &mut Frame, area: Rect) {
         let text = vec![
             Line::from(vec![
-                Span::styled("Active Agents: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "Active Agents: ",
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
                 Span::raw(format!("{}", self.active_agents)),
             ]),
             Line::from(vec![

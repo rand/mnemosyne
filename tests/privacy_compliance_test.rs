@@ -9,11 +9,11 @@
 //! - No network calls for evaluation
 //! - Only statistical features stored
 
-use mnemosyne_core::evaluation::feedback_collector::{
-    ContextType, ErrorContext, FeedbackCollector, ProvidedContext, TaskType, WorkPhase,
-    ContextEvaluation,
-};
 use mnemosyne_core::evaluation::feature_extractor::FeatureExtractor;
+use mnemosyne_core::evaluation::feedback_collector::{
+    ContextEvaluation, ContextType, ErrorContext, FeedbackCollector, ProvidedContext, TaskType,
+    WorkPhase,
+};
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -385,7 +385,10 @@ async fn test_keywords_are_generic_technology_names() {
         .expect("Failed to get evaluation");
 
     // Verify keywords are stored (these are safe)
-    assert!(evaluation.task_keywords.is_some(), "Generic keywords should be stored");
+    assert!(
+        evaluation.task_keywords.is_some(),
+        "Generic keywords should be stored"
+    );
     let stored_keywords = evaluation.task_keywords.unwrap();
     assert_eq!(stored_keywords.len(), generic_keywords.len());
 }
@@ -422,8 +425,8 @@ async fn test_database_is_local_only() {
 async fn test_gitignore_covers_evaluation_data() {
     // Read .gitignore
     let gitignore_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".gitignore");
-    let gitignore_content = std::fs::read_to_string(&gitignore_path)
-        .expect("Failed to read .gitignore");
+    let gitignore_content =
+        std::fs::read_to_string(&gitignore_path).expect("Failed to read .gitignore");
 
     // Verify .mnemosyne/ is gitignored
     assert!(
@@ -510,7 +513,10 @@ async fn test_feature_extractor_stores_only_statistics() {
         features.keyword_overlap_score >= 0.0 && features.keyword_overlap_score <= 1.0,
         "Keyword overlap should be a normalized score [0.0, 1.0]"
     );
-    assert!(features.recency_days >= 0.0, "Recency should be non-negative");
+    assert!(
+        features.recency_days >= 0.0,
+        "Recency should be non-negative"
+    );
     assert!(
         features.access_frequency >= 0.0,
         "Access frequency should be non-negative"
@@ -589,7 +595,6 @@ async fn test_no_pii_in_features() {
 #[tokio::test]
 async fn test_optimizer_hash_task_description() {
     // Test that Python optimizer._hash_task_description produces consistent 16-char hashes
-    
 
     let task1 = "Implement user authentication";
     let task2 = "Implement user authentication"; // Same task
@@ -604,7 +609,10 @@ async fn test_optimizer_hash_task_description() {
     assert_eq!(hash1, hash2, "Same task should produce same hash");
 
     // Different task -> different hash
-    assert_ne!(hash1, hash3, "Different tasks should produce different hashes");
+    assert_ne!(
+        hash1, hash3,
+        "Different tasks should produce different hashes"
+    );
 
     // All hashes should be 16 chars
     assert_eq!(hash1.len(), 16, "Hash should be exactly 16 characters");
@@ -619,8 +627,6 @@ async fn test_optimizer_hash_task_description() {
 
 #[test]
 fn test_hash_generation() {
-    
-
     let task = "Test task";
     let hash = hash_task(task);
 

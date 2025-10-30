@@ -1,13 +1,13 @@
 //! Full integration test modules
 
+pub mod evolution_integration;
 pub mod fixtures;
 pub mod helpers;
+pub mod llm_integration;
+pub mod pty_mode_integration;
 pub mod storage_integration;
 pub mod storage_integration_s7_s10;
-pub mod llm_integration;
-pub mod evolution_integration;
 pub mod vector_search_integration;
-pub mod pty_mode_integration;
 pub mod workflow_integration;
 
 // Re-export test fixtures and helpers

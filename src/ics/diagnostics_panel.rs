@@ -180,7 +180,8 @@ impl<'a> StatefulWidget for DiagnosticsPanel<'a> {
                 )),
             ];
 
-            let paragraph = Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
+            let paragraph =
+                Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
             paragraph.render(inner, buf);
             return;
         }
@@ -195,15 +196,16 @@ impl<'a> StatefulWidget for DiagnosticsPanel<'a> {
                     Severity::Hint => ("●", Color::Rgb(160, 180, 180)),
                 };
 
-                let location = format!("Ln {}, Col {}", diagnostic.position.line + 1, diagnostic.position.column + 1);
+                let location = format!(
+                    "Ln {}, Col {}",
+                    diagnostic.position.line + 1,
+                    diagnostic.position.column + 1
+                );
 
                 let line = Line::from(vec![
                     Span::styled(icon, Style::default().fg(color)),
                     Span::raw(" "),
-                    Span::styled(
-                        location,
-                        Style::default().fg(Color::Rgb(160, 160, 160)),
-                    ),
+                    Span::styled(location, Style::default().fg(Color::Rgb(160, 160, 160))),
                     Span::raw(" "),
                     Span::raw(&diagnostic.message),
                 ]);

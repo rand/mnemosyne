@@ -72,11 +72,11 @@ impl Default for SearchConfig {
     fn default() -> Self {
         Self {
             // Balanced hybrid search weights (sum to 1.0)
-            vector_weight: 0.35,      // Vector similarity is primary
-            keyword_weight: 0.30,     // Keyword matching is secondary
-            graph_weight: 0.20,       // Graph connections for context
-            importance_weight: 0.10,  // Importance as tie-breaker
-            recency_weight: 0.05,     // Slight recency bias
+            vector_weight: 0.35,     // Vector similarity is primary
+            keyword_weight: 0.30,    // Keyword matching is secondary
+            graph_weight: 0.20,      // Graph connections for context
+            importance_weight: 0.10, // Importance as tie-breaker
+            recency_weight: 0.05,    // Slight recency bias
 
             enable_vector_search: true,
             enable_graph_expansion: true,
@@ -99,28 +99,26 @@ impl SearchConfig {
 
         for (name, weight) in &weights {
             if *weight < 0.0 || *weight > 1.0 {
-                return Err(MnemosyneError::Config(
-                    config::ConfigError::Message(format!(
-                        "{} must be between 0.0 and 1.0, got {}",
-                        name, weight
-                    ))
-                ));
+                return Err(MnemosyneError::Config(config::ConfigError::Message(
+                    format!("{} must be between 0.0 and 1.0, got {}", name, weight),
+                )));
             }
         }
 
         // Warn if weights don't sum to 1.0 (but allow it)
         let sum: f32 = weights.iter().map(|(_, w)| w).sum();
         if (sum - 1.0).abs() > 0.01 {
-            warn!("Search weights sum to {}, not 1.0. Results may be scaled unexpectedly.", sum);
+            warn!(
+                "Search weights sum to {}, not 1.0. Results may be scaled unexpectedly.",
+                sum
+            );
         }
 
         // Check graph depth
         if self.max_graph_depth == 0 {
-            return Err(MnemosyneError::Config(
-                config::ConfigError::Message(
-                    "max_graph_depth must be at least 1".to_string()
-                )
-            ));
+            return Err(MnemosyneError::Config(config::ConfigError::Message(
+                "max_graph_depth must be at least 1".to_string(),
+            )));
         }
 
         Ok(())
@@ -172,7 +170,10 @@ impl EmbeddingConfig {
             "bge-base-en-v1.5" => 768,
             "bge-large-en-v1.5" => 1024,
             _ => {
-                warn!("Unknown model '{}', defaulting to 768 dimensions", self.model);
+                warn!(
+                    "Unknown model '{}', defaulting to 768 dimensions",
+                    self.model
+                );
                 768
             }
         }
@@ -197,33 +198,30 @@ impl EmbeddingConfig {
         ];
 
         if !supported_models.contains(&self.model.as_str()) {
-            return Err(MnemosyneError::Config(
-                config::ConfigError::Message(format!(
+            return Err(MnemosyneError::Config(config::ConfigError::Message(
+                format!(
                     "Unsupported embedding model: '{}'. Supported models: {}",
                     self.model,
                     supported_models.join(", ")
-                ))
-            ));
+                ),
+            )));
         }
 
         // Check device
         if self.device != "cpu" && self.device != "cuda" {
-            return Err(MnemosyneError::Config(
-                config::ConfigError::Message(format!(
-                    "Invalid device '{}'. Must be 'cpu' or 'cuda'",
-                    self.device
-                ))
-            ));
+            return Err(MnemosyneError::Config(config::ConfigError::Message(
+                format!("Invalid device '{}'. Must be 'cpu' or 'cuda'", self.device),
+            )));
         }
 
         // Check batch size
         if self.batch_size == 0 || self.batch_size > 1000 {
-            return Err(MnemosyneError::Config(
-                config::ConfigError::Message(format!(
+            return Err(MnemosyneError::Config(config::ConfigError::Message(
+                format!(
                     "Batch size {} out of range. Must be between 1 and 1000",
                     self.batch_size
-                ))
-            ));
+                ),
+            )));
         }
 
         Ok(())
@@ -244,16 +242,20 @@ pub struct ConfigManager {
 impl ConfigManager {
     /// Create a new configuration manager
     pub fn new() -> Result<Self> {
-        let secrets = SecretsManager::new()
-            .map_err(|e| MnemosyneError::Config(
-                config::ConfigError::Message(format!("Failed to initialize secrets manager: {}", e))
-            ))?;
+        let secrets = SecretsManager::new().map_err(|e| {
+            MnemosyneError::Config(config::ConfigError::Message(format!(
+                "Failed to initialize secrets manager: {}",
+                e
+            )))
+        })?;
 
         #[cfg(feature = "keyring-fallback")]
-        let keyring_entry = Entry::new(KEYRING_SERVICE, KEYRING_USER)
-            .map_err(|e| MnemosyneError::Config(
-                config::ConfigError::Message(format!("Failed to access keyring: {}", e))
-            ))?;
+        let keyring_entry = Entry::new(KEYRING_SERVICE, KEYRING_USER).map_err(|e| {
+            MnemosyneError::Config(config::ConfigError::Message(format!(
+                "Failed to access keyring: {}",
+                e
+            )))
+        })?;
 
         Ok(Self {
             secrets,
@@ -296,23 +298,22 @@ impl ConfigManager {
         }
 
         // No key found anywhere
-        Err(MnemosyneError::Config(
-            config::ConfigError::Message(
-                "ANTHROPIC_API_KEY not found. Options:\n\
+        Err(MnemosyneError::Config(config::ConfigError::Message(
+            "ANTHROPIC_API_KEY not found. Options:\n\
                  1. export ANTHROPIC_API_KEY=sk-ant-...\n\
                  2. mnemosyne secrets set ANTHROPIC_API_KEY\n\
-                 3. mnemosyne secrets init (first-time setup)".to_string()
-            )
-        ))
+                 3. mnemosyne secrets init (first-time setup)"
+                .to_string(),
+        )))
     }
 
     /// Store the API key securely (keyring only, use `mnemosyne secrets set` for encrypted config)
     #[cfg(feature = "keyring-fallback")]
     pub fn set_api_key(&self, key: &str) -> Result<()> {
         if key.is_empty() {
-            return Err(MnemosyneError::Config(
-                config::ConfigError::Message("API key cannot be empty".to_string())
-            ));
+            return Err(MnemosyneError::Config(config::ConfigError::Message(
+                "API key cannot be empty".to_string(),
+            )));
         }
 
         // Validate key format (basic check)
@@ -320,13 +321,17 @@ impl ConfigManager {
             warn!("API key doesn't match expected Anthropic format (sk-ant-...)");
         }
 
-        debug!("Attempting to store API key in keychain (service={}, user={})", KEYRING_SERVICE, KEYRING_USER);
+        debug!(
+            "Attempting to store API key in keychain (service={}, user={})",
+            KEYRING_SERVICE, KEYRING_USER
+        );
 
-        self.keyring_entry
-            .set_password(key)
-            .map_err(|e| MnemosyneError::Config(
-                config::ConfigError::Message(format!("Failed to store API key: {}", e))
-            ))?;
+        self.keyring_entry.set_password(key).map_err(|e| {
+            MnemosyneError::Config(config::ConfigError::Message(format!(
+                "Failed to store API key: {}",
+                e
+            )))
+        })?;
 
         info!("API key securely stored in OS keychain");
 
@@ -334,7 +339,10 @@ impl ConfigManager {
         match self.keyring_entry.get_password() {
             Ok(_) => debug!("Verified: API key successfully stored and retrievable"),
             Err(e) => {
-                warn!("WARNING: API key was stored but immediate retrieval failed: {}", e);
+                warn!(
+                    "WARNING: API key was stored but immediate retrieval failed: {}",
+                    e
+                );
                 warn!("This may indicate a keychain access permission issue");
             }
         }
@@ -354,11 +362,9 @@ impl ConfigManager {
                 warn!("No API key found to delete");
                 Ok(())
             }
-            Err(e) => {
-                Err(MnemosyneError::Config(
-                    config::ConfigError::Message(format!("Failed to delete API key: {}", e))
-                ))
-            }
+            Err(e) => Err(MnemosyneError::Config(config::ConfigError::Message(
+                format!("Failed to delete API key: {}", e),
+            ))),
         }
     }
 
@@ -399,8 +405,7 @@ impl ConfigManager {
         println!("You can also set the ANTHROPIC_API_KEY environment variable.\n");
 
         print!("Enter your Anthropic API key (starts with sk-ant-): ");
-        std::io::Write::flush(&mut std::io::stdout())
-            .map_err(|e| MnemosyneError::Io(e))?;
+        std::io::Write::flush(&mut std::io::stdout()).map_err(|e| MnemosyneError::Io(e))?;
 
         let mut input = String::new();
         std::io::stdin()
@@ -410,9 +415,9 @@ impl ConfigManager {
         let key = input.trim();
 
         if key.is_empty() {
-            return Err(MnemosyneError::Config(
-                config::ConfigError::Message("No API key provided".to_string())
-            ));
+            return Err(MnemosyneError::Config(config::ConfigError::Message(
+                "No API key provided".to_string(),
+            )));
         }
 
         self.set_api_key(key)?;

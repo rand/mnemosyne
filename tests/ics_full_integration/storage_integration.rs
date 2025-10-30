@@ -80,7 +80,10 @@ async fn s2_memory_retrieval_in_ics_panel() {
 
     // Test keyword search filtering
     let search_results = ics.search_memories("integration");
-    assert!(search_results.len() > 0, "Should find memories with keyword");
+    assert!(
+        search_results.len() > 0,
+        "Should find memories with keyword"
+    );
 
     // Test importance sorting (if memories have varied importance)
     let mut sorted = memories.clone();
@@ -126,7 +129,8 @@ async fn s3_cross_session_memory_continuity() {
         )
         .await
         .expect("Should retrieve session 1 memories");
-    let session1_memories: Vec<MemoryNote> = session1_results.into_iter().map(|r| r.memory).collect();
+    let session1_memories: Vec<MemoryNote> =
+        session1_results.into_iter().map(|r| r.memory).collect();
     assert_memory_count(&session1_memories, 5);
 
     // Session 2: New ICS instance
@@ -141,7 +145,8 @@ async fn s3_cross_session_memory_continuity() {
         )
         .await
         .expect("Should retrieve memories");
-    let session2_memories: Vec<MemoryNote> = session2_results.into_iter().map(|r| r.memory).collect();
+    let session2_memories: Vec<MemoryNote> =
+        session2_results.into_iter().map(|r| r.memory).collect();
 
     let ics2 = IcsFixture::with_memories(session2_memories.clone());
 

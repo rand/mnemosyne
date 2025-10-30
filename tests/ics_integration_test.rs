@@ -6,8 +6,8 @@
 //! - Async operations integration
 //! - Memory loading and search
 
-use mnemosyne_core::ics::*;
 use mnemosyne_core::ics::editor::*;
+use mnemosyne_core::ics::*;
 use mnemosyne_core::{MemoryNote, MemoryType};
 use std::time::SystemTime;
 
@@ -190,7 +190,7 @@ fn test_memory_panel_search_and_selection() {
 /// Test diagnostics panel filtering and navigation
 #[test]
 fn test_diagnostics_panel_filtering() {
-    use mnemosyne_core::ics::editor::{Diagnostic, Severity, Position};
+    use mnemosyne_core::ics::editor::{Diagnostic, Position, Severity};
 
     // Create test diagnostics
     let diagnostics = vec![
@@ -202,14 +202,20 @@ fn test_diagnostics_panel_filtering() {
             suggestion: Some("Define the symbol first".to_string()),
         },
         Diagnostic {
-            position: Position { line: 5, column: 10 },
+            position: Position {
+                line: 5,
+                column: 10,
+            },
             length: 3,
             severity: Severity::Warning,
             message: "Unused variable".to_string(),
             suggestion: Some("Remove or use the variable".to_string()),
         },
         Diagnostic {
-            position: Position { line: 10, column: 0 },
+            position: Position {
+                line: 10,
+                column: 0,
+            },
             length: 1,
             severity: Severity::Hint,
             message: "Consider using const".to_string(),
@@ -312,7 +318,9 @@ The system is distributed. However, the system is slow.
 The @undefined_symbol needs to be #missing.
 "#;
 
-    analyzer.analyze(text.to_string()).expect("Analysis should start");
+    analyzer
+        .analyze(text.to_string())
+        .expect("Analysis should start");
 
     // Poll for result
     let mut attempts = 0;
@@ -332,10 +340,16 @@ The @undefined_symbol needs to be #missing.
     assert!(!analysis.holes.is_empty());
 
     // Should detect TODO as incomplete
-    assert!(analysis.holes.iter().any(|h| h.kind == HoleKind::Incomplete));
+    assert!(analysis
+        .holes
+        .iter()
+        .any(|h| h.kind == HoleKind::Incomplete));
 
     // Should detect contradiction
-    assert!(analysis.holes.iter().any(|h| h.kind == HoleKind::Contradiction));
+    assert!(analysis
+        .holes
+        .iter()
+        .any(|h| h.kind == HoleKind::Contradiction));
 
     // Should detect undefined symbols
     assert!(analysis.holes.iter().any(|h| h.kind == HoleKind::Undefined));
@@ -348,7 +362,9 @@ async fn test_semantic_analysis_entities() {
 
     let text = "The Orchestrator manages the Agent and calls Process() with #config. The Orchestrator also handles Events.";
 
-    analyzer.analyze(text.to_string()).expect("Analysis should start");
+    analyzer
+        .analyze(text.to_string())
+        .expect("Analysis should start");
 
     // Poll for result
     let mut attempts = 0;
@@ -426,8 +442,18 @@ fn test_editor_multiple_buffers() {
     editor.active_buffer_mut().insert("Buffer 3 content");
 
     // Verify buffer contents are independent
-    assert!(editor.buffer(buffer2_id).unwrap().content.to_string().contains("Buffer 2"));
-    assert!(editor.buffer(buffer3_id).unwrap().content.to_string().contains("Buffer 3"));
+    assert!(editor
+        .buffer(buffer2_id)
+        .unwrap()
+        .content
+        .to_string()
+        .contains("Buffer 2"));
+    assert!(editor
+        .buffer(buffer3_id)
+        .unwrap()
+        .content
+        .to_string()
+        .contains("Buffer 3"));
 }
 
 /// Test end-to-end workflow: edit → analyze → proposals → diagnostics
@@ -462,16 +488,27 @@ async fn test_full_ics_workflow() {
 
     // 3. Verify analysis found issues (holes)
     assert!(!analysis.holes.is_empty());
-    let has_incomplete = analysis.holes.iter().any(|h| h.kind == HoleKind::Incomplete);
-    let has_contradiction = analysis.holes.iter().any(|h| h.kind == HoleKind::Contradiction);
+    let has_incomplete = analysis
+        .holes
+        .iter()
+        .any(|h| h.kind == HoleKind::Incomplete);
+    let has_contradiction = analysis
+        .holes
+        .iter()
+        .any(|h| h.kind == HoleKind::Contradiction);
     assert!(has_incomplete);
     assert!(has_contradiction);
 
     // 4. Create diagnostics from holes
-    use mnemosyne_core::ics::editor::{Diagnostic, Severity, Position};
-    let diagnostics: Vec<Diagnostic> = analysis.holes.iter().map(|hole| {
-        Diagnostic {
-            position: Position { line: hole.line, column: hole.column },
+    use mnemosyne_core::ics::editor::{Diagnostic, Position, Severity};
+    let diagnostics: Vec<Diagnostic> = analysis
+        .holes
+        .iter()
+        .map(|hole| Diagnostic {
+            position: Position {
+                line: hole.line,
+                column: hole.column,
+            },
             length: 1,
             severity: match hole.kind {
                 HoleKind::Incomplete => Severity::Warning,
@@ -481,8 +518,8 @@ async fn test_full_ics_workflow() {
             },
             message: format!("{}: {}", hole.name, hole.context),
             suggestion: hole.suggestions.first().cloned(),
-        }
-    }).collect();
+        })
+        .collect();
 
     // 5. Show diagnostics in panel
     let mut diag_state = DiagnosticsPanelState::new();

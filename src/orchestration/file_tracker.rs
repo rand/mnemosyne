@@ -122,9 +122,10 @@ impl FileTracker {
 
         // Record in agent files
         {
-            let mut agent_files = self.agent_files.write().map_err(|e| {
-                MnemosyneError::Other(format!("Failed to lock agent_files: {}", e))
-            })?;
+            let mut agent_files = self
+                .agent_files
+                .write()
+                .map_err(|e| MnemosyneError::Other(format!("Failed to lock agent_files: {}", e)))?;
 
             agent_files
                 .entry(agent_id.clone())
@@ -160,10 +161,8 @@ impl FileTracker {
         };
 
         // Find unique agents working on this file
-        let unique_agents: HashSet<AgentId> = modifications
-            .iter()
-            .map(|m| m.agent_id.clone())
-            .collect();
+        let unique_agents: HashSet<AgentId> =
+            modifications.iter().map(|m| m.agent_id.clone()).collect();
 
         if unique_agents.len() <= 1 {
             return Ok(vec![]); // No conflict if only one agent
@@ -198,12 +197,19 @@ impl FileTracker {
     }
 
     /// Determine conflict severity
-    fn determine_severity(&self, path: &Path, _agents: &HashSet<AgentId>) -> Result<ConflictSeverity> {
+    fn determine_severity(
+        &self,
+        path: &Path,
+        _agents: &HashSet<AgentId>,
+    ) -> Result<ConflictSeverity> {
         // Use conflict detector's logic
         let path_str = path.to_string_lossy();
 
         // Critical files
-        if path_str.contains("migration") || path_str.contains("schema") || path_str.ends_with(".env") {
+        if path_str.contains("migration")
+            || path_str.contains("schema")
+            || path_str.ends_with(".env")
+        {
             return Ok(ConflictSeverity::Block);
         }
 
@@ -226,9 +232,10 @@ impl FileTracker {
 
     /// Get modified files for agent
     pub fn get_agent_files(&self, agent_id: &AgentId) -> Result<HashSet<PathBuf>> {
-        let agent_files = self.agent_files.read().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to lock agent_files: {}", e))
-        })?;
+        let agent_files = self
+            .agent_files
+            .read()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to lock agent_files: {}", e)))?;
 
         Ok(agent_files
             .get(agent_id)
@@ -247,10 +254,8 @@ impl FileTracker {
             None => return Ok(vec![]),
         };
 
-        let unique_agents: HashSet<AgentId> = modifications
-            .iter()
-            .map(|m| m.agent_id.clone())
-            .collect();
+        let unique_agents: HashSet<AgentId> =
+            modifications.iter().map(|m| m.agent_id.clone()).collect();
 
         Ok(unique_agents.into_iter().collect())
     }
@@ -300,9 +305,10 @@ impl FileTracker {
 
     /// Clear agent's tracked files (e.g., after commit)
     pub fn clear_agent_files(&self, agent_id: &AgentId) -> Result<()> {
-        let mut agent_files = self.agent_files.write().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to lock agent_files: {}", e))
-        })?;
+        let mut agent_files = self
+            .agent_files
+            .write()
+            .map_err(|e| MnemosyneError::Other(format!("Failed to lock agent_files: {}", e)))?;
 
         agent_files.remove(agent_id);
 
@@ -339,7 +345,8 @@ impl FileTracker {
 
         for (conflict_id, conflict) in active_conflicts.iter() {
             if let Some(mods) = file_modifications.get(&conflict.path) {
-                let unique_agents: HashSet<AgentId> = mods.iter().map(|m| m.agent_id.clone()).collect();
+                let unique_agents: HashSet<AgentId> =
+                    mods.iter().map(|m| m.agent_id.clone()).collect();
 
                 if unique_agents.len() <= 1 {
                     conflicts_to_remove.push(conflict_id.clone());

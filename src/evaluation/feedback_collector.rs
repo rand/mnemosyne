@@ -124,11 +124,11 @@ pub struct ProvidedContext {
     pub context_id: String,
 
     // Privacy-preserving task metadata
-    pub task_hash: String,  // SHA256 hash, first 16 chars only
-    pub task_keywords: Option<Vec<String>>,  // Generic keywords, no sensitive data
+    pub task_hash: String,                  // SHA256 hash, first 16 chars only
+    pub task_keywords: Option<Vec<String>>, // Generic keywords, no sensitive data
     pub task_type: Option<TaskType>,
     pub work_phase: Option<WorkPhase>,
-    pub file_types: Option<Vec<String>>,  // Generic patterns like ".rs", ".py"
+    pub file_types: Option<Vec<String>>, // Generic patterns like ".rs", ".py"
     pub error_context: Option<ErrorContext>,
     pub related_technologies: Option<Vec<String>>,
 }
@@ -209,7 +209,10 @@ impl FeedbackCollector {
 
         // Validate task_hash is actually a hash (privacy check)
         if context.task_hash.len() > 16 {
-            warn!("task_hash too long ({}), truncating for privacy", context.task_hash.len());
+            warn!(
+                "task_hash too long ({}), truncating for privacy",
+                context.task_hash.len()
+            );
         }
         let task_hash = context.task_hash.chars().take(16).collect::<String>();
 
@@ -217,17 +220,23 @@ impl FeedbackCollector {
         let task_keywords = context.task_keywords.map(|keywords| {
             // List of sensitive keywords that should never be stored
             let sensitive_terms = [
-                "password", "secret", "key", "token", "api_key", "private_key",
-                "credentials", "ssh_key", "access_token", "auth_token",
+                "password",
+                "secret",
+                "key",
+                "token",
+                "api_key",
+                "private_key",
+                "credentials",
+                "ssh_key",
+                "access_token",
+                "auth_token",
             ];
 
             let filtered: Vec<String> = keywords
                 .into_iter()
                 .filter(|keyword| {
                     let kw_lower = keyword.to_lowercase();
-                    let is_sensitive = sensitive_terms
-                        .iter()
-                        .any(|term| kw_lower.contains(term));
+                    let is_sensitive = sensitive_terms.iter().any(|term| kw_lower.contains(term));
 
                     if is_sensitive {
                         warn!("Filtered sensitive keyword for privacy: {}", keyword);
@@ -406,7 +415,9 @@ impl FeedbackCollector {
     /// Record explicit user rating of context usefulness
     pub async fn record_user_rating(&self, eval_id: &str, rating: i32) -> Result<()> {
         if !(-1..=1).contains(&rating) {
-            return Err(MnemosyneError::ValidationError("Rating must be -1, 0, or 1".into()));
+            return Err(MnemosyneError::ValidationError(
+                "Rating must be -1, 0, or 1".into(),
+            ));
         }
 
         let now = Utc::now().timestamp();
@@ -432,12 +443,17 @@ impl FeedbackCollector {
     /// Record task completion and success score
     pub async fn record_task_completion(&self, session_id: &str, success_score: f32) -> Result<()> {
         if !(0.0..=1.0).contains(&success_score) {
-            return Err(MnemosyneError::ValidationError("Success score must be 0.0-1.0".into()));
+            return Err(MnemosyneError::ValidationError(
+                "Success score must be 0.0-1.0".into(),
+            ));
         }
 
         let now = Utc::now().timestamp();
 
-        info!("Recording task completion for session {} with score {}", session_id, success_score);
+        info!(
+            "Recording task completion for session {} with score {}",
+            session_id, success_score
+        );
 
         let conn = self.get_conn().await?;
         conn.execute(
@@ -477,7 +493,10 @@ impl FeedbackCollector {
     }
 
     /// Get all evaluations for a session
-    pub async fn get_session_evaluations(&self, session_id: &str) -> Result<Vec<ContextEvaluation>> {
+    pub async fn get_session_evaluations(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<ContextEvaluation>> {
         let conn = self.get_conn().await?;
         let mut rows = conn
             .query(
@@ -520,23 +539,42 @@ impl FeedbackCollector {
     /// Convert database row to ContextEvaluation
     fn row_to_evaluation(&self, row: &libsql::Row) -> Result<ContextEvaluation> {
         // Parse all fields from row
-        let id: String = row.get(0).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let session_id: String = row.get(1).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let agent_role: String = row.get(2).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let namespace: String = row.get(3).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let id: String = row
+            .get(0)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let session_id: String = row
+            .get(1)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let agent_role: String = row
+            .get(2)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let namespace: String = row
+            .get(3)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
 
-        let context_type_str: String = row.get(4).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let context_type_str: String = row
+            .get(4)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
         let context_type = match context_type_str.as_str() {
             "skill" => ContextType::Skill,
             "memory" => ContextType::Memory,
             "file" => ContextType::File,
             "commit" => ContextType::Commit,
             "plan" => ContextType::Plan,
-            _ => return Err(MnemosyneError::Other(format!("Unknown context type: {}", context_type_str))),
+            _ => {
+                return Err(MnemosyneError::Other(format!(
+                    "Unknown context type: {}",
+                    context_type_str
+                )))
+            }
         };
 
-        let context_id: String = row.get(5).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let task_hash: String = row.get(6).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let context_id: String = row
+            .get(5)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let task_hash: String = row
+            .get(6)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
 
         // Optional fields
         let task_keywords: Option<String> = row.get(7).ok();
@@ -553,23 +591,23 @@ impl FeedbackCollector {
             context_id,
             task_hash,
             task_keywords,
-            task_type: None, // Parse from row
-            work_phase: None, // Parse from row
-            file_types: None, // Parse from row
-            error_context: None, // Parse from row
-            related_technologies: None, // Parse from row
-            was_accessed: false, // Parse from row
-            access_count: 0, // Parse from row
+            task_type: None,               // Parse from row
+            work_phase: None,              // Parse from row
+            file_types: None,              // Parse from row
+            error_context: None,           // Parse from row
+            related_technologies: None,    // Parse from row
+            was_accessed: false,           // Parse from row
+            access_count: 0,               // Parse from row
             time_to_first_access_ms: None, // Parse from row
-            total_time_accessed_ms: 0, // Parse from row
-            was_edited: false, // Parse from row
-            was_committed: false, // Parse from row
-            was_cited_in_response: false, // Parse from row
-            user_rating: None, // Parse from row
-            task_completed: false, // Parse from row
-            task_success_score: None, // Parse from row
-            context_provided_at: 0, // Parse from row
-            evaluation_updated_at: 0, // Parse from row
+            total_time_accessed_ms: 0,     // Parse from row
+            was_edited: false,             // Parse from row
+            was_committed: false,          // Parse from row
+            was_cited_in_response: false,  // Parse from row
+            user_rating: None,             // Parse from row
+            task_completed: false,         // Parse from row
+            task_success_score: None,      // Parse from row
+            context_provided_at: 0,        // Parse from row
+            evaluation_updated_at: 0,      // Parse from row
         })
     }
 }

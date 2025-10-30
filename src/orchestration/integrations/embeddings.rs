@@ -63,10 +63,7 @@ impl EmbeddingIntegration {
     ///
     /// Returns a similarity score (0.0-1.0) indicating how related
     /// two work items are based on their descriptions.
-    pub async fn compute_work_similarity(
-        _item1: &WorkItem,
-        _item2: &WorkItem,
-    ) -> Result<f32> {
+    pub async fn compute_work_similarity(_item1: &WorkItem, _item2: &WorkItem) -> Result<f32> {
         // Future: Use embedding service to compare work item descriptions
         // This enables:
         // - Duplicate detection
@@ -79,9 +76,7 @@ impl EmbeddingIntegration {
     ///
     /// Groups related work items together for batch processing
     /// or to identify common themes.
-    pub async fn cluster_work_items(
-        _items: &[WorkItem],
-    ) -> Result<Vec<Vec<usize>>> {
+    pub async fn cluster_work_items(_items: &[WorkItem]) -> Result<Vec<Vec<usize>>> {
         // Future: Cluster work items using embedding similarity
         // Returns: [[0, 2], [1, 3, 4]] (indices of items in each cluster)
         Ok(vec![])
@@ -91,9 +86,7 @@ impl EmbeddingIntegration {
     ///
     /// Search for past work items that are semantically related
     /// to the current task. Useful for learning from history.
-    pub async fn find_similar_historical_work(
-        _description: &str,
-    ) -> Result<Vec<String>> {
+    pub async fn find_similar_historical_work(_description: &str) -> Result<Vec<String>> {
         // Future: Query event history for similar work
         // Returns: List of similar work item descriptions
         Ok(vec![])

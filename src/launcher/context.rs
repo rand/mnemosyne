@@ -326,7 +326,11 @@ mod tests {
     fn test_parse_namespace_session() {
         let ns = parse_namespace("session:myapp:abc123");
         assert!(matches!(ns, Namespace::Session { .. }));
-        if let Namespace::Session { project, session_id } = ns {
+        if let Namespace::Session {
+            project,
+            session_id,
+        } = ns
+        {
             assert_eq!(project, "myapp");
             assert_eq!(session_id, "abc123");
         }

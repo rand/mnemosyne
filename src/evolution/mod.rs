@@ -22,4 +22,6 @@ pub use config::{ConfigError, ConsolidationConfig, DecisionMode, EvolutionConfig
 pub use consolidation::ConsolidationJob;
 pub use importance::ImportanceRecalibrator;
 pub use links::LinkDecayJob;
-pub use scheduler::{BackgroundScheduler, EvolutionJob, JobError, JobReport, JobRun, JobStatus, SchedulerError};
+pub use scheduler::{
+    BackgroundScheduler, EvolutionJob, JobError, JobReport, JobRun, JobStatus, SchedulerError,
+};

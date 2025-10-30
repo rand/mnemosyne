@@ -153,10 +153,7 @@ mod tests {
 
     #[test]
     fn test_response_serialization() {
-        let response = JsonRpcResponse::success(
-            Some(json!(1)),
-            json!({"status": "ok"}),
-        );
+        let response = JsonRpcResponse::success(Some(json!(1)), json!({"status": "ok"}));
 
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("\"jsonrpc\":\"2.0\""));

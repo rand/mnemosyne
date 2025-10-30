@@ -49,16 +49,16 @@ pub mod embeddings;
 pub mod error;
 pub mod evaluation;
 pub mod evolution;
-pub mod ics;  // Integrated Context Studio
+pub mod ics; // Integrated Context Studio
 pub mod launcher;
 pub mod mcp;
 pub mod namespace;
 pub mod orchestration;
-pub mod pty;  // PTY wrapper for Claude Code
+pub mod pty; // PTY wrapper for Claude Code
 pub mod secrets;
 pub mod services;
 pub mod storage;
-pub mod tui;  // Shared TUI infrastructure
+pub mod tui; // Shared TUI infrastructure
 pub mod types;
 
 // Python bindings (PyO3) - only available with "python" feature
@@ -74,7 +74,7 @@ pub use embeddings::{
 };
 pub use error::{MnemosyneError, Result};
 pub use evaluation::{
-    ContextEvaluation, FeedbackCollector, FeatureExtractor, ProvidedContext, RelevanceFeatures,
+    ContextEvaluation, FeatureExtractor, FeedbackCollector, ProvidedContext, RelevanceFeatures,
     RelevanceScorer, Scope, WeightSet,
 };
 pub use evolution::{
@@ -83,11 +83,12 @@ pub use evolution::{
 };
 pub use mcp::{McpServer, ToolHandler};
 pub use namespace::{NamespaceDetector, ProjectMetadata};
-pub use orchestration::{
-    AgentEvent, OrchestrationEngine, SupervisionConfig, WorkItem, WorkQueue,
-};
+pub use orchestration::{AgentEvent, OrchestrationEngine, SupervisionConfig, WorkItem, WorkQueue};
 pub use services::{LlmConfig, LlmService};
-pub use storage::{libsql::{ConnectionMode, LibsqlStorage}, StorageBackend};
+pub use storage::{
+    libsql::{ConnectionMode, LibsqlStorage},
+    StorageBackend,
+};
 pub use types::{
     ConsolidationDecision, LinkType, MemoryId, MemoryLink, MemoryNote, MemoryType, MemoryUpdates,
     Namespace, SearchQuery, SearchResult,

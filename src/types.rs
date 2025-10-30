@@ -102,7 +102,10 @@ impl std::fmt::Display for Namespace {
         match self {
             Namespace::Global => write!(f, "global"),
             Namespace::Project { name } => write!(f, "project:{}", name),
-            Namespace::Session { project, session_id } => {
+            Namespace::Session {
+                project,
+                session_id,
+            } => {
                 write!(f, "session:{}:{}", project, session_id)
             }
         }
@@ -151,7 +154,7 @@ impl MemoryType {
         match self {
             MemoryType::ArchitectureDecision => 1.2,
             MemoryType::Constraint => 1.1,
-            MemoryType::AgentEvent => 1.0,  // High value for orchestration
+            MemoryType::AgentEvent => 1.0, // High value for orchestration
             MemoryType::CodePattern => 1.0,
             MemoryType::BugFix => 0.9,
             MemoryType::Insight => 0.9,

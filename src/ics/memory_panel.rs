@@ -188,7 +188,11 @@ impl<'a> MemoryPanel<'a> {
         let title = if state.search_query.is_empty() {
             format!(" Memories ({}) ", self.memories.len())
         } else {
-            format!(" Memories ({}) - Search: {} ", self.memories.len(), state.search_query)
+            format!(
+                " Memories ({}) - Search: {} ",
+                self.memories.len(),
+                state.search_query
+            )
         };
 
         let block = Block::default()
@@ -214,7 +218,8 @@ impl<'a> MemoryPanel<'a> {
                 )),
             ];
 
-            let paragraph = Paragraph::new(loading_text).alignment(ratatui::layout::Alignment::Center);
+            let paragraph =
+                Paragraph::new(loading_text).alignment(ratatui::layout::Alignment::Center);
             paragraph.render(inner, buf);
             return;
         }
@@ -226,9 +231,16 @@ impl<'a> MemoryPanel<'a> {
             self.memories
                 .iter()
                 .filter(|m| {
-                    m.content.to_lowercase().contains(&state.search_query.to_lowercase())
-                        || m.tags.iter().any(|tag| tag.to_lowercase().contains(&state.search_query.to_lowercase()))
-                        || format!("{:?}", m.memory_type).to_lowercase().contains(&state.search_query.to_lowercase())
+                    m.content
+                        .to_lowercase()
+                        .contains(&state.search_query.to_lowercase())
+                        || m.tags.iter().any(|tag| {
+                            tag.to_lowercase()
+                                .contains(&state.search_query.to_lowercase())
+                        })
+                        || format!("{:?}", m.memory_type)
+                            .to_lowercase()
+                            .contains(&state.search_query.to_lowercase())
                 })
                 .collect()
         };
@@ -259,7 +271,8 @@ impl<'a> MemoryPanel<'a> {
                 )),
             ];
 
-            let paragraph = Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
+            let paragraph =
+                Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
             paragraph.render(inner, buf);
             return;
         }
@@ -283,9 +296,8 @@ impl<'a> MemoryPanel<'a> {
                     memory.content.clone()
                 };
 
-                let category = memory.tags.first()
-                    .map(|s| s.as_str())
-                    .unwrap_or_else(|| match memory.memory_type {
+                let category = memory.tags.first().map(|s| s.as_str()).unwrap_or_else(|| {
+                    match memory.memory_type {
                         crate::types::MemoryType::ArchitectureDecision => "Architecture",
                         crate::types::MemoryType::CodePattern => "Pattern",
                         crate::types::MemoryType::BugFix => "BugFix",
@@ -296,7 +308,8 @@ impl<'a> MemoryPanel<'a> {
                         crate::types::MemoryType::Reference => "Reference",
                         crate::types::MemoryType::Preference => "Preference",
                         crate::types::MemoryType::AgentEvent => "AgentEvent",
-                    });
+                    }
+                });
 
                 let line = Line::from(vec![
                     Span::styled(category, category_style),
@@ -332,20 +345,23 @@ impl<'a> MemoryPanel<'a> {
         let inner = block.inner(area);
         block.render(area, buf);
 
-        let category = memory.tags.first()
-            .map(|s| s.as_str())
-            .unwrap_or_else(|| match memory.memory_type {
-                crate::types::MemoryType::ArchitectureDecision => "Architecture",
-                crate::types::MemoryType::CodePattern => "Pattern",
-                crate::types::MemoryType::BugFix => "BugFix",
-                crate::types::MemoryType::Configuration => "Config",
-                crate::types::MemoryType::Constraint => "Constraint",
-                crate::types::MemoryType::Entity => "Entity",
-                crate::types::MemoryType::Insight => "Insight",
-                crate::types::MemoryType::Reference => "Reference",
-                crate::types::MemoryType::Preference => "Preference",
-                crate::types::MemoryType::AgentEvent => "AgentEvent",
-            });
+        let category =
+            memory
+                .tags
+                .first()
+                .map(|s| s.as_str())
+                .unwrap_or_else(|| match memory.memory_type {
+                    crate::types::MemoryType::ArchitectureDecision => "Architecture",
+                    crate::types::MemoryType::CodePattern => "Pattern",
+                    crate::types::MemoryType::BugFix => "BugFix",
+                    crate::types::MemoryType::Configuration => "Config",
+                    crate::types::MemoryType::Constraint => "Constraint",
+                    crate::types::MemoryType::Entity => "Entity",
+                    crate::types::MemoryType::Insight => "Insight",
+                    crate::types::MemoryType::Reference => "Reference",
+                    crate::types::MemoryType::Preference => "Preference",
+                    crate::types::MemoryType::AgentEvent => "AgentEvent",
+                });
 
         // Format memory details
         let lines = vec![
@@ -354,11 +370,17 @@ impl<'a> MemoryPanel<'a> {
                 Span::raw(category),
             ]),
             Line::from(vec![
-                Span::styled("Importance: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "Importance: ",
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
                 Span::raw(format!("{}/10", memory.importance)),
             ]),
             Line::from(""),
-            Line::from(Span::styled("Content:", Style::default().add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                "Content:",
+                Style::default().add_modifier(Modifier::BOLD),
+            )),
             Line::from(""),
         ];
 

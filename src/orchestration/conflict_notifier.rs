@@ -129,7 +129,10 @@ impl ConflictNotifier {
     ///
     /// Only notifies about conflicts that haven't been notified before.
     /// Returns notifications that should be sent.
-    pub fn notify_on_save(&self, agent_id: &AgentId) -> crate::error::Result<Vec<ConflictNotification>> {
+    pub fn notify_on_save(
+        &self,
+        agent_id: &AgentId,
+    ) -> crate::error::Result<Vec<ConflictNotification>> {
         if !self.config.enabled || !self.config.notify_on_save {
             return Ok(vec![]);
         }
@@ -141,7 +144,9 @@ impl ConflictNotifier {
             crate::error::MnemosyneError::Other(format!("Failed to lock notified_conflicts: {}", e))
         })?;
 
-        let agent_notified = notified.entry(agent_id.clone()).or_insert_with(HashSet::new);
+        let agent_notified = notified
+            .entry(agent_id.clone())
+            .or_insert_with(HashSet::new);
 
         let new_conflicts: Vec<ActiveConflict> = agent_conflicts
             .into_iter()
@@ -194,7 +199,10 @@ impl ConflictNotifier {
         let interval = Duration::minutes(self.config.periodic_interval_minutes);
 
         let mut last_notif = self.last_periodic_notification.write().map_err(|e| {
-            crate::error::MnemosyneError::Other(format!("Failed to lock last_periodic_notification: {}", e))
+            crate::error::MnemosyneError::Other(format!(
+                "Failed to lock last_periodic_notification: {}",
+                e
+            ))
         })?;
 
         // Get all active conflicts
@@ -246,7 +254,9 @@ impl ConflictNotifier {
     /// Generate final session summary (called before session end)
     ///
     /// Returns notifications for all agents with unresolved conflicts.
-    pub fn generate_session_end_summaries(&self) -> crate::error::Result<Vec<ConflictNotification>> {
+    pub fn generate_session_end_summaries(
+        &self,
+    ) -> crate::error::Result<Vec<ConflictNotification>> {
         if !self.config.enabled || !self.config.session_end_summary {
             return Ok(vec![]);
         }
@@ -286,12 +296,12 @@ impl ConflictNotifier {
     }
 
     /// Format new conflict message
-    fn format_new_conflict_message(&self, _agent_id: &AgentId, conflict: &ActiveConflict) -> String {
-        let other_agents: Vec<String> = conflict
-            .agents
-            .iter()
-            .map(|id| id.to_string())
-            .collect();
+    fn format_new_conflict_message(
+        &self,
+        _agent_id: &AgentId,
+        conflict: &ActiveConflict,
+    ) -> String {
+        let other_agents: Vec<String> = conflict.agents.iter().map(|id| id.to_string()).collect();
 
         format!(
             "⚠️  NEW CONFLICT DETECTED\n\
@@ -322,11 +332,8 @@ impl ConflictNotifier {
         );
 
         for (i, conflict) in conflicts.iter().take(5).enumerate() {
-            let other_agents: Vec<String> = conflict
-                .agents
-                .iter()
-                .map(|id| id.to_string())
-                .collect();
+            let other_agents: Vec<String> =
+                conflict.agents.iter().map(|id| id.to_string()).collect();
 
             message.push_str(&format!(
                 "{}. [{:?}] {} (with: {})\n",
@@ -351,7 +358,11 @@ impl ConflictNotifier {
     }
 
     /// Format session end summary message
-    fn format_session_end_summary(&self, _agent_id: &AgentId, conflicts: &[ActiveConflict]) -> String {
+    fn format_session_end_summary(
+        &self,
+        _agent_id: &AgentId,
+        conflicts: &[ActiveConflict],
+    ) -> String {
         let mut message = format!(
             "🔚 SESSION ENDING - Final Conflict Summary\n\
              Unresolved conflicts: {}\n\n",
@@ -359,11 +370,8 @@ impl ConflictNotifier {
         );
 
         for (i, conflict) in conflicts.iter().enumerate() {
-            let other_agents: Vec<String> = conflict
-                .agents
-                .iter()
-                .map(|id| id.to_string())
-                .collect();
+            let other_agents: Vec<String> =
+                conflict.agents.iter().map(|id| id.to_string()).collect();
 
             message.push_str(&format!(
                 "{}. [{:?}] {}\n   With: {}\n   Age: {}\n\n",
@@ -391,7 +399,11 @@ impl ConflictNotifier {
             history.push(NotificationRecord {
                 notification_id: notification.id.clone(),
                 agent_id: notification.agent_id.clone(),
-                conflict_ids: notification.conflicts.iter().map(|c| c.id.clone()).collect(),
+                conflict_ids: notification
+                    .conflicts
+                    .iter()
+                    .map(|c| c.id.clone())
+                    .collect(),
                 timestamp: notification.timestamp,
             });
         }
@@ -439,14 +451,19 @@ impl ConflictNotifier {
     /// Get all active conflicts
     ///
     /// Returns all conflicts currently tracked across all agents.
-    pub fn get_all_conflicts(&self) -> crate::error::Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
+    pub fn get_all_conflicts(
+        &self,
+    ) -> crate::error::Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
         self.file_tracker.get_active_conflicts()
     }
 
     /// Get conflicts for a specific agent
     ///
     /// Returns conflicts involving the specified agent.
-    pub fn get_agent_conflicts(&self, agent_id: &AgentId) -> crate::error::Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
+    pub fn get_agent_conflicts(
+        &self,
+        agent_id: &AgentId,
+    ) -> crate::error::Result<Vec<crate::orchestration::file_tracker::ActiveConflict>> {
         self.file_tracker.get_agent_conflicts(agent_id)
     }
 }
@@ -486,16 +503,27 @@ mod tests {
 
         // Create conflict
         tracker
-            .record_modification(&agent1, &path, crate::orchestration::file_tracker::ModificationType::Modified)
+            .record_modification(
+                &agent1,
+                &path,
+                crate::orchestration::file_tracker::ModificationType::Modified,
+            )
             .unwrap();
         tracker
-            .record_modification(&agent2, &path, crate::orchestration::file_tracker::ModificationType::Modified)
+            .record_modification(
+                &agent2,
+                &path,
+                crate::orchestration::file_tracker::ModificationType::Modified,
+            )
             .unwrap();
 
         // Should notify agent1 of new conflict
         let notifications = notifier.notify_on_save(&agent1).unwrap();
         assert_eq!(notifications.len(), 1);
-        assert_eq!(notifications[0].notification_type, NotificationType::NewConflict);
+        assert_eq!(
+            notifications[0].notification_type,
+            NotificationType::NewConflict
+        );
 
         // Second call should not notify again (already notified)
         let notifications2 = notifier.notify_on_save(&agent1).unwrap();
@@ -518,10 +546,18 @@ mod tests {
 
         // Create conflict
         tracker
-            .record_modification(&agent1, &path, crate::orchestration::file_tracker::ModificationType::Modified)
+            .record_modification(
+                &agent1,
+                &path,
+                crate::orchestration::file_tracker::ModificationType::Modified,
+            )
             .unwrap();
         tracker
-            .record_modification(&agent2, &path, crate::orchestration::file_tracker::ModificationType::Modified)
+            .record_modification(
+                &agent2,
+                &path,
+                crate::orchestration::file_tracker::ModificationType::Modified,
+            )
             .unwrap();
 
         // Generate periodic summaries
@@ -546,10 +582,18 @@ mod tests {
 
         // Create conflict
         tracker
-            .record_modification(&agent1, &path, crate::orchestration::file_tracker::ModificationType::Modified)
+            .record_modification(
+                &agent1,
+                &path,
+                crate::orchestration::file_tracker::ModificationType::Modified,
+            )
             .unwrap();
         tracker
-            .record_modification(&agent2, &path, crate::orchestration::file_tracker::ModificationType::Modified)
+            .record_modification(
+                &agent2,
+                &path,
+                crate::orchestration::file_tracker::ModificationType::Modified,
+            )
             .unwrap();
 
         // Generate session end summaries
@@ -572,10 +616,18 @@ mod tests {
         let path = PathBuf::from("src/main.rs");
 
         tracker
-            .record_modification(&agent, &path, crate::orchestration::file_tracker::ModificationType::Modified)
+            .record_modification(
+                &agent,
+                &path,
+                crate::orchestration::file_tracker::ModificationType::Modified,
+            )
             .unwrap();
         tracker
-            .record_modification(&agent2, &path, crate::orchestration::file_tracker::ModificationType::Modified)
+            .record_modification(
+                &agent2,
+                &path,
+                crate::orchestration::file_tracker::ModificationType::Modified,
+            )
             .unwrap();
 
         // Generate notifications

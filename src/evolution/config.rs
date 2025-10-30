@@ -199,24 +199,28 @@ impl EvolutionConfig {
     fn validate_job_config(&self, name: &str, config: &JobConfig) -> Result<(), ConfigError> {
         // Interval must be at least 1 hour
         if config.interval < Duration::from_secs(3600) {
-            return Err(ConfigError::ValidationError(
-                format!("{}: interval must be at least 1 hour", name)
-            ));
+            return Err(ConfigError::ValidationError(format!(
+                "{}: interval must be at least 1 hour",
+                name
+            )));
         }
 
         // Batch size must be reasonable (1-10000)
         if config.batch_size == 0 || config.batch_size > 10000 {
-            return Err(ConfigError::ValidationError(
-                format!("{}: batch_size must be between 1 and 10000", name)
-            ));
+            return Err(ConfigError::ValidationError(format!(
+                "{}: batch_size must be between 1 and 10000",
+                name
+            )));
         }
 
         // Max duration must be at least 1 minute and at most 30 minutes
         if config.max_duration < Duration::from_secs(60)
-            || config.max_duration > Duration::from_secs(1800) {
-            return Err(ConfigError::ValidationError(
-                format!("{}: max_duration must be between 1 and 30 minutes", name)
-            ));
+            || config.max_duration > Duration::from_secs(1800)
+        {
+            return Err(ConfigError::ValidationError(format!(
+                "{}: max_duration must be between 1 and 30 minutes",
+                name
+            )));
         }
 
         Ok(())
@@ -249,7 +253,10 @@ mod tests {
 
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("interval must be at least 1 hour"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("interval must be at least 1 hour"));
     }
 
     #[test]
@@ -259,7 +266,10 @@ mod tests {
 
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("batch_size must be between"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("batch_size must be between"));
     }
 
     #[test]
@@ -269,7 +279,10 @@ mod tests {
 
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("batch_size must be between"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("batch_size must be between"));
     }
 
     #[test]
@@ -279,7 +292,10 @@ mod tests {
 
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("max_duration must be between"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("max_duration must be between"));
     }
 
     #[test]
@@ -289,7 +305,10 @@ mod tests {
 
         let result = config.validate();
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("max_duration must be between"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("max_duration must be between"));
     }
 
     #[test]
@@ -336,6 +355,9 @@ mod tests {
         let deserialized: EvolutionConfig = toml::from_str(&toml_str).unwrap();
 
         assert_eq!(config.enabled, deserialized.enabled);
-        assert_eq!(config.consolidation.batch_size, deserialized.consolidation.batch_size);
+        assert_eq!(
+            config.consolidation.batch_size,
+            deserialized.consolidation.batch_size
+        );
     }
 }

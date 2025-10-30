@@ -113,12 +113,17 @@ impl ClaudeCodeLauncher {
         debug!("Configuration: {:?}", self.config);
 
         // STEP 1: Initialize storage backend FIRST (eager initialization)
-        let db_path = self.config.mnemosyne_db_path.clone()
+        let db_path = self
+            .config
+            .mnemosyne_db_path
+            .clone()
             .unwrap_or_else(|| get_default_db_path());
 
         let storage = match crate::storage::libsql::LibsqlStorage::new(
-            crate::storage::libsql::ConnectionMode::Local(db_path.clone())
-        ).await {
+            crate::storage::libsql::ConnectionMode::Local(db_path.clone()),
+        )
+        .await
+        {
             Ok(s) => {
                 info!("Storage initialized: {}", db_path);
                 std::sync::Arc::new(s)
@@ -140,8 +145,10 @@ impl ClaudeCodeLauncher {
 
         let orchestration_engine = match crate::orchestration::OrchestrationEngine::new(
             storage.clone(),
-            orchestration_config
-        ).await {
+            orchestration_config,
+        )
+        .await
+        {
             Ok(mut engine) => {
                 // Start the engine to spawn all 4 agents
                 if let Err(e) = engine.start().await {
@@ -164,11 +171,16 @@ impl ClaudeCodeLauncher {
         let startup_prompt = if self.config.load_context_on_start {
             match tokio::time::timeout(
                 std::time::Duration::from_millis(500),
-                self.generate_startup_context_with_storage(storage.clone())
-            ).await {
+                self.generate_startup_context_with_storage(storage.clone()),
+            )
+            .await
+            {
                 Ok(Ok(context)) => {
                     info!("Loaded startup context ({} bytes)", context.len());
-                    debug!("Context preview: {}...", &context.chars().take(100).collect::<String>());
+                    debug!(
+                        "Context preview: {}...",
+                        &context.chars().take(100).collect::<String>()
+                    );
                     context
                 }
                 Ok(Err(e)) => {
@@ -192,7 +204,10 @@ impl ClaudeCodeLauncher {
         // STEP 4: Build command arguments
         let args = self.build_command_args(&agent_config, &mcp_config, &startup_prompt);
 
-        debug!("Launching Claude Code with {} bytes of startup context", startup_prompt.len());
+        debug!(
+            "Launching Claude Code with {} bytes of startup context",
+            startup_prompt.len()
+        );
 
         // STEP 5: Execute Claude Code with orchestration engine running
         let status = Command::new(&self.claude_binary)
@@ -251,9 +266,15 @@ impl ClaudeCodeLauncher {
     fn generate_mcp_config(&self) -> Result<String> {
         let generator = mcp::McpConfigGenerator {
             mnemosyne_binary_path: get_mnemosyne_binary_path()?,
-            namespace: self.config.mnemosyne_namespace.clone()
+            namespace: self
+                .config
+                .mnemosyne_namespace
+                .clone()
                 .unwrap_or_else(|| detect_namespace()),
-            db_path: self.config.mnemosyne_db_path.clone()
+            db_path: self
+                .config
+                .mnemosyne_db_path
+                .clone()
                 .unwrap_or_else(|| get_default_db_path()),
             agent_role: self.config.primary_agent_role.clone(),
         };
@@ -266,19 +287,26 @@ impl ClaudeCodeLauncher {
         &self,
         storage: std::sync::Arc<dyn crate::storage::StorageBackend>,
     ) -> Result<String> {
-        let namespace = self.config.mnemosyne_namespace.clone()
+        let namespace = self
+            .config
+            .mnemosyne_namespace
+            .clone()
             .unwrap_or_else(|| detect_namespace());
 
         let loader = context::ContextLoader::new(storage);
 
-        loader.generate_startup_prompt(
-            &namespace,
-            &self.config.context_config
-        ).await
+        loader
+            .generate_startup_prompt(&namespace, &self.config.context_config)
+            .await
     }
 
     /// Build command-line arguments for Claude Code
-    fn build_command_args(&self, agent_config: &str, mcp_config: &str, startup_prompt: &str) -> Vec<String> {
+    fn build_command_args(
+        &self,
+        agent_config: &str,
+        mcp_config: &str,
+        startup_prompt: &str,
+    ) -> Vec<String> {
         let mut args = vec![
             "--agents".to_string(),
             agent_config.to_string(),
@@ -309,9 +337,9 @@ impl ClaudeCodeLauncher {
 pub fn detect_claude_binary() -> Result<PathBuf> {
     // Try common locations
     let paths = vec![
-        "claude",                          // In PATH
-        "/usr/local/bin/claude",           // Common install location
-        "/opt/homebrew/bin/claude",        // Homebrew on Apple Silicon
+        "claude",                                // In PATH
+        "/usr/local/bin/claude",                 // Common install location
+        "/opt/homebrew/bin/claude",              // Homebrew on Apple Silicon
         "/home/linuxbrew/.linuxbrew/bin/claude", // Homebrew on Linux
     ];
 
@@ -338,7 +366,8 @@ pub fn detect_claude_binary() -> Result<PathBuf> {
     }
 
     Err(MnemosyneError::Other(
-        "Claude Code binary not found. Please ensure Claude Code is installed and in your PATH.".to_string()
+        "Claude Code binary not found. Please ensure Claude Code is installed and in your PATH."
+            .to_string(),
     ))
 }
 
@@ -442,7 +471,10 @@ mod tests {
     #[test]
     fn test_default_launcher_config() {
         let config = LauncherConfig::default();
-        assert!(matches!(config.primary_agent_role, agents::AgentRole::Executor));
+        assert!(matches!(
+            config.primary_agent_role,
+            agents::AgentRole::Executor
+        ));
         assert!(config.enable_subagents);
         assert_eq!(config.max_concurrent_agents, 4);
         assert_eq!(config.permission_mode, "default");

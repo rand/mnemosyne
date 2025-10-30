@@ -133,18 +133,16 @@ impl OutputParser {
     /// Check if line contains error
     fn is_error_line(line: &str) -> bool {
         static ERROR_REGEX: OnceLock<Regex> = OnceLock::new();
-        let regex = ERROR_REGEX.get_or_init(|| {
-            Regex::new(r"(?i)(error|fail|exception|panic|warning)").unwrap()
-        });
+        let regex = ERROR_REGEX
+            .get_or_init(|| Regex::new(r"(?i)(error|fail|exception|panic|warning)").unwrap());
         regex.is_match(line)
     }
 
     /// Check if line is tool use
     fn is_tool_use_line(line: &str) -> bool {
         static TOOL_REGEX: OnceLock<Regex> = OnceLock::new();
-        let regex = TOOL_REGEX.get_or_init(|| {
-            Regex::new(r"<function_calls>|<invoke|Tool").unwrap()
-        });
+        let regex =
+            TOOL_REGEX.get_or_init(|| Regex::new(r"<function_calls>|<invoke|Tool").unwrap());
         regex.is_match(line)
     }
 }
@@ -155,8 +153,14 @@ mod tests {
 
     #[test]
     fn test_agent_marker_detection() {
-        assert_eq!(AgentMarker::from_text("orchestrator running"), Some(AgentMarker::Orchestrator));
-        assert_eq!(AgentMarker::from_text("optimizer active"), Some(AgentMarker::Optimizer));
+        assert_eq!(
+            AgentMarker::from_text("orchestrator running"),
+            Some(AgentMarker::Orchestrator)
+        );
+        assert_eq!(
+            AgentMarker::from_text("optimizer active"),
+            Some(AgentMarker::Optimizer)
+        );
         assert_eq!(AgentMarker::from_text("no agent here"), None);
     }
 

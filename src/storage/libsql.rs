@@ -10,6 +10,7 @@ use crate::types::{MemoryId, MemoryLink, MemoryNote, Namespace, SearchResult};
 use async_trait::async_trait;
 use chrono::Utc;
 use libsql::{params, Builder, Connection, Database};
+use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
@@ -172,8 +173,14 @@ impl LibsqlStorage {
     /// // Init mode (create if missing)
     /// let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local("mnemosyne.db".into()), true).await?;
     /// ```
-    pub async fn new_with_validation(mode: ConnectionMode, create_if_missing: bool) -> Result<Self> {
-        info!("Connecting to LibSQL database: {:?} (create_if_missing: {})", mode, create_if_missing);
+    pub async fn new_with_validation(
+        mode: ConnectionMode,
+        create_if_missing: bool,
+    ) -> Result<Self> {
+        info!(
+            "Connecting to LibSQL database: {:?} (create_if_missing: {})",
+            mode, create_if_missing
+        );
 
         // Validate database before connecting (for local paths only)
         match &mode {
@@ -223,37 +230,43 @@ impl LibsqlStorage {
                         std::fs::create_dir_all(parent).map_err(|e| {
                             MnemosyneError::Database(format!(
                                 "Failed to create database directory {}: {}",
-                                parent.display(), e
+                                parent.display(),
+                                e
                             ))
                         })?;
                     }
                 }
 
-                Builder::new_local(path)
-                    .build()
-                    .await
-                    .map_err(|e| MnemosyneError::Database(format!("Failed to create local database: {}", e)))?
+                Builder::new_local(path).build().await.map_err(|e| {
+                    MnemosyneError::Database(format!("Failed to create local database: {}", e))
+                })?
             }
             ConnectionMode::InMemory => {
-                Builder::new_local(":memory:")
-                    .build()
-                    .await
-                    .map_err(|e| MnemosyneError::Database(format!("Failed to create in-memory database: {}", e)))?
+                Builder::new_local(":memory:").build().await.map_err(|e| {
+                    MnemosyneError::Database(format!("Failed to create in-memory database: {}", e))
+                })?
             }
             ConnectionMode::Remote { ref url, ref token } => {
                 Builder::new_remote(url.clone(), token.clone())
                     .build()
                     .await
-                    .map_err(|e| MnemosyneError::Database(format!("Failed to create remote database: {}", e)))?
+                    .map_err(|e| {
+                        MnemosyneError::Database(format!("Failed to create remote database: {}", e))
+                    })?
             }
-            ConnectionMode::EmbeddedReplica { ref path, ref url, ref token } => {
+            ConnectionMode::EmbeddedReplica {
+                ref path,
+                ref url,
+                ref token,
+            } => {
                 // Create parent directory only if create_if_missing is true
                 if create_if_missing {
                     if let Some(parent) = std::path::Path::new(path).parent() {
                         std::fs::create_dir_all(parent).map_err(|e| {
                             MnemosyneError::Database(format!(
                                 "Failed to create replica directory {}: {}",
-                                parent.display(), e
+                                parent.display(),
+                                e
                             ))
                         })?;
                     }
@@ -262,7 +275,12 @@ impl LibsqlStorage {
                 Builder::new_remote_replica(path, url.clone(), token.clone())
                     .build()
                     .await
-                    .map_err(|e| MnemosyneError::Database(format!("Failed to create embedded replica: {}", e)))?
+                    .map_err(|e| {
+                        MnemosyneError::Database(format!(
+                            "Failed to create embedded replica: {}",
+                            e
+                        ))
+                    })?
             }
         };
 
@@ -373,14 +391,12 @@ impl LibsqlStorage {
 
         // Test 1: Basic query to detect corruption
         let test_query = "SELECT 1";
-        conn.query(test_query, params![])
-            .await
-            .map_err(|e| {
-                MnemosyneError::Database(format!(
-                    "Database corruption detected or invalid database file: {}",
-                    e
-                ))
-            })?;
+        conn.query(test_query, params![]).await.map_err(|e| {
+            MnemosyneError::Database(format!(
+                "Database corruption detected or invalid database file: {}",
+                e
+            ))
+        })?;
 
         // Test 2: Check if database is writable
         // Try to create a test table and drop it
@@ -425,8 +441,10 @@ impl LibsqlStorage {
                 migration_name TEXT PRIMARY KEY,
                 applied_at INTEGER NOT NULL
             )",
-            params![]
-        ).await.map_err(|e| {
+            params![],
+        )
+        .await
+        .map_err(|e| {
             MnemosyneError::Migration(format!("Failed to create migrations table: {}", e))
         })?;
 
@@ -449,10 +467,12 @@ impl LibsqlStorage {
 
         for migration_file in migration_files {
             // Check if migration already applied
-            let mut rows = conn.query(
-                "SELECT COUNT(*) FROM _migrations_applied WHERE migration_name = ?",
-                params![migration_file],
-            ).await?;
+            let mut rows = conn
+                .query(
+                    "SELECT COUNT(*) FROM _migrations_applied WHERE migration_name = ?",
+                    params![migration_file],
+                )
+                .await?;
 
             let already_applied = if let Some(row) = rows.next().await? {
                 row.get::<i64>(0).unwrap_or(0)
@@ -467,26 +487,29 @@ impl LibsqlStorage {
             let file_path = migrations_path.join(migration_file);
             debug!("Executing migration: {:?}", file_path);
 
-            let sql = std::fs::read_to_string(&file_path)
-                .map_err(|e| {
-                    MnemosyneError::Migration(format!(
-                        "Failed to read migration file {}: {}",
-                        migration_file, e
-                    ))
-                })?;
+            let sql = std::fs::read_to_string(&file_path).map_err(|e| {
+                MnemosyneError::Migration(format!(
+                    "Failed to read migration file {}: {}",
+                    migration_file, e
+                ))
+            })?;
 
             // Execute the migration SQL
             // Parse SQL statements properly, handling multi-line statements like triggers
             let statements = parse_sql_statements(&sql);
-            debug!("Parsed {} statements from {}", statements.len(), migration_file);
+            debug!(
+                "Parsed {} statements from {}",
+                statements.len(),
+                migration_file
+            );
             for (i, statement) in statements.iter().enumerate() {
                 let statement = statement.trim();
                 if !statement.is_empty() {
-                    debug!("Executing statement {}/{}", i+1, statements.len());
+                    debug!("Executing statement {}/{}", i + 1, statements.len());
                     conn.execute(statement, params![]).await.map_err(|e| {
                         MnemosyneError::Migration(format!(
                             "Failed to execute statement #{} in {}: {}\nStatement: {}",
-                            i+1,
+                            i + 1,
                             migration_file,
                             e,
                             &statement[..statement.len().min(300)]
@@ -499,10 +522,10 @@ impl LibsqlStorage {
             let now = Utc::now().timestamp();
             conn.execute(
                 "INSERT INTO _migrations_applied (migration_name, applied_at) VALUES (?, ?)",
-                params![migration_file, now]
-            ).await.map_err(|e| {
-                MnemosyneError::Migration(format!("Failed to record migration: {}", e))
-            })?;
+                params![migration_file, now],
+            )
+            .await
+            .map_err(|e| MnemosyneError::Migration(format!("Failed to record migration: {}", e)))?;
 
             info!("Executed migration: {}", migration_file);
         }
@@ -531,7 +554,10 @@ impl LibsqlStorage {
 
         // Try to get a connection
         let conn = self.get_conn().map_err(|e| {
-            MnemosyneError::Database(format!("Health check failed: cannot establish connection: {}", e))
+            MnemosyneError::Database(format!(
+                "Health check failed: cannot establish connection: {}",
+                e
+            ))
         })?;
 
         // Try a simple query to verify database is operational
@@ -544,14 +570,19 @@ impl LibsqlStorage {
                 let error_msg = e.to_string();
                 if error_msg.contains("readonly") || error_msg.contains("permission") {
                     Err(MnemosyneError::Database(
-                        "Database is read-only or permission denied. Check file permissions.".to_string()
+                        "Database is read-only or permission denied. Check file permissions."
+                            .to_string(),
                     ))
                 } else if error_msg.contains("corrupt") || error_msg.contains("malformed") {
                     Err(MnemosyneError::Database(
-                        "Database appears to be corrupted. Consider restoring from backup.".to_string()
+                        "Database appears to be corrupted. Consider restoring from backup."
+                            .to_string(),
                     ))
                 } else {
-                    Err(MnemosyneError::Database(format!("Health check failed: {}", error_msg)))
+                    Err(MnemosyneError::Database(format!(
+                        "Health check failed: {}",
+                        error_msg
+                    )))
                 }
             }
         }
@@ -609,24 +640,20 @@ impl LibsqlStorage {
                         debug!("Database is now operational after recovery");
                         Ok(())
                     }
-                    Err(e) => {
-                        Err(MnemosyneError::Database(format!(
-                            "Recovery partially successful but database still not operational: {}. \
+                    Err(e) => Err(MnemosyneError::Database(format!(
+                        "Recovery partially successful but database still not operational: {}. \
                             Manual intervention may be required: delete .db-wal and .db-shm files.",
-                            e
-                        )))
-                    }
+                        e
+                    ))),
                 }
             }
-            Err(e) => {
-                Err(MnemosyneError::Database(format!(
-                    "Recovery failed: {}. Manual intervention required: \
+            Err(e) => Err(MnemosyneError::Database(format!(
+                "Recovery failed: {}. Manual intervention required: \
                     1. Check file permissions on database and WAL files (.db-wal, .db-shm) \
                     2. If permissions are correct, delete stale WAL files and retry \
                     3. As a last resort, restore from backup",
-                    e
-                )))
-            }
+                e
+            ))),
         }
     }
 
@@ -672,7 +699,12 @@ impl LibsqlStorage {
             "reference" => crate::types::MemoryType::Reference,
             "preference" => crate::types::MemoryType::Preference,
             "agent_event" => crate::types::MemoryType::AgentEvent,
-            _ => return Err(MnemosyneError::Other(format!("Unknown memory type: {}", memory_type_str))),
+            _ => {
+                return Err(MnemosyneError::Other(format!(
+                    "Unknown memory type: {}",
+                    memory_type_str
+                )))
+            }
         };
 
         let importance: i64 = row.get(10)?;
@@ -708,18 +740,24 @@ impl LibsqlStorage {
 
         // Get embedding from column 20 (F32_BLOB type)
         // Try to get as bytes and convert, or fall back to None if not present
-        let embedding: Option<Vec<f32>> = row.get::<Option<Vec<u8>>>(20).ok().flatten()
-            .and_then(|bytes| {
-                // F32_BLOB is stored as raw f32 bytes in little-endian
-                if bytes.len() % 4 != 0 {
-                    return None;
-                }
-                Some(
-                    bytes.chunks_exact(4)
-                        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-                        .collect()
-                )
-            });
+        let embedding: Option<Vec<f32>> =
+            row.get::<Option<Vec<u8>>>(20)
+                .ok()
+                .flatten()
+                .and_then(|bytes| {
+                    // F32_BLOB is stored as raw f32 bytes in little-endian
+                    if bytes.len() % 4 != 0 {
+                        return None;
+                    }
+                    Some(
+                        bytes
+                            .chunks_exact(4)
+                            .map(|chunk| {
+                                f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]])
+                            })
+                            .collect(),
+                    )
+                });
 
         Ok(MemoryNote {
             id,
@@ -813,12 +851,19 @@ impl LibsqlStorage {
     /// # Returns
     /// * `Ok(())` - Embedding generated and stored successfully (or disabled)
     /// * `Err(MnemosyneError)` - If embedding generation or storage fails
-    pub async fn generate_and_store_embedding(&self, memory_id: &MemoryId, content: &str) -> Result<()> {
+    pub async fn generate_and_store_embedding(
+        &self,
+        memory_id: &MemoryId,
+        content: &str,
+    ) -> Result<()> {
         // Skip if no embedding service configured
         let service = match &self.embedding_service {
             Some(s) => s,
             None => {
-                debug!("Embedding service not configured, skipping embedding for {}", memory_id);
+                debug!(
+                    "Embedding service not configured, skipping embedding for {}",
+                    memory_id
+                );
                 return Ok(());
             }
         };
@@ -830,7 +875,10 @@ impl LibsqlStorage {
         // Store in memory_vectors table
         self.store_embedding(memory_id, &embedding).await?;
 
-        info!("Successfully generated and stored embedding for memory: {}", memory_id);
+        info!(
+            "Successfully generated and stored embedding for memory: {}",
+            memory_id
+        );
         Ok(())
     }
 
@@ -872,7 +920,10 @@ impl LibsqlStorage {
         let conn = self.get_conn()?;
 
         let row = conn
-            .query("SELECT embedding FROM memory_vectors WHERE memory_id = ?", params![memory_id.to_string()])
+            .query(
+                "SELECT embedding FROM memory_vectors WHERE memory_id = ?",
+                params![memory_id.to_string()],
+            )
             .await
             .map_err(|e| MnemosyneError::Database(format!("Failed to retrieve embedding: {}", e)))?
             .next()
@@ -1021,7 +1072,10 @@ impl LibsqlStorage {
 
     /// Update the importance score of a memory
     pub async fn update_importance(&self, memory_id: &MemoryId, new_importance: f32) -> Result<()> {
-        debug!("Updating importance for memory {} to {}", memory_id, new_importance);
+        debug!(
+            "Updating importance for memory {} to {}",
+            memory_id, new_importance
+        );
 
         let conn = self.get_conn()?;
         conn.execute(
@@ -1091,11 +1145,7 @@ impl LibsqlStorage {
                 updated_at = ?
             WHERE id = ?
             "#,
-            params![
-                now.timestamp(),
-                now.to_rfc3339(),
-                memory_id.to_string()
-            ],
+            params![now.timestamp(), now.to_rfc3339(), memory_id.to_string()],
         )
         .await?;
 
@@ -1182,7 +1232,11 @@ impl LibsqlStorage {
     }
 
     /// Record link traversal for decay tracking
-    pub async fn record_link_traversal(&self, source_id: &MemoryId, target_id: &MemoryId) -> Result<()> {
+    pub async fn record_link_traversal(
+        &self,
+        source_id: &MemoryId,
+        target_id: &MemoryId,
+    ) -> Result<()> {
         debug!("Recording link traversal: {} -> {}", source_id, target_id);
 
         let conn = self.get_conn()?;
@@ -1194,7 +1248,11 @@ impl LibsqlStorage {
             SET last_traversed_at = ?
             WHERE source_id = ? AND target_id = ?
             "#,
-            params![now.timestamp(), source_id.to_string(), target_id.to_string()],
+            params![
+                now.timestamp(),
+                source_id.to_string(),
+                target_id.to_string()
+            ],
         )
         .await?;
 
@@ -1230,7 +1288,11 @@ impl LibsqlStorage {
 
     /// Find links that need decay (untraversed for long time)
     /// Returns (source_id, link) tuples
-    pub async fn find_link_decay_candidates(&self, days_threshold: i64, limit: usize) -> Result<Vec<(MemoryId, MemoryLink)>> {
+    pub async fn find_link_decay_candidates(
+        &self,
+        days_threshold: i64,
+        limit: usize,
+    ) -> Result<Vec<(MemoryId, MemoryLink)>> {
         debug!(
             "Finding link decay candidates (threshold: {} days, limit: {})",
             days_threshold, limit
@@ -1285,7 +1347,9 @@ impl LibsqlStorage {
                 .map(|dt| dt.with_timezone(&Utc))
                 .unwrap_or_else(Utc::now);
 
-            let reason: String = row.get::<String>(5).unwrap_or_else(|_| String::from("link decay candidate"));
+            let reason: String = row
+                .get::<String>(5)
+                .unwrap_or_else(|_| String::from("link decay candidate"));
 
             links.push((
                 source_id,
@@ -1344,7 +1408,10 @@ impl LibsqlStorage {
     }
 
     /// Get memory access statistics
-    pub async fn get_access_stats(&self, memory_id: &MemoryId) -> Result<(u32, Option<chrono::DateTime<Utc>>)> {
+    pub async fn get_access_stats(
+        &self,
+        memory_id: &MemoryId,
+    ) -> Result<(u32, Option<chrono::DateTime<Utc>>)> {
         let conn = self.get_conn()?;
 
         let mut rows = conn
@@ -1492,7 +1559,10 @@ impl StorageBackend for LibsqlStorage {
         // Auto-generate embedding if embedding service is configured
         // This is a fire-and-forget operation - failures are logged but don't fail the store
         if self.embedding_service.is_some() {
-            if let Err(e) = self.generate_and_store_embedding(&memory.id, &memory.content).await {
+            if let Err(e) = self
+                .generate_and_store_embedding(&memory.id, &memory.content)
+                .await
+            {
                 // Log error but don't fail the store operation
                 // Embeddings can be regenerated later using CLI
                 tracing::warn!(
@@ -1512,7 +1582,10 @@ impl StorageBackend for LibsqlStorage {
 
         let conn = self.get_conn()?;
         let mut rows = conn
-            .query("SELECT * FROM memories WHERE id = ?", params![id.to_string()])
+            .query(
+                "SELECT * FROM memories WHERE id = ?",
+                params![id.to_string()],
+            )
             .await?;
 
         let row = rows
@@ -1726,7 +1799,10 @@ impl StorageBackend for LibsqlStorage {
         limit: usize,
         namespace: Option<Namespace>,
     ) -> Result<Vec<SearchResult>> {
-        debug!("Vector search (limit: {}, namespace: {:?})", limit, namespace);
+        debug!(
+            "Vector search (limit: {}, namespace: {:?})",
+            limit, namespace
+        );
 
         let conn = self.get_conn()?;
         let query_embedding = serde_json::to_string(embedding)?;
@@ -1890,14 +1966,23 @@ impl StorageBackend for LibsqlStorage {
         max_hops: usize,
         namespace: Option<Namespace>,
     ) -> Result<Vec<MemoryNote>> {
-        debug!("Graph traverse from {} seeds, max {} hops, namespace: {:?}", seed_ids.len(), max_hops, namespace);
+        debug!(
+            "Graph traverse from {} seeds, max {} hops, namespace: {:?}",
+            seed_ids.len(),
+            max_hops,
+            namespace
+        );
 
         if seed_ids.is_empty() || max_hops == 0 {
             return Ok(vec![]);
         }
 
         let seed_strings: Vec<String> = seed_ids.iter().map(|id| id.to_string()).collect();
-        let placeholders = seed_strings.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let placeholders = seed_strings
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(",");
 
         // Add namespace filter if provided
         let namespace_filter = if namespace.is_some() {
@@ -1946,7 +2031,9 @@ impl StorageBackend for LibsqlStorage {
             param_values.push(libsql::Value::Text(ns_json));
         }
 
-        let mut rows = conn.query(&sql, libsql::params_from_iter(param_values)).await?;
+        let mut rows = conn
+            .query(&sql, libsql::params_from_iter(param_values))
+            .await?;
 
         let mut results = Vec::new();
         while let Some(row) = rows.next().await? {
@@ -1961,7 +2048,10 @@ impl StorageBackend for LibsqlStorage {
         &self,
         namespace: Option<Namespace>,
     ) -> Result<Vec<(MemoryNote, MemoryNote)>> {
-        debug!("Finding consolidation candidates (namespace: {:?})", namespace);
+        debug!(
+            "Finding consolidation candidates (namespace: {:?})",
+            namespace
+        );
 
         let conn = self.get_conn()?;
         let sql = if namespace.is_some() {
@@ -1982,7 +2072,10 @@ impl StorageBackend for LibsqlStorage {
             memories.push(self.row_to_memory(&row).await?);
         }
 
-        debug!("Found {} memories to compare for consolidation", memories.len());
+        debug!(
+            "Found {} memories to compare for consolidation",
+            memories.len()
+        );
 
         let mut candidates = Vec::new();
         let similarity_threshold = 0.85;
@@ -2045,7 +2138,10 @@ impl StorageBackend for LibsqlStorage {
                 vec![ns_str],
             )
         } else {
-            ("SELECT COUNT(*) FROM memories WHERE is_archived = 0", vec![])
+            (
+                "SELECT COUNT(*) FROM memories WHERE is_archived = 0",
+                vec![],
+            )
         };
 
         let mut rows = if params_vec.is_empty() {
@@ -2084,17 +2180,24 @@ impl StorageBackend for LibsqlStorage {
         }
 
         // 2. Vector search (if embedding service available and query non-empty)
-        if !query.is_empty() && self.embedding_service.is_some() && self.search_config.enable_vector_search {
+        if !query.is_empty()
+            && self.embedding_service.is_some()
+            && self.search_config.enable_vector_search
+        {
             // Generate query embedding
             if let Some(service) = &self.embedding_service {
                 match service.embed(query).await {
                     Ok(query_embedding) => {
                         // Perform vector search
-                        let vector_results = self.vector_search(&query_embedding, max_results * 2, namespace.clone()).await?;
+                        let vector_results = self
+                            .vector_search(&query_embedding, max_results * 2, namespace.clone())
+                            .await?;
                         debug!("Vector search found {} results", vector_results.len());
 
                         for (memory_id, similarity) in vector_results {
-                            let entry = memory_scores.entry(memory_id).or_insert((0.0, 0.0, 0.0, 0.0));
+                            let entry = memory_scores
+                                .entry(memory_id)
+                                .or_insert((0.0, 0.0, 0.0, 0.0));
                             entry.1 = similarity; // Update vector score
                         }
                     }
@@ -2110,10 +2213,18 @@ impl StorageBackend for LibsqlStorage {
         if use_graph && !memory_scores.is_empty() {
             debug!("Expanding graph from {} seed memories", memory_scores.len());
             let seed_ids: Vec<_> = memory_scores.keys().take(5).copied().collect();
-            let graph_memories = self.graph_traverse(&seed_ids, self.search_config.max_graph_depth, namespace.clone()).await?;
+            let graph_memories = self
+                .graph_traverse(
+                    &seed_ids,
+                    self.search_config.max_graph_depth,
+                    namespace.clone(),
+                )
+                .await?;
 
             for memory in graph_memories {
-                let entry = memory_scores.entry(memory.id).or_insert((0.0, 0.0, 0.0, 1.0));
+                let entry = memory_scores
+                    .entry(memory.id)
+                    .or_insert((0.0, 0.0, 0.0, 1.0));
                 entry.2 = 1.0; // Mark as graph-expanded
                 entry.3 = entry.3.min(1.0); // Update depth
             }
@@ -2143,15 +2254,18 @@ impl StorageBackend for LibsqlStorage {
             let importance_score = memory.importance as f32 / 10.0;
             let age_days = (now - memory.created_at).num_days() as f32;
             let recency_score = (-age_days / 30.0).exp();
-            let graph_depth_score = if graph_score > 0.0 { 1.0 / (1.0 + depth) } else { 0.0 };
+            let graph_depth_score = if graph_score > 0.0 {
+                1.0 / (1.0 + depth)
+            } else {
+                0.0
+            };
 
             // Compute weighted final score using config weights
-            let final_score =
-                self.search_config.keyword_weight * keyword_score +
-                self.search_config.vector_weight * vector_score +
-                self.search_config.graph_weight * graph_depth_score +
-                self.search_config.importance_weight * importance_score +
-                self.search_config.recency_weight * recency_score;
+            let final_score = self.search_config.keyword_weight * keyword_score
+                + self.search_config.vector_weight * vector_score
+                + self.search_config.graph_weight * graph_depth_score
+                + self.search_config.importance_weight * importance_score
+                + self.search_config.recency_weight * recency_score;
 
             // Determine match reason
             let match_reason = if vector_score > keyword_score && vector_score > graph_depth_score {
@@ -2185,7 +2299,10 @@ impl StorageBackend for LibsqlStorage {
     ) -> Result<Vec<MemoryNote>> {
         use crate::storage::MemorySortOrder;
 
-        debug!("Listing memories (namespace: {:?}, limit: {}, sort: {:?})", namespace, limit, sort_by);
+        debug!(
+            "Listing memories (namespace: {:?}, limit: {}, sort: {:?})",
+            namespace, limit, sort_by
+        );
 
         let conn = self.get_conn()?;
         let order_clause = match sort_by {
@@ -2229,8 +2346,14 @@ impl StorageBackend for LibsqlStorage {
         Ok(memories)
     }
 
-    async fn store_modification_log(&self, log: &crate::agents::access_control::ModificationLog) -> Result<()> {
-        debug!("Storing modification log: {} for memory {}", log.id, log.memory_id);
+    async fn store_modification_log(
+        &self,
+        log: &crate::agents::access_control::ModificationLog,
+    ) -> Result<()> {
+        debug!(
+            "Storing modification log: {} for memory {}",
+            log.id, log.memory_id
+        );
 
         let conn = self.get_conn()?;
 
@@ -2254,7 +2377,10 @@ impl StorageBackend for LibsqlStorage {
         Ok(())
     }
 
-    async fn get_audit_trail(&self, memory_id: MemoryId) -> Result<Vec<crate::agents::access_control::ModificationLog>> {
+    async fn get_audit_trail(
+        &self,
+        memory_id: MemoryId,
+    ) -> Result<Vec<crate::agents::access_control::ModificationLog>> {
         debug!("Fetching audit trail for memory: {}", memory_id);
 
         let conn = self.get_conn()?;
@@ -2294,12 +2420,19 @@ impl StorageBackend for LibsqlStorage {
                 "archive" => crate::agents::access_control::ModificationType::Archive,
                 "unarchive" => crate::agents::access_control::ModificationType::Unarchive,
                 "supersede" => crate::agents::access_control::ModificationType::Supersede,
-                _ => return Err(MnemosyneError::Other(format!("Unknown modification type: {}", modification_type_str))),
+                _ => {
+                    return Err(MnemosyneError::Other(format!(
+                        "Unknown modification type: {}",
+                        modification_type_str
+                    )))
+                }
             };
 
             // Convert timestamp to DateTime
-            let timestamp = chrono::DateTime::<Utc>::from_timestamp(timestamp, 0)
-                .ok_or_else(|| MnemosyneError::Other(format!("Invalid timestamp: {}", timestamp)))?;
+            let timestamp =
+                chrono::DateTime::<Utc>::from_timestamp(timestamp, 0).ok_or_else(|| {
+                    MnemosyneError::Other(format!("Invalid timestamp: {}", timestamp))
+                })?;
 
             logs.push(crate::agents::access_control::ModificationLog {
                 id,

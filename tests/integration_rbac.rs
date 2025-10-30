@@ -58,7 +58,8 @@ fn create_test_metadata() -> MemoryMetadata {
 #[tokio::test]
 async fn test_agent_can_create_memory() {
     let fixture = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
+    let access_control =
+        MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     let metadata = create_test_metadata();
     let result = access_control
@@ -77,7 +78,8 @@ async fn test_agent_can_create_memory() {
 #[tokio::test]
 async fn test_agent_can_update_own_memory() {
     let fixture = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
+    let access_control =
+        MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     // Create a memory
     let metadata = create_test_metadata();
@@ -107,7 +109,8 @@ async fn test_agent_can_update_own_memory() {
 #[tokio::test]
 async fn test_agent_can_delete_own_memory() {
     let fixture = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
+    let access_control =
+        MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     // Create a memory
     let metadata = create_test_metadata();
@@ -130,7 +133,8 @@ async fn test_agent_can_delete_own_memory() {
 #[tokio::test]
 async fn test_agent_can_archive_own_memory() {
     let fixture = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
+    let access_control =
+        MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     // Create a memory
     let metadata = create_test_metadata();
@@ -265,7 +269,8 @@ async fn test_admin_mode_with_human_user() {
 #[tokio::test]
 async fn test_update_memory_tracks_changes() {
     let fixture = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
+    let access_control =
+        MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     // Create a memory
     let metadata = create_test_metadata();
@@ -301,7 +306,8 @@ async fn test_update_memory_tracks_changes() {
 #[tokio::test]
 async fn test_partial_updates() {
     let fixture = create_test_storage().await;
-    let access_control = MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
+    let access_control =
+        MemoryAccessControl::new(AgentRole::Executor, Arc::clone(&fixture.storage));
 
     // Create a memory
     let metadata = create_test_metadata();
@@ -345,7 +351,8 @@ async fn test_memory_type_filtering_by_agent_role() {
         .expect("Failed to create");
 
     // Orchestrator creates an ArchitectureDecision memory
-    let orchestrator_ac = MemoryAccessControl::new(AgentRole::Orchestrator, Arc::clone(&fixture.storage));
+    let orchestrator_ac =
+        MemoryAccessControl::new(AgentRole::Orchestrator, Arc::clone(&fixture.storage));
     metadata.memory_type = MemoryType::ArchitectureDecision;
     orchestrator_ac
         .create_memory("Architecture decision", metadata)
@@ -358,7 +365,8 @@ async fn test_memory_type_filtering_by_agent_role() {
     assert!(executor_types.contains(&MemoryType::CodePattern));
     assert!(!executor_types.contains(&MemoryType::ArchitectureDecision));
 
-    let orchestrator_view = AgentMemoryView::new(AgentRole::Orchestrator, Arc::clone(&fixture.storage));
+    let orchestrator_view =
+        AgentMemoryView::new(AgentRole::Orchestrator, Arc::clone(&fixture.storage));
     let orchestrator_types = orchestrator_view.role().memory_types();
     assert!(orchestrator_types.contains(&MemoryType::ArchitectureDecision));
     assert!(!orchestrator_types.contains(&MemoryType::CodePattern));

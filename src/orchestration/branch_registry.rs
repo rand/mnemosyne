@@ -287,10 +287,7 @@ impl BranchRegistry {
 
     /// Get all assignments for a branch
     pub fn get_assignments(&self, branch: &str) -> Vec<AgentAssignment> {
-        self.assignments
-            .get(branch)
-            .cloned()
-            .unwrap_or_default()
+        self.assignments.get(branch).cloned().unwrap_or_default()
     }
 
     /// Get assignment for specific agent
@@ -351,11 +348,7 @@ impl BranchRegistry {
     }
 
     /// Check for conflicts between new intent and existing assignments
-    pub fn check_conflict(
-        &self,
-        branch: &str,
-        new_intent: &WorkIntent,
-    ) -> Option<ConflictReport> {
+    pub fn check_conflict(&self, branch: &str, new_intent: &WorkIntent) -> Option<ConflictReport> {
         let assignments = self.get_assignments(branch);
 
         if assignments.is_empty() {
@@ -492,8 +485,9 @@ impl BranchRegistry {
             };
 
             // Use compact JSON (faster than pretty) for internal persistence
-            serde_json::to_writer(writer, &data)
-                .map_err(|e| MnemosyneError::Other(format!("Failed to serialize registry: {}", e)))?;
+            serde_json::to_writer(writer, &data).map_err(|e| {
+                MnemosyneError::Other(format!("Failed to serialize registry: {}", e))
+            })?;
         }
 
         Ok(())
@@ -671,10 +665,8 @@ mod tests {
         assert!(conflict.is_some());
 
         // Non-overlapping write should not conflict
-        let no_conflict = registry.check_conflict(
-            "main",
-            &WorkIntent::Write(vec![PathBuf::from("tests/")]),
-        );
+        let no_conflict =
+            registry.check_conflict("main", &WorkIntent::Write(vec![PathBuf::from("tests/")]));
 
         assert!(no_conflict.is_none());
 

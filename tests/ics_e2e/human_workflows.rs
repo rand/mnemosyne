@@ -11,7 +11,7 @@
 //! - H8: Save/load workflow
 
 use crate::ics_e2e::*;
-use mnemosyne_core::ics::editor::{TextBuffer, Severity};
+use mnemosyne_core::ics::editor::{Severity, TextBuffer};
 use mnemosyne_core::ics::HoleKind;
 
 /// H1: Document creation & basic editing
@@ -61,21 +61,23 @@ async fn h3_memory_search_and_integration() {
     assert_eq!(ctx.memories.len(), 3);
 
     // Test search filtering
-    let rust_memories: Vec<_> = ctx.memories.iter()
+    let rust_memories: Vec<_> = ctx
+        .memories
+        .iter()
         .filter(|m| m.keywords.contains(&"rust".to_string()))
         .collect();
     assert_eq!(rust_memories.len(), 1);
 
     // Test tag filtering
-    let arch_memories: Vec<_> = ctx.memories.iter()
+    let arch_memories: Vec<_> = ctx
+        .memories
+        .iter()
         .filter(|m| m.tags.contains(&"Architecture".to_string()))
         .collect();
     assert_eq!(arch_memories.len(), 2);
 
     // Test importance sorting
-    let high_importance: Vec<_> = ctx.memories.iter()
-        .filter(|m| m.importance >= 8)
-        .collect();
+    let high_importance: Vec<_> = ctx.memories.iter().filter(|m| m.importance >= 8).collect();
     assert_eq!(high_importance.len(), 2);
 }
 
@@ -95,7 +97,9 @@ async fn h4_realtime_diagnostics() {
     let has_todo = diagnostics.iter().any(|d| d.message.contains("TODO"));
     assert!(has_todo, "Should have TODO diagnostic");
 
-    let has_contradiction = diagnostics.iter().any(|d| d.message.contains("Contradictory"));
+    let has_contradiction = diagnostics
+        .iter()
+        .any(|d| d.message.contains("Contradictory"));
     assert!(has_contradiction, "Should have contradiction diagnostic");
 }
 
@@ -187,8 +191,8 @@ async fn h7_semantic_analysis_integration() {
 /// H8: Save/load workflow
 #[tokio::test]
 async fn h8_save_load_workflow() {
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let file_path = temp_dir.path().join("test.md");

@@ -8,9 +8,9 @@
 //! Run with: cargo test --test llm_prompt_evaluation -- --ignored
 //! Requires ANTHROPIC_API_KEY environment variable.
 
-use mnemosyne_core::services::{LlmConfig, LlmService};
-use mnemosyne_core::types::{MemoryNote, MemoryType, Namespace, MemoryId};
 use chrono::Utc;
+use mnemosyne_core::services::{LlmConfig, LlmService};
+use mnemosyne_core::types::{MemoryId, MemoryNote, MemoryType, Namespace};
 use serde::{Deserialize, Serialize};
 
 /// Test case for memory enrichment
@@ -154,7 +154,10 @@ async fn test_enrichment_accuracy() {
         println!("Test {}: {}", idx + 1, test_case.name);
         metrics.total_tests += 1;
 
-        match service.enrich_memory(&test_case.raw_content, &test_case.context).await {
+        match service
+            .enrich_memory(&test_case.raw_content, &test_case.context)
+            .await
+        {
             Ok(note) => {
                 // Check if response was JSON (no parsing warnings in logs)
                 metrics.json_parse_success += 1;
@@ -164,7 +167,10 @@ async fn test_enrichment_accuracy() {
                     metrics.correct_type += 1;
                     println!("  ✓ Type: {:?}", note.memory_type);
                 } else {
-                    println!("  ✗ Type: Got {:?}, expected {:?}", note.memory_type, test_case.expected_type);
+                    println!(
+                        "  ✗ Type: Got {:?}, expected {:?}",
+                        note.memory_type, test_case.expected_type
+                    );
                 }
 
                 // Check importance range
@@ -174,18 +180,28 @@ async fn test_enrichment_accuracy() {
                     metrics.importance_in_range += 1;
                     println!("  ✓ Importance: {}", note.importance);
                 } else {
-                    println!("  ✗ Importance: {} (expected {}-{})",
-                             note.importance,
-                             test_case.expected_importance_range.0,
-                             test_case.expected_importance_range.1);
+                    println!(
+                        "  ✗ Importance: {} (expected {}-{})",
+                        note.importance,
+                        test_case.expected_importance_range.0,
+                        test_case.expected_importance_range.1
+                    );
                 }
 
                 // Check keywords
                 if note.keywords.len() >= test_case.min_keywords {
                     metrics.min_keywords_met += 1;
-                    println!("  ✓ Keywords: {} ({})", note.keywords.len(), note.keywords.join(", "));
+                    println!(
+                        "  ✓ Keywords: {} ({})",
+                        note.keywords.len(),
+                        note.keywords.join(", ")
+                    );
                 } else {
-                    println!("  ✗ Keywords: {} (expected at least {})", note.keywords.len(), test_case.min_keywords);
+                    println!(
+                        "  ✗ Keywords: {} (expected at least {})",
+                        note.keywords.len(),
+                        test_case.min_keywords
+                    );
                 }
 
                 // Check tags
@@ -193,7 +209,11 @@ async fn test_enrichment_accuracy() {
                     metrics.min_tags_met += 1;
                     println!("  ✓ Tags: {} ({})", note.tags.len(), note.tags.join(", "));
                 } else {
-                    println!("  ✗ Tags: {} (expected at least {})", note.tags.len(), test_case.min_tags);
+                    println!(
+                        "  ✗ Tags: {} (expected at least {})",
+                        note.tags.len(),
+                        test_case.min_tags
+                    );
                 }
 
                 println!("  Summary: {}", note.summary);
@@ -209,24 +229,38 @@ async fn test_enrichment_accuracy() {
     // Print summary
     println!("=== Results ===");
     println!("Total tests: {}", metrics.total_tests);
-    println!("Type accuracy: {:.1}% ({}/{})", metrics.accuracy(), metrics.correct_type, metrics.total_tests);
-    println!("Importance accuracy: {:.1}% ({}/{})",
-             (metrics.importance_in_range as f64 / metrics.total_tests as f64) * 100.0,
-             metrics.importance_in_range,
-             metrics.total_tests);
-    println!("Keywords met: {:.1}% ({}/{})",
-             (metrics.min_keywords_met as f64 / metrics.total_tests as f64) * 100.0,
-             metrics.min_keywords_met,
-             metrics.total_tests);
-    println!("Tags met: {:.1}% ({}/{})",
-             (metrics.min_tags_met as f64 / metrics.total_tests as f64) * 100.0,
-             metrics.min_tags_met,
-             metrics.total_tests);
+    println!(
+        "Type accuracy: {:.1}% ({}/{})",
+        metrics.accuracy(),
+        metrics.correct_type,
+        metrics.total_tests
+    );
+    println!(
+        "Importance accuracy: {:.1}% ({}/{})",
+        (metrics.importance_in_range as f64 / metrics.total_tests as f64) * 100.0,
+        metrics.importance_in_range,
+        metrics.total_tests
+    );
+    println!(
+        "Keywords met: {:.1}% ({}/{})",
+        (metrics.min_keywords_met as f64 / metrics.total_tests as f64) * 100.0,
+        metrics.min_keywords_met,
+        metrics.total_tests
+    );
+    println!(
+        "Tags met: {:.1}% ({}/{})",
+        (metrics.min_tags_met as f64 / metrics.total_tests as f64) * 100.0,
+        metrics.min_tags_met,
+        metrics.total_tests
+    );
     println!("JSON parse success: {:.1}%", metrics.json_success_rate());
 
     // Assert minimum quality thresholds
     assert!(metrics.accuracy() >= 80.0, "Type accuracy should be >= 80%");
-    assert!(metrics.json_success_rate() >= 80.0, "JSON parsing should succeed >= 80% of the time");
+    assert!(
+        metrics.json_success_rate() >= 80.0,
+        "JSON parsing should succeed >= 80% of the time"
+    );
 }
 
 #[tokio::test]
@@ -279,7 +313,10 @@ async fn test_link_generation_quality() {
 
             // Check that link strengths are reasonable
             for link in &links {
-                assert!(link.strength >= 0.6, "Link strength should be >= 0.6 (threshold)");
+                assert!(
+                    link.strength >= 0.6,
+                    "Link strength should be >= 0.6 (threshold)"
+                );
                 assert!(link.strength <= 1.0, "Link strength should be <= 1.0");
             }
 
@@ -301,14 +338,30 @@ async fn test_consolidation_accuracy() {
     let test_cases = vec![
         (
             "Similar memories should MERGE",
-            create_test_memory("PostgreSQL migration completed successfully", MemoryType::ArchitectureDecision, vec!["database"]),
-            create_test_memory("Switched from SQLite to PostgreSQL for production", MemoryType::ArchitectureDecision, vec!["database"]),
+            create_test_memory(
+                "PostgreSQL migration completed successfully",
+                MemoryType::ArchitectureDecision,
+                vec!["database"],
+            ),
+            create_test_memory(
+                "Switched from SQLite to PostgreSQL for production",
+                MemoryType::ArchitectureDecision,
+                vec!["database"],
+            ),
             ConsolidationExpectation::Merge,
         ),
         (
             "Distinct memories should KEEP_BOTH",
-            create_test_memory("User authentication implemented with JWT", MemoryType::CodePattern, vec!["auth"]),
-            create_test_memory("Database connection pooling configured", MemoryType::Configuration, vec!["database"]),
+            create_test_memory(
+                "User authentication implemented with JWT",
+                MemoryType::CodePattern,
+                vec!["auth"],
+            ),
+            create_test_memory(
+                "Database connection pooling configured",
+                MemoryType::Configuration,
+                vec!["database"],
+            ),
             ConsolidationExpectation::KeepBoth,
         ),
     ];
@@ -329,9 +382,18 @@ async fn test_consolidation_accuracy() {
                 };
 
                 let matches = match (expected, &decision) {
-                    (ConsolidationExpectation::Merge, mnemosyne::types::ConsolidationDecision::Merge { .. }) => true,
-                    (ConsolidationExpectation::Supersede, mnemosyne::types::ConsolidationDecision::Supersede { .. }) => true,
-                    (ConsolidationExpectation::KeepBoth, mnemosyne::types::ConsolidationDecision::KeepBoth) => true,
+                    (
+                        ConsolidationExpectation::Merge,
+                        mnemosyne::types::ConsolidationDecision::Merge { .. },
+                    ) => true,
+                    (
+                        ConsolidationExpectation::Supersede,
+                        mnemosyne::types::ConsolidationDecision::Supersede { .. },
+                    ) => true,
+                    (
+                        ConsolidationExpectation::KeepBoth,
+                        mnemosyne::types::ConsolidationDecision::KeepBoth,
+                    ) => true,
                     (ConsolidationExpectation::Any, _) => true,
                     _ => false,
                 };
@@ -352,9 +414,17 @@ async fn test_consolidation_accuracy() {
     }
 
     println!("=== Results ===");
-    println!("Accuracy: {:.1}% ({}/{})", (correct as f64 / total as f64) * 100.0, correct, total);
+    println!(
+        "Accuracy: {:.1}% ({}/{})",
+        (correct as f64 / total as f64) * 100.0,
+        correct,
+        total
+    );
 
-    assert!(correct as f64 / total as f64 >= 0.8, "Consolidation accuracy should be >= 80%");
+    assert!(
+        correct as f64 / total as f64 >= 0.8,
+        "Consolidation accuracy should be >= 80%"
+    );
 }
 
 /// Helper to create test memory

@@ -174,7 +174,8 @@ impl<'a> StatefulWidget for AttributionPanel<'a> {
         }
 
         // Filter by author if set
-        let filtered_entries: Vec<&AttributionEntry> = if let Some(ref filter) = state.author_filter {
+        let filtered_entries: Vec<&AttributionEntry> = if let Some(ref filter) = state.author_filter
+        {
             self.entries
                 .iter()
                 .filter(|e| e.author.contains(filter))
@@ -220,7 +221,8 @@ impl<'a> StatefulWidget for AttributionPanel<'a> {
                 )),
             ];
 
-            let paragraph = Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
+            let paragraph =
+                Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
             paragraph.render(inner, buf);
             return;
         }
@@ -244,7 +246,9 @@ impl<'a> StatefulWidget for AttributionPanel<'a> {
                     Span::raw(" "),
                     Span::styled(
                         &entry.author,
-                        Style::default().fg(author_color).add_modifier(Modifier::BOLD),
+                        Style::default()
+                            .fg(author_color)
+                            .add_modifier(Modifier::BOLD),
                     ),
                     Span::raw(" at Ln "),
                     Span::styled(

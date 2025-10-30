@@ -65,11 +65,11 @@ impl HoleKind {
     pub fn color(&self) -> ratatui::style::Color {
         use ratatui::style::Color;
         match self {
-            HoleKind::Unknown => Color::Rgb(180, 180, 120),       // Soft yellow
-            HoleKind::Ambiguous => Color::Rgb(180, 160, 180),     // Soft purple
-            HoleKind::Undefined => Color::Rgb(180, 140, 140),     // Soft red
+            HoleKind::Unknown => Color::Rgb(180, 180, 120), // Soft yellow
+            HoleKind::Ambiguous => Color::Rgb(180, 160, 180), // Soft purple
+            HoleKind::Undefined => Color::Rgb(180, 140, 140), // Soft red
             HoleKind::Contradiction => Color::Rgb(200, 120, 120), // Stronger red
-            HoleKind::Incomplete => Color::Rgb(160, 180, 180),    // Soft cyan
+            HoleKind::Incomplete => Color::Rgb(160, 180, 180), // Soft cyan
         }
     }
 
@@ -134,7 +134,8 @@ impl SemanticAnalyzer {
                     }
                     Err(panic_err) => {
                         // Analysis panicked - send empty result as fallback
-                        let panic_msg = panic_err.downcast_ref::<&str>()
+                        let panic_msg = panic_err
+                            .downcast_ref::<&str>()
                             .map(|s| *s)
                             .or_else(|| panic_err.downcast_ref::<String>().map(|s| s.as_str()))
                             .unwrap_or("unknown panic");
@@ -188,9 +189,9 @@ impl SemanticAnalyzer {
         let line_count = text.lines().count();
 
         // Pre-allocate with estimated capacity (reduces reallocations)
-        let mut triples = Vec::with_capacity(line_count / 5);  // ~20% of lines have triples
-        let mut holes = Vec::with_capacity(line_count / 10);   // ~10% of lines have holes
-        let mut entities = HashMap::with_capacity(line_count / 2);  // ~50% entities/line
+        let mut triples = Vec::with_capacity(line_count / 5); // ~20% of lines have triples
+        let mut holes = Vec::with_capacity(line_count / 10); // ~10% of lines have holes
+        let mut entities = HashMap::with_capacity(line_count / 2); // ~50% entities/line
         let mut relationships = Vec::with_capacity(line_count / 5);
 
         // Extract simple triples from text
@@ -296,7 +297,10 @@ impl SemanticAnalyzer {
         }
 
         // Look for contradictions (words like "however", "but actually")
-        if lower.contains("however") || lower.contains("but actually") || lower.contains("contradiction") {
+        if lower.contains("however")
+            || lower.contains("but actually")
+            || lower.contains("contradiction")
+        {
             holes.push(TypedHole {
                 name: "Potential contradiction".to_string(),
                 kind: HoleKind::Contradiction,
@@ -312,7 +316,10 @@ impl SemanticAnalyzer {
             if (word.starts_with('@') || word.starts_with('#')) && word.len() > 1 {
                 // This could be an undefined reference
                 // In a real implementation, we'd check against known symbols
-                if word.contains("undefined") || word.contains("missing") || word.contains("unknown") {
+                if word.contains("undefined")
+                    || word.contains("missing")
+                    || word.contains("unknown")
+                {
                     holes.push(TypedHole {
                         name: word.to_string(),
                         kind: HoleKind::Undefined,
@@ -344,7 +351,8 @@ impl SemanticAnalyzer {
         // Extract symbol references (@symbol, #file)
         for word in line.split_whitespace() {
             if word.starts_with('@') || word.starts_with('#') {
-                let clean = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '@' && c != '#');
+                let clean =
+                    word.trim_matches(|c: char| !c.is_alphanumeric() && c != '@' && c != '#');
                 if clean.len() > 2 {
                     *entities.entry(clean.to_string()).or_insert(0) += 1;
                 }
@@ -365,19 +373,29 @@ mod tests {
 
     #[test]
     fn test_triple_extraction() {
-        let text = "The system is distributed.\nThe agent has memory.\nService requires authentication.";
+        let text =
+            "The system is distributed.\nThe agent has memory.\nService requires authentication.";
         let analysis = SemanticAnalyzer::analyze_text(text);
 
         assert_eq!(analysis.triples.len(), 3);
 
         // Check "is" triple
-        assert!(analysis.triples.iter().any(|t| t.subject == "The system" && t.predicate == "is"));
+        assert!(analysis
+            .triples
+            .iter()
+            .any(|t| t.subject == "The system" && t.predicate == "is"));
 
         // Check "has" triple
-        assert!(analysis.triples.iter().any(|t| t.subject == "The agent" && t.predicate == "has"));
+        assert!(analysis
+            .triples
+            .iter()
+            .any(|t| t.subject == "The agent" && t.predicate == "has"));
 
         // Check "requires" triple
-        assert!(analysis.triples.iter().any(|t| t.subject == "Service" && t.predicate == "requires"));
+        assert!(analysis
+            .triples
+            .iter()
+            .any(|t| t.subject == "Service" && t.predicate == "requires"));
     }
 
     #[test]
@@ -386,7 +404,10 @@ mod tests {
         let analysis = SemanticAnalyzer::analyze_text(text);
 
         assert!(!analysis.holes.is_empty());
-        assert!(analysis.holes.iter().any(|h| h.kind == HoleKind::Incomplete));
+        assert!(analysis
+            .holes
+            .iter()
+            .any(|h| h.kind == HoleKind::Incomplete));
     }
 
     #[test]
@@ -419,7 +440,10 @@ mod tests {
         let text = "The system is fast. However, the system is slow.";
         let analysis = SemanticAnalyzer::analyze_text(text);
 
-        assert!(analysis.holes.iter().any(|h| h.kind == HoleKind::Contradiction));
+        assert!(analysis
+            .holes
+            .iter()
+            .any(|h| h.kind == HoleKind::Contradiction));
     }
 
     #[tokio::test]

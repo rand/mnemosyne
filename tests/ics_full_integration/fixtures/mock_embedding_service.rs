@@ -1,10 +1,7 @@
 //! Mock embedding service for testing without model downloads
 
-use mnemosyne_core::{
-    embeddings::EmbeddingService,
-    error::Result,
-};
 use async_trait::async_trait;
+use mnemosyne_core::{embeddings::EmbeddingService, error::Result};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -67,7 +64,10 @@ impl EmbeddingService for MockEmbeddingService {
     }
 
     async fn embed_batch(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>> {
-        Ok(texts.iter().map(|text| self.generate_embedding(text)).collect())
+        Ok(texts
+            .iter()
+            .map(|text| self.generate_embedding(text))
+            .collect())
     }
 
     fn dimensions(&self) -> usize {

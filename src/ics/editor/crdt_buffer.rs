@@ -7,8 +7,8 @@ use automerge::{transaction::Transactable, AutoCommit, ObjType, ReadDoc};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
 use super::{CursorState, Language, Movement};
 
@@ -48,7 +48,7 @@ impl Actor {
     /// Get color for actor attribution (RGB)
     pub fn color(&self) -> (u8, u8, u8) {
         match self {
-            Actor::Human => (255, 255, 255),       // White
+            Actor::Human => (255, 255, 255),        // White
             Actor::Orchestrator => (255, 200, 100), // Orange
             Actor::Optimizer => (100, 200, 255),    // Blue
             Actor::Reviewer => (255, 100, 100),     // Red
@@ -141,13 +141,11 @@ impl CrdtBuffer {
         // Clear existing text
         let len = self.text_len()?;
         if len > 0 {
-            self.doc
-                .splice_text(&self.text_id, 0, len as isize, "")?;
+            self.doc.splice_text(&self.text_id, 0, len as isize, "")?;
         }
 
         // Insert new content
-        self.doc
-            .splice_text(&self.text_id, 0, 0, content)?;
+        self.doc.splice_text(&self.text_id, 0, 0, content)?;
 
         // Mark as clean (just loaded from disk)
         self.dirty = false;
@@ -379,7 +377,9 @@ impl CrdtBuffer {
 
     /// Save buffer to file
     pub fn save_file(&mut self) -> Result<()> {
-        let path = self.path.as_ref()
+        let path = self
+            .path
+            .as_ref()
             .context("Cannot save buffer without path")?;
 
         let content = self.text()?;
@@ -504,12 +504,20 @@ impl CrdtBuffer {
                     let mut pos = self.cursor.position.column;
 
                     // Skip current whitespace
-                    while pos > 0 && chars.get(pos.saturating_sub(1)).map_or(false, |c| c.is_whitespace()) {
+                    while pos > 0
+                        && chars
+                            .get(pos.saturating_sub(1))
+                            .map_or(false, |c| c.is_whitespace())
+                    {
                         pos = pos.saturating_sub(1);
                     }
 
                     // Skip to start of word
-                    while pos > 0 && chars.get(pos.saturating_sub(1)).map_or(false, |c| !c.is_whitespace()) {
+                    while pos > 0
+                        && chars
+                            .get(pos.saturating_sub(1))
+                            .map_or(false, |c| !c.is_whitespace())
+                    {
                         pos = pos.saturating_sub(1);
                     }
 
@@ -538,7 +546,9 @@ impl CrdtBuffer {
                         pos += 1;
                     }
 
-                    if pos >= chars.len() && self.cursor.position.line < line_count.saturating_sub(1) {
+                    if pos >= chars.len()
+                        && self.cursor.position.line < line_count.saturating_sub(1)
+                    {
                         // Move to start of next line
                         self.cursor.position.line += 1;
                         self.cursor.position.column = 0;
@@ -609,7 +619,9 @@ impl CrdtBuffer {
                         pos -= 1; // Move back to last character of word
                     }
 
-                    if pos >= chars.len() && self.cursor.position.line < line_count.saturating_sub(1) {
+                    if pos >= chars.len()
+                        && self.cursor.position.line < line_count.saturating_sub(1)
+                    {
                         // Move to start of next line
                         self.cursor.position.line += 1;
                         self.cursor.position.column = 0;
@@ -622,7 +634,11 @@ impl CrdtBuffer {
                 // Find next occurrence of character on current line
                 if let Some(line) = lines.get(self.cursor.position.line) {
                     let chars: Vec<char> = line.chars().collect();
-                    for (i, &c) in chars.iter().enumerate().skip(self.cursor.position.column + 1) {
+                    for (i, &c) in chars
+                        .iter()
+                        .enumerate()
+                        .skip(self.cursor.position.column + 1)
+                    {
                         if c == ch {
                             self.cursor.position.column = i;
                             break;
@@ -646,7 +662,11 @@ impl CrdtBuffer {
                 // Move till (before) character on current line
                 if let Some(line) = lines.get(self.cursor.position.line) {
                     let chars: Vec<char> = line.chars().collect();
-                    for (i, &c) in chars.iter().enumerate().skip(self.cursor.position.column + 1) {
+                    for (i, &c) in chars
+                        .iter()
+                        .enumerate()
+                        .skip(self.cursor.position.column + 1)
+                    {
                         if c == ch {
                             self.cursor.position.column = i.saturating_sub(1);
                             break;
@@ -660,7 +680,8 @@ impl CrdtBuffer {
                     let chars: Vec<char> = line.chars().collect();
                     for i in (0..self.cursor.position.column).rev() {
                         if chars.get(i).copied() == Some(ch) {
-                            self.cursor.position.column = (i + 1).min(chars.len().saturating_sub(1));
+                            self.cursor.position.column =
+                                (i + 1).min(chars.len().saturating_sub(1));
                             break;
                         }
                     }
@@ -784,7 +805,10 @@ mod tests {
             text.push_str(&format!("Line {}\n", i));
         }
         buffer.insert(0, &text).unwrap();
-        buffer.cursor.position = Position { line: 25, column: 0 };
+        buffer.cursor.position = Position {
+            line: 25,
+            column: 0,
+        };
 
         // PageUp
         buffer.move_cursor(Movement::PageUp).unwrap();

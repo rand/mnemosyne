@@ -19,7 +19,10 @@ async fn p1_ics_panel_display() {
 
     // Toggle visibility
     ics_panel.toggle();
-    assert!(ics_panel.is_visible(), "Panel should be visible after toggle");
+    assert!(
+        ics_panel.is_visible(),
+        "Panel should be visible after toggle"
+    );
 
     // Toggle again
     ics_panel.toggle();
@@ -44,10 +47,7 @@ async fn p2_keyboard_navigation() {
     let mut chat_view = ChatView::new();
 
     // Simulate Ctrl+E keypress to toggle ICS
-    let toggle_event = TuiEvent::Key(KeyEvent::new(
-        KeyCode::Char('e'),
-        KeyModifiers::CONTROL,
-    ));
+    let toggle_event = TuiEvent::Key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL));
 
     // Handle toggle event
     match toggle_event {
@@ -168,11 +168,7 @@ async fn p4_chat_ics_layout() {
         .constraints([Constraint::Percentage(100)])
         .split(terminal_area);
 
-    assert_eq!(
-        layout_hidden.len(),
-        1,
-        "Single pane when ICS panel hidden"
-    );
+    assert_eq!(layout_hidden.len(), 1, "Single pane when ICS panel hidden");
 
     // Enable ICS panel
     ics_panel.toggle();

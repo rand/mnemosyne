@@ -85,13 +85,22 @@ async fn test_e2e_complete_workflow() {
         Namespace::Global,
     );
 
-    storage.store_memory(&mem1).await.expect("Failed to store mem1");
+    storage
+        .store_memory(&mem1)
+        .await
+        .expect("Failed to store mem1");
     println!("   ✓ Stored memory 1 (Architecture Decision)");
 
-    storage.store_memory(&mem2).await.expect("Failed to store mem2");
+    storage
+        .store_memory(&mem2)
+        .await
+        .expect("Failed to store mem2");
     println!("   ✓ Stored memory 2 (Insight)");
 
-    storage.store_memory(&mem3).await.expect("Failed to store mem3");
+    storage
+        .store_memory(&mem3)
+        .await
+        .expect("Failed to store mem3");
     println!("   ✓ Stored memory 3 (Code Pattern)");
 
     // 3. Test retrieval by ID
@@ -118,7 +127,10 @@ async fn test_e2e_complete_workflow() {
         .expect("Keyword search failed");
 
     println!("   Found {} results", keyword_results.len());
-    assert!(!keyword_results.is_empty(), "Should find Rust-related memories");
+    assert!(
+        !keyword_results.is_empty(),
+        "Should find Rust-related memories"
+    );
     println!("   ✓ Keyword search working");
 
     // 5. Test hybrid search
@@ -136,7 +148,10 @@ async fn test_e2e_complete_workflow() {
         .expect("Hybrid search failed");
 
     println!("   Found {} results", hybrid_results.len());
-    assert!(!hybrid_results.is_empty(), "Should find vector search memories");
+    assert!(
+        !hybrid_results.is_empty(),
+        "Should find vector search memories"
+    );
 
     for (i, result) in hybrid_results.iter().enumerate() {
         println!(
@@ -209,7 +224,10 @@ async fn test_e2e_complete_workflow() {
         .await
         .expect("Search failed");
 
-    println!("   Search results after archival: {}", search_after_archive.len());
+    println!(
+        "   Search results after archival: {}",
+        search_after_archive.len()
+    );
     assert_eq!(
         search_after_archive.len(),
         0,

@@ -275,7 +275,8 @@ impl CliHandler {
         let conflicts = if all {
             self.coordinator.get_all_conflicts()?
         } else {
-            self.coordinator.get_agent_conflicts(&self.current_agent.id)?
+            self.coordinator
+                .get_agent_conflicts(&self.current_agent.id)?
         };
 
         if conflicts.is_empty() {
@@ -448,11 +449,7 @@ mod tests {
 
     #[test]
     fn test_parse_join() {
-        let args = vec![
-            "join".to_string(),
-            "main".to_string(),
-            "read".to_string(),
-        ];
+        let args = vec!["join".to_string(), "main".to_string(), "read".to_string()];
         let cmd = parse_args(&args).unwrap();
         match cmd {
             CliCommand::Join { branch, intent, .. } => {

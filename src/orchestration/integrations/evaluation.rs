@@ -64,10 +64,7 @@ impl EvaluationIntegration {
     ///
     /// This generates positive evaluation feedback for the context
     /// that was loaded for this work item.
-    pub async fn record_work_success(
-        _work_id: &WorkItemId,
-        _duration_ms: u64,
-    ) -> Result<()> {
+    pub async fn record_work_success(_work_id: &WorkItemId, _duration_ms: u64) -> Result<()> {
         // Future: Record evaluation feedback
         // - Which skills were loaded?
         // - Which memories were accessed?
@@ -80,10 +77,7 @@ impl EvaluationIntegration {
     ///
     /// This generates negative evaluation feedback, indicating
     /// the loaded context may not have been optimal.
-    pub async fn record_work_failure(
-        _work_id: &WorkItemId,
-        _error: &str,
-    ) -> Result<()> {
+    pub async fn record_work_failure(_work_id: &WorkItemId, _error: &str) -> Result<()> {
         // Future: Record negative feedback
         // - Which context was loaded but didn't help?
         // - What was missing that could have prevented failure?
@@ -94,9 +88,7 @@ impl EvaluationIntegration {
     ///
     /// Used by Optimizer agent to prioritize which skills/memories
     /// to load based on historical effectiveness.
-    pub async fn get_context_relevance(
-        _task_keywords: &[String],
-    ) -> Result<Vec<(String, f32)>> {
+    pub async fn get_context_relevance(_task_keywords: &[String]) -> Result<Vec<(String, f32)>> {
         // Future: Query evaluation system
         // Returns: [(skill_name, relevance_score)]
         Ok(vec![])

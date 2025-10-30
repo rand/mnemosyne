@@ -181,10 +181,7 @@ impl SkillsDiscovery {
                     "name" => name = value.to_string(),
                     "category" => category = value.to_string(),
                     "keywords" => {
-                        keywords = value
-                            .split(',')
-                            .map(|s| s.trim().to_lowercase())
-                            .collect();
+                        keywords = value.split(',').map(|s| s.trim().to_lowercase()).collect();
                     }
                     "description" => description = value.to_string(),
                     _ => {}
@@ -227,19 +224,50 @@ impl SkillsDiscovery {
         // Common technical keywords to look for
         let keyword_patterns = [
             // Languages
-            "rust", "python", "typescript", "javascript", "go", "zig",
+            "rust",
+            "python",
+            "typescript",
+            "javascript",
+            "go",
+            "zig",
             // Frameworks
-            "react", "nextjs", "vue", "svelte", "django", "flask", "fastapi",
+            "react",
+            "nextjs",
+            "vue",
+            "svelte",
+            "django",
+            "flask",
+            "fastapi",
             // Databases
-            "postgres", "mongodb", "redis", "sqlite", "mysql",
+            "postgres",
+            "mongodb",
+            "redis",
+            "sqlite",
+            "mysql",
             // DevOps
-            "docker", "kubernetes", "aws", "gcp", "azure", "terraform",
+            "docker",
+            "kubernetes",
+            "aws",
+            "gcp",
+            "azure",
+            "terraform",
             // Testing
-            "pytest", "jest", "vitest", "cargo test",
+            "pytest",
+            "jest",
+            "vitest",
+            "cargo test",
             // ML/AI
-            "pytorch", "tensorflow", "transformers", "embeddings", "llm",
+            "pytorch",
+            "tensorflow",
+            "transformers",
+            "embeddings",
+            "llm",
             // Tools
-            "git", "github", "gitlab", "ci/cd", "mcp",
+            "git",
+            "github",
+            "gitlab",
+            "ci/cd",
+            "mcp",
         ];
 
         keyword_patterns

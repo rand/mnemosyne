@@ -5,9 +5,9 @@
 
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use std::collections::HashMap;
 
 /// Agent execution state.
 #[derive(Clone, Debug)]
@@ -85,9 +85,12 @@ impl PyCoordinator {
             "blocked" => AgentState::Blocked,
             "complete" => AgentState::Complete,
             "failed" => AgentState::Failed,
-            _ => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                format!("Invalid state: {}", state)
-            )),
+            _ => {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Invalid state: {}",
+                    state
+                )))
+            }
         };
 
         self.runtime.block_on(async {
@@ -153,7 +156,7 @@ impl PyCoordinator {
     fn update_context_utilization(&self, utilization: f64) -> PyResult<()> {
         if utilization < 0.0 || utilization > 1.0 {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "Utilization must be between 0.0 and 1.0"
+                "Utilization must be between 0.0 and 1.0",
             ));
         }
 

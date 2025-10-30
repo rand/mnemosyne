@@ -4,7 +4,7 @@ use crate::ics_full_integration::*;
 use mnemosyne_core::{
     ics::{ChangeProposal, ProposalStatus},
     storage::StorageBackend,
-    types::{MemoryLink, MemoryType, Namespace, LinkType},
+    types::{LinkType, MemoryLink, MemoryType, Namespace},
 };
 
 /// S7: Memory updates from ICS proposals
@@ -31,7 +31,9 @@ async fn s7_memory_updates_from_proposals() {
         agent: "agent:optimizer".to_string(),
         description: "Add specificity to architecture description".to_string(),
         original: "The system has distributed architecture".to_string(),
-        proposed: "The system uses distributed microservices architecture with event-driven communication".to_string(),
+        proposed:
+            "The system uses distributed microservices architecture with event-driven communication"
+                .to_string(),
         line_range: (1, 1),
         created_at: std::time::SystemTime::now(),
         status: ProposalStatus::Accepted,
@@ -78,8 +80,16 @@ async fn s8_memory_link_creation() {
         7,
     );
 
-    storage.storage().store_memory(&memory_a).await.expect("Store A");
-    storage.storage().store_memory(&memory_b).await.expect("Store B");
+    storage
+        .storage()
+        .store_memory(&memory_a)
+        .await
+        .expect("Store A");
+    storage
+        .storage()
+        .store_memory(&memory_b)
+        .await
+        .expect("Store B");
 
     // ICS semantic analysis detects relationship
     // Create link A -> B
@@ -119,12 +129,7 @@ async fn s9_memory_deletion() {
     let storage = StorageFixture::new().await.expect("Storage setup failed");
 
     // Create memory
-    let memory = create_test_memory(
-        "Temporary note",
-        MemoryType::Insight,
-        Namespace::Global,
-        5,
-    );
+    let memory = create_test_memory("Temporary note", MemoryType::Insight, Namespace::Global, 5);
     storage
         .storage()
         .store_memory(&memory)

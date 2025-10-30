@@ -56,7 +56,7 @@ impl std::fmt::Display for Scope {
 pub struct WeightSet {
     pub id: String,
     pub scope: Scope,
-    pub scope_id: String,  // session_id, namespace, or "global"
+    pub scope_id: String, // session_id, namespace, or "global"
     pub context_type: String,
     pub agent_role: String,
     pub work_phase: Option<String>,
@@ -69,8 +69,8 @@ pub struct WeightSet {
     // Learning metadata
     pub sample_count: u32,
     pub last_updated_at: i64,
-    pub confidence: f32,  // Confidence in these weights [0.0, 1.0]
-    pub learning_rate: f32,  // Alpha for weight updates
+    pub confidence: f32,    // Confidence in these weights [0.0, 1.0]
+    pub learning_rate: f32, // Alpha for weight updates
 
     // Performance metrics
     pub avg_precision: Option<f32>,
@@ -181,15 +181,17 @@ impl RelevanceScorer {
         error_context: Option<&str>,
     ) -> Result<f32> {
         // Get weights with fallback
-        let weights = self.get_weights_with_fallback(
-            scope,
-            scope_id,
-            context_type,
-            agent_role,
-            work_phase,
-            task_type,
-            error_context,
-        ).await?;
+        let weights = self
+            .get_weights_with_fallback(
+                scope,
+                scope_id,
+                context_type,
+                agent_role,
+                work_phase,
+                task_type,
+                error_context,
+            )
+            .await?;
 
         // Compute weighted score
         let score = self.compute_weighted_score(features, &weights.weights);
@@ -203,13 +205,18 @@ impl RelevanceScorer {
     }
 
     /// Compute weighted score from features
-    fn compute_weighted_score(&self, features: &RelevanceFeatures, weights: &HashMap<String, f32>) -> f32 {
+    fn compute_weighted_score(
+        &self,
+        features: &RelevanceFeatures,
+        weights: &HashMap<String, f32>,
+    ) -> f32 {
         let mut score = 0.0;
 
         // Map features to weight keys
         score += features.keyword_overlap_score * weights.get("keyword_match").unwrap_or(&0.0);
         score += features.recency_days.min(30.0) / 30.0 * weights.get("recency").unwrap_or(&0.0);
-        score += features.access_frequency.min(1.0) * weights.get("access_patterns").unwrap_or(&0.0);
+        score +=
+            features.access_frequency.min(1.0) * weights.get("access_patterns").unwrap_or(&0.0);
 
         if let Some(hist_success) = features.historical_success_rate {
             score += hist_success * weights.get("historical_success").unwrap_or(&0.0);
@@ -234,58 +241,70 @@ impl RelevanceScorer {
         error_context: Option<&str>,
     ) -> Result<WeightSet> {
         // Try exact match first (most specific)
-        if let Some(weights) = self.get_weights(
-            scope.clone(),
-            scope_id,
-            context_type,
-            agent_role,
-            work_phase,
-            task_type,
-            error_context,
-        ).await? {
-            return Ok(weights);
-        }
-
-        // Fallback 1: work_phase + task_type
-        if work_phase.is_some() && task_type.is_some() {
-            if let Some(weights) = self.get_weights(
+        if let Some(weights) = self
+            .get_weights(
                 scope.clone(),
                 scope_id,
                 context_type,
                 agent_role,
                 work_phase,
                 task_type,
-                None,
-            ).await? {
+                error_context,
+            )
+            .await?
+        {
+            return Ok(weights);
+        }
+
+        // Fallback 1: work_phase + task_type
+        if work_phase.is_some() && task_type.is_some() {
+            if let Some(weights) = self
+                .get_weights(
+                    scope.clone(),
+                    scope_id,
+                    context_type,
+                    agent_role,
+                    work_phase,
+                    task_type,
+                    None,
+                )
+                .await?
+            {
                 return Ok(weights);
             }
         }
 
         // Fallback 2: work_phase only
         if work_phase.is_some() {
-            if let Some(weights) = self.get_weights(
-                scope.clone(),
-                scope_id,
-                context_type,
-                agent_role,
-                work_phase,
-                None,
-                None,
-            ).await? {
+            if let Some(weights) = self
+                .get_weights(
+                    scope.clone(),
+                    scope_id,
+                    context_type,
+                    agent_role,
+                    work_phase,
+                    None,
+                    None,
+                )
+                .await?
+            {
                 return Ok(weights);
             }
         }
 
         // Fallback 3: Generic weights
-        if let Some(weights) = self.get_weights(
-            scope.clone(),
-            scope_id,
-            context_type,
-            agent_role,
-            None,
-            None,
-            None,
-        ).await? {
+        if let Some(weights) = self
+            .get_weights(
+                scope.clone(),
+                scope_id,
+                context_type,
+                agent_role,
+                None,
+                None,
+                None,
+            )
+            .await?
+        {
             return Ok(weights);
         }
 
@@ -358,43 +377,80 @@ impl RelevanceScorer {
         };
 
         // Parse row into WeightSet
-        let id: String = row.get(0).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let scope_str: String = row.get(1).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let id: String = row
+            .get(0)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let scope_str: String = row
+            .get(1)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
         let scope_parsed = match scope_str.as_str() {
             "session" => Scope::Session,
             "project" => Scope::Project,
             "global" => Scope::Global,
-            _ => return Err(MnemosyneError::Other(format!("Invalid scope: {}", scope_str))),
+            _ => {
+                return Err(MnemosyneError::Other(format!(
+                    "Invalid scope: {}",
+                    scope_str
+                )))
+            }
         };
 
-        let scope_id: String = row.get(2).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let context_type: String = row.get(3).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let agent_role: String = row.get(4).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let work_phase: Option<String> = row.get(5).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let task_type: Option<String> = row.get(6).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let error_context: Option<String> = row.get(7).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let scope_id: String = row
+            .get(2)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let context_type: String = row
+            .get(3)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let agent_role: String = row
+            .get(4)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let work_phase: Option<String> = row
+            .get(5)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let task_type: Option<String> = row
+            .get(6)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let error_context: Option<String> = row
+            .get(7)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
 
-        let weights_json: String = row.get(8).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let weights_json: String = row
+            .get(8)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
         let weights: HashMap<String, f32> = serde_json::from_str(&weights_json)
             .map_err(|e| MnemosyneError::Other(format!("Failed to parse weights: {}", e)))?;
 
-        let sample_count: u32 = row.get(9).map_err(|e| MnemosyneError::Database(e.to_string()))?;
-        let last_updated_at: i64 = row.get(10).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let sample_count: u32 = row
+            .get(9)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let last_updated_at: i64 = row
+            .get(10)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
 
         // libsql uses f64, convert to f32
-        let confidence_f64: f64 = row.get(11).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let confidence_f64: f64 = row
+            .get(11)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
         let confidence = confidence_f64 as f32;
 
-        let learning_rate_f64: f64 = row.get(12).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let learning_rate_f64: f64 = row
+            .get(12)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
         let learning_rate = learning_rate_f64 as f32;
 
-        let avg_precision: Option<f64> = row.get(13).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let avg_precision: Option<f64> = row
+            .get(13)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
         let avg_precision = avg_precision.map(|v| v as f32);
 
-        let avg_recall: Option<f64> = row.get(14).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let avg_recall: Option<f64> = row
+            .get(14)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
         let avg_recall = avg_recall.map(|v| v as f32);
 
-        let avg_f1_score: Option<f64> = row.get(15).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let avg_f1_score: Option<f64> = row
+            .get(15)
+            .map_err(|e| MnemosyneError::Database(e.to_string()))?;
         let avg_f1_score = avg_f1_score.map(|v| v as f32);
 
         Ok(Some(WeightSet {
@@ -420,7 +476,11 @@ impl RelevanceScorer {
     /// Update weights based on feedback
     ///
     /// Implements gradient descent with exponential weighted moving average
-    pub async fn update_weights(&self, evaluation_id: &str, features: &RelevanceFeatures) -> Result<()> {
+    pub async fn update_weights(
+        &self,
+        evaluation_id: &str,
+        features: &RelevanceFeatures,
+    ) -> Result<()> {
         info!("Updating weights based on evaluation {}", evaluation_id);
 
         // Extract context information from features
@@ -431,7 +491,7 @@ impl RelevanceScorer {
 
         // Determine scope IDs
         let session_id = &evaluation.session_id;
-        let project_id = &evaluation.namespace;  // namespace serves as project ID
+        let project_id = &evaluation.namespace; // namespace serves as project ID
         let context_type_str = evaluation.context_type.to_string();
         let agent_role = &evaluation.agent_role;
 
@@ -441,35 +501,41 @@ impl RelevanceScorer {
         let error_context_str = evaluation.error_context.as_ref().map(|e| e.to_string());
 
         // Get or create weight sets for all three scopes
-        let mut session_weights = self.get_weights_with_fallback(
-            Scope::Session,
-            session_id,
-            &context_type_str,
-            agent_role,
-            work_phase_str.as_deref(),
-            task_type_str.as_deref(),
-            error_context_str.as_deref(),
-        ).await?;
+        let mut session_weights = self
+            .get_weights_with_fallback(
+                Scope::Session,
+                session_id,
+                &context_type_str,
+                agent_role,
+                work_phase_str.as_deref(),
+                task_type_str.as_deref(),
+                error_context_str.as_deref(),
+            )
+            .await?;
 
-        let mut project_weights = self.get_weights_with_fallback(
-            Scope::Project,
-            project_id,
-            &context_type_str,
-            agent_role,
-            work_phase_str.as_deref(),
-            task_type_str.as_deref(),
-            error_context_str.as_deref(),
-        ).await?;
+        let mut project_weights = self
+            .get_weights_with_fallback(
+                Scope::Project,
+                project_id,
+                &context_type_str,
+                agent_role,
+                work_phase_str.as_deref(),
+                task_type_str.as_deref(),
+                error_context_str.as_deref(),
+            )
+            .await?;
 
-        let mut global_weights = self.get_weights_with_fallback(
-            Scope::Global,
-            "global",
-            &context_type_str,
-            agent_role,
-            work_phase_str.as_deref(),
-            task_type_str.as_deref(),
-            error_context_str.as_deref(),
-        ).await?;
+        let mut global_weights = self
+            .get_weights_with_fallback(
+                Scope::Global,
+                "global",
+                &context_type_str,
+                agent_role,
+                work_phase_str.as_deref(),
+                task_type_str.as_deref(),
+                error_context_str.as_deref(),
+            )
+            .await?;
 
         // Compute predicted scores using current weights
         let session_score = self.compute_weighted_score(features, &session_weights.weights);
@@ -493,12 +559,7 @@ impl RelevanceScorer {
             actual_outcome,
         );
 
-        self.update_single_weight_set(
-            &mut global_weights,
-            features,
-            global_score,
-            actual_outcome,
-        );
+        self.update_single_weight_set(&mut global_weights, features, global_score, actual_outcome);
 
         // Store updated weights
         self.store_weights(&session_weights).await?;
@@ -545,7 +606,10 @@ impl RelevanceScorer {
         if let Some(w) = weights.weights.get_mut("access_patterns") {
             *w += alpha * error * features.access_frequency.min(1.0);
         }
-        if let (Some(w), Some(hist)) = (weights.weights.get_mut("historical_success"), features.historical_success_rate) {
+        if let (Some(w), Some(hist)) = (
+            weights.weights.get_mut("historical_success"),
+            features.historical_success_rate,
+        ) {
             *w += alpha * error * hist;
         }
         if features.file_type_match {

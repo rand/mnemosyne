@@ -176,10 +176,7 @@ async fn l5_llm_error_handling() {
         Err(e) => {
             // If it fails, error should be descriptive
             let error_msg = e.to_string();
-            assert!(
-                !error_msg.is_empty(),
-                "Error message should be descriptive"
-            );
+            assert!(!error_msg.is_empty(), "Error message should be descriptive");
         }
     }
 
@@ -199,9 +196,7 @@ async fn l6_llm_rate_limiting() {
         ics.add_text(&format!("Request {} content\n", i + 1));
 
         // Queue analysis request
-        requests.push(tokio::spawn(async move {
-            ics.analyze().await
-        }));
+        requests.push(tokio::spawn(async move { ics.analyze().await }));
     }
 
     // Wait for all requests

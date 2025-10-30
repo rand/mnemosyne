@@ -10,11 +10,14 @@
 //! - Provides handle for task management
 
 use crate::error::Result;
-use crate::orchestration::conflict_notifier::{ConflictNotification, ConflictNotifier, NotificationType};
-use crate::orchestration::cross_process::{CoordinationMessage, CrossProcessCoordinator, MessageType};
+use crate::orchestration::conflict_notifier::{
+    ConflictNotification, ConflictNotifier, NotificationType,
+};
+use crate::orchestration::cross_process::{
+    CoordinationMessage, CrossProcessCoordinator, MessageType,
+};
 use crate::storage::StorageBackend;
-use crate::types::{MemoryNote, MemoryId, MemoryType, Namespace};
-use chrono::Utc;
+use crate::types::{MemoryId, MemoryNote, MemoryType, Namespace};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::time::{interval, Duration};
@@ -76,7 +79,10 @@ impl NotificationTaskHandle {
         // Wait for task to complete
         if let Some(handle) = self.task_handle.take() {
             handle.await.map_err(|e| {
-                crate::error::MnemosyneError::Other(format!("Failed to stop notification task: {}", e))
+                crate::error::MnemosyneError::Other(format!(
+                    "Failed to stop notification task: {}",
+                    e
+                ))
             })?;
         }
 
@@ -247,7 +253,11 @@ async fn process_notifications(
                 e
             );
         } else {
-            tracing::debug!("Stored notification {} as memory {}", notification.id, memory.id);
+            tracing::debug!(
+                "Stored notification {} as memory {}",
+                notification.id,
+                memory.id
+            );
         }
 
         // 3. Log high-severity notifications

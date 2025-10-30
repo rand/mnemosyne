@@ -173,12 +173,7 @@ pub struct WorkItem {
 
 impl WorkItem {
     /// Create a new work item
-    pub fn new(
-        description: String,
-        agent: AgentRole,
-        phase: Phase,
-        priority: u8,
-    ) -> Self {
+    pub fn new(description: String, agent: AgentRole, phase: Phase, priority: u8) -> Self {
         let original_intent = description.clone();
         Self {
             id: WorkItemId::new(),
@@ -298,8 +293,7 @@ impl WorkQueue {
         self.items
             .values()
             .filter(|item| {
-                item.state == AgentState::Ready
-                    && item.dependencies_satisfied(&self.completed)
+                item.state == AgentState::Ready && item.dependencies_satisfied(&self.completed)
             })
             .collect()
     }
@@ -379,18 +373,9 @@ mod tests {
 
     #[test]
     fn test_phase_transitions() {
-        assert_eq!(
-            Phase::PromptToSpec.next(),
-            Some(Phase::SpecToFullSpec)
-        );
-        assert_eq!(
-            Phase::SpecToFullSpec.next(),
-            Some(Phase::FullSpecToPlan)
-        );
-        assert_eq!(
-            Phase::FullSpecToPlan.next(),
-            Some(Phase::PlanToArtifacts)
-        );
+        assert_eq!(Phase::PromptToSpec.next(), Some(Phase::SpecToFullSpec));
+        assert_eq!(Phase::SpecToFullSpec.next(), Some(Phase::FullSpecToPlan));
+        assert_eq!(Phase::FullSpecToPlan.next(), Some(Phase::PlanToArtifacts));
         assert_eq!(Phase::PlanToArtifacts.next(), Some(Phase::Complete));
         assert_eq!(Phase::Complete.next(), None);
     }

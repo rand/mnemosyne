@@ -331,12 +331,10 @@ impl ConflictDetector {
         let p1 = path1.to_string_lossy();
         let p2 = path2.to_string_lossy();
 
-        self.related_patterns
-            .iter()
-            .any(|(pattern1, pattern2)| {
-                (p1.contains(pattern1) && p2.contains(pattern2))
-                    || (p1.contains(pattern2) && p2.contains(pattern1))
-            })
+        self.related_patterns.iter().any(|(pattern1, pattern2)| {
+            (p1.contains(pattern1) && p2.contains(pattern2))
+                || (p1.contains(pattern2) && p2.contains(pattern1))
+        })
     }
 
     /// Add custom critical pattern

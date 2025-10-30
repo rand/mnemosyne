@@ -214,8 +214,8 @@ impl LinkData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration as ChronoDuration;
     use crate::ConnectionMode;
+    use chrono::Duration as ChronoDuration;
 
     fn create_test_link(
         strength: f32,

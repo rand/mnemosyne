@@ -51,31 +51,45 @@ pub mod supervision;
 mod coordination_tests;
 
 // Re-export key types
-pub use actors::{ExecutorActor, OrchestratorActor, OptimizerActor, ReviewerActor};
-pub use branch_coordinator::{BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse};
+pub use actors::{ExecutorActor, OptimizerActor, OrchestratorActor, ReviewerActor};
+pub use branch_coordinator::{
+    BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse,
+};
 pub use branch_guard::{BranchGuard, BranchGuardConfig};
-pub use cli::{CliCommand, CliHandler, CliResult, parse_args};
-pub use config::{BranchIsolationConfig, BranchIsolationSettings, ConflictDetectionSettings,
-                 CrossProcessSettings, NotificationSettings};
 pub use branch_registry::{
     AgentAssignment, BranchRegistry, ConflictReport, CoordinationMode, SharedBranchRegistry,
     WorkIntent,
 };
-pub use conflict_detector::{ConflictAction, ConflictAssessment, ConflictDetector, ConflictSeverity};
-pub use conflict_notifier::{ConflictNotification, ConflictNotifier, NotificationConfig, NotificationType};
-pub use cross_process::{CoordinationMessage, CrossProcessCoordinator, MessageType, ProcessRegistration};
+pub use cli::{parse_args, CliCommand, CliHandler, CliResult};
+pub use config::{
+    BranchIsolationConfig, BranchIsolationSettings, ConflictDetectionSettings,
+    CrossProcessSettings, NotificationSettings,
+};
+pub use conflict_detector::{
+    ConflictAction, ConflictAssessment, ConflictDetector, ConflictSeverity,
+};
+pub use conflict_notifier::{
+    ConflictNotification, ConflictNotifier, NotificationConfig, NotificationType,
+};
+pub use cross_process::{
+    CoordinationMessage, CrossProcessCoordinator, MessageType, ProcessRegistration,
+};
 pub use events::{AgentEvent, EventPersistence, EventReplay};
 pub use file_tracker::{ActiveConflict, FileModification, FileTracker, ModificationType};
 pub use git_state::{GitState, GitStateTracker};
 pub use git_wrapper::{GitAuditEntry, GitOperationType, GitWrapper};
 pub use identity::{AgentId, AgentIdentity};
-pub use messages::{AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage};
+pub use messages::{
+    AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage,
+};
 pub use network::{AgentEndpoint, AgentProtocol, MessageRouter};
 pub use notification_task::NotificationTaskHandle;
-pub use prompts::{ConflictDecision, ConflictPrompt, InteractivePrompter, JoinDecision, JoinRequestPrompt};
+pub use prompts::{
+    ConflictDecision, ConflictPrompt, InteractivePrompter, JoinDecision, JoinRequestPrompt,
+};
 pub use proposal_queue::{ProposalQueue, ProposalSender, SendError};
 pub use registry::AgentRegistry;
-pub use skills::{SkillMatch, SkillMetadata, SkillsDiscovery, get_skills_directory};
+pub use skills::{get_skills_directory, SkillMatch, SkillMetadata, SkillsDiscovery};
 pub use state::{AgentState, Phase, WorkItem, WorkQueue};
 pub use status_line::{ShellIntegration, StatusLine, StatusLineFormat, StatusLineProvider};
 pub use supervision::{SupervisionConfig, SupervisionTree};
@@ -180,11 +194,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_engine_lifecycle() {
-        let storage = Arc::new(
-            LibsqlStorage::new(ConnectionMode::InMemory)
-                .await
-                .unwrap(),
-        );
+        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
 
         let config = SupervisionConfig::default();
         let mut engine = OrchestrationEngine::new(storage, config).await.unwrap();

@@ -282,14 +282,21 @@ impl ToolHandler {
         let expand_graph = params.expand_graph.unwrap_or(true);
 
         // Phase 1: Keyword + graph search
-        let keyword_results = self.storage
-            .hybrid_search(&params.query, namespace.clone(), max_results * 2, expand_graph)
+        let keyword_results = self
+            .storage
+            .hybrid_search(
+                &params.query,
+                namespace.clone(),
+                max_results * 2,
+                expand_graph,
+            )
             .await?;
 
         // Phase 2: Vector similarity search
         debug!("Generating query embedding for vector search");
         let query_embedding = self.embeddings.generate_embedding(&params.query).await?;
-        let vector_results = self.storage
+        let vector_results = self
+            .storage
             .vector_search(&query_embedding, max_results * 2, namespace.clone())
             .await?;
 
@@ -391,7 +398,8 @@ impl ToolHandler {
         let limit = params.limit.unwrap_or(20);
 
         // Get memories
-        let memories = self.storage
+        let memories = self
+            .storage
             .list_memories(namespace, limit, sort_by)
             .await?;
 
@@ -422,7 +430,10 @@ impl ToolHandler {
         let seed_ids: Result<Vec<MemoryId>> = params
             .seed_ids
             .iter()
-            .map(|s| MemoryId::from_string(s).map_err(|e| crate::error::MnemosyneError::InvalidId(e.to_string())))
+            .map(|s| {
+                MemoryId::from_string(s)
+                    .map_err(|e| crate::error::MnemosyneError::InvalidId(e.to_string()))
+            })
             .collect();
 
         let seed_ids = seed_ids?;
@@ -430,7 +441,10 @@ impl ToolHandler {
 
         // Call storage graph traversal
         // Note: MCP graph tool doesn't filter by namespace for exploratory traversal
-        let memories = self.storage.graph_traverse(&seed_ids, max_hops, None).await?;
+        let memories = self
+            .storage
+            .graph_traverse(&seed_ids, max_hops, None)
+            .await?;
 
         Ok(serde_json::json!({
             "memories": memories,
@@ -451,7 +465,10 @@ impl ToolHandler {
         let memory_ids: Result<Vec<MemoryId>> = params
             .memory_ids
             .iter()
-            .map(|s| MemoryId::from_string(s).map_err(|e| crate::error::MnemosyneError::InvalidId(e.to_string())))
+            .map(|s| {
+                MemoryId::from_string(s)
+                    .map_err(|e| crate::error::MnemosyneError::InvalidId(e.to_string()))
+            })
             .collect();
 
         let memory_ids = memory_ids?;
@@ -507,7 +524,9 @@ impl ToolHandler {
         let namespace = self.parse_namespace(&params.namespace)?;
 
         // Enrich with LLM
-        let context = params.context.unwrap_or_else(|| "User-provided memory".to_string());
+        let context = params
+            .context
+            .unwrap_or_else(|| "User-provided memory".to_string());
         let mut memory = self.llm.enrich_memory(&params.content, &context).await?;
 
         // Override with user-provided values
@@ -518,10 +537,7 @@ impl ToolHandler {
 
         // Auto-generate embedding for vector search
         debug!("Generating embedding for memory: {}", memory.id);
-        let embedding = self
-            .embeddings
-            .generate_embedding(&memory.content)
-            .await?;
+        let embedding = self.embeddings.generate_embedding(&memory.content).await?;
         memory.embedding = Some(embedding);
 
         // Store memory (with embedding)
@@ -572,11 +588,7 @@ impl ToolHandler {
             if auto_apply {
                 match decision {
                     ConsolidationDecision::Merge { into, content } => {
-                        let mut memory = if into == id_a {
-                            memory_a
-                        } else {
-                            memory_b
-                        };
+                        let mut memory = if into == id_a { memory_a } else { memory_b };
                         memory.content = content;
                         memory.updated_at = chrono::Utc::now();
                         self.storage.update_memory(&memory).await?;
@@ -632,7 +644,10 @@ impl ToolHandler {
             None
         };
 
-        let candidates = self.storage.find_consolidation_candidates(namespace).await?;
+        let candidates = self
+            .storage
+            .find_consolidation_candidates(namespace)
+            .await?;
 
         Ok(serde_json::json!({
             "candidates": candidates.len(),

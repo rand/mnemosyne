@@ -3,14 +3,14 @@
 //! Standalone ICS application that can be run with `mnemosyne --ics`
 
 use super::{
-    IcsConfig,
-    editor::{EditorState, EditorWidget, IcsEditor, Movement, Position, Validator, Diagnostic},
-    memory_panel::{MemoryPanel, MemoryPanelState},
-    semantic::{SemanticAnalyzer, SemanticAnalysis},
-    agent_status::{AgentStatusWidget, AgentStatusState, AgentInfo},
-    attribution::{AttributionPanel, AttributionPanelState, AttributionEntry},
-    proposals::{ProposalsPanel, ProposalsPanelState, ChangeProposal},
+    agent_status::{AgentInfo, AgentStatusState, AgentStatusWidget},
+    attribution::{AttributionEntry, AttributionPanel, AttributionPanelState},
     diagnostics_panel::{DiagnosticsPanel, DiagnosticsPanelState},
+    editor::{Diagnostic, EditorState, EditorWidget, IcsEditor, Movement, Position, Validator},
+    memory_panel::{MemoryPanel, MemoryPanelState},
+    proposals::{ChangeProposal, ProposalsPanel, ProposalsPanelState},
+    semantic::{SemanticAnalysis, SemanticAnalyzer},
+    IcsConfig,
 };
 use crate::{
     orchestration::{AgentRegistry, ProposalQueue},
@@ -173,7 +173,14 @@ impl IcsApp {
     pub fn save_file(&mut self) -> Result<()> {
         let buffer = self.editor.active_buffer_mut();
         buffer.save_file()?;
-        self.status = format!("Saved: {}", buffer.path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "untitled".to_string()));
+        self.status = format!(
+            "Saved: {}",
+            buffer
+                .path
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "untitled".to_string())
+        );
         Ok(())
     }
 
@@ -229,8 +236,15 @@ impl IcsApp {
                     created_at: now,
                     updated_at: now,
                     content: format!("{} {} {}", triple.subject, triple.predicate, triple.object),
-                    summary: format!("Relationship: {} {} {}", triple.subject, triple.predicate, triple.object),
-                    keywords: vec![triple.subject.clone(), triple.predicate.clone(), triple.object.clone()],
+                    summary: format!(
+                        "Relationship: {} {} {}",
+                        triple.subject, triple.predicate, triple.object
+                    ),
+                    keywords: vec![
+                        triple.subject.clone(),
+                        triple.predicate.clone(),
+                        triple.object.clone(),
+                    ],
                     tags: vec!["semantic-analysis".to_string(), "relationship".to_string()],
                     context: format!("Extracted from line {}", triple.source_line + 1),
                     memory_type: MemoryType::Insight,
@@ -407,7 +421,8 @@ impl IcsApp {
             let author = format!("{:?}", attr.actor);
 
             // Convert timestamp
-            let timestamp = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(attr.timestamp.timestamp() as u64);
+            let timestamp = SystemTime::UNIX_EPOCH
+                + std::time::Duration::from_secs(attr.timestamp.timestamp() as u64);
 
             entries.push(AttributionEntry {
                 author,
@@ -432,7 +447,8 @@ impl IcsApp {
     pub async fn load_memories(&mut self) -> Result<()> {
         // Query storage backend for memories (limit 100, sorted by importance)
         // Note: Namespace filtering not yet implemented in IcsConfig
-        let memories = self.storage
+        let memories = self
+            .storage
             .list_memories(None, 100, MemorySortOrder::Importance)
             .await?;
 
@@ -713,16 +729,14 @@ impl IcsApp {
                     }
 
                     // Store semantic memories (Ctrl+Shift+M)
-                    (KeyCode::Char('M'), true) => {
-                        match self.store_semantic_memories().await {
-                            Ok(ids) => {
-                                self.status = format!("Stored {} semantic memories", ids.len());
-                            }
-                            Err(e) => {
-                                self.status = format!("Error storing memories: {}", e);
-                            }
+                    (KeyCode::Char('M'), true) => match self.store_semantic_memories().await {
+                        Ok(ids) => {
+                            self.status = format!("Stored {} semantic memories", ids.len());
                         }
-                    }
+                        Err(e) => {
+                            self.status = format!("Error storing memories: {}", e);
+                        }
+                    },
 
                     // Toggle proposals panel
                     (KeyCode::Char('p'), true) => {
@@ -782,7 +796,10 @@ impl IcsApp {
                         if self.attribution_panel.is_visible() {
                             // Extract attributions when panel becomes visible
                             self.extract_attributions();
-                            self.status = format!("Attribution: visible ({} entries)", self.attributions.len());
+                            self.status = format!(
+                                "Attribution: visible ({} entries)",
+                                self.attributions.len()
+                            );
                         } else {
                             self.status = "Attribution: hidden".to_string();
                         }
@@ -996,8 +1013,7 @@ impl IcsApp {
                         let unresolved = self.hole_navigator.unresolved_holes().len();
                         self.status = format!(
                             "Holes: {} total, {} unresolved | Use Ctrl+N/Ctrl+Shift+N to navigate",
-                            hole_count,
-                            unresolved
+                            hole_count, unresolved
                         );
 
                         // If there are holes, show the first one's details
@@ -1005,7 +1021,13 @@ impl IcsApp {
                             // Clone to avoid holding reference while calling generate_suggestions
                             let hole_clone = hole.clone();
                             let suggestions = self.hole_navigator.generate_suggestions(&hole_clone);
-                            eprintln!("{}", super::holes::format_hole_with_suggestions(&hole_clone, &suggestions));
+                            eprintln!(
+                                "{}",
+                                super::holes::format_hole_with_suggestions(
+                                    &hole_clone,
+                                    &suggestions
+                                )
+                            );
                         }
                     }
 
@@ -1030,8 +1052,11 @@ impl IcsApp {
             let size = frame.area();
 
             // Count visible panels
-            let bottom_panels_visible = self.diagnostics_panel.is_visible() || self.proposals_panel.is_visible();
-            let right_panels_visible = self.memory_panel.is_visible() || self.agent_status_panel.is_visible() || self.attribution_panel.is_visible();
+            let bottom_panels_visible =
+                self.diagnostics_panel.is_visible() || self.proposals_panel.is_visible();
+            let right_panels_visible = self.memory_panel.is_visible()
+                || self.agent_status_panel.is_visible()
+                || self.attribution_panel.is_visible();
 
             // Create main vertical layout
             let mut v_constraints = vec![Constraint::Length(1)]; // Status bar
@@ -1119,19 +1144,31 @@ impl IcsApp {
 
                     if self.memory_panel.is_visible() {
                         let panel_widget = MemoryPanel::new(&self.memories);
-                        frame.render_stateful_widget(panel_widget, right_chunks[chunk_idx], &mut self.memory_panel);
+                        frame.render_stateful_widget(
+                            panel_widget,
+                            right_chunks[chunk_idx],
+                            &mut self.memory_panel,
+                        );
                         chunk_idx += 1;
                     }
 
                     if self.agent_status_panel.is_visible() {
                         let panel_widget = AgentStatusWidget::new(&self.agents);
-                        frame.render_stateful_widget(panel_widget, right_chunks[chunk_idx], &mut self.agent_status_panel);
+                        frame.render_stateful_widget(
+                            panel_widget,
+                            right_chunks[chunk_idx],
+                            &mut self.agent_status_panel,
+                        );
                         chunk_idx += 1;
                     }
 
                     if self.attribution_panel.is_visible() {
                         let panel_widget = AttributionPanel::new(&self.attributions);
-                        frame.render_stateful_widget(panel_widget, right_chunks[chunk_idx], &mut self.attribution_panel);
+                        frame.render_stateful_widget(
+                            panel_widget,
+                            right_chunks[chunk_idx],
+                            &mut self.attribution_panel,
+                        );
                     }
                 }
             }
@@ -1165,15 +1202,25 @@ impl IcsApp {
 
                     if self.diagnostics_panel.is_visible() {
                         let panel_widget = DiagnosticsPanel::new(&self.diagnostics);
-                        frame.render_stateful_widget(panel_widget, bottom_chunks[chunk_idx], &mut self.diagnostics_panel);
+                        frame.render_stateful_widget(
+                            panel_widget,
+                            bottom_chunks[chunk_idx],
+                            &mut self.diagnostics_panel,
+                        );
                         chunk_idx += 1;
                     }
 
                     if self.proposals_panel.is_visible() {
-                        let selected_proposal = self.proposals_panel.selected()
+                        let selected_proposal = self
+                            .proposals_panel
+                            .selected()
                             .and_then(|idx| self.proposals.get(idx));
                         let panel_widget = ProposalsPanel::new(&self.proposals, selected_proposal);
-                        frame.render_stateful_widget(panel_widget, bottom_chunks[chunk_idx], &mut self.proposals_panel);
+                        frame.render_stateful_widget(
+                            panel_widget,
+                            bottom_chunks[chunk_idx],
+                            &mut self.proposals_panel,
+                        );
                     }
                 }
             }
@@ -1201,15 +1248,18 @@ impl IcsApp {
             // Add hole navigation info
             let hole_info = if self.hole_navigator.hole_count() > 0 {
                 let unresolved = self.hole_navigator.unresolved_holes().len();
-                format!("| Holes: {}/{} unresolved ", unresolved, self.hole_navigator.hole_count())
+                format!(
+                    "| Holes: {}/{} unresolved ",
+                    unresolved,
+                    self.hole_navigator.hole_count()
+                )
             } else {
                 String::new()
             };
 
             let info_text = format!("{} | {}{}{}", cursor_pos, lang, semantic_info, hole_info);
 
-            let info_widget = Paragraph::new(info_text)
-                .style(Style::default().fg(Color::DarkGray));
+            let info_widget = Paragraph::new(info_text).style(Style::default().fg(Color::DarkGray));
             let info_bar_index = if bottom_panels_visible { 3 } else { 2 };
             frame.render_widget(info_widget, main_chunks[info_bar_index]);
 
@@ -1234,9 +1284,9 @@ impl IcsApp {
 mod tests {
     use super::*;
     use crate::{
+        ics::proposals::ProposalStatus,
         launcher::agents::AgentRole,
         orchestration::{AgentRegistry, ProposalQueue},
-        ics::proposals::ProposalStatus,
         ConnectionMode, LibsqlStorage,
     };
     use std::sync::Arc;
@@ -1342,8 +1392,20 @@ mod tests {
         );
 
         let registry = AgentRegistry::new();
-        registry.register("test-optimizer".to_string(), "Optimizer".to_string(), AgentRole::Optimizer).await;
-        registry.register("test-reviewer".to_string(), "Reviewer".to_string(), AgentRole::Reviewer).await;
+        registry
+            .register(
+                "test-optimizer".to_string(),
+                "Optimizer".to_string(),
+                AgentRole::Optimizer,
+            )
+            .await;
+        registry
+            .register(
+                "test-reviewer".to_string(),
+                "Reviewer".to_string(),
+                AgentRole::Reviewer,
+            )
+            .await;
 
         let config = IcsConfig::default();
         let mut app = IcsApp::new(config, storage, Some(registry), None);
@@ -1428,7 +1490,9 @@ mod tests {
         assert_eq!(text, "Initial content");
 
         let buffer = app.editor_mut().active_buffer_mut();
-        buffer.insert_at_cursor("\nAdded line").expect("Failed to insert");
+        buffer
+            .insert_at_cursor("\nAdded line")
+            .expect("Failed to insert");
 
         app.save_file().expect("Failed to save");
 
@@ -1451,8 +1515,12 @@ mod tests {
         let mut app = IcsApp::new(config, storage, None, None);
 
         let buffer = app.editor_mut().active_buffer_mut();
-        buffer.insert_at_cursor("Line 1\n").expect("Failed to insert");
-        buffer.insert_at_cursor("Line 2\n").expect("Failed to insert");
+        buffer
+            .insert_at_cursor("Line 1\n")
+            .expect("Failed to insert");
+        buffer
+            .insert_at_cursor("Line 2\n")
+            .expect("Failed to insert");
 
         app.test_extract_attributions();
 
@@ -1490,20 +1558,24 @@ mod tests {
 
         // Orchestration mode
         let registry = AgentRegistry::new();
-        registry.register("test".to_string(), "Test".to_string(), AgentRole::Optimizer).await;
+        registry
+            .register("test".to_string(), "Test".to_string(), AgentRole::Optimizer)
+            .await;
 
         let queue = ProposalQueue::new();
-        queue.send(ChangeProposal {
-            id: "test".to_string(),
-            agent: "Test".to_string(),
-            description: "Test".to_string(),
-            original: "old".to_string(),
-            proposed: "new".to_string(),
-            line_range: (1, 2),
-            created_at: SystemTime::now(),
-            status: ProposalStatus::Pending,
-            rationale: "Test".to_string(),
-        }).expect("Failed to send");
+        queue
+            .send(ChangeProposal {
+                id: "test".to_string(),
+                agent: "Test".to_string(),
+                description: "Test".to_string(),
+                original: "old".to_string(),
+                proposed: "new".to_string(),
+                line_range: (1, 2),
+                created_at: SystemTime::now(),
+                status: ProposalStatus::Pending,
+                rationale: "Test".to_string(),
+            })
+            .expect("Failed to send");
 
         let config2 = IcsConfig::default();
         let mut app2 = IcsApp::new(config2, storage2, Some(registry), Some(queue));

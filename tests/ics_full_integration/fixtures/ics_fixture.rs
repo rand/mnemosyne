@@ -1,7 +1,7 @@
 //! ICS fixture for integration tests
 
-use mnemosyne_core::ics::{IcsEditor, SemanticAnalyzer, SemanticAnalysis};
 use mnemosyne_core::ics::editor::BufferId;
+use mnemosyne_core::ics::{IcsEditor, SemanticAnalysis, SemanticAnalyzer};
 use mnemosyne_core::types::MemoryNote;
 use std::sync::Arc;
 

@@ -283,7 +283,8 @@ impl<'a> ProposalsPanel<'a> {
                 )),
             ];
 
-            let paragraph = Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
+            let paragraph =
+                Paragraph::new(empty_text).alignment(ratatui::layout::Alignment::Center);
             paragraph.render(inner, buf);
             return;
         }
@@ -348,13 +349,22 @@ impl<'a> ProposalsPanel<'a> {
             ]),
             Line::from(vec![
                 Span::styled("Status: ", Style::default().add_modifier(Modifier::BOLD)),
-                Span::styled(proposal.status.name(), Style::default().fg(proposal.status.color())),
+                Span::styled(
+                    proposal.status.name(),
+                    Style::default().fg(proposal.status.color()),
+                ),
             ]),
             Line::from(""),
-            Line::from(Span::styled("Rationale:", Style::default().add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                "Rationale:",
+                Style::default().add_modifier(Modifier::BOLD),
+            )),
             Line::from(proposal.rationale.as_str()),
             Line::from(""),
-            Line::from(Span::styled("Diff:", Style::default().add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                "Diff:",
+                Style::default().add_modifier(Modifier::BOLD),
+            )),
             Line::from(vec![
                 Span::styled("- ", Style::default().fg(Color::Rgb(200, 140, 140))),
                 Span::raw(&proposal.original),

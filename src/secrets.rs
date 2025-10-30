@@ -45,8 +45,12 @@ impl SecretsManager {
         let secrets_file = config_dir.join("secrets.age");
 
         // Create config directory if it doesn't exist
-        fs::create_dir_all(&config_dir)
-            .with_context(|| format!("Failed to create config directory: {}", config_dir.display()))?;
+        fs::create_dir_all(&config_dir).with_context(|| {
+            format!(
+                "Failed to create config directory: {}",
+                config_dir.display()
+            )
+        })?;
 
         debug!(
             "Secrets manager initialized (config_dir: {})",
@@ -90,7 +94,10 @@ impl SecretsManager {
         }
 
         info!("Encryption key generated and saved");
-        println!("✓ Encryption key saved to: {}", self.identity_file.display());
+        println!(
+            "✓ Encryption key saved to: {}",
+            self.identity_file.display()
+        );
 
         // Prompt for required secrets
         let mut secrets = HashMap::new();
@@ -177,9 +184,7 @@ impl SecretsManager {
 
         // Ensure initialized
         if !self.identity_file.exists() {
-            anyhow::bail!(
-                "Secrets not initialized. Run: mnemosyne secrets init"
-            );
+            anyhow::bail!("Secrets not initialized. Run: mnemosyne secrets init");
         }
 
         let mut secrets = if self.secrets_file.exists() {
@@ -191,8 +196,8 @@ impl SecretsManager {
         secrets.insert(name.to_string(), value.to_string());
 
         // Load recipient from identity file
-        let identity_str = fs::read_to_string(&self.identity_file)
-            .context("Failed to read identity file")?;
+        let identity_str =
+            fs::read_to_string(&self.identity_file).context("Failed to read identity file")?;
         let identity = identity_str
             .parse::<age::x25519::Identity>()
             .map_err(|e| anyhow::anyhow!("Failed to parse identity: {}", e))?;
@@ -208,8 +213,8 @@ impl SecretsManager {
 
     /// Load and decrypt secrets
     fn load_secrets(&self) -> Result<HashMap<String, String>> {
-        let identity_str = fs::read_to_string(&self.identity_file)
-            .context("Failed to read identity file")?;
+        let identity_str =
+            fs::read_to_string(&self.identity_file).context("Failed to read identity file")?;
         let identity = identity_str
             .parse::<age::x25519::Identity>()
             .map_err(|e| anyhow::anyhow!("Failed to parse identity: {}", e))?;
@@ -246,8 +251,9 @@ impl SecretsManager {
             serde_json::to_string_pretty(secrets).context("Failed to serialize secrets")?;
 
         let recipient_box: Box<dyn age::Recipient + Send> = Box::new(recipient.clone());
-        let encryptor = Encryptor::with_recipients(std::iter::once(&*recipient_box as &dyn age::Recipient))
-            .context("Failed to create encryptor")?;
+        let encryptor =
+            Encryptor::with_recipients(std::iter::once(&*recipient_box as &dyn age::Recipient))
+                .context("Failed to create encryptor")?;
 
         let mut encrypted = vec![];
         let mut writer = encryptor

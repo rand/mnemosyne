@@ -71,7 +71,8 @@ impl EventLoop {
         // Ctrl+C or Ctrl+Q
         matches!(
             (key.code, key.modifiers),
-            (KeyCode::Char('c'), KeyModifiers::CONTROL) | (KeyCode::Char('q'), KeyModifiers::CONTROL)
+            (KeyCode::Char('c'), KeyModifiers::CONTROL)
+                | (KeyCode::Char('q'), KeyModifiers::CONTROL)
         )
     }
 }

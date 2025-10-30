@@ -103,10 +103,7 @@ impl EvolutionJob for ArchivalJob {
         let mut changes_made = 0;
         let mut errors = 0;
 
-        tracing::info!(
-            "Starting archival job (batch_size: {})",
-            config.batch_size
-        );
+        tracing::info!("Starting archival job (batch_size: {})", config.batch_size);
 
         // Find archival candidates from storage
         let candidates = self
@@ -132,7 +129,11 @@ impl EvolutionJob for ArchivalJob {
                 access_count,
                 created_at: memory.created_at,
                 last_accessed_at,
-                archived_at: if memory.is_archived { Some(memory.updated_at) } else { None },
+                archived_at: if memory.is_archived {
+                    Some(memory.updated_at)
+                } else {
+                    None
+                },
             };
 
             // Check if should archive
@@ -211,8 +212,8 @@ impl MemoryData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Duration as ChronoDuration;
     use crate::ConnectionMode;
+    use chrono::Duration as ChronoDuration;
 
     fn create_test_memory(
         importance: f32,

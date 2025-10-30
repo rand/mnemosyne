@@ -8,13 +8,7 @@ use mnemosyne_core::{
     error::{MnemosyneError, Result},
     launcher,
     storage::MemorySortOrder,
-    ConfigManager,
-    ConnectionMode,
-    LibsqlStorage,
-    LlmConfig,
-    LlmService,
-    McpServer,
-    StorageBackend,
+    ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig, LlmService, McpServer, StorageBackend,
     ToolHandler,
 };
 // Use the v1.0 embedding service for backward compatibility
@@ -63,11 +57,7 @@ fn get_db_path(cli_path: Option<String>) -> String {
                 None
             }
         })
-        .unwrap_or_else(|| {
-            get_default_db_path()
-                .to_string_lossy()
-                .to_string()
-        })
+        .unwrap_or_else(|| get_default_db_path().to_string_lossy().to_string())
 }
 
 /// Process structured JSON work plan
@@ -75,8 +65,6 @@ fn get_db_path(cli_path: Option<String>) -> String {
 /// Parses and displays a structured work plan in JSON format.
 /// Supports common schemas with tasks, phases, or steps.
 fn process_structured_plan(plan: &serde_json::Value) {
-    use serde_json::Value;
-
     // Try to extract tasks from various common JSON structures
     let tasks = extract_tasks_from_plan(plan);
 
@@ -536,14 +524,13 @@ async fn main() -> Result<()> {
     }
 
     match cli.command {
-        Some(Commands::Serve) => {
-            start_mcp_server(cli.db_path).await
-        }
+        Some(Commands::Serve) => start_mcp_server(cli.db_path).await,
         Some(Commands::Init { database }) => {
             info!("Initializing database...");
 
             // Use provided database path or fall back to global/default
-            let db_path = database.or_else(|| cli.db_path.clone())
+            let db_path = database
+                .or_else(|| cli.db_path.clone())
                 .unwrap_or_else(|| get_default_db_path().to_string_lossy().to_string());
 
             info!("Database path: {}", db_path);
@@ -556,7 +543,9 @@ async fn main() -> Result<()> {
 
             // Initialize storage (this will create the database and run migrations)
             // Init command explicitly creates database if missing
-            let _storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true).await?;
+            let _storage =
+                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true)
+                    .await?;
 
             println!("✓ Database initialized: {}", db_path);
             Ok(())
@@ -570,15 +559,22 @@ async fn main() -> Result<()> {
 
             // Initialize storage (read-only)
             let db_path = get_db_path(cli.db_path.clone());
-            let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), false).await?;
+            let storage =
+                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), false).await?;
 
             // Parse namespace if provided
             let ns = namespace.map(|ns_str| {
                 if ns_str.starts_with("project:") {
                     let project = ns_str.strip_prefix("project:").unwrap();
-                    mnemosyne_core::Namespace::Project { name: project.to_string() }
+                    mnemosyne_core::Namespace::Project {
+                        name: project.to_string(),
+                    }
                 } else if ns_str.starts_with("session:") {
-                    let parts: Vec<&str> = ns_str.strip_prefix("session:").unwrap().split('/').collect();
+                    let parts: Vec<&str> = ns_str
+                        .strip_prefix("session:")
+                        .unwrap()
+                        .split('/')
+                        .collect();
                     if parts.len() == 2 {
                         mnemosyne_core::Namespace::Session {
                             project: parts[0].to_string(),
@@ -593,7 +589,9 @@ async fn main() -> Result<()> {
             });
 
             // Query all memories (or filtered by namespace)
-            let memories = storage.list_memories(ns, 10000, MemorySortOrder::Recent).await?;
+            let memories = storage
+                .list_memories(ns, 10000, MemorySortOrder::Recent)
+                .await?;
 
             // Determine output format and destination
             let (format, use_stdout) = if let Some(ref path) = output {
@@ -637,10 +635,18 @@ async fn main() -> Result<()> {
                         for (i, memory) in memories.iter().enumerate() {
                             writeln!(writer, "## {}. {}\n", i + 1, memory.summary)?;
                             writeln!(writer, "**ID**: {}", memory.id)?;
-                            writeln!(writer, "**Namespace**: {}", serde_json::to_string(&memory.namespace)?)?;
+                            writeln!(
+                                writer,
+                                "**Namespace**: {}",
+                                serde_json::to_string(&memory.namespace)?
+                            )?;
                             writeln!(writer, "**Importance**: {}/10", memory.importance)?;
                             writeln!(writer, "**Type**: {:?}", memory.memory_type)?;
-                            writeln!(writer, "**Created**: {}", memory.created_at.format("%Y-%m-%d %H:%M:%S"))?;
+                            writeln!(
+                                writer,
+                                "**Created**: {}",
+                                memory.created_at.format("%Y-%m-%d %H:%M:%S")
+                            )?;
                             if !memory.tags.is_empty() {
                                 writeln!(writer, "**Tags**: {}", memory.tags.join(", "))?;
                             }
@@ -653,7 +659,11 @@ async fn main() -> Result<()> {
                         }
                     }
                     _ => {
-                        return Err(MnemosyneError::ValidationError(format!("Unsupported export format: {}", format)).into());
+                        return Err(MnemosyneError::ValidationError(format!(
+                            "Unsupported export format: {}",
+                            format
+                        ))
+                        .into());
                     }
                 }
                 Ok(())
@@ -669,7 +679,11 @@ async fn main() -> Result<()> {
                 let output_path = PathBuf::from(output.as_ref().unwrap());
                 let mut file = File::create(&output_path)?;
                 write_output(&mut file)?;
-                eprintln!("✓ Exported {} memories to {}", memories.len(), output_path.display());
+                eprintln!(
+                    "✓ Exported {} memories to {}",
+                    memories.len(),
+                    output_path.display()
+                );
             }
 
             Ok(())
@@ -693,10 +707,8 @@ async fn main() -> Result<()> {
                 std::fs::create_dir_all(parent)?;
             }
 
-            let storage = LibsqlStorage::new_with_validation(
-                ConnectionMode::Local(db_path),
-                true
-            ).await?;
+            let storage =
+                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?;
             let storage_backend: Arc<dyn StorageBackend> = Arc::new(storage);
 
             // Create ICS app with storage (no agent registry or proposal queue in standalone mode)
@@ -734,13 +746,17 @@ async fn main() -> Result<()> {
                     {
                         eprintln!("Config set-key is deprecated. Use: mnemosyne secrets set ANTHROPIC_API_KEY");
                         if let Some(key_value) = key {
-                            config_manager.secrets().set_secret("ANTHROPIC_API_KEY", &key_value)?;
+                            config_manager
+                                .secrets()
+                                .set_secret("ANTHROPIC_API_KEY", &key_value)?;
                         } else {
                             print!("Enter API key: ");
                             std::io::Write::flush(&mut std::io::stdout())?;
                             let mut input = String::new();
                             std::io::stdin().read_line(&mut input)?;
-                            config_manager.secrets().set_secret("ANTHROPIC_API_KEY", input.trim())?;
+                            config_manager
+                                .secrets()
+                                .set_secret("ANTHROPIC_API_KEY", input.trim())?;
                         }
                     }
                     Ok(())
@@ -751,7 +767,7 @@ async fn main() -> Result<()> {
                             Ok(key) => {
                                 // Show only first and last 4 characters
                                 let masked = if key.len() > 12 {
-                                    format!("{}...{}", &key[..8], &key[key.len()-4..])
+                                    format!("{}...{}", &key[..8], &key[key.len() - 4..])
                                 } else {
                                     "***".to_string()
                                 };
@@ -789,7 +805,10 @@ async fn main() -> Result<()> {
                     #[cfg(not(feature = "keyring-fallback"))]
                     {
                         eprintln!("Config delete-key is deprecated. Secrets are managed in encrypted config.");
-                        eprintln!("To reset, delete: {}", config_manager.secrets().secrets_file().display());
+                        eprintln!(
+                            "To reset, delete: {}",
+                            config_manager.secrets().secrets_file().display()
+                        );
                     }
                     Ok(())
                 }
@@ -804,7 +823,10 @@ async fn main() -> Result<()> {
             match command {
                 SecretsCommand::Init => {
                     if secrets.is_initialized() {
-                        println!("⚠️  Secrets already initialized at: {}", secrets.secrets_file().display());
+                        println!(
+                            "⚠️  Secrets already initialized at: {}",
+                            secrets.secrets_file().display()
+                        );
                         print!("Reinitialize? This will overwrite existing secrets. [y/N]: ");
                         std::io::Write::flush(&mut std::io::stdout())?;
 
@@ -872,7 +894,14 @@ async fn main() -> Result<()> {
                     println!("Config dir:     {}", secrets.config_dir().display());
                     println!("Secrets file:   {}", secrets.secrets_file().display());
                     println!("Identity key:   {}", secrets.identity_file().display());
-                    println!("Initialized:    {}", if secrets.is_initialized() { "yes" } else { "no" });
+                    println!(
+                        "Initialized:    {}",
+                        if secrets.is_initialized() {
+                            "yes"
+                        } else {
+                            "no"
+                        }
+                    );
                     println!();
 
                     if secrets.is_initialized() {
@@ -911,7 +940,14 @@ async fn main() -> Result<()> {
             println!("Configuration:");
             println!("  Database: {}", db_path);
             println!("  Max concurrent agents: {}", max_concurrent);
-            println!("  Dashboard: {}", if dashboard { "enabled (future)" } else { "disabled" });
+            println!(
+                "  Dashboard: {}",
+                if dashboard {
+                    "enabled (future)"
+                } else {
+                    "disabled"
+                }
+            );
             println!("  Work plan: {}", plan);
             println!();
 
@@ -959,7 +995,8 @@ async fn main() -> Result<()> {
             let db_path = get_db_path(cli.db_path.clone());
             // Remember command creates database if it doesn't exist (write implies initialize)
             let storage =
-                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true).await?;
+                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true)
+                    .await?;
 
             // Check if API key is available for LLM enrichment
             let llm_config = LlmConfig::default();
@@ -968,9 +1005,15 @@ async fn main() -> Result<()> {
             // Parse namespace
             let ns = if namespace.starts_with("project:") {
                 let project = namespace.strip_prefix("project:").unwrap();
-                mnemosyne_core::Namespace::Project { name: project.to_string() }
+                mnemosyne_core::Namespace::Project {
+                    name: project.to_string(),
+                }
             } else if namespace.starts_with("session:") {
-                let parts: Vec<&str> = namespace.strip_prefix("session:").unwrap().split('/').collect();
+                let parts: Vec<&str> = namespace
+                    .strip_prefix("session:")
+                    .unwrap()
+                    .split('/')
+                    .collect();
                 if parts.len() == 2 {
                     mnemosyne_core::Namespace::Session {
                         project: parts[0].to_string(),
@@ -1008,12 +1051,15 @@ async fn main() -> Result<()> {
                                 warn!("LLM enrichment failed (network error): {}, storing memory without enrichment", e);
                             }
                             _ => {
-                                warn!("LLM enrichment failed: {}, storing memory without enrichment", e);
+                                warn!(
+                                    "LLM enrichment failed: {}, storing memory without enrichment",
+                                    e
+                                );
                             }
                         }
 
-                        use mnemosyne_core::MemoryNote;
                         use mnemosyne_core::types::MemoryId;
+                        use mnemosyne_core::MemoryNote;
 
                         let now = chrono::Utc::now();
 
@@ -1046,8 +1092,8 @@ async fn main() -> Result<()> {
             } else {
                 // Create basic memory without LLM enrichment
                 debug!("Creating basic memory without LLM enrichment - no API key");
-                use mnemosyne_core::MemoryNote;
                 use mnemosyne_core::types::MemoryId;
+                use mnemosyne_core::MemoryNote;
 
                 let now = chrono::Utc::now();
                 let ctx = context.unwrap_or_else(|| "CLI input".to_string());
@@ -1094,7 +1140,8 @@ async fn main() -> Result<()> {
 
             // Generate embedding if API key available
             if has_api_key {
-                let embedding_service = EmbeddingService::new(llm_config.api_key.clone(), llm_config);
+                let embedding_service =
+                    EmbeddingService::new(llm_config.api_key.clone(), llm_config);
                 match embedding_service.generate_embedding(&memory.content).await {
                     Ok(embedding) => memory.embedding = Some(embedding),
                     Err(_) => {
@@ -1108,13 +1155,16 @@ async fn main() -> Result<()> {
 
             // Output result
             if format == "json" {
-                println!("{}", serde_json::json!({
-                    "id": memory.id.to_string(),
-                    "summary": memory.summary,
-                    "importance": memory.importance,
-                    "tags": memory.tags,
-                    "namespace": serde_json::to_string(&memory.namespace).unwrap_or_default()
-                }));
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "id": memory.id.to_string(),
+                        "summary": memory.summary,
+                        "importance": memory.importance,
+                        "tags": memory.tags,
+                        "namespace": serde_json::to_string(&memory.namespace).unwrap_or_default()
+                    })
+                );
             } else {
                 println!("✅ Memory saved");
                 println!("ID: {}", memory.id);
@@ -1134,8 +1184,7 @@ async fn main() -> Result<()> {
         }) => {
             // Initialize storage and services
             let db_path = get_db_path(cli.db_path.clone());
-            let storage =
-                LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
+            let storage = LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
 
             // Check if API key is available for vector search
             let embedding_service_config = LlmConfig::default();
@@ -1145,9 +1194,15 @@ async fn main() -> Result<()> {
             let ns = namespace.as_ref().map(|ns_str| {
                 if ns_str.starts_with("project:") {
                     let project = ns_str.strip_prefix("project:").unwrap();
-                    mnemosyne_core::Namespace::Project { name: project.to_string() }
+                    mnemosyne_core::Namespace::Project {
+                        name: project.to_string(),
+                    }
                 } else if ns_str.starts_with("session:") {
-                    let parts: Vec<&str> = ns_str.strip_prefix("session:").unwrap().split('/').collect();
+                    let parts: Vec<&str> = ns_str
+                        .strip_prefix("session:")
+                        .unwrap()
+                        .split('/')
+                        .collect();
                     if parts.len() == 2 {
                         mnemosyne_core::Namespace::Session {
                             project: parts[0].to_string(),
@@ -1162,20 +1217,21 @@ async fn main() -> Result<()> {
             });
 
             // Perform hybrid search (keyword + vector + graph)
-            let keyword_results = storage.hybrid_search(&query, ns.clone(), limit * 2, true).await?;
+            let keyword_results = storage
+                .hybrid_search(&query, ns.clone(), limit * 2, true)
+                .await?;
 
             // Vector search (optional - only if API key available)
             let vector_results = if has_api_key {
                 let embedding_service = EmbeddingService::new(
                     embedding_service_config.api_key.clone(),
-                    embedding_service_config.clone()
+                    embedding_service_config.clone(),
                 );
                 match embedding_service.generate_embedding(&query).await {
-                    Ok(query_embedding) => {
-                        storage.vector_search(&query_embedding, limit * 2, ns.clone())
-                            .await
-                            .unwrap_or_default()
-                    }
+                    Ok(query_embedding) => storage
+                        .vector_search(&query_embedding, limit * 2, ns.clone())
+                        .await
+                        .unwrap_or_default(),
                     Err(_) => Vec::new(),
                 }
             } else {
@@ -1239,26 +1295,36 @@ async fn main() -> Result<()> {
                     })
                     .collect();
 
-                println!("{}", serde_json::json!({
-                    "results": json_results,
-                    "count": json_results.len()
-                }));
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "results": json_results,
+                        "count": json_results.len()
+                    })
+                );
             } else {
                 if results.is_empty() {
                     println!("No memories found matching '{}'", query);
                 } else {
                     println!("Found {} memories:\n", results.len());
                     for (i, (memory, score)) in results.iter().enumerate() {
-                        println!("{}. {} (score: {:.2}, importance: {}/10)",
-                            i + 1, memory.summary, score, memory.importance);
+                        println!(
+                            "{}. {} (score: {:.2}, importance: {}/10)",
+                            i + 1,
+                            memory.summary,
+                            score,
+                            memory.importance
+                        );
                         println!("   ID: {}", memory.id);
                         println!("   Tags: {}", memory.tags.join(", "));
-                        println!("   Content: {}\n",
+                        println!(
+                            "   Content: {}\n",
                             if memory.content.len() > 100 {
                                 format!("{}...", &memory.content[..100])
                             } else {
                                 memory.content.clone()
-                            });
+                            }
+                        );
                     }
                 }
             }
@@ -1272,7 +1338,7 @@ async fn main() -> Result<()> {
             batch_size,
             progress,
         }) => {
-            use mnemosyne_core::{EmbeddingConfig, LocalEmbeddingService, ConnectionMode};
+            use mnemosyne_core::{ConnectionMode, EmbeddingConfig, LocalEmbeddingService};
             use std::sync::Arc;
 
             // Initialize embedding service
@@ -1302,9 +1368,15 @@ async fn main() -> Result<()> {
                     println!("Fetching memories in namespace '{}'...", ns_str);
                     Some(if ns_str.starts_with("project:") {
                         let project = ns_str.strip_prefix("project:").unwrap();
-                        mnemosyne_core::Namespace::Project { name: project.to_string() }
+                        mnemosyne_core::Namespace::Project {
+                            name: project.to_string(),
+                        }
                     } else if ns_str.starts_with("session:") {
-                        let parts: Vec<&str> = ns_str.strip_prefix("session:").unwrap().split('/').collect();
+                        let parts: Vec<&str> = ns_str
+                            .strip_prefix("session:")
+                            .unwrap()
+                            .split('/')
+                            .collect();
                         if parts.len() == 2 {
                             mnemosyne_core::Namespace::Session {
                                 project: parts[0].to_string(),
@@ -1347,7 +1419,10 @@ async fn main() -> Result<()> {
                         std::io::stdout().flush().unwrap();
                     }
 
-                    match storage.generate_and_store_embedding(&memory.id, &memory.content).await {
+                    match storage
+                        .generate_and_store_embedding(&memory.id, &memory.content)
+                        .await
+                    {
                         Ok(_) => succeeded += 1,
                         Err(e) => {
                             if progress {
@@ -1459,11 +1534,11 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Evolve { job }) => {
             use anyhow::Context;
-            use mnemosyne_core::{ConnectionMode, LibsqlStorage};
             use mnemosyne_core::evolution::{
-                ArchivalJob, ConsolidationJob, ImportanceRecalibrator, LinkDecayJob,
-                EvolutionJob, JobConfig,
+                ArchivalJob, ConsolidationJob, EvolutionJob, ImportanceRecalibrator, JobConfig,
+                LinkDecayJob,
             };
+            use mnemosyne_core::{ConnectionMode, LibsqlStorage};
             use std::sync::Arc;
             use std::time::Duration;
 
@@ -1473,19 +1548,17 @@ async fn main() -> Result<()> {
                 | EvolveJob::Links { database, .. }
                 | EvolveJob::Archival { database, .. }
                 | EvolveJob::Consolidation { database, .. }
-                | EvolveJob::All { database, .. } => {
-                    database
-                        .clone()
-                        .or_else(|| cli.db_path.clone())
-                        .unwrap_or_else(|| get_default_db_path().to_string_lossy().to_string())
-                }
+                | EvolveJob::All { database, .. } => database
+                    .clone()
+                    .or_else(|| cli.db_path.clone())
+                    .unwrap_or_else(|| get_default_db_path().to_string_lossy().to_string()),
             };
 
             // Initialize storage
             let storage = Arc::new(
                 LibsqlStorage::new(ConnectionMode::Local(db_path.into()))
                     .await
-                    .context("Failed to initialize storage")?
+                    .context("Failed to initialize storage")?,
             );
 
             match job {
@@ -1605,8 +1678,10 @@ async fn main() -> Result<()> {
                     let importance_job = ImportanceRecalibrator::new(storage.clone());
                     match importance_job.run(&config).await {
                         Ok(report) => {
-                            println!("  ✓ {} memories processed, {} updated",
-                                report.memories_processed, report.changes_made);
+                            println!(
+                                "  ✓ {} memories processed, {} updated",
+                                report.memories_processed, report.changes_made
+                            );
                         }
                         Err(e) => {
                             eprintln!("  ✗ Failed: {}", e);
@@ -1619,8 +1694,10 @@ async fn main() -> Result<()> {
                     let link_job = LinkDecayJob::new(storage.clone());
                     match link_job.run(&config).await {
                         Ok(report) => {
-                            println!("  ✓ {} links processed, {} updated",
-                                report.memories_processed, report.changes_made);
+                            println!(
+                                "  ✓ {} links processed, {} updated",
+                                report.memories_processed, report.changes_made
+                            );
                         }
                         Err(e) => {
                             eprintln!("  ✗ Failed: {}", e);
@@ -1633,8 +1710,10 @@ async fn main() -> Result<()> {
                     let archival_job = ArchivalJob::new(storage.clone());
                     match archival_job.run(&config).await {
                         Ok(report) => {
-                            println!("  ✓ {} memories processed, {} archived",
-                                report.memories_processed, report.changes_made);
+                            println!(
+                                "  ✓ {} memories processed, {} archived",
+                                report.memories_processed, report.changes_made
+                            );
                         }
                         Err(e) => {
                             eprintln!("  ✗ Failed: {}", e);

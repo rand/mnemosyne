@@ -85,12 +85,9 @@ Key Responsibilities:
 6. Maintain checkpoints at phase transitions
 
 You should analyze work plans, identify dependencies, and make high-level coordination decisions.
-Focus on orchestration strategy, not implementation details."#.to_string(),
-            allowed_tools: vec![
-                "Read".to_string(),
-                "Glob".to_string(),
-                "Task".to_string(),
-            ],
+Focus on orchestration strategy, not implementation details."#
+                .to_string(),
+            allowed_tools: vec!["Read".to_string(), "Glob".to_string(), "Task".to_string()],
             permission_mode: "default".to_string(),
         }
     }
@@ -164,7 +161,8 @@ Executor working on authentication feature
 
 You should proactively manage project context throughout the session,
 not just at startup. Load relevant memories as tasks evolve, and store
-new architectural decisions for future recall."#.to_string(),
+new architectural decisions for future recall."#
+                .to_string(),
             allowed_tools: vec![
                 "Read".to_string(),
                 "Glob".to_string(),
@@ -199,7 +197,8 @@ Quality Gates (all must pass):
 7. No TODO/mock/stub comments - Is it production-ready?
 
 You should rigorously validate all work before allowing it to proceed.
-Focus on quality, correctness, and completeness - be the last line of defense."#.to_string(),
+Focus on quality, correctness, and completeness - be the last line of defense."#
+                .to_string(),
             allowed_tools: vec![
                 "Read".to_string(),
                 "Grep".to_string(),
@@ -240,7 +239,8 @@ Key Responsibilities:
 6. Submit work to Reviewer for validation
 
 You are the doer - translate plans into working code.
-Focus on execution quality and systematic progress."#.to_string(),
+Focus on execution quality and systematic progress."#
+                .to_string(),
             allowed_tools: vec!["*".to_string()], // All tools
             permission_mode: "default".to_string(),
         }

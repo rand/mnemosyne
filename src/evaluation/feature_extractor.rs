@@ -14,7 +14,6 @@
 use crate::embeddings::{cosine_similarity, EmbeddingService, LocalEmbeddingService};
 use crate::error::{MnemosyneError, Result};
 use crate::evaluation::feedback_collector::{ContextEvaluation, ContextType};
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -26,25 +25,25 @@ pub struct RelevanceFeatures {
     pub evaluation_id: String,
 
     // Statistical features (privacy-preserving)
-    pub keyword_overlap_score: f32,  // Jaccard similarity [0.0, 1.0]
-    pub semantic_similarity: Option<f32>,  // Cosine similarity if embeddings available
-    pub recency_days: f32,  // Days since context was created
-    pub access_frequency: f32,  // Accesses per day
-    pub last_used_days_ago: Option<f32>,  // Days since last access
+    pub keyword_overlap_score: f32, // Jaccard similarity [0.0, 1.0]
+    pub semantic_similarity: Option<f32>, // Cosine similarity if embeddings available
+    pub recency_days: f32,          // Days since context was created
+    pub access_frequency: f32,      // Accesses per day
+    pub last_used_days_ago: Option<f32>, // Days since last access
 
     // Contextual match features
     pub work_phase_match: bool,
     pub task_type_match: bool,
-    pub agent_role_affinity: f32,  // How well this context suits this agent
+    pub agent_role_affinity: f32, // How well this context suits this agent
     pub namespace_match: bool,
     pub file_type_match: bool,
 
     // Historical performance features
-    pub historical_success_rate: Option<f32>,  // Past success rate for this context
-    pub co_occurrence_score: Option<f32>,  // How often it appears with other useful contexts
+    pub historical_success_rate: Option<f32>, // Past success rate for this context
+    pub co_occurrence_score: Option<f32>,     // How often it appears with other useful contexts
 
     // Ground truth (outcome)
-    pub was_useful: bool,  // Did user actually use this context?
+    pub was_useful: bool, // Did user actually use this context?
 }
 
 /// Feature extractor
@@ -79,7 +78,7 @@ impl FeatureExtractor {
     pub async fn extract_features(
         &self,
         evaluation: &ContextEvaluation,
-        context_keywords: &[String],  // Keywords from the actual context (skill/memory/file)
+        context_keywords: &[String], // Keywords from the actual context (skill/memory/file)
     ) -> Result<RelevanceFeatures> {
         debug!("Extracting features for evaluation {}", evaluation.id);
 
@@ -90,15 +89,25 @@ impl FeatureExtractor {
         );
 
         // Semantic similarity (if embeddings available)
-        let semantic_similarity = self.compute_semantic_similarity(
-            &evaluation.task_keywords.clone().unwrap_or_default(),
-            context_keywords,
-        ).await.ok().flatten();
+        let semantic_similarity = self
+            .compute_semantic_similarity(
+                &evaluation.task_keywords.clone().unwrap_or_default(),
+                context_keywords,
+            )
+            .await
+            .ok()
+            .flatten();
 
         // Recency features
-        let recency_days = self.compute_recency_days(&evaluation.context_id, &evaluation.context_type).await?;
-        let access_frequency = self.compute_access_frequency(&evaluation.context_id, &evaluation.context_type).await?;
-        let last_used_days_ago = self.compute_last_used_days(&evaluation.context_id, &evaluation.context_type).await?;
+        let recency_days = self
+            .compute_recency_days(&evaluation.context_id, &evaluation.context_type)
+            .await?;
+        let access_frequency = self
+            .compute_access_frequency(&evaluation.context_id, &evaluation.context_type)
+            .await?;
+        let last_used_days_ago = self
+            .compute_last_used_days(&evaluation.context_id, &evaluation.context_type)
+            .await?;
 
         // Contextual match features
         let work_phase_match = evaluation.work_phase.is_some();
@@ -107,21 +116,17 @@ impl FeatureExtractor {
         let file_type_match = self.compute_file_type_match(evaluation);
 
         // Agent affinity (how well this context type suits this agent)
-        let agent_role_affinity = self.compute_agent_affinity(
-            &evaluation.agent_role,
-            &evaluation.context_type,
-        );
+        let agent_role_affinity =
+            self.compute_agent_affinity(&evaluation.agent_role, &evaluation.context_type);
 
         // Historical features
-        let historical_success_rate = self.compute_historical_success(
-            &evaluation.context_id,
-            &evaluation.context_type,
-        ).await?;
+        let historical_success_rate = self
+            .compute_historical_success(&evaluation.context_id, &evaluation.context_type)
+            .await?;
 
-        let co_occurrence_score = self.compute_co_occurrence(
-            &evaluation.context_id,
-            &evaluation.session_id,
-        ).await?;
+        let co_occurrence_score = self
+            .compute_co_occurrence(&evaluation.context_id, &evaluation.session_id)
+            .await?;
 
         // Ground truth: was this context actually useful?
         let was_useful = self.determine_usefulness(evaluation);
@@ -147,7 +152,11 @@ impl FeatureExtractor {
     /// Compute keyword overlap using Jaccard similarity
     ///
     /// Privacy-preserving: computes score, doesn't store keywords
-    fn compute_keyword_overlap(&self, task_keywords: &[String], context_keywords: &[String]) -> f32 {
+    fn compute_keyword_overlap(
+        &self,
+        task_keywords: &[String],
+        context_keywords: &[String],
+    ) -> f32 {
         if task_keywords.is_empty() || context_keywords.is_empty() {
             return 0.0;
         }
@@ -226,7 +235,11 @@ impl FeatureExtractor {
     }
 
     /// Compute recency (days since context was created)
-    async fn compute_recency_days(&self, context_id: &str, context_type: &ContextType) -> Result<f32> {
+    async fn compute_recency_days(
+        &self,
+        context_id: &str,
+        context_type: &ContextType,
+    ) -> Result<f32> {
         match context_type {
             ContextType::Memory => {
                 // Fetch memory creation date
@@ -243,7 +256,11 @@ impl FeatureExtractor {
     }
 
     /// Compute access frequency (accesses per day)
-    async fn compute_access_frequency(&self, context_id: &str, context_type: &ContextType) -> Result<f32> {
+    async fn compute_access_frequency(
+        &self,
+        context_id: &str,
+        context_type: &ContextType,
+    ) -> Result<f32> {
         match context_type {
             ContextType::Memory => {
                 // TODO: Fetch memory access count and age, compute frequency
@@ -254,7 +271,11 @@ impl FeatureExtractor {
     }
 
     /// Compute days since last use
-    async fn compute_last_used_days(&self, context_id: &str, context_type: &ContextType) -> Result<Option<f32>> {
+    async fn compute_last_used_days(
+        &self,
+        context_id: &str,
+        context_type: &ContextType,
+    ) -> Result<Option<f32>> {
         match context_type {
             ContextType::Memory => {
                 // TODO: Fetch last_accessed_at from memory
@@ -267,7 +288,9 @@ impl FeatureExtractor {
     /// Compute file type match
     fn compute_file_type_match(&self, evaluation: &ContextEvaluation) -> bool {
         // Check if context involves files matching task file types
-        if let (Some(task_files), ContextType::File) = (&evaluation.file_types, &evaluation.context_type) {
+        if let (Some(task_files), ContextType::File) =
+            (&evaluation.file_types, &evaluation.context_type)
+        {
             // Simple heuristic: if task involves .rs files and this is a Rust skill/file, match
             return !task_files.is_empty();
         }
@@ -291,7 +314,11 @@ impl FeatureExtractor {
     }
 
     /// Compute historical success rate for this context
-    async fn compute_historical_success(&self, context_id: &str, context_type: &ContextType) -> Result<Option<f32>> {
+    async fn compute_historical_success(
+        &self,
+        context_id: &str,
+        context_type: &ContextType,
+    ) -> Result<Option<f32>> {
         // Query past evaluations for this context
         // Calculate: (times_accessed / times_provided)
         // TODO: Implement historical query
@@ -301,7 +328,11 @@ impl FeatureExtractor {
     /// Compute co-occurrence score
     ///
     /// How often does this context appear alongside other useful contexts?
-    async fn compute_co_occurrence(&self, context_id: &str, session_id: &str) -> Result<Option<f32>> {
+    async fn compute_co_occurrence(
+        &self,
+        context_id: &str,
+        session_id: &str,
+    ) -> Result<Option<f32>> {
         // Query other contexts in this session
         // Calculate: (useful_cooccurrences / total_cooccurrences)
         // TODO: Implement co-occurrence tracking
@@ -322,7 +353,9 @@ impl FeatureExtractor {
 
         // Implicit signals
         let was_used = evaluation.was_accessed
-            && (evaluation.was_edited || evaluation.was_committed || evaluation.was_cited_in_response);
+            && (evaluation.was_edited
+                || evaluation.was_committed
+                || evaluation.was_cited_in_response);
 
         // Strong signal: accessed multiple times
         let frequently_accessed = evaluation.access_count >= 2;
@@ -345,7 +378,9 @@ impl FeatureExtractor {
     /// Get features for an evaluation
     pub async fn get_features(&self, evaluation_id: &str) -> Result<RelevanceFeatures> {
         // TODO: Implement database query
-        Err(MnemosyneError::Other("Feature retrieval not yet implemented".into()))
+        Err(MnemosyneError::Other(
+            "Feature retrieval not yet implemented".into(),
+        ))
     }
 }
 
@@ -422,7 +457,11 @@ mod tests {
         let extractor = create_test_extractor();
 
         // Verify keyword overlap is computed without storing keywords
-        let task_keywords = vec!["rust".to_string(), "async".to_string(), "sensitive_data".to_string()];
+        let task_keywords = vec![
+            "rust".to_string(),
+            "async".to_string(),
+            "sensitive_data".to_string(),
+        ];
         let context_keywords = vec!["rust".to_string(), "tokio".to_string()];
 
         let score = extractor.compute_keyword_overlap(&task_keywords, &context_keywords);
@@ -471,8 +510,14 @@ mod tests {
         let json = serde_json::to_string(&features).expect("Failed to serialize");
 
         // Should not contain raw keywords or content
-        assert!(!json.contains("password"), "Should not contain sensitive keywords");
-        assert!(!json.contains("secret"), "Should not contain sensitive keywords");
+        assert!(
+            !json.contains("password"),
+            "Should not contain sensitive keywords"
+        );
+        assert!(
+            !json.contains("secret"),
+            "Should not contain sensitive keywords"
+        );
 
         // Should only contain numeric/boolean values and evaluation_id
         assert!(json.contains("keyword_overlap_score"));
@@ -488,10 +533,16 @@ mod tests {
         let affinity2 = extractor.compute_agent_affinity("optimizer", &ContextType::Skill);
 
         // Same inputs should give same affinity
-        assert_eq!(affinity1, affinity2, "Agent affinity should be deterministic");
+        assert_eq!(
+            affinity1, affinity2,
+            "Agent affinity should be deterministic"
+        );
 
         // Affinity should be normalized
-        assert!(affinity1 >= 0.0 && affinity1 <= 1.0, "Affinity should be in [0.0, 1.0]");
+        assert!(
+            affinity1 >= 0.0 && affinity1 <= 1.0,
+            "Affinity should be in [0.0, 1.0]"
+        );
     }
 
     #[test]
@@ -519,7 +570,10 @@ mod tests {
         let result = extractor.compute_semantic_similarity(&task, &context).await;
 
         assert!(result.is_ok());
-        assert!(result.unwrap().is_none(), "Should return None without embedding service");
+        assert!(
+            result.unwrap().is_none(),
+            "Should return None without embedding service"
+        );
     }
 
     #[tokio::test]
@@ -563,8 +617,16 @@ mod tests {
         extractor.set_embedding_service(Arc::new(service));
 
         // Similar keywords should have high similarity
-        let task = vec!["rust".to_string(), "async".to_string(), "programming".to_string()];
-        let context = vec!["rust".to_string(), "asynchronous".to_string(), "code".to_string()];
+        let task = vec![
+            "rust".to_string(),
+            "async".to_string(),
+            "programming".to_string(),
+        ];
+        let context = vec![
+            "rust".to_string(),
+            "asynchronous".to_string(),
+            "code".to_string(),
+        ];
 
         let result = extractor.compute_semantic_similarity(&task, &context).await;
 
@@ -577,7 +639,11 @@ mod tests {
         assert!(sim >= 0.0 && sim <= 1.0);
 
         // Similar terms should have positive similarity
-        assert!(sim > 0.3, "Similar keywords should have similarity > 0.3, got {}", sim);
+        assert!(
+            sim > 0.3,
+            "Similar keywords should have similarity > 0.3, got {}",
+            sim
+        );
     }
 
     #[tokio::test]
@@ -592,8 +658,16 @@ mod tests {
         extractor.set_embedding_service(Arc::new(service));
 
         // Dissimilar keywords should have lower similarity
-        let task = vec!["database".to_string(), "sql".to_string(), "query".to_string()];
-        let context = vec!["graphics".to_string(), "rendering".to_string(), "shader".to_string()];
+        let task = vec![
+            "database".to_string(),
+            "sql".to_string(),
+            "query".to_string(),
+        ];
+        let context = vec![
+            "graphics".to_string(),
+            "rendering".to_string(),
+            "shader".to_string(),
+        ];
 
         let result = extractor.compute_semantic_similarity(&task, &context).await;
 
@@ -604,7 +678,11 @@ mod tests {
 
         // Dissimilar terms should have lower similarity than similar terms
         assert!(sim >= 0.0 && sim <= 1.0);
-        assert!(sim < 0.6, "Dissimilar keywords should have similarity < 0.6, got {}", sim);
+        assert!(
+            sim < 0.6,
+            "Dissimilar keywords should have similarity < 0.6, got {}",
+            sim
+        );
     }
 
     // Test helpers

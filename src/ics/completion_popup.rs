@@ -10,7 +10,7 @@
 use crate::ics::editor::Position;
 use crate::ics::symbols::CompletionCandidate;
 use ratatui::{
-    layout::{Constraint, Rect},
+    layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, StatefulWidget},
@@ -248,7 +248,10 @@ mod tests {
 
         popup.show(
             candidates,
-            Position { line: 5, column: 10 },
+            Position {
+                line: 5,
+                column: 10,
+            },
             "te".to_string(),
         );
 
