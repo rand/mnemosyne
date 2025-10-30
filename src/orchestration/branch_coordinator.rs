@@ -420,6 +420,16 @@ impl BranchCoordinator {
         Ok(registry.get_assignments(branch))
     }
 
+    /// Get the total count of active conflicts across all branches
+    pub fn get_conflict_count(&self) -> Result<usize> {
+        self.notifier.get_conflict_count()
+    }
+
+    /// Get the count of conflicts for a specific agent
+    pub fn get_agent_conflict_count(&self, agent_id: &AgentId) -> Result<usize> {
+        self.notifier.get_agent_conflict_count(agent_id)
+    }
+
     /// Initialize cross-process coordinator for an agent
     pub async fn initialize_cross_process(
         &mut self,

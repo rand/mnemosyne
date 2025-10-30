@@ -160,8 +160,9 @@ impl StatusLineProvider {
         // Count agents
         let agent_count = assignments.len();
 
-        // TODO: Get conflict count from file tracker
-        let conflict_count = 0;
+        // Get conflict count from coordinator
+        let conflict_count = self.coordinator.get_agent_conflict_count(&self.agent.id)
+            .unwrap_or(0); // Gracefully handle errors by showing 0 conflicts
 
         // TODO: Check if blocked
         let blocked = false;

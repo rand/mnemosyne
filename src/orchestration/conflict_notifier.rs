@@ -419,6 +419,22 @@ impl ConflictNotifier {
         notified.remove(agent_id);
         Ok(())
     }
+
+    /// Get the current count of active conflicts
+    ///
+    /// Returns the total number of conflicts across all agents.
+    pub fn get_conflict_count(&self) -> crate::error::Result<usize> {
+        let conflicts = self.file_tracker.get_active_conflicts()?;
+        Ok(conflicts.len())
+    }
+
+    /// Get the count of conflicts for a specific agent
+    ///
+    /// Returns the number of conflicts involving the specified agent.
+    pub fn get_agent_conflict_count(&self, agent_id: &AgentId) -> crate::error::Result<usize> {
+        let conflicts = self.file_tracker.get_agent_conflicts(agent_id)?;
+        Ok(conflicts.len())
+    }
 }
 
 /// Format duration as human-readable "ago" string
