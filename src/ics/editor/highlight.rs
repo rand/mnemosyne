@@ -93,7 +93,7 @@ impl Highlighter {
         // Set language for parser
         match language {
             Language::Markdown => {
-                parser.set_language(tree_sitter_markdown::language())?;
+                parser.set_language(&tree_sitter_md::LANGUAGE.into())?;
             }
             Language::PlainText => {
                 // Plain text doesn't need parsing
@@ -179,7 +179,7 @@ impl Highlighter {
     pub fn set_language(&mut self, language: Language) -> Result<()> {
         match language {
             Language::Markdown => {
-                self.parser.set_language(tree_sitter_markdown::language())?;
+                self.parser.set_language(&tree_sitter_md::LANGUAGE.into())?;
             }
             Language::PlainText => {
                 // Plain text doesn't need parsing

@@ -13,6 +13,10 @@ pub enum Language {
     JSON,
     TOML,
     YAML,
+    Bash,
+    Go,
+    C,
+    Cpp,
     PlainText,
 }
 
@@ -29,6 +33,10 @@ impl Language {
             "json" => Some(Language::JSON),
             "toml" => Some(Language::TOML),
             "yaml" | "yml" => Some(Language::YAML),
+            "sh" | "bash" | "zsh" => Some(Language::Bash),
+            "go" => Some(Language::Go),
+            "c" | "h" => Some(Language::C),
+            "cpp" | "cc" | "cxx" | "hpp" | "hxx" => Some(Language::Cpp),
             _ => None,
         }
     }
@@ -44,6 +52,10 @@ impl Language {
             Language::JSON => "json",
             Language::TOML => "toml",
             Language::YAML => "yaml",
+            Language::Bash => "sh",
+            Language::Go => "go",
+            Language::C => "c",
+            Language::Cpp => "cpp",
             Language::PlainText => "txt",
         }
     }
