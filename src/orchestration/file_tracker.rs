@@ -305,26 +305,31 @@ impl FileTracker {
 
     /// Clear agent's tracked files (e.g., after commit)
     pub fn clear_agent_files(&self, agent_id: &AgentId) -> Result<()> {
-        let mut agent_files = self
-            .agent_files
-            .write()
-            .map_err(|e| MnemosyneError::Other(format!("Failed to lock agent_files: {}", e)))?;
+        // Scope 1: Remove agent from agent_files
+        {
+            let mut agent_files = self
+                .agent_files
+                .write()
+                .map_err(|e| MnemosyneError::Other(format!("Failed to lock agent_files: {}", e)))?;
 
-        agent_files.remove(agent_id);
+            agent_files.remove(agent_id);
+        } // agent_files lock released here
 
-        // Also clear file modifications for this agent
-        let mut file_modifications = self.file_modifications.write().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to lock file_modifications: {}", e))
-        })?;
+        // Scope 2: Clear file modifications for this agent
+        {
+            let mut file_modifications = self.file_modifications.write().map_err(|e| {
+                MnemosyneError::Other(format!("Failed to lock file_modifications: {}", e))
+            })?;
 
-        for mods in file_modifications.values_mut() {
-            mods.retain(|m| &m.agent_id != agent_id);
-        }
+            for mods in file_modifications.values_mut() {
+                mods.retain(|m| &m.agent_id != agent_id);
+            }
 
-        // Clean up empty entries
-        file_modifications.retain(|_, mods| !mods.is_empty());
+            // Clean up empty entries
+            file_modifications.retain(|_, mods| !mods.is_empty());
+        } // file_modifications lock released here
 
-        // Re-evaluate conflicts
+        // Scope 3: Re-evaluate conflicts (needs to acquire read locks)
         self.refresh_conflicts()?;
 
         Ok(())
