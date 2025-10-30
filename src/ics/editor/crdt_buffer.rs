@@ -497,7 +497,175 @@ impl CrdtBuffer {
                     self.cursor.position.column = line.len();
                 }
             }
-            _ => {} // Other movements not implemented yet
+            Movement::WordLeft => {
+                // Move left to the start of the current or previous word
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    let chars: Vec<char> = line.chars().collect();
+                    let mut pos = self.cursor.position.column;
+
+                    // Skip current whitespace
+                    while pos > 0 && chars.get(pos.saturating_sub(1)).map_or(false, |c| c.is_whitespace()) {
+                        pos = pos.saturating_sub(1);
+                    }
+
+                    // Skip to start of word
+                    while pos > 0 && chars.get(pos.saturating_sub(1)).map_or(false, |c| !c.is_whitespace()) {
+                        pos = pos.saturating_sub(1);
+                    }
+
+                    self.cursor.position.column = pos;
+                } else if self.cursor.position.line > 0 {
+                    // Move to end of previous line
+                    self.cursor.position.line -= 1;
+                    if let Some(line) = lines.get(self.cursor.position.line) {
+                        self.cursor.position.column = line.len();
+                    }
+                }
+            }
+            Movement::WordRight => {
+                // Move right to the start of the next word
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    let chars: Vec<char> = line.chars().collect();
+                    let mut pos = self.cursor.position.column;
+
+                    // Skip current word
+                    while pos < chars.len() && !chars[pos].is_whitespace() {
+                        pos += 1;
+                    }
+
+                    // Skip whitespace
+                    while pos < chars.len() && chars[pos].is_whitespace() {
+                        pos += 1;
+                    }
+
+                    if pos >= chars.len() && self.cursor.position.line < line_count.saturating_sub(1) {
+                        // Move to start of next line
+                        self.cursor.position.line += 1;
+                        self.cursor.position.column = 0;
+                    } else {
+                        self.cursor.position.column = pos;
+                    }
+                }
+            }
+            Movement::PageUp => {
+                // Move up approximately one page (20 lines)
+                let page_size = 20;
+                if self.cursor.position.line >= page_size {
+                    self.cursor.position.line -= page_size;
+                } else {
+                    self.cursor.position.line = 0;
+                }
+                // Clamp column to line length
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    self.cursor.position.column = self.cursor.position.column.min(line.len());
+                }
+            }
+            Movement::PageDown => {
+                // Move down approximately one page (20 lines)
+                let page_size = 20;
+                let new_line = self.cursor.position.line + page_size;
+                if new_line < line_count {
+                    self.cursor.position.line = new_line;
+                } else {
+                    self.cursor.position.line = line_count.saturating_sub(1);
+                }
+                // Clamp column to line length
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    self.cursor.position.column = self.cursor.position.column.min(line.len());
+                }
+            }
+            Movement::BufferStart => {
+                self.cursor.position.line = 0;
+                self.cursor.position.column = 0;
+            }
+            Movement::BufferEnd => {
+                self.cursor.position.line = line_count.saturating_sub(1);
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    self.cursor.position.column = line.len();
+                }
+            }
+            Movement::WordEnd => {
+                // Move to the end of the current or next word (Helix-style)
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    let chars: Vec<char> = line.chars().collect();
+                    let mut pos = self.cursor.position.column;
+
+                    // If at end of word, move to next word
+                    if pos < chars.len() && !chars[pos].is_whitespace() {
+                        pos += 1;
+                    }
+
+                    // Skip whitespace
+                    while pos < chars.len() && chars[pos].is_whitespace() {
+                        pos += 1;
+                    }
+
+                    // Move to end of word
+                    while pos < chars.len() && !chars[pos].is_whitespace() {
+                        pos += 1;
+                    }
+
+                    if pos > 0 {
+                        pos -= 1; // Move back to last character of word
+                    }
+
+                    if pos >= chars.len() && self.cursor.position.line < line_count.saturating_sub(1) {
+                        // Move to start of next line
+                        self.cursor.position.line += 1;
+                        self.cursor.position.column = 0;
+                    } else {
+                        self.cursor.position.column = pos.min(chars.len().saturating_sub(1));
+                    }
+                }
+            }
+            Movement::FindChar(ch) => {
+                // Find next occurrence of character on current line
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    let chars: Vec<char> = line.chars().collect();
+                    for (i, &c) in chars.iter().enumerate().skip(self.cursor.position.column + 1) {
+                        if c == ch {
+                            self.cursor.position.column = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            Movement::FindCharReverse(ch) => {
+                // Find previous occurrence of character on current line
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    let chars: Vec<char> = line.chars().collect();
+                    for i in (0..self.cursor.position.column).rev() {
+                        if chars.get(i).copied() == Some(ch) {
+                            self.cursor.position.column = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            Movement::TillChar(ch) => {
+                // Move till (before) character on current line
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    let chars: Vec<char> = line.chars().collect();
+                    for (i, &c) in chars.iter().enumerate().skip(self.cursor.position.column + 1) {
+                        if c == ch {
+                            self.cursor.position.column = i.saturating_sub(1);
+                            break;
+                        }
+                    }
+                }
+            }
+            Movement::TillCharReverse(ch) => {
+                // Move till (after) character reverse on current line
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    let chars: Vec<char> = line.chars().collect();
+                    for i in (0..self.cursor.position.column).rev() {
+                        if chars.get(i).copied() == Some(ch) {
+                            self.cursor.position.column = (i + 1).min(chars.len().saturating_sub(1));
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         Ok(())
@@ -507,6 +675,7 @@ impl CrdtBuffer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ics::editor::Position;
 
     #[test]
     fn test_crdt_buffer_creation() {
@@ -570,5 +739,110 @@ mod tests {
         let attr = buffer.attribution_at(2).unwrap();
         assert_eq!(attr.actor, Actor::Human);
         assert_eq!(attr.range, (0, 5));
+    }
+
+    #[test]
+    fn test_word_movements() {
+        let mut buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
+        buffer.insert(0, "hello world test").unwrap();
+        buffer.cursor.position = Position { line: 0, column: 0 };
+
+        // WordRight
+        buffer.move_cursor(Movement::WordRight).unwrap();
+        assert_eq!(buffer.cursor.position.column, 6); // After "hello "
+
+        buffer.move_cursor(Movement::WordRight).unwrap();
+        assert_eq!(buffer.cursor.position.column, 12); // After "world "
+
+        // WordLeft
+        buffer.move_cursor(Movement::WordLeft).unwrap();
+        assert_eq!(buffer.cursor.position.column, 6); // Start of "world"
+
+        buffer.move_cursor(Movement::WordLeft).unwrap();
+        assert_eq!(buffer.cursor.position.column, 0); // Start of "hello"
+    }
+
+    #[test]
+    fn test_word_end_movement() {
+        let mut buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
+        buffer.insert(0, "hello world test").unwrap();
+        buffer.cursor.position = Position { line: 0, column: 0 };
+
+        // WordEnd
+        buffer.move_cursor(Movement::WordEnd).unwrap();
+        assert_eq!(buffer.cursor.position.column, 4); // End of "hello"
+
+        buffer.move_cursor(Movement::WordEnd).unwrap();
+        assert_eq!(buffer.cursor.position.column, 10); // End of "world"
+    }
+
+    #[test]
+    fn test_page_movements() {
+        let mut buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
+        let mut text = String::new();
+        for i in 0..50 {
+            text.push_str(&format!("Line {}\n", i));
+        }
+        buffer.insert(0, &text).unwrap();
+        buffer.cursor.position = Position { line: 25, column: 0 };
+
+        // PageUp
+        buffer.move_cursor(Movement::PageUp).unwrap();
+        assert_eq!(buffer.cursor.position.line, 5); // 25 - 20
+
+        // PageDown
+        buffer.move_cursor(Movement::PageDown).unwrap();
+        assert_eq!(buffer.cursor.position.line, 25); // 5 + 20
+    }
+
+    #[test]
+    fn test_buffer_start_end() {
+        let mut buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
+        buffer.insert(0, "Line 1\nLine 2\nLine 3").unwrap();
+        buffer.cursor.position = Position { line: 1, column: 3 };
+
+        // BufferStart
+        buffer.move_cursor(Movement::BufferStart).unwrap();
+        assert_eq!(buffer.cursor.position.line, 0);
+        assert_eq!(buffer.cursor.position.column, 0);
+
+        // BufferEnd
+        buffer.move_cursor(Movement::BufferEnd).unwrap();
+        assert_eq!(buffer.cursor.position.line, 2);
+        assert_eq!(buffer.cursor.position.column, 6); // End of "Line 3"
+    }
+
+    #[test]
+    fn test_find_char_movement() {
+        let mut buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
+        buffer.insert(0, "hello world test").unwrap();
+        buffer.cursor.position = Position { line: 0, column: 0 };
+
+        // FindChar
+        buffer.move_cursor(Movement::FindChar('w')).unwrap();
+        assert_eq!(buffer.cursor.position.column, 6); // 'w' in "world"
+
+        // FindChar again
+        buffer.move_cursor(Movement::FindChar('t')).unwrap();
+        assert_eq!(buffer.cursor.position.column, 12); // 't' in "test"
+
+        // FindCharReverse
+        buffer.move_cursor(Movement::FindCharReverse('w')).unwrap();
+        assert_eq!(buffer.cursor.position.column, 6); // Back to 'w'
+    }
+
+    #[test]
+    fn test_till_char_movement() {
+        let mut buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
+        buffer.insert(0, "hello world test").unwrap();
+        buffer.cursor.position = Position { line: 0, column: 0 };
+
+        // TillChar (move till before character)
+        buffer.move_cursor(Movement::TillChar('w')).unwrap();
+        assert_eq!(buffer.cursor.position.column, 5); // Before 'w' in "world"
+
+        // TillCharReverse
+        buffer.move_cursor(Movement::TillCharReverse('e')).unwrap();
+        assert_eq!(buffer.cursor.position.column, 2); // After 'e' in "hello"
     }
 }

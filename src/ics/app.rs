@@ -899,6 +899,42 @@ impl IcsApp {
                         let _ = buffer.move_cursor(Movement::LineEnd);
                     }
 
+                    // Word navigation (Ctrl+Left/Right)
+                    (KeyCode::Left, true) => {
+                        let _ = buffer.move_cursor(Movement::WordLeft);
+                        self.completion_popup.hide();
+                    }
+                    (KeyCode::Right, true) => {
+                        let _ = buffer.move_cursor(Movement::WordRight);
+                        self.completion_popup.hide();
+                    }
+
+                    // Word end (Alt+E, Helix-style)
+                    (KeyCode::Char('e'), _) if key.modifiers.contains(KeyModifiers::ALT) => {
+                        let _ = buffer.move_cursor(Movement::WordEnd);
+                        self.completion_popup.hide();
+                    }
+
+                    // Page navigation
+                    (KeyCode::PageUp, _) => {
+                        let _ = buffer.move_cursor(Movement::PageUp);
+                        self.completion_popup.hide();
+                    }
+                    (KeyCode::PageDown, _) => {
+                        let _ = buffer.move_cursor(Movement::PageDown);
+                        self.completion_popup.hide();
+                    }
+
+                    // Buffer start/end (Ctrl+Home/End)
+                    (KeyCode::Home, true) => {
+                        let _ = buffer.move_cursor(Movement::BufferStart);
+                        self.completion_popup.hide();
+                    }
+                    (KeyCode::End, true) => {
+                        let _ = buffer.move_cursor(Movement::BufferEnd);
+                        self.completion_popup.hide();
+                    }
+
                     // Hole navigation (Ctrl+N for next hole, Ctrl+Shift+N for previous hole)
                     (KeyCode::Char('n'), true) if !key.modifiers.contains(KeyModifiers::SHIFT) => {
                         // Next hole

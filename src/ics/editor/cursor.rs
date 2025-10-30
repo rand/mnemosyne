@@ -56,6 +56,8 @@ pub enum Movement {
     WordLeft,
     /// Move right one word
     WordRight,
+    /// Move to end of word (Helix-style)
+    WordEnd,
 
     /// Move to start of line
     LineStart,
@@ -71,6 +73,15 @@ pub enum Movement {
     BufferStart,
     /// Move to end of buffer
     BufferEnd,
+
+    /// Find next occurrence of character (Helix f)
+    FindChar(char),
+    /// Find previous occurrence of character (Helix F)
+    FindCharReverse(char),
+    /// Move till (before) character (Helix t)
+    TillChar(char),
+    /// Move till (after) character reverse (Helix T)
+    TillCharReverse(char),
 }
 
 impl CursorState {
