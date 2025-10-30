@@ -15,7 +15,7 @@ use super::{
 use crate::{
     storage::{MemorySortOrder, StorageBackend},
     tui::{EventLoop, TerminalConfig, TerminalManager, TuiEvent},
-    types::{MemoryNote, Namespace},
+    types::{MemoryId, MemoryNote, MemoryType, Namespace},
 };
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -97,7 +97,7 @@ impl IcsApp {
             editor: IcsEditor::new(),
             editor_state: EditorState::default(),
             state: AppState::Running,
-            status: "ICS | Ctrl+Q: quit | Ctrl+M: memories | Ctrl+P: proposals | Ctrl+D: diagnostics | Ctrl+A: agents".to_string(),
+            status: "ICS | Ctrl+Q: quit | Ctrl+S: save | Ctrl+M: memories | Ctrl+Shift+M: store semantic | Ctrl+P: proposals | Ctrl+D: diagnostics | Ctrl+A: agents".to_string(),
 
             // Phase 3: Memory Integration
             storage,
@@ -165,6 +165,147 @@ impl IcsApp {
         if let Some(analysis) = self.semantic_analyzer.try_recv() {
             self.semantic_analysis = Some(analysis);
         }
+    }
+
+    /// Convert semantic analysis results to memories and store them
+    ///
+    /// Creates memories from:
+    /// - Triples (relationship/fact memories)
+    /// - Typed holes (issues/TODOs)
+    /// - Key entities (reference memories)
+    async fn store_semantic_memories(&self) -> Result<Vec<MemoryId>> {
+        let Some(ref analysis) = self.semantic_analysis else {
+            return Ok(Vec::new());
+        };
+
+        let mut memory_ids = Vec::new();
+        use chrono::Utc;
+
+        // Create memories from high-confidence triples (relationships/facts)
+        for triple in &analysis.triples {
+            if triple.confidence >= 70 {
+                let now = Utc::now();
+                let memory = MemoryNote {
+                    id: MemoryId::new(),
+                    namespace: Namespace::Session {
+                        project: "ics".to_string(),
+                        session_id: format!("{}", now.timestamp()),
+                    },
+                    created_at: now,
+                    updated_at: now,
+                    content: format!("{} {} {}", triple.subject, triple.predicate, triple.object),
+                    summary: format!("Relationship: {} {} {}", triple.subject, triple.predicate, triple.object),
+                    keywords: vec![triple.subject.clone(), triple.predicate.clone(), triple.object.clone()],
+                    tags: vec!["semantic-analysis".to_string(), "relationship".to_string()],
+                    context: format!("Extracted from line {}", triple.source_line + 1),
+                    memory_type: MemoryType::Insight,
+                    importance: (triple.confidence / 10).max(1),
+                    confidence: triple.confidence as f32 / 100.0,
+                    links: Vec::new(),
+                    related_files: Vec::new(),
+                    related_entities: vec![triple.subject.clone(), triple.object.clone()],
+                    access_count: 0,
+                    last_accessed_at: now,
+                    expires_at: None,
+                    is_archived: false,
+                    superseded_by: None,
+                    embedding: None,
+                    embedding_model: String::new(),
+                };
+
+                if let Err(e) = self.storage.store_memory(&memory).await {
+                    eprintln!("Error storing triple memory: {}", e);
+                } else {
+                    memory_ids.push(memory.id);
+                }
+            }
+        }
+
+        // Create memories from typed holes (issues/TODOs)
+        for hole in &analysis.holes {
+            let now = Utc::now();
+            let memory = MemoryNote {
+                id: MemoryId::new(),
+                namespace: Namespace::Session {
+                    project: "ics".to_string(),
+                    session_id: format!("{}", now.timestamp()),
+                },
+                created_at: now,
+                updated_at: now,
+                content: format!("{}: {}", hole.name, hole.context),
+                summary: format!("{} at line {}", hole.kind.icon(), hole.line + 1),
+                keywords: vec![hole.name.clone(), format!("{:?}", hole.kind)],
+                tags: vec!["semantic-analysis".to_string(), "typed-hole".to_string()],
+                context: format!("Line {}, col {}", hole.line + 1, hole.column),
+                memory_type: MemoryType::Constraint,
+                importance: match hole.kind {
+                    super::semantic::HoleKind::Contradiction => 8,
+                    super::semantic::HoleKind::Undefined => 7,
+                    super::semantic::HoleKind::Incomplete => 5,
+                    super::semantic::HoleKind::Ambiguous => 4,
+                    super::semantic::HoleKind::Unknown => 3,
+                },
+                confidence: 0.8,
+                links: Vec::new(),
+                related_files: Vec::new(),
+                related_entities: Vec::new(),
+                access_count: 0,
+                last_accessed_at: now,
+                expires_at: None,
+                is_archived: false,
+                superseded_by: None,
+                embedding: None,
+                embedding_model: String::new(),
+            };
+
+            if let Err(e) = self.storage.store_memory(&memory).await {
+                eprintln!("Error storing hole memory: {}", e);
+            } else {
+                memory_ids.push(memory.id);
+            }
+        }
+
+        // Create memories for frequently mentioned entities (mentioned 3+ times)
+        for (entity, count) in &analysis.entities {
+            if *count >= 3 {
+                let now = Utc::now();
+                let memory = MemoryNote {
+                    id: MemoryId::new(),
+                    namespace: Namespace::Session {
+                        project: "ics".to_string(),
+                        session_id: format!("{}", now.timestamp()),
+                    },
+                    created_at: now,
+                    updated_at: now,
+                    content: format!("Entity '{}' mentioned {} times", entity, count),
+                    summary: format!("Key entity: {}", entity),
+                    keywords: vec![entity.clone(), "entity".to_string()],
+                    tags: vec!["semantic-analysis".to_string(), "entity".to_string()],
+                    context: "Extracted from semantic analysis".to_string(),
+                    memory_type: MemoryType::Reference,
+                    importance: (*count).min(10) as u8,
+                    confidence: 0.9,
+                    links: Vec::new(),
+                    related_files: Vec::new(),
+                    related_entities: vec![entity.clone()],
+                    access_count: 0,
+                    last_accessed_at: now,
+                    expires_at: None,
+                    is_archived: false,
+                    superseded_by: None,
+                    embedding: None,
+                    embedding_model: String::new(),
+                };
+
+                if let Err(e) = self.storage.store_memory(&memory).await {
+                    eprintln!("Error storing entity memory: {}", e);
+                } else {
+                    memory_ids.push(memory.id);
+                }
+            }
+        }
+
+        Ok(memory_ids)
     }
 
     /// Run validation on current buffer
@@ -257,6 +398,18 @@ impl IcsApp {
                             }
                         } else {
                             self.status = "Memory panel: hidden".to_string();
+                        }
+                    }
+
+                    // Store semantic memories (Ctrl+Shift+M)
+                    (KeyCode::Char('M'), true) => {
+                        match self.store_semantic_memories().await {
+                            Ok(ids) => {
+                                self.status = format!("Stored {} semantic memories", ids.len());
+                            }
+                            Err(e) => {
+                                self.status = format!("Error storing memories: {}", e);
+                            }
                         }
                     }
 
