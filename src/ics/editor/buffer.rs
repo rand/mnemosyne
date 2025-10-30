@@ -10,6 +10,11 @@ use std::collections::VecDeque;
 use std::fs;
 use std::path::PathBuf;
 
+/// Check if character is a word character (alphanumeric or underscore)
+fn is_word_char(ch: char) -> bool {
+    ch.is_alphanumeric() || ch == '_'
+}
+
 /// Buffer identifier
 pub type BufferId = usize;
 
@@ -274,6 +279,21 @@ impl TextBuffer {
                     }
                 }
             }
+            WordLeft => {
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    self.move_word_left(&line);
+                }
+            }
+            WordRight => {
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    self.move_word_right(&line);
+                }
+            }
+            WordEnd => {
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    self.move_word_end(&line);
+                }
+            }
             LineStart => {
                 self.cursor.position.column = 0;
             }
@@ -283,8 +303,241 @@ impl TextBuffer {
                     self.cursor.position.column = line.trim_end().len();
                 }
             }
-            _ => {
-                // TODO: Implement other movement commands
+            PageUp => {
+                // Move up one page (20 lines)
+                const PAGE_SIZE: usize = 20;
+                if self.cursor.position.line > PAGE_SIZE {
+                    self.cursor.position.line -= PAGE_SIZE;
+                } else {
+                    self.cursor.position.line = 0;
+                }
+                // Clamp column to line length
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    let line_len = line.trim_end().len();
+                    self.cursor.position.column = self.cursor.position.column.min(line_len);
+                }
+            }
+            PageDown => {
+                // Move down one page (20 lines)
+                const PAGE_SIZE: usize = 20;
+                let max_line = self.line_count().saturating_sub(1);
+                self.cursor.position.line = (self.cursor.position.line + PAGE_SIZE).min(max_line);
+                // Clamp column to line length
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    let line_len = line.trim_end().len();
+                    self.cursor.position.column = self.cursor.position.column.min(line_len);
+                }
+            }
+            BufferStart => {
+                self.cursor.position.line = 0;
+                self.cursor.position.column = 0;
+            }
+            BufferEnd => {
+                let max_line = self.line_count().saturating_sub(1);
+                self.cursor.position.line = max_line;
+                if let Some(line) = self.line(max_line) {
+                    self.cursor.position.column = line.trim_end().len();
+                }
+            }
+            FindChar(ch) => {
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    self.find_char(&line, ch, false);
+                }
+            }
+            FindCharReverse(ch) => {
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    self.find_char_reverse(&line, ch, false);
+                }
+            }
+            TillChar(ch) => {
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    self.find_char(&line, ch, true);
+                }
+            }
+            TillCharReverse(ch) => {
+                if let Some(line) = self.line(self.cursor.position.line) {
+                    self.find_char_reverse(&line, ch, true);
+                }
+            }
+        }
+    }
+
+    /// Helper: Move to start of previous word
+    fn move_word_left(&mut self, line: &str) {
+        if self.cursor.position.column == 0 {
+            // Move to end of previous line
+            if self.cursor.position.line > 0 {
+                self.cursor.position.line -= 1;
+                if let Some(prev_line) = self.line(self.cursor.position.line) {
+                    self.cursor.position.column = prev_line.trim_end().len();
+                }
+            }
+            return;
+        }
+
+        let chars: Vec<char> = line.chars().collect();
+        let mut col = self.cursor.position.column.min(chars.len());
+
+        // Skip current position if at word boundary
+        if col > 0 {
+            col -= 1;
+        }
+
+        // Skip whitespace
+        while col > 0 && chars[col].is_whitespace() {
+            col -= 1;
+        }
+
+        // Skip word characters
+        if col > 0 && is_word_char(chars[col]) {
+            while col > 0 && is_word_char(chars[col]) {
+                col -= 1;
+            }
+            if !is_word_char(chars[col]) {
+                col += 1;
+            }
+        } else if col > 0 {
+            // Skip non-word, non-whitespace characters (punctuation)
+            while col > 0 && !is_word_char(chars[col]) && !chars[col].is_whitespace() {
+                col -= 1;
+            }
+            if is_word_char(chars[col]) || chars[col].is_whitespace() {
+                col += 1;
+            }
+        }
+
+        self.cursor.position.column = col;
+    }
+
+    /// Helper: Move to start of next word
+    fn move_word_right(&mut self, line: &str) {
+        let trimmed_len = line.trim_end().len();
+        let chars: Vec<char> = line.chars().collect();
+        let line_len = chars.len();
+
+        if self.cursor.position.column >= trimmed_len {
+            // At or past end of line content, move to start of next line
+            if self.cursor.position.line < self.line_count() - 1 {
+                self.cursor.position.line += 1;
+                self.cursor.position.column = 0;
+            }
+            return;
+        }
+
+        let mut col = self.cursor.position.column;
+
+        // Skip current word
+        if is_word_char(chars[col]) {
+            while col < line_len && is_word_char(chars[col]) {
+                col += 1;
+            }
+        } else if !chars[col].is_whitespace() {
+            // Skip punctuation
+            while col < line_len && !is_word_char(chars[col]) && !chars[col].is_whitespace() {
+                col += 1;
+            }
+        }
+
+        // Skip whitespace to next word
+        while col < line_len && chars[col].is_whitespace() {
+            col += 1;
+        }
+
+        // If we've gone past the line content, move to next line
+        if col >= trimmed_len && self.cursor.position.line < self.line_count() - 1 {
+            self.cursor.position.line += 1;
+            self.cursor.position.column = 0;
+        } else {
+            self.cursor.position.column = col.min(trimmed_len);
+        }
+    }
+
+    /// Helper: Move to end of current/next word
+    fn move_word_end(&mut self, line: &str) {
+        let chars: Vec<char> = line.chars().collect();
+        let line_len = chars.len();
+
+        if self.cursor.position.column >= line_len.saturating_sub(1) {
+            // Move to end of first word on next line
+            if self.cursor.position.line < self.line_count() - 1 {
+                self.cursor.position.line += 1;
+                self.cursor.position.column = 0;
+                if let Some(next_line) = self.line(self.cursor.position.line) {
+                    self.move_word_end(&next_line);
+                }
+            }
+            return;
+        }
+
+        let mut col = self.cursor.position.column;
+
+        // If we're at the end of a word, advance past it
+        if col < line_len
+            && is_word_char(chars[col])
+            && (col + 1 >= line_len || !is_word_char(chars[col + 1]))
+        {
+            col += 1;
+        }
+
+        // Skip whitespace
+        while col < line_len && chars[col].is_whitespace() {
+            col += 1;
+        }
+
+        if col >= line_len {
+            // At end of line, go to next line
+            if self.cursor.position.line < self.line_count() - 1 {
+                self.cursor.position.line += 1;
+                self.cursor.position.column = 0;
+                if let Some(next_line) = self.line(self.cursor.position.line) {
+                    self.move_word_end(&next_line);
+                }
+            } else {
+                self.cursor.position.column = line_len.saturating_sub(1);
+            }
+            return;
+        }
+
+        // Move to end of word
+        if is_word_char(chars[col]) {
+            while col < line_len - 1 && is_word_char(chars[col + 1]) {
+                col += 1;
+            }
+        } else {
+            // Move to end of punctuation sequence
+            while col < line_len - 1
+                && !is_word_char(chars[col + 1])
+                && !chars[col + 1].is_whitespace()
+            {
+                col += 1;
+            }
+        }
+
+        self.cursor.position.column = col;
+    }
+
+    /// Helper: Find next occurrence of character on current line
+    fn find_char(&mut self, line: &str, target: char, till: bool) {
+        let chars: Vec<char> = line.chars().collect();
+        let start = self.cursor.position.column + 1;
+
+        for (i, &ch) in chars.iter().enumerate().skip(start) {
+            if ch == target {
+                self.cursor.position.column = if till { i.saturating_sub(1) } else { i };
+                return;
+            }
+        }
+    }
+
+    /// Helper: Find previous occurrence of character on current line
+    fn find_char_reverse(&mut self, line: &str, target: char, till: bool) {
+        let chars: Vec<char> = line.chars().collect();
+        let end = self.cursor.position.column;
+
+        for i in (0..end).rev() {
+            if chars[i] == target {
+                self.cursor.position.column = if till { i + 1 } else { i };
+                return;
             }
         }
     }
@@ -374,5 +627,197 @@ mod tests {
         // Redo
         buffer.redo();
         assert_eq!(buffer.text(), "Hello World");
+    }
+
+    #[test]
+    fn test_word_movement() {
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.insert("hello world foo_bar");
+        buffer.cursor.position = Position { line: 0, column: 0 };
+
+        // WordRight: hello -> world
+        buffer.move_cursor(Movement::WordRight);
+        assert_eq!(buffer.cursor.position.column, 6); // Start of "world"
+
+        // WordRight: world -> foo_bar
+        buffer.move_cursor(Movement::WordRight);
+        assert_eq!(buffer.cursor.position.column, 12); // Start of "foo_bar"
+
+        // WordLeft: foo_bar -> world
+        buffer.move_cursor(Movement::WordLeft);
+        assert_eq!(buffer.cursor.position.column, 6); // Start of "world"
+
+        // WordLeft: world -> hello
+        buffer.move_cursor(Movement::WordLeft);
+        assert_eq!(buffer.cursor.position.column, 0); // Start of "hello"
+    }
+
+    #[test]
+    fn test_word_end_movement() {
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.insert("hello world");
+        buffer.cursor.position = Position { line: 0, column: 0 };
+
+        // Move to end of "hello"
+        buffer.move_cursor(Movement::WordEnd);
+        assert_eq!(buffer.cursor.position.column, 4); // 'o' of "hello"
+
+        // Move to end of "world"
+        buffer.move_cursor(Movement::WordEnd);
+        assert_eq!(buffer.cursor.position.column, 10); // 'd' of "world"
+    }
+
+    #[test]
+    fn test_page_movement() {
+        let mut buffer = TextBuffer::new(0, None);
+        // Create 50 lines
+        for i in 0..50 {
+            buffer.insert(&format!("Line {}\n", i));
+        }
+        buffer.cursor.position = Position { line: 25, column: 0 };
+
+        // Page up
+        buffer.move_cursor(Movement::PageUp);
+        assert_eq!(buffer.cursor.position.line, 5); // 25 - 20
+
+        // Page down
+        buffer.move_cursor(Movement::PageDown);
+        assert_eq!(buffer.cursor.position.line, 25); // 5 + 20
+
+        // Page down near end
+        buffer.move_cursor(Movement::PageDown);
+        assert_eq!(buffer.cursor.position.line, 45); // 25 + 20
+
+        // Page down at end (should clamp)
+        buffer.move_cursor(Movement::PageDown);
+        assert_eq!(buffer.cursor.position.line, 50); // Clamped to max line
+    }
+
+    #[test]
+    fn test_buffer_start_end() {
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.insert("Line 1\nLine 2\nLine 3");
+        buffer.cursor.position = Position { line: 1, column: 3 };
+
+        // Move to buffer start
+        buffer.move_cursor(Movement::BufferStart);
+        assert_eq!(buffer.cursor.position.line, 0);
+        assert_eq!(buffer.cursor.position.column, 0);
+
+        // Move to buffer end
+        buffer.move_cursor(Movement::BufferEnd);
+        assert_eq!(buffer.cursor.position.line, 2);
+        assert_eq!(buffer.cursor.position.column, 6); // "Line 3"
+    }
+
+    #[test]
+    fn test_find_char() {
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.insert("hello world");
+        buffer.cursor.position = Position { line: 0, column: 0 };
+
+        // Find 'o' (first occurrence after cursor)
+        buffer.move_cursor(Movement::FindChar('o'));
+        assert_eq!(buffer.cursor.position.column, 4); // 'o' in "hello"
+
+        // Find next 'o'
+        buffer.move_cursor(Movement::FindChar('o'));
+        assert_eq!(buffer.cursor.position.column, 7); // 'o' in "world"
+
+        // Find 'x' (not found, cursor shouldn't move)
+        let prev_col = buffer.cursor.position.column;
+        buffer.move_cursor(Movement::FindChar('x'));
+        assert_eq!(buffer.cursor.position.column, prev_col);
+    }
+
+    #[test]
+    fn test_find_char_reverse() {
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.insert("hello world");
+        buffer.cursor.position = Position {
+            line: 0,
+            column: 10,
+        }; // 'd' in "world"
+
+        // Find 'o' backwards
+        buffer.move_cursor(Movement::FindCharReverse('o'));
+        assert_eq!(buffer.cursor.position.column, 7); // 'o' in "world"
+
+        // Find previous 'o' backwards
+        buffer.move_cursor(Movement::FindCharReverse('o'));
+        assert_eq!(buffer.cursor.position.column, 4); // 'o' in "hello"
+    }
+
+    #[test]
+    fn test_till_char() {
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.insert("hello world");
+        buffer.cursor.position = Position { line: 0, column: 0 };
+
+        // Till 'w' (move to position before 'w')
+        buffer.move_cursor(Movement::TillChar('w'));
+        assert_eq!(buffer.cursor.position.column, 5); // Space before "world"
+
+        // Till 'd' (move to position before 'd')
+        buffer.move_cursor(Movement::TillChar('d'));
+        assert_eq!(buffer.cursor.position.column, 9); // 'l' in "world"
+    }
+
+    #[test]
+    fn test_till_char_reverse() {
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.insert("hello world");
+        buffer.cursor.position = Position {
+            line: 0,
+            column: 10,
+        }; // 'd' in "world"
+
+        // Till 'w' backwards (move to position after 'w')
+        buffer.move_cursor(Movement::TillCharReverse('w'));
+        assert_eq!(buffer.cursor.position.column, 7); // 'o' in "world"
+
+        // Till 'h' backwards (move to position after 'h')
+        buffer.move_cursor(Movement::TillCharReverse('h'));
+        assert_eq!(buffer.cursor.position.column, 1); // 'e' in "hello"
+    }
+
+    #[test]
+    fn test_word_movement_with_punctuation() {
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.insert("hello, world! foo");
+        buffer.cursor.position = Position { line: 0, column: 0 };
+
+        // WordRight: hello -> ,
+        buffer.move_cursor(Movement::WordRight);
+        assert_eq!(buffer.cursor.position.column, 5); // ','
+
+        // WordRight: , -> world
+        buffer.move_cursor(Movement::WordRight);
+        assert_eq!(buffer.cursor.position.column, 7); // Start of "world"
+
+        // WordRight: world -> !
+        buffer.move_cursor(Movement::WordRight);
+        assert_eq!(buffer.cursor.position.column, 12); // '!'
+
+        // WordRight: ! -> foo
+        buffer.move_cursor(Movement::WordRight);
+        assert_eq!(buffer.cursor.position.column, 14); // Start of "foo"
+    }
+
+    #[test]
+    fn test_word_movement_multiline() {
+        let mut buffer = TextBuffer::new(0, None);
+        buffer.insert("hello\nworld");
+        buffer.cursor.position = Position { line: 0, column: 5 }; // End of "hello"
+
+        // WordRight: should move to "world" on next line
+        buffer.move_cursor(Movement::WordRight);
+        assert_eq!(buffer.cursor.position.line, 1);
+        assert_eq!(buffer.cursor.position.column, 0);
+
+        // WordLeft: should move back to "hello"
+        buffer.move_cursor(Movement::WordLeft);
+        assert_eq!(buffer.cursor.position.line, 0);
+        assert_eq!(buffer.cursor.position.column, 5); // End of previous line
     }
 }
