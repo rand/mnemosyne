@@ -4,7 +4,7 @@
 
 use super::{
     IcsConfig,
-    editor::{EditorState, EditorWidget, IcsEditor, Movement, Validator, Diagnostic},
+    editor::{EditorState, EditorWidget, IcsEditor, Movement, Position, Validator, Diagnostic},
     memory_panel::{MemoryPanel, MemoryPanelState},
     semantic::{SemanticAnalyzer, SemanticAnalysis},
     agent_status::{AgentStatusWidget, AgentStatusState, AgentInfo},
@@ -95,6 +95,10 @@ pub struct IcsApp {
     completion_engine: Option<super::CompletionEngine>,
     /// Completion popup widget
     completion_popup: super::CompletionPopup,
+
+    // Phase 8: Typed Holes Navigation
+    /// Hole navigator for jumping between typed holes
+    hole_navigator: super::HoleNavigator,
 }
 
 impl IcsApp {
@@ -116,7 +120,7 @@ impl IcsApp {
             editor: IcsEditor::new(),
             editor_state: EditorState::default(),
             state: AppState::Running,
-            status: "ICS | Ctrl+Q: quit | Ctrl+S: save | Ctrl+M: memories | Ctrl+Shift+M: store semantic | Ctrl+P: proposals | Ctrl+D: diagnostics | Ctrl+A: agents".to_string(),
+            status: "ICS | Ctrl+Q: quit | Ctrl+S: save | Ctrl+M: memories | Ctrl+N: next hole | Ctrl+H: holes list | Ctrl+P: proposals | Ctrl+D: diagnostics".to_string(),
 
             // Phase 3: Memory Integration
             storage,
@@ -151,6 +155,9 @@ impl IcsApp {
             symbol_registry: Arc::new(std::sync::RwLock::new(super::SymbolRegistry::new())),
             completion_engine: None, // Initialized lazily when first needed
             completion_popup: super::CompletionPopup::new(),
+
+            // Phase 8: Typed Holes Navigation
+            hole_navigator: super::HoleNavigator::new(),
         }
     }
 
@@ -188,6 +195,9 @@ impl IcsApp {
 
         // Try to get result if ready
         if let Some(analysis) = self.semantic_analyzer.try_recv() {
+            // Update hole navigator with new holes
+            self.hole_navigator.update_holes(analysis.holes.clone());
+
             self.semantic_analysis = Some(analysis);
         }
     }
@@ -889,6 +899,80 @@ impl IcsApp {
                         let _ = buffer.move_cursor(Movement::LineEnd);
                     }
 
+                    // Hole navigation (Ctrl+N for next hole, Ctrl+Shift+N for previous hole)
+                    (KeyCode::Char('n'), true) if !key.modifiers.contains(KeyModifiers::SHIFT) => {
+                        // Next hole
+                        let cursor_pos = buffer.cursor.position;
+                        if let Some(hole) = self.hole_navigator.next_hole(cursor_pos) {
+                            // Clone hole to avoid borrow issues
+                            let hole_clone = hole.clone();
+
+                            // Jump to hole position
+                            let target = Position {
+                                line: hole_clone.line,
+                                column: hole_clone.column,
+                            };
+                            buffer.cursor.position = target;
+
+                            // Generate and show suggestions
+                            let suggestions = self.hole_navigator.generate_suggestions(&hole_clone);
+                            self.status = format!(
+                                "Hole: {} - {} ({} suggestions)",
+                                hole_clone.kind.icon(),
+                                hole_clone.name,
+                                suggestions.len()
+                            );
+                        } else {
+                            self.status = "No holes found".to_string();
+                        }
+                    }
+
+                    // Previous hole (Ctrl+Shift+N)
+                    (KeyCode::Char('N'), true) => {
+                        let cursor_pos = buffer.cursor.position;
+                        if let Some(hole) = self.hole_navigator.previous_hole(cursor_pos) {
+                            // Clone to avoid holding reference while calling generate_suggestions
+                            let hole_clone = hole.clone();
+
+                            // Jump to hole position
+                            let target = Position {
+                                line: hole_clone.line,
+                                column: hole_clone.column,
+                            };
+                            buffer.cursor.position = target;
+
+                            // Generate and show suggestions
+                            let suggestions = self.hole_navigator.generate_suggestions(&hole_clone);
+                            self.status = format!(
+                                "Hole: {} - {} ({} suggestions)",
+                                hole_clone.kind.icon(),
+                                hole_clone.name,
+                                suggestions.len()
+                            );
+                        } else {
+                            self.status = "No holes found".to_string();
+                        }
+                    }
+
+                    // Show holes list (Ctrl+H)
+                    (KeyCode::Char('h'), true) => {
+                        let hole_count = self.hole_navigator.hole_count();
+                        let unresolved = self.hole_navigator.unresolved_holes().len();
+                        self.status = format!(
+                            "Holes: {} total, {} unresolved | Use Ctrl+N/Ctrl+Shift+N to navigate",
+                            hole_count,
+                            unresolved
+                        );
+
+                        // If there are holes, show the first one's details
+                        if let Some(hole) = self.hole_navigator.go_to_hole(0) {
+                            // Clone to avoid holding reference while calling generate_suggestions
+                            let hole_clone = hole.clone();
+                            let suggestions = self.hole_navigator.generate_suggestions(&hole_clone);
+                            eprintln!("{}", super::holes::format_hole_with_suggestions(&hole_clone, &suggestions));
+                        }
+                    }
+
                     _ => {}
                 }
             }
@@ -1077,7 +1161,16 @@ impl IcsApp {
             } else {
                 String::new()
             };
-            let info_text = format!("{} | {}{}", cursor_pos, lang, semantic_info);
+
+            // Add hole navigation info
+            let hole_info = if self.hole_navigator.hole_count() > 0 {
+                let unresolved = self.hole_navigator.unresolved_holes().len();
+                format!("| Holes: {}/{} unresolved ", unresolved, self.hole_navigator.hole_count())
+            } else {
+                String::new()
+            };
+
+            let info_text = format!("{} | {}{}{}", cursor_pos, lang, semantic_info, hole_info);
 
             let info_widget = Paragraph::new(info_text)
                 .style(Style::default().fg(Color::DarkGray));

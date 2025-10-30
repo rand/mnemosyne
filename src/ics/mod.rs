@@ -50,3 +50,4 @@ pub use diagnostics_panel::{DiagnosticsPanel, DiagnosticsPanelState};
 pub use completion_popup::CompletionPopup;
 pub use suggestions::CompletionEngine;
 pub use symbols::{SymbolRegistry, SharedSymbolRegistry};
+pub use holes::{HoleNavigator, HoleResolution, ResolutionStrategy};
