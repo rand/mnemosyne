@@ -32,8 +32,8 @@ async fn h1_document_creation_and_basic_editing() {
     let content = ctx.buffer_content();
     assert!(content.contains("# My Document"));
     assert!(content.contains("## Section 1"));
-    // Rope adds an implicit final newline, so we have 8 lines including the empty one
-    assert_buffer_lines(ctx.editor.active_buffer(), 8);
+    // CrdtBuffer counts actual lines without implicit final newline: 7 lines total
+    assert_buffer_lines(ctx.editor.active_buffer(), 7);
 
     // TODO: Add cursor navigation tests
     // TODO: Add undo/redo tests

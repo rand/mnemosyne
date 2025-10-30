@@ -11,6 +11,7 @@
 use mnemosyne_core::{
     launcher::agents::AgentRole,
     orchestration::{state::WorkItemId, *},
+    storage::StorageBackend,
     types::Namespace,
     ConnectionMode, LibsqlStorage,
 };
@@ -426,9 +427,38 @@ async fn test_work_completion_notification() {
 
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    // Simulate work completion
+    // Create a dummy memory for the work result (Reviewer requires non-empty memory_ids)
+    use mnemosyne_core::{MemoryId, MemoryNote, MemoryType, Namespace};
+    let dummy_memory = MemoryNote {
+        id: MemoryId::new(),
+        namespace: namespace.clone(),
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+        content: "Test work completed successfully. All tests passed.".to_string(),
+        summary: "Test summary - work completed with tests passing".to_string(),
+        keywords: vec!["test".to_string()],
+        tags: vec![],
+        context: "test context".to_string(),
+        memory_type: MemoryType::CodePattern,
+        importance: 5,
+        confidence: 0.8,
+        links: vec![],
+        related_files: vec![],
+        related_entities: vec![],
+        access_count: 0,
+        last_accessed_at: chrono::Utc::now(),
+        expires_at: None,
+        is_archived: false,
+        superseded_by: None,
+        embedding: None,
+        embedding_model: "test".to_string(),
+    };
+    storage.store_memory(&dummy_memory).await.expect("Failed to store memory");
+
+    // Simulate work completion with memory IDs (required for documentation_complete gate)
     use mnemosyne_core::orchestration::messages::WorkResult;
-    let result = WorkResult::success(item_id.clone(), Duration::from_millis(50));
+    let mut result = WorkResult::success(item_id.clone(), Duration::from_millis(50));
+    result.memory_ids = vec![dummy_memory.id];
 
     orchestrator
         .cast(OrchestratorMessage::WorkCompleted {
@@ -437,7 +467,8 @@ async fn test_work_completion_notification() {
         })
         .expect("Failed to send completion");
 
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    // Wait for async message chain: Orchestrator → Reviewer → Orchestrator → Event persistence
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Verify WorkItemCompleted event exists
     let replay = EventReplay::new(storage.clone(), namespace);
@@ -1425,9 +1456,38 @@ async fn test_graceful_degradation() {
 
     tokio::time::sleep(Duration::from_millis(50)).await;
 
-    // Complete successful work
+    // Create a dummy memory for successful work (Reviewer requires non-empty memory_ids)
+    use mnemosyne_core::{MemoryId, MemoryNote, MemoryType};
+    let dummy_memory = MemoryNote {
+        id: MemoryId::new(),
+        namespace: namespace.clone(),
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+        content: "Successful work completed. All tests passed successfully.".to_string(),
+        summary: "Success summary - work completed with tests passing".to_string(),
+        keywords: vec!["test".to_string()],
+        tags: vec![],
+        context: "test context".to_string(),
+        memory_type: MemoryType::CodePattern,
+        importance: 5,
+        confidence: 0.8,
+        links: vec![],
+        related_files: vec![],
+        related_entities: vec![],
+        access_count: 0,
+        last_accessed_at: chrono::Utc::now(),
+        expires_at: None,
+        is_archived: false,
+        superseded_by: None,
+        embedding: None,
+        embedding_model: "test".to_string(),
+    };
+    storage.store_memory(&dummy_memory).await.expect("Failed to store memory");
+
+    // Complete successful work with memory IDs
     use mnemosyne_core::orchestration::messages::WorkResult;
-    let result = WorkResult::success(success_id.clone(), Duration::from_millis(50));
+    let mut result = WorkResult::success(success_id.clone(), Duration::from_millis(50));
+    result.memory_ids = vec![dummy_memory.id];
     orchestrator
         .cast(OrchestratorMessage::WorkCompleted {
             item_id: success_id,
@@ -1443,7 +1503,8 @@ async fn test_graceful_degradation() {
         })
         .expect("Failed to send failure");
 
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    // Wait for async message chains: both completion and failure processing
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
     // System should continue operating despite partial failures
     let replay = EventReplay::new(storage.clone(), namespace);

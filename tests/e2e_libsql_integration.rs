@@ -52,9 +52,12 @@ async fn test_e2e_complete_workflow() {
     let db_path = format!("/tmp/e2e_test_{}.db", uuid::Uuid::new_v4());
     println!("1. Creating LibSQL storage at: {}", db_path);
 
-    let storage = LibsqlStorage::new(ConnectionMode::Local(db_path.clone()))
-        .await
-        .expect("Failed to create storage");
+    let storage = LibsqlStorage::new_with_validation(
+        ConnectionMode::Local(db_path.clone()),
+        true, // create_if_missing
+    )
+    .await
+    .expect("Failed to create storage");
     println!("   ✓ Storage created successfully");
 
     // 2. Store multiple memories in different namespaces
@@ -301,9 +304,12 @@ async fn test_e2e_vector_search_with_embeddings() {
     let db_path = format!("/tmp/e2e_vector_test_{}.db", uuid::Uuid::new_v4());
     println!("Creating storage at: {}", db_path);
 
-    let storage = LibsqlStorage::new(ConnectionMode::Local(db_path.clone()))
-        .await
-        .expect("Failed to create storage");
+    let storage = LibsqlStorage::new_with_validation(
+        ConnectionMode::Local(db_path.clone()),
+        true, // create_if_missing
+    )
+    .await
+    .expect("Failed to create storage");
 
     // Create memories with mock embeddings
     let mut mem1 = create_test_memory(
@@ -379,9 +385,12 @@ async fn test_e2e_graph_traversal() {
     println!("\n=== E2E Test: Graph Traversal ===\n");
 
     let db_path = format!("/tmp/e2e_graph_test_{}.db", uuid::Uuid::new_v4());
-    let storage = LibsqlStorage::new(ConnectionMode::Local(db_path.clone()))
-        .await
-        .expect("Failed to create storage");
+    let storage = LibsqlStorage::new_with_validation(
+        ConnectionMode::Local(db_path.clone()),
+        true, // create_if_missing
+    )
+    .await
+    .expect("Failed to create storage");
 
     // Create a chain of related memories
     let mem1 = create_test_memory(
