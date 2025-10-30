@@ -111,8 +111,7 @@ impl Highlighter {
                 parser.set_language(&tree_sitter_json::LANGUAGE.into())?;
             }
             Language::TOML => {
-                // tree-sitter-toml 0.20 uses old tree-sitter 0.20 - skip for now
-                // TODO: Find compatible TOML parser or upgrade when available
+                parser.set_language(&tree_sitter_toml_ng::LANGUAGE.into())?;
             }
             Language::YAML => {
                 parser.set_language(&tree_sitter_yaml::LANGUAGE.into())?;
@@ -226,8 +225,7 @@ impl Highlighter {
                 self.parser.set_language(&tree_sitter_json::LANGUAGE.into())?;
             }
             Language::TOML => {
-                // tree-sitter-toml 0.20 uses old tree-sitter 0.20 - skip for now
-                // TODO: Find compatible TOML parser or upgrade when available
+                self.parser.set_language(&tree_sitter_toml_ng::LANGUAGE.into())?;
             }
             Language::YAML => {
                 self.parser.set_language(&tree_sitter_yaml::LANGUAGE.into())?;
