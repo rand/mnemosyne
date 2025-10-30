@@ -122,7 +122,11 @@ impl IcsApp {
             // Full implementation blocked on editor migration to CrdtBuffer.
             attributions: Vec::new(),
             proposals_panel: ProposalsPanelState::new(),
-            proposals: Vec::new(), // TODO: agent proposals
+            // NOTE: Agent proposals require ractor agent message queue integration.
+            // Proposal system architecture defined (see src/ics/proposals.rs and sync.rs)
+            // but agent-to-ICS message routing not yet implemented.
+            // Full implementation blocked on Phase 4.1+ (ractor agent system integration).
+            proposals: Vec::new(),
 
             // Phase 6: Diagnostics
             diagnostics_panel: DiagnosticsPanelState::new(),
