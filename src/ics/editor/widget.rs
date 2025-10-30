@@ -397,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_line_number_width() {
-        use super::Actor;
+        use crate::ics::editor::Actor;
         let buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
         let widget = EditorWidget::new(&buffer);
 
@@ -407,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_line_diagnostic() {
-        use super::Actor;
+        use crate::ics::editor::Actor;
         let buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
         let diagnostics = vec![
             Diagnostic {
@@ -451,7 +451,7 @@ mod tests {
 
     #[test]
     fn test_diagnostic_at() {
-        use super::Actor;
+        use crate::ics::editor::Actor;
         let buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
         let diagnostics = vec![
             Diagnostic {
@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_severity_ordering() {
-        use super::Actor;
+        use crate::ics::editor::Actor;
         let buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
         let diagnostics = vec![
             Diagnostic {
