@@ -70,16 +70,15 @@ echo "Quick mode: $([ "$QUICK_MODE" = true ] && echo "Enabled" || echo "Disabled
 echo "Output: $OUTPUT_DIR"
 echo ""
 
-# Define test categories
-declare -A TESTS
+# Define test categories (bash 3.2 compatible - no associative arrays)
 
 # Human workflows
-TESTS[human]="
+TESTS_HUMAN="
 human_workflow_4_context_loading.sh
 "
 
 # Agentic workflows
-TESTS[agentic]="
+TESTS_AGENTIC="
 agentic_workflow_1_orchestrator.sh
 agentic_workflow_2_optimizer.sh
 agentic_workflow_3_reviewer.sh
@@ -88,7 +87,7 @@ agentic_workflow_5_evaluation_learning.sh
 "
 
 # Failure scenarios
-TESTS[failure]="
+TESTS_FAILURE="
 failure_1_storage_errors.sh
 failure_2_llm_failures.sh
 failure_3_timeout_scenarios.sh
@@ -96,34 +95,48 @@ failure_4_invalid_inputs.sh
 "
 
 # Recovery scenarios
-TESTS[recovery]="
+TESTS_RECOVERY="
 recovery_1_graceful_degradation.sh
 recovery_2_fallback_modes.sh
 "
 
 # Integration tests
-TESTS[integration]="
+TESTS_INTEGRATION="
 integration_1_launcher.sh
 integration_2_mcp_server.sh
 integration_3_hooks.sh
 "
 
 # Performance tests
-TESTS[performance]="
+TESTS_PERFORMANCE="
 performance_1_benchmarks.sh
 "
 
 # Stress tests (skipped in quick mode)
 if [ "$QUICK_MODE" != true ]; then
-    TESTS[performance]="${TESTS[performance]}
+    TESTS_PERFORMANCE="${TESTS_PERFORMANCE}
 performance_2_stress_tests.sh
 "
 fi
 
+# Helper function to get tests by category (bash 3.2 compatible)
+get_tests_for_category() {
+    local category=$1
+    case "$category" in
+        human) echo "$TESTS_HUMAN" ;;
+        agentic) echo "$TESTS_AGENTIC" ;;
+        failure) echo "$TESTS_FAILURE" ;;
+        recovery) echo "$TESTS_RECOVERY" ;;
+        integration) echo "$TESTS_INTEGRATION" ;;
+        performance) echo "$TESTS_PERFORMANCE" ;;
+        *) echo "" ;;
+    esac
+}
+
 # Determine which tests to run
 if [ -n "$CATEGORY" ]; then
-    if [ -n "${TESTS[$CATEGORY]}" ]; then
-        SELECTED_TESTS=${TESTS[$CATEGORY]}
+    SELECTED_TESTS=$(get_tests_for_category "$CATEGORY")
+    if [ -n "$SELECTED_TESTS" ]; then
         echo "Running category: $CATEGORY"
     else
         echo -e "${RED}Error: Unknown category '$CATEGORY'${NC}"
@@ -132,7 +145,7 @@ if [ -n "$CATEGORY" ]; then
     fi
 else
     # Run all tests
-    SELECTED_TESTS="${TESTS[human]} ${TESTS[agentic]} ${TESTS[failure]} ${TESTS[recovery]} ${TESTS[integration]} ${TESTS[performance]}"
+    SELECTED_TESTS="${TESTS_HUMAN} ${TESTS_AGENTIC} ${TESTS_FAILURE} ${TESTS_RECOVERY} ${TESTS_INTEGRATION} ${TESTS_PERFORMANCE}"
     echo "Running all tests"
 fi
 
@@ -300,7 +313,7 @@ for category in human agentic failure recovery integration performance; do
     cat_failed=0
     cat_total=0
 
-    for test_file in ${TESTS[$category]}; do
+    for test_file in $(get_tests_for_category "$category"); do
         [ -z "$test_file" ] && continue
 
         log_file="$OUTPUT_DIR/${test_file%.sh}.log"
