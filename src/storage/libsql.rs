@@ -1383,7 +1383,8 @@ impl LibsqlStorage {
         let conn = self.get_conn()?;
 
         let sql = r#"
-            SELECT source_id, target_id, link_type, strength, created_at, reason
+            SELECT source_id, target_id, link_type, strength, created_at, reason,
+                   last_traversed_at, user_created
             FROM memory_links
             WHERE user_created = 0
               AND strength > 0.1
@@ -1433,6 +1434,17 @@ impl LibsqlStorage {
                 .get::<String>(5)
                 .unwrap_or_else(|_| String::from("link decay candidate"));
 
+            // Parse last_traversed_at (optional)
+            let last_traversed_at = row
+                .get::<Option<String>>(6)
+                .ok()
+                .flatten()
+                .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+                .map(|dt| dt.with_timezone(&Utc));
+
+            // Parse user_created (boolean stored as integer)
+            let user_created = row.get::<i64>(7).unwrap_or(0) != 0;
+
             links.push((
                 source_id,
                 MemoryLink {
@@ -1441,6 +1453,8 @@ impl LibsqlStorage {
                     strength: strength as f32,
                     reason,
                     created_at,
+                    last_traversed_at,
+                    user_created,
                 },
             ));
         }
@@ -1730,6 +1744,8 @@ impl StorageBackend for LibsqlStorage {
                 strength: strength as f32,
                 reason,
                 created_at,
+                last_traversed_at: None,  // Will be populated on first traversal
+                user_created: false,      // Default to system-created
             });
         }
 

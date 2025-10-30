@@ -474,6 +474,8 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
                 strength: entry.strength.clamp(0.0, 1.0),
                 reason: entry.reason,
                 created_at: Utc::now(),
+                last_traversed_at: None,
+                user_created: false,  // LLM-generated links are system-created
             });
         }
 

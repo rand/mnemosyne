@@ -94,15 +94,14 @@ impl EvolutionJob for LinkDecayJob {
             memories_processed += 1;
 
             // Convert to LinkData for calculation
-            // Note: We don't have user_created info from MemoryLink, assuming system-created for decay candidates
             let link_data = LinkData {
                 id: format!("{}_{}", source_id, link.target_id),
                 source_id: source_id.to_string(),
                 target_id: link.target_id.to_string(),
                 strength: link.strength,
                 created_at: link.created_at,
-                last_traversed_at: None, // TODO: Get from database when available
-                user_created: false,     // Links from decay candidates are system-created
+                last_traversed_at: link.last_traversed_at,
+                user_created: link.user_created,
             };
 
             // Calculate decay factor

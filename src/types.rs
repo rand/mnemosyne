@@ -200,6 +200,12 @@ pub struct MemoryLink {
 
     /// When the link was created
     pub created_at: DateTime<Utc>,
+
+    /// When the link was last traversed (for decay tracking)
+    pub last_traversed_at: Option<DateTime<Utc>>,
+
+    /// Whether link was manually created by user (user links don't decay)
+    pub user_created: bool,
 }
 
 /// Complete memory note structure with all metadata

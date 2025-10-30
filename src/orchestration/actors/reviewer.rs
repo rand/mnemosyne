@@ -623,9 +623,11 @@ impl ReviewerActor {
             return Ok(false);
         }
 
-        // TODO: Check if all work items in current phase are complete
-        // For now, allow all transitions
-        let approved = true;
+        // NOTE: Complete work item validation requires work queue state
+        // Current architecture uses fire-and-forget cast, not call/response
+        // The Orchestrator should check work completion before requesting validation
+        // This validation focuses on phase transition logic correctness
+        let approved = from.can_transition_to(&to);
 
         tracing::info!(
             "Phase transition validation: {}",

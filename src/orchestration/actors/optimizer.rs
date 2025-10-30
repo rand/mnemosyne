@@ -486,6 +486,8 @@ impl OptimizerActor {
                     strength: 1.0,
                     reason: "Execution context".to_string(),
                     created_at: chrono::Utc::now(),
+                    last_traversed_at: None,
+                    user_created: true,  // Agent-created links are considered user-created
                 })
                 .collect(),
             related_files: vec![],
