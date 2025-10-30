@@ -122,7 +122,57 @@ impl Dashboard {
     pub fn update(&mut self, active_agents: usize, total_messages: usize) {
         self.active_agents = active_agents;
         self.total_messages = total_messages;
-        // TODO: Gather real metrics
+
+        // Gather real system metrics
+        let (memory_mb, cpu_percent) = Self::gather_system_metrics();
+        self.memory_mb = memory_mb;
+        self.cpu_percent = cpu_percent;
+    }
+
+    /// Gather system metrics using ps command
+    ///
+    /// Returns (memory_mb, cpu_percent)
+    fn gather_system_metrics() -> (f64, f64) {
+        use std::process::Command;
+
+        // Get current process ID
+        let pid = std::process::id();
+
+        // Use ps to get memory (RSS in KB) and CPU percentage
+        // Format: ps -p <pid> -o rss=,pcpu=
+        // Output: "12345 1.5" (RSS in KB, CPU percentage)
+        let output = Command::new("ps")
+            .args(&[
+                "-p",
+                &pid.to_string(),
+                "-o",
+                "rss=,pcpu=", // RSS (resident set size in KB), CPU%
+            ])
+            .output();
+
+        match output {
+            Ok(output) if output.status.success() => {
+                let output_str = String::from_utf8_lossy(&output.stdout);
+                let parts: Vec<&str> = output_str.trim().split_whitespace().collect();
+
+                if parts.len() >= 2 {
+                    // Parse RSS (in KB) and convert to MB
+                    let memory_mb = parts[0].parse::<f64>().unwrap_or(0.0) / 1024.0;
+
+                    // Parse CPU percentage
+                    let cpu_percent = parts[1].parse::<f64>().unwrap_or(0.0);
+
+                    return (memory_mb, cpu_percent);
+                }
+            }
+            _ => {
+                // If ps command fails, return zeros
+                // This can happen on systems without ps or with different ps implementations
+            }
+        }
+
+        // Fallback: return zeros if metrics gathering fails
+        (0.0, 0.0)
     }
 
     /// Render dashboard

@@ -442,6 +442,7 @@ impl LibsqlStorage {
         let migration_files = vec![
             "001_initial_schema.sql",
             "002_add_indexes.sql",
+            "003_audit_trail.sql",
             // Note: Vector search uses native embedding column in memories table (F32_BLOB)
             // No need for separate memory_vectors table or vec0 extension
         ];
@@ -2226,5 +2227,134 @@ impl StorageBackend for LibsqlStorage {
 
         debug!("Listed {} memories", memories.len());
         Ok(memories)
+    }
+
+    async fn store_modification_log(&self, log: &crate::agents::access_control::ModificationLog) -> Result<()> {
+        debug!("Storing modification log: {} for memory {}", log.id, log.memory_id);
+
+        let conn = self.get_conn()?;
+
+        conn.execute(
+            r#"
+            INSERT INTO memory_modification_log (id, memory_id, agent_role, modification_type, timestamp, changes)
+            VALUES (?, ?, ?, ?, ?, ?)
+            "#,
+            params![
+                log.id.clone(),
+                log.memory_id.to_string(),
+                log.agent_role.to_string(),
+                log.modification_type.to_string(),
+                log.timestamp.timestamp(),
+                log.changes.clone(),
+            ],
+        )
+        .await?;
+
+        debug!("Modification log stored successfully: {}", log.id);
+        Ok(())
+    }
+
+    async fn get_audit_trail(&self, memory_id: MemoryId) -> Result<Vec<crate::agents::access_control::ModificationLog>> {
+        debug!("Fetching audit trail for memory: {}", memory_id);
+
+        let conn = self.get_conn()?;
+        let mut rows = conn
+            .query(
+                r#"
+                SELECT id, memory_id, agent_role, modification_type, timestamp, changes
+                FROM memory_modification_log
+                WHERE memory_id = ?
+                ORDER BY timestamp DESC
+                "#,
+                params![memory_id.to_string()],
+            )
+            .await?;
+
+        let mut logs = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let id: String = row.get(0)?;
+            let memory_id_str: String = row.get(1)?;
+            let agent_role_str: String = row.get(2)?;
+            let modification_type_str: String = row.get(3)?;
+            let timestamp: i64 = row.get(4)?;
+            let changes: Option<String> = row.get(5)?;
+
+            // Parse memory_id
+            let memory_id = MemoryId::from_string(&memory_id_str)?;
+
+            // Parse agent_role
+            let agent_role = crate::agents::AgentRole::from_str(&agent_role_str)
+                .map_err(|e| MnemosyneError::Other(format!("Invalid agent role: {}", e)))?;
+
+            // Parse modification_type
+            let modification_type = match modification_type_str.as_str() {
+                "create" => crate::agents::access_control::ModificationType::Create,
+                "update" => crate::agents::access_control::ModificationType::Update,
+                "delete" => crate::agents::access_control::ModificationType::Delete,
+                "archive" => crate::agents::access_control::ModificationType::Archive,
+                "unarchive" => crate::agents::access_control::ModificationType::Unarchive,
+                "supersede" => crate::agents::access_control::ModificationType::Supersede,
+                _ => return Err(MnemosyneError::Other(format!("Unknown modification type: {}", modification_type_str))),
+            };
+
+            // Convert timestamp to DateTime
+            let timestamp = chrono::DateTime::<Utc>::from_timestamp(timestamp, 0)
+                .ok_or_else(|| MnemosyneError::Other(format!("Invalid timestamp: {}", timestamp)))?;
+
+            logs.push(crate::agents::access_control::ModificationLog {
+                id,
+                memory_id,
+                agent_role,
+                modification_type,
+                timestamp,
+                changes,
+            });
+        }
+
+        debug!("Fetched {} audit trail entries", logs.len());
+        Ok(logs)
+    }
+
+    async fn get_modification_stats(
+        &self,
+        agent_role: crate::agents::AgentRole,
+    ) -> Result<Vec<(crate::agents::access_control::ModificationType, u32)>> {
+        debug!("Fetching modification stats for agent: {}", agent_role);
+
+        let conn = self.get_conn()?;
+        let mut rows = conn
+            .query(
+                r#"
+                SELECT modification_type, COUNT(*) as count
+                FROM memory_modification_log
+                WHERE agent_role = ?
+                GROUP BY modification_type
+                ORDER BY count DESC
+                "#,
+                params![agent_role.to_string()],
+            )
+            .await?;
+
+        let mut stats = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let modification_type_str: String = row.get(0)?;
+            let count: i64 = row.get(1)?;
+
+            // Parse modification_type
+            let modification_type = match modification_type_str.as_str() {
+                "create" => crate::agents::access_control::ModificationType::Create,
+                "update" => crate::agents::access_control::ModificationType::Update,
+                "delete" => crate::agents::access_control::ModificationType::Delete,
+                "archive" => crate::agents::access_control::ModificationType::Archive,
+                "unarchive" => crate::agents::access_control::ModificationType::Unarchive,
+                "supersede" => crate::agents::access_control::ModificationType::Supersede,
+                _ => continue, // Skip unknown types
+            };
+
+            stats.push((modification_type, count as u32));
+        }
+
+        debug!("Fetched {} modification stats", stats.len());
+        Ok(stats)
     }
 }

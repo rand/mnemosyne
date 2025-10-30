@@ -32,6 +32,9 @@ pub enum AgentState {
     /// Agent is blocked (deadlock detected)
     Blocked,
 
+    /// Agent is waiting for review approval
+    PendingReview,
+
     /// Agent completed work successfully
     Complete,
 
@@ -145,6 +148,27 @@ pub struct WorkItem {
 
     /// File scope for work intent
     pub file_scope: Option<Vec<std::path::PathBuf>>,
+
+    /// Review history (persisted, consolidated by Optimizer)
+    pub review_feedback: Option<Vec<String>>,
+
+    /// Tests suggested by Reviewer (persisted)
+    pub suggested_tests: Option<Vec<String>>,
+
+    /// Number of review attempts (persisted)
+    pub review_attempt: u32,
+
+    /// Memory IDs from last execution (for context retrieval)
+    pub execution_memory_ids: Vec<crate::types::MemoryId>,
+
+    /// Consolidated context memory ID (created by Optimizer)
+    pub consolidated_context_id: Option<crate::types::MemoryId>,
+
+    /// Original work intent (preserved across retries)
+    pub original_intent: String,
+
+    /// Estimated context tokens (tracked by Optimizer)
+    pub estimated_context_tokens: usize,
 }
 
 impl WorkItem {
@@ -155,6 +179,7 @@ impl WorkItem {
         phase: Phase,
         priority: u8,
     ) -> Self {
+        let original_intent = description.clone();
         Self {
             id: WorkItemId::new(),
             description,
@@ -171,6 +196,13 @@ impl WorkItem {
             assigned_branch: None,
             estimated_duration: None,
             file_scope: None,
+            review_feedback: None,
+            suggested_tests: None,
+            review_attempt: 0,
+            execution_memory_ids: Vec::new(),
+            consolidated_context_id: None,
+            original_intent,
+            estimated_context_tokens: 0,
         }
     }
 

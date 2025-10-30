@@ -164,8 +164,8 @@ impl StatusLineProvider {
         let conflict_count = self.coordinator.get_agent_conflict_count(&self.agent.id)
             .unwrap_or(0); // Gracefully handle errors by showing 0 conflicts
 
-        // TODO: Check if blocked
-        let blocked = false;
+        // Agent is blocked if it has unresolved conflicts
+        let blocked = conflict_count > 0;
 
         Ok(StatusLine {
             branch: branch.clone(),

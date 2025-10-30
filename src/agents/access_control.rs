@@ -494,9 +494,8 @@ impl<S: StorageBackend> MemoryAccessControl<S> {
             changes,
         };
 
-        // Store in audit trail (will be implemented in storage layer)
-        // For now, we skip actual storage but the structure is ready
-        // TODO: Implement audit trail storage when storage backend supports it
+        // Store in audit trail via storage backend
+        self.storage.store_modification_log(&log_entry).await?;
 
         Ok(())
     }
@@ -515,17 +514,14 @@ impl<S: StorageBackend> MemoryAccessControl<S> {
     ///
     /// Returns an error if the storage operation fails
     pub async fn get_audit_trail(&self, memory_id: &MemoryId) -> Result<Vec<ModificationLog>> {
-        // TODO: Implement when storage backend supports audit trail queries
-        // For now, return empty vector
-        Ok(vec![])
+        self.storage.get_audit_trail(*memory_id).await
     }
 
     /// Get modification statistics for this agent
     ///
     /// Returns counts of different modification types performed by this agent.
     pub async fn get_modification_stats(&self) -> Result<Vec<(ModificationType, u32)>> {
-        // TODO: Implement when storage backend supports stats queries
-        Ok(vec![])
+        self.storage.get_modification_stats(self.agent).await
     }
 }
 

@@ -236,10 +236,207 @@ impl SymbolRegistry {
             }
         }
 
-        // File not found, provide suggestions
-        FileResolution::NotFound {
-            suggestions: Vec::new(),  // TODO: Fuzzy file search
+        // File not found, provide fuzzy suggestions
+        let suggestions = if let Some(root) = project_root {
+            Self::fuzzy_file_search(path, root, 5)
+        } else {
+            Vec::new()
+        };
+
+        FileResolution::NotFound { suggestions }
+    }
+
+    /// Fuzzy search for files similar to the given path
+    ///
+    /// Scans the project directory and returns files with similar names/paths.
+    /// Uses a scoring algorithm based on:
+    /// - Exact filename matches (highest)
+    /// - Partial filename matches
+    /// - Path component matches
+    /// - Levenshtein distance for filenames
+    fn fuzzy_file_search(target_path: &Path, project_root: &Path, max_results: usize) -> Vec<PathBuf> {
+        let mut scored_files: Vec<(PathBuf, f32)> = Vec::new();
+
+        // Extract target filename and extension for matching
+        let target_filename = target_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+        let target_extension = target_path.extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
+
+        // Walk project directory tree
+        if let Ok(entries) = std::fs::read_dir(project_root) {
+            Self::walk_directory(
+                entries,
+                project_root,
+                target_filename,
+                target_extension,
+                &mut scored_files,
+                0,  // depth
+                3,  // max_depth
+            );
         }
+
+        // Sort by score descending
+        scored_files.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Return top N suggestions (as relative paths from project root)
+        scored_files
+            .into_iter()
+            .take(max_results)
+            .filter_map(|(path, _)| path.strip_prefix(project_root).ok().map(|p| p.to_path_buf()))
+            .collect()
+    }
+
+    /// Recursively walk directory tree and score files
+    fn walk_directory(
+        entries: std::fs::ReadDir,
+        project_root: &Path,
+        target_filename: &str,
+        target_extension: &str,
+        scored_files: &mut Vec<(PathBuf, f32)>,
+        depth: usize,
+        max_depth: usize,
+    ) {
+        if depth > max_depth {
+            return;
+        }
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+
+            // Skip hidden files and common build/cache directories
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if name.starts_with('.') || name == "target" || name == "node_modules" || name == "__pycache__" {
+                    continue;
+                }
+            }
+
+            if path.is_file() {
+                // Score this file
+                let score = Self::score_file_similarity(&path, target_filename, target_extension);
+                if score > 0.0 {
+                    scored_files.push((path, score));
+                }
+            } else if path.is_dir() {
+                // Recurse into subdirectory
+                if let Ok(sub_entries) = std::fs::read_dir(&path) {
+                    Self::walk_directory(
+                        sub_entries,
+                        project_root,
+                        target_filename,
+                        target_extension,
+                        scored_files,
+                        depth + 1,
+                        max_depth,
+                    );
+                }
+            }
+        }
+    }
+
+    /// Score similarity between a candidate file and target
+    ///
+    /// Returns a score from 0.0 (no match) to 100.0 (perfect match)
+    fn score_file_similarity(candidate: &Path, target_filename: &str, target_extension: &str) -> f32 {
+        let candidate_filename = candidate.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+        let candidate_extension = candidate.extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
+
+        let mut score = 0.0;
+
+        // Exact filename match (case-insensitive)
+        if candidate_filename.eq_ignore_ascii_case(target_filename) {
+            return 100.0;
+        }
+
+        // Extension match bonus
+        if !target_extension.is_empty() && candidate_extension == target_extension {
+            score += 20.0;
+        }
+
+        // Filename contains target (case-insensitive)
+        let candidate_lower = candidate_filename.to_lowercase();
+        let target_lower = target_filename.to_lowercase();
+
+        if candidate_lower.contains(&target_lower) {
+            score += 30.0;
+        } else if target_lower.contains(&candidate_lower) {
+            score += 25.0;
+        }
+
+        // Levenshtein distance for filename similarity
+        let distance = Self::levenshtein_distance(
+            &candidate_filename.to_lowercase(),
+            &target_filename.to_lowercase(),
+        );
+        let max_len = candidate_filename.len().max(target_filename.len()) as f32;
+        if max_len > 0.0 {
+            let similarity = 1.0 - (distance as f32 / max_len);
+            score += similarity * 30.0;
+        }
+
+        // Common prefix bonus
+        let common_prefix_len = candidate_lower
+            .chars()
+            .zip(target_lower.chars())
+            .take_while(|(a, b)| a == b)
+            .count();
+        if common_prefix_len > 0 {
+            score += (common_prefix_len as f32 / target_filename.len() as f32) * 20.0;
+        }
+
+        score
+    }
+
+    /// Compute Levenshtein distance between two strings
+    ///
+    /// Returns the minimum number of single-character edits (insertions, deletions, or substitutions)
+    /// required to change one string into the other.
+    fn levenshtein_distance(s1: &str, s2: &str) -> usize {
+        let len1 = s1.len();
+        let len2 = s2.len();
+
+        if len1 == 0 {
+            return len2;
+        }
+        if len2 == 0 {
+            return len1;
+        }
+
+        let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
+
+        // Initialize first column and row
+        for i in 0..=len1 {
+            matrix[i][0] = i;
+        }
+        for j in 0..=len2 {
+            matrix[0][j] = j;
+        }
+
+        // Fill matrix
+        let s1_chars: Vec<char> = s1.chars().collect();
+        let s2_chars: Vec<char> = s2.chars().collect();
+
+        for i in 1..=len1 {
+            for j in 1..=len2 {
+                let cost = if s1_chars[i - 1] == s2_chars[j - 1] { 0 } else { 1 };
+
+                matrix[i][j] = std::cmp::min(
+                    std::cmp::min(
+                        matrix[i - 1][j] + 1,      // deletion
+                        matrix[i][j - 1] + 1,      // insertion
+                    ),
+                    matrix[i - 1][j - 1] + cost,   // substitution
+                );
+            }
+        }
+
+        matrix[len1][len2]
     }
 
     /// Get all symbols starting with prefix

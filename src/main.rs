@@ -70,6 +70,96 @@ fn get_db_path(cli_path: Option<String>) -> String {
         })
 }
 
+/// Process structured JSON work plan
+///
+/// Parses and displays a structured work plan in JSON format.
+/// Supports common schemas with tasks, phases, or steps.
+fn process_structured_plan(plan: &serde_json::Value) {
+    use serde_json::Value;
+
+    // Try to extract tasks from various common JSON structures
+    let tasks = extract_tasks_from_plan(plan);
+
+    if tasks.is_empty() {
+        println!("  ℹ  No tasks found in plan structure");
+        println!("  Expected JSON with 'tasks', 'phases', or 'steps' field");
+        return;
+    }
+
+    println!("  Found {} task(s):", tasks.len());
+    println!();
+
+    for (i, task) in tasks.iter().enumerate() {
+        println!("  {}. {}", i + 1, task);
+    }
+
+    println!();
+    println!("  ℹ  Structured execution not yet fully implemented");
+    println!("  Falling back to prompt-based orchestration");
+}
+
+/// Extract tasks from various JSON plan formats
+fn extract_tasks_from_plan(plan: &serde_json::Value) -> Vec<String> {
+    use serde_json::Value;
+
+    let mut tasks = Vec::new();
+
+    // Try direct "tasks" array
+    if let Some(Value::Array(task_array)) = plan.get("tasks") {
+        for task in task_array {
+            if let Some(desc) = extract_task_description(task) {
+                tasks.push(desc);
+            }
+        }
+    }
+
+    // Try "phases" with tasks
+    if let Some(Value::Array(phases)) = plan.get("phases") {
+        for phase in phases {
+            if let Some(Value::Array(phase_tasks)) = phase.get("tasks") {
+                for task in phase_tasks {
+                    if let Some(desc) = extract_task_description(task) {
+                        tasks.push(desc);
+                    }
+                }
+            }
+        }
+    }
+
+    // Try "steps" array
+    if let Some(Value::Array(steps)) = plan.get("steps") {
+        for step in steps {
+            if let Some(desc) = extract_task_description(step) {
+                tasks.push(desc);
+            }
+        }
+    }
+
+    tasks
+}
+
+/// Extract task description from various formats
+fn extract_task_description(task: &serde_json::Value) -> Option<String> {
+    use serde_json::Value;
+
+    // Try string directly
+    if let Value::String(s) = task {
+        return Some(s.clone());
+    }
+
+    // Try object with common fields
+    if let Value::Object(obj) = task {
+        // Try "description", "title", "name", "task", "content"
+        for field in &["description", "title", "name", "task", "content"] {
+            if let Some(Value::String(s)) = obj.get(*field) {
+                return Some(s.clone());
+            }
+        }
+    }
+
+    None
+}
+
 /// Start MCP server in stdio mode
 async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
     info!("Starting MCP server...");
@@ -834,8 +924,11 @@ async fn main() -> Result<()> {
             if let Ok(plan_json) = serde_json::from_str::<serde_json::Value>(&plan) {
                 info!("Parsed work plan as JSON");
                 debug!("Plan: {:?}", plan_json);
-                // TODO: Process structured work plan when ready
-                println!("📋 Structured work plan detected (execution pending)");
+
+                // Process structured work plan
+                println!("📋 Structured work plan detected:");
+                println!();
+                process_structured_plan(&plan_json);
                 println!();
             } else {
                 info!("Treating plan as plain text prompt");

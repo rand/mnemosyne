@@ -9,6 +9,8 @@ pub mod vectors;
 #[cfg(test)]
 pub mod test_utils;
 
+use crate::agents::access_control::{ModificationLog, ModificationType};
+use crate::agents::AgentRole;
 use crate::error::Result;
 use crate::types::{MemoryId, MemoryNote, Namespace, SearchResult};
 use async_trait::async_trait;
@@ -80,6 +82,22 @@ pub trait StorageBackend: Send + Sync {
         limit: usize,
         sort_by: MemorySortOrder,
     ) -> Result<Vec<MemoryNote>>;
+
+    /// Store a modification log entry in the audit trail
+    async fn store_modification_log(&self, log: &ModificationLog) -> Result<()>;
+
+    /// Get the audit trail for a specific memory
+    ///
+    /// Returns modification logs ordered by timestamp descending (newest first)
+    async fn get_audit_trail(&self, memory_id: MemoryId) -> Result<Vec<ModificationLog>>;
+
+    /// Get modification statistics for an agent
+    ///
+    /// Returns counts of different modification types performed by the agent
+    async fn get_modification_stats(
+        &self,
+        agent_role: AgentRole,
+    ) -> Result<Vec<(ModificationType, u32)>>;
 }
 
 /// Sort order for listing memories
