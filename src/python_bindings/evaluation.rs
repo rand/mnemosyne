@@ -157,13 +157,41 @@ impl PyFeatureExtractor {
         eval_id: String,
         context_keywords: Vec<String>,
     ) -> PyResult<Py<PyDict>> {
-        // TODO: Implement feature extraction
-        // For now, return placeholder
+        // Create a feedback collector to fetch the evaluation
+        let collector = FeedbackCollector::new(self.extractor.db_path().to_string());
+
+        let runtime = tokio::runtime::Runtime::new()
+            .map_err(|e| PyValueError::new_err(format!("Failed to create runtime: {}", e)))?;
+
+        // Fetch the evaluation
+        let evaluation = runtime
+            .block_on(async { collector.get_evaluation(&eval_id).await })
+            .map_err(|e| PyValueError::new_err(format!("Failed to fetch evaluation: {}", e)))?;
+
+        // Extract features
+        let features = runtime
+            .block_on(async { self.extractor.extract_features(&evaluation, &context_keywords).await })
+            .map_err(|e| PyValueError::new_err(format!("Failed to extract features: {}", e)))?;
+
+        // Convert to Python dictionary
         Python::with_gil(|py| {
             let dict = PyDict::new_bound(py);
-            dict.set_item("keyword_overlap_score", 0.5)?;
-            dict.set_item("recency_days", 7.0)?;
-            dict.set_item("was_useful", false)?;
+
+            dict.set_item("evaluation_id", features.evaluation_id)?;
+            dict.set_item("keyword_overlap_score", features.keyword_overlap_score)?;
+            dict.set_item("semantic_similarity", features.semantic_similarity)?;
+            dict.set_item("recency_days", features.recency_days)?;
+            dict.set_item("access_frequency", features.access_frequency)?;
+            dict.set_item("last_used_days_ago", features.last_used_days_ago)?;
+            dict.set_item("work_phase_match", features.work_phase_match)?;
+            dict.set_item("task_type_match", features.task_type_match)?;
+            dict.set_item("agent_role_affinity", features.agent_role_affinity)?;
+            dict.set_item("namespace_match", features.namespace_match)?;
+            dict.set_item("file_type_match", features.file_type_match)?;
+            dict.set_item("historical_success_rate", features.historical_success_rate)?;
+            dict.set_item("co_occurrence_score", features.co_occurrence_score)?;
+            dict.set_item("was_useful", features.was_useful)?;
+
             Ok(dict.into())
         })
     }

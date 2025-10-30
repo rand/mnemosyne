@@ -62,6 +62,11 @@ impl FeatureExtractor {
         }
     }
 
+    /// Get the database path
+    pub fn db_path(&self) -> &str {
+        &self.db_path
+    }
+
     /// Set the embedding service for semantic similarity computation
     pub fn set_embedding_service(&mut self, service: Arc<LocalEmbeddingService>) {
         self.embedding_service = Some(service);
