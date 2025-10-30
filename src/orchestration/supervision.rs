@@ -18,6 +18,7 @@ use crate::orchestration::messages::{
     ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage,
 };
 use crate::orchestration::network;
+use crate::orchestration::registry::AgentRegistry;
 use crate::storage::StorageBackend;
 use crate::types::Namespace;
 use ractor::{Actor, ActorRef, SupervisionEvent};
@@ -65,6 +66,9 @@ pub struct SupervisionTree {
     /// Namespace for this session
     namespace: Namespace,
 
+    /// Agent registry for status tracking
+    registry: AgentRegistry,
+
     /// Orchestrator actor
     orchestrator: Option<ActorRef<OrchestratorMessage>>,
 
@@ -96,6 +100,7 @@ impl SupervisionTree {
             storage,
             network,
             namespace,
+            registry: AgentRegistry::new(),
             orchestrator: None,
             optimizer: None,
             reviewer: None,
@@ -115,6 +120,7 @@ impl SupervisionTree {
             storage,
             network,
             namespace,
+            registry: AgentRegistry::new(),
             orchestrator: None,
             optimizer: None,
             reviewer: None,
@@ -131,8 +137,9 @@ impl SupervisionTree {
         let name_prefix = format!("{}", self.namespace);
 
         // Spawn Optimizer
+        let optimizer_id = format!("{}-optimizer", name_prefix);
         let (optimizer_ref, _) = Actor::spawn(
-            Some(format!("{}-optimizer", name_prefix)),
+            Some(optimizer_id.clone()),
             OptimizerActor::new(self.storage.clone(), self.namespace.clone()),
             (self.storage.clone(), self.namespace.clone()),
         )
@@ -143,11 +150,17 @@ impl SupervisionTree {
             .cast(OptimizerMessage::Initialize)
             .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
 
+        // Register in registry
+        self.registry
+            .register(optimizer_id.clone(), "Optimizer".to_string(), AgentRole::Optimizer)
+            .await;
+
         self.optimizer = Some(optimizer_ref);
 
         // Spawn Reviewer
+        let reviewer_id = format!("{}-reviewer", name_prefix);
         let (reviewer_ref, _) = Actor::spawn(
-            Some(format!("{}-reviewer", name_prefix)),
+            Some(reviewer_id.clone()),
             ReviewerActor::new(self.storage.clone(), self.namespace.clone()),
             (self.storage.clone(), self.namespace.clone()),
         )
@@ -158,11 +171,17 @@ impl SupervisionTree {
             .cast(ReviewerMessage::Initialize)
             .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
 
+        // Register in registry
+        self.registry
+            .register(reviewer_id.clone(), "Reviewer".to_string(), AgentRole::Reviewer)
+            .await;
+
         self.reviewer = Some(reviewer_ref);
 
         // Spawn Executor
+        let executor_id = format!("{}-executor", name_prefix);
         let (executor_ref, _) = Actor::spawn(
-            Some(format!("{}-executor", name_prefix)),
+            Some(executor_id.clone()),
             ExecutorActor::new(self.storage.clone(), self.namespace.clone()),
             (self.storage.clone(), self.namespace.clone()),
         )
@@ -173,11 +192,17 @@ impl SupervisionTree {
             .cast(ExecutorMessage::Initialize)
             .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
 
+        // Register in registry
+        self.registry
+            .register(executor_id.clone(), "Executor".to_string(), AgentRole::Executor)
+            .await;
+
         self.executor = Some(executor_ref);
 
         // Spawn Orchestrator (root supervisor)
+        let orchestrator_id = format!("{}-orchestrator", name_prefix);
         let (orchestrator_ref, _) = Actor::spawn(
-            Some(format!("{}-orchestrator", name_prefix)),
+            Some(orchestrator_id.clone()),
             OrchestratorActor::new(self.storage.clone(), self.namespace.clone()),
             (self.storage.clone(), self.namespace.clone()),
         )
@@ -187,6 +212,11 @@ impl SupervisionTree {
         orchestrator_ref
             .cast(OrchestratorMessage::Initialize)
             .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
+
+        // Register in registry
+        self.registry
+            .register(orchestrator_id.clone(), "Orchestrator".to_string(), AgentRole::Orchestrator)
+            .await;
 
         self.orchestrator = Some(orchestrator_ref);
 
@@ -244,6 +274,11 @@ impl SupervisionTree {
     /// Get reference to executor
     pub fn executor(&self) -> Option<&ActorRef<ExecutorMessage>> {
         self.executor.as_ref()
+    }
+
+    /// Get reference to agent registry
+    pub fn registry(&self) -> &AgentRegistry {
+        &self.registry
     }
 }
 
