@@ -13,7 +13,11 @@ use crate::types::MemoryId;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
+#[cfg(feature = "distributed")]
+use ractor_cluster::RactorMessage;
+
 /// Messages for the Orchestrator agent
+#[cfg_attr(feature = "distributed", derive(RactorMessage))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OrchestratorMessage {
     /// Initialize work queue from stored state
@@ -67,6 +71,7 @@ pub enum OrchestratorMessage {
 }
 
 /// Messages for the Optimizer agent
+#[cfg_attr(feature = "distributed", derive(RactorMessage))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OptimizerMessage {
     /// Initialize optimizer with current context
@@ -130,6 +135,7 @@ pub struct ReviewFeedback {
 }
 
 /// Messages for the Reviewer agent
+#[cfg_attr(feature = "distributed", derive(RactorMessage))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ReviewerMessage {
     /// Initialize reviewer
@@ -154,6 +160,7 @@ pub enum ReviewerMessage {
 }
 
 /// Messages for the Executor agent
+#[cfg_attr(feature = "distributed", derive(RactorMessage))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExecutorMessage {
     /// Initialize executor
