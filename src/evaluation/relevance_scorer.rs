@@ -631,14 +631,124 @@ impl RelevanceScorer {
     /// Propagate learning from session → project → global
     ///
     /// Session weights influence project, project influences global
+    /// with dampening to create stable higher-level weights
     pub async fn propagate_learning(
         &self,
-        _session_weights: &WeightSet,
+        session_weights: &WeightSet,
         _evaluation_id: &str,
     ) -> Result<()> {
-        // Get project and global weights
-        // Apply dampened updates: project gets 30% of session's update, global gets 10%
-        // TODO: Implement hierarchical propagation
+        // Only propagate from session scope
+        if !matches!(session_weights.scope, Scope::Session) {
+            return Ok(());
+        }
+
+        // Extract project name from session scope_id (format: "session:project:id")
+        let project_name = if let Some(project) = session_weights.scope_id.split(':').nth(1) {
+            project
+        } else {
+            warn!("Cannot extract project from session scope_id: {}", session_weights.scope_id);
+            return Ok(());
+        };
+
+        // Get or create project-level weights
+        let mut project_weights = match self.get_weights(
+            Scope::Project,
+            project_name,
+            &session_weights.context_type,
+            &session_weights.agent_role,
+            session_weights.work_phase.as_deref(),
+            session_weights.task_type.as_deref(),
+            session_weights.error_context.as_deref(),
+        ).await? {
+            Some(w) => w,
+            None => {
+                // Create new project weights from session
+                let mut w = session_weights.clone();
+                w.scope = Scope::Project;
+                w.scope_id = project_name.to_string();
+                w.id = format!("{}_{}_{}_{:?}_{:?}_{:?}",
+                    "project",
+                    project_name,
+                    w.context_type,
+                    w.agent_role,
+                    w.work_phase,
+                    w.task_type
+                );
+                w.sample_count = 0;
+                w
+            }
+        };
+
+        // Apply dampened update: project gets 30% of session's weights
+        let damping_factor = 0.3;
+        for (key, &session_value) in &session_weights.weights {
+            let project_value = project_weights.weights.entry(key.clone()).or_insert(0.5);
+            let delta = session_value - *project_value;
+            *project_value += delta * damping_factor;
+        }
+
+        project_weights.sample_count += 1;
+        project_weights.update_confidence();
+        project_weights.last_updated_at = chrono::Utc::now().timestamp();
+        project_weights.normalize_weights();
+
+        // Store updated project weights
+        self.store_weights(&project_weights).await?;
+
+        debug!(
+            "Propagated session → project: {} (damping: {})",
+            project_weights.id, damping_factor
+        );
+
+        // Get or create global weights
+        let mut global_weights = match self.get_weights(
+            Scope::Global,
+            "global",
+            &session_weights.context_type,
+            &session_weights.agent_role,
+            session_weights.work_phase.as_deref(),
+            session_weights.task_type.as_deref(),
+            session_weights.error_context.as_deref(),
+        ).await? {
+            Some(w) => w,
+            None => {
+                // Create new global weights from project
+                let mut w = project_weights.clone();
+                w.scope = Scope::Global;
+                w.scope_id = "global".to_string();
+                w.id = format!("{}_{}_{}_{:?}_{:?}_{:?}",
+                    "global",
+                    "global",
+                    w.context_type,
+                    w.agent_role,
+                    w.work_phase,
+                    w.task_type
+                );
+                w.sample_count = 0;
+                w
+            }
+        };
+
+        // Apply dampened update: global gets 10% of project's weights
+        let global_damping = 0.1;
+        for (key, &project_value) in &project_weights.weights {
+            let global_value = global_weights.weights.entry(key.clone()).or_insert(0.5);
+            let delta = project_value - *global_value;
+            *global_value += delta * global_damping;
+        }
+
+        global_weights.sample_count += 1;
+        global_weights.update_confidence();
+        global_weights.last_updated_at = chrono::Utc::now().timestamp();
+        global_weights.normalize_weights();
+
+        // Store updated global weights
+        self.store_weights(&global_weights).await?;
+
+        debug!(
+            "Propagated project → global: {} (damping: {})",
+            global_weights.id, global_damping
+        );
 
         Ok(())
     }
@@ -702,15 +812,94 @@ impl RelevanceScorer {
     }
 
     /// Calculate performance metrics (precision, recall, F1) for a weight set
-    pub async fn calculate_metrics(&self, _weight_id: &str) -> Result<(f32, f32, f32)> {
-        // Query all evaluations that used these weights
-        // Calculate:
-        // - Precision: (true positives) / (true positives + false positives)
-        // - Recall: (true positives) / (true positives + false negatives)
-        // - F1: 2 * (precision * recall) / (precision + recall)
+    ///
+    /// Metrics are calculated from relevance_features table:
+    /// - True Positive: Context provided, was useful (was_useful = 1)
+    /// - False Positive: Context provided, not useful (was_useful = 0)
+    /// - False Negative: Context not provided but would have been useful (hard to measure)
+    ///
+    /// For now, we approximate:
+    /// - Precision = useful contexts / all contexts provided
+    /// - Recall = approximated from access rate (contexts accessed / provided)
+    pub async fn calculate_metrics(&self, weight_id: &str) -> Result<(f32, f32, f32)> {
+        let conn = self.get_conn().await?;
 
-        // TODO: Implement metrics calculation
-        Ok((0.7, 0.6, 0.65)) // Placeholder
+        // Query relevance features for this weight set
+        // Note: We'd need to track which weight set was used for each evaluation
+        // For now, calculate metrics across all evaluations
+        let mut rows = conn
+            .query(
+                r#"
+                SELECT
+                    COUNT(*) as total,
+                    SUM(was_useful) as useful_count,
+                    AVG(CASE WHEN was_useful = 1 THEN 1.0 ELSE 0.0 END) as precision_approx
+                FROM relevance_features
+                "#,
+                libsql::params![],
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query metrics: {}", e))
+            })?;
+
+        let row = rows.next().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to fetch metrics row: {}", e))
+        })?;
+
+        let row = row.ok_or_else(|| {
+            MnemosyneError::Database("No metrics data found".to_string())
+        })?;
+
+        let total = row.get::<i64>(0).unwrap_or(0);
+        let useful_count = row.get::<i64>(1).unwrap_or(0);
+
+        if total == 0 {
+            debug!("No evaluation data yet for weight_id: {}", weight_id);
+            return Ok((0.5, 0.5, 0.5)); // Default neutral metrics
+        }
+
+        // Precision: proportion of provided contexts that were useful
+        let precision = useful_count as f32 / total as f32;
+
+        // Recall approximation: Query access rate from context_evaluations
+        let mut recall_rows = conn
+            .query(
+                r#"
+                SELECT
+                    COUNT(*) as provided,
+                    SUM(was_accessed) as accessed
+                FROM context_evaluations
+                "#,
+                libsql::params![],
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query recall: {}", e))
+            })?;
+
+        let recall_row = recall_rows.next().await.unwrap_or(None);
+        let recall = if let Some(r) = recall_row {
+            let provided = r.get::<i64>(0).unwrap_or(1);
+            let accessed = r.get::<i64>(1).unwrap_or(0);
+            (accessed as f32 / provided as f32).clamp(0.0, 1.0)
+        } else {
+            0.5 // Default
+        };
+
+        // F1 score: harmonic mean of precision and recall
+        let f1 = if precision + recall > 0.0 {
+            2.0 * (precision * recall) / (precision + recall)
+        } else {
+            0.0
+        };
+
+        debug!(
+            "Metrics for {}: precision={:.3}, recall={:.3}, f1={:.3}",
+            weight_id, precision, recall, f1
+        );
+
+        Ok((precision, recall, f1))
     }
 }
 
