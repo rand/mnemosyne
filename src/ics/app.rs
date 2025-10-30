@@ -13,7 +13,7 @@ use super::{
     diagnostics_panel::{DiagnosticsPanel, DiagnosticsPanelState},
 };
 use crate::{
-    orchestration::AgentRegistry,
+    orchestration::{AgentRegistry, ProposalQueue},
     storage::{MemorySortOrder, StorageBackend},
     tui::{EventLoop, TerminalConfig, TerminalManager, TuiEvent},
     types::{MemoryId, MemoryNote, MemoryType, Namespace},
@@ -54,6 +54,8 @@ pub struct IcsApp {
     storage: Arc<dyn StorageBackend>,
     /// Optional agent registry for orchestration mode
     agent_registry: Option<AgentRegistry>,
+    /// Optional proposal queue for orchestration mode
+    proposal_queue: Option<ProposalQueue>,
     /// Memory panel state
     memory_panel: MemoryPanelState,
     /// Loaded memories (fetched from storage)
@@ -95,10 +97,12 @@ impl IcsApp {
     /// * `config` - ICS configuration
     /// * `storage` - Storage backend for memory retrieval
     /// * `agent_registry` - Optional agent registry for orchestration mode
+    /// * `proposal_queue` - Optional proposal queue for orchestration mode
     pub fn new(
         config: IcsConfig,
         storage: Arc<dyn StorageBackend>,
         agent_registry: Option<AgentRegistry>,
+        proposal_queue: Option<ProposalQueue>,
     ) -> Self {
         Self {
             config,
@@ -110,6 +114,7 @@ impl IcsApp {
             // Phase 3: Memory Integration
             storage,
             agent_registry,
+            proposal_queue,
             memory_panel: MemoryPanelState::new(),
             memories: Vec::new(), // Loaded on demand via load_memories()
 
@@ -126,10 +131,8 @@ impl IcsApp {
             // Attributions extracted from CrdtBuffer on demand (via Ctrl+T)
             attributions: Vec::new(),
             proposals_panel: ProposalsPanelState::new(),
-            // NOTE: Agent proposals require ractor agent message queue integration.
-            // Proposal system architecture defined (see src/ics/proposals.rs and sync.rs)
-            // but agent-to-ICS message routing not yet implemented.
-            // Full implementation blocked on Phase 4.1+ (ractor agent system integration).
+            // Proposals polled from ProposalQueue on demand (via Ctrl+P)
+            // In standalone mode (no queue), proposals list remains empty
             proposals: Vec::new(),
 
             // Phase 6: Diagnostics
@@ -431,6 +434,18 @@ impl IcsApp {
         }
     }
 
+    /// Poll proposals from queue
+    ///
+    /// Polls the proposal queue (if available) and populates the proposals list.
+    /// If no queue is available (standalone mode), shows empty list.
+    pub async fn poll_proposals(&mut self) {
+        if let Some(ref queue) = self.proposal_queue {
+            self.proposals = queue.try_recv_all().await;
+        } else {
+            self.proposals = Vec::new();
+        }
+    }
+
     /// Run the ICS application
     pub async fn run(&mut self) -> Result<()> {
         // Initialize terminal
@@ -510,10 +525,21 @@ impl IcsApp {
                     // Toggle proposals panel
                     (KeyCode::Char('p'), true) => {
                         self.proposals_panel.toggle();
-                        self.status = if self.proposals_panel.is_visible() {
-                            "Proposals panel: visible".to_string()
+                        if self.proposals_panel.is_visible() {
+                            // Poll proposals when panel becomes visible
+                            self.poll_proposals().await;
+                            let mode = if self.proposal_queue.is_some() {
+                                "orchestration"
+                            } else {
+                                "standalone"
+                            };
+                            self.status = format!(
+                                "Proposals: visible ({} proposals, {} mode)",
+                                self.proposals.len(),
+                                mode
+                            );
                         } else {
-                            "Proposals panel: hidden".to_string()
+                            self.status = "Proposals panel: hidden".to_string();
                         };
                     }
 

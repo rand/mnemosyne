@@ -18,6 +18,7 @@ use crate::orchestration::messages::{
     ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage,
 };
 use crate::orchestration::network;
+use crate::orchestration::proposal_queue::ProposalQueue;
 use crate::orchestration::registry::AgentRegistry;
 use crate::storage::StorageBackend;
 use crate::types::Namespace;
@@ -69,6 +70,9 @@ pub struct SupervisionTree {
     /// Agent registry for status tracking
     registry: AgentRegistry,
 
+    /// Proposal queue for agent-to-ICS communication
+    proposal_queue: ProposalQueue,
+
     /// Orchestrator actor
     orchestrator: Option<ActorRef<OrchestratorMessage>>,
 
@@ -101,6 +105,7 @@ impl SupervisionTree {
             network,
             namespace,
             registry: AgentRegistry::new(),
+            proposal_queue: ProposalQueue::new(),
             orchestrator: None,
             optimizer: None,
             reviewer: None,
@@ -121,6 +126,7 @@ impl SupervisionTree {
             network,
             namespace,
             registry: AgentRegistry::new(),
+            proposal_queue: ProposalQueue::new(),
             orchestrator: None,
             optimizer: None,
             reviewer: None,
@@ -279,6 +285,11 @@ impl SupervisionTree {
     /// Get reference to agent registry
     pub fn registry(&self) -> &AgentRegistry {
         &self.registry
+    }
+
+    /// Get reference to proposal queue
+    pub fn proposal_queue(&self) -> &ProposalQueue {
+        &self.proposal_queue
     }
 }
 

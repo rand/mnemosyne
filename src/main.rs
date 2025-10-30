@@ -609,9 +609,9 @@ async fn main() -> Result<()> {
             ).await?;
             let storage_backend: Arc<dyn StorageBackend> = Arc::new(storage);
 
-            // Create ICS app with storage (no agent registry in standalone mode)
+            // Create ICS app with storage (no agent registry or proposal queue in standalone mode)
             let config = IcsConfig::default();
-            let mut app = IcsApp::new(config, storage_backend, None);
+            let mut app = IcsApp::new(config, storage_backend, None, None);
 
             // Load file if provided
             if let Some(file_path) = file {
