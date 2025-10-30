@@ -244,8 +244,7 @@ impl FeatureExtractor {
         match context_type {
             ContextType::Memory => {
                 // Fetch memory creation date
-                // TODO: Implement memory lookup
-                Ok(7.0) // Placeholder - will implement in Phase 2.2.4
+                self.get_memory_recency(context_id).await
             }
             ContextType::Skill | ContextType::File => {
                 // For skills/files, use file modification time
@@ -287,13 +286,12 @@ impl FeatureExtractor {
     /// Compute access frequency (accesses per day)
     async fn compute_access_frequency(
         &self,
-        _context_id: &str,
+        context_id: &str,
         context_type: &ContextType,
     ) -> Result<f32> {
         match context_type {
             ContextType::Memory => {
-                // TODO: Fetch memory access count and age, compute frequency
-                Ok(0.5) // Placeholder
+                self.get_memory_access_frequency(context_id).await
             }
             _ => Ok(0.0),
         }
@@ -302,13 +300,12 @@ impl FeatureExtractor {
     /// Compute days since last use
     async fn compute_last_used_days(
         &self,
-        _context_id: &str,
+        context_id: &str,
         context_type: &ContextType,
     ) -> Result<Option<f32>> {
         match context_type {
             ContextType::Memory => {
-                // TODO: Fetch last_accessed_at from memory
-                Ok(Some(3.0)) // Placeholder
+                self.get_memory_last_used_days(context_id).await
             }
             _ => Ok(None),
         }
@@ -365,30 +362,304 @@ impl FeatureExtractor {
         }
     }
 
+    /// Get memory recency (days since created)
+    async fn get_memory_recency(&self, memory_id: &str) -> Result<f32> {
+        let db = libsql::Builder::new_local(&self.db_path)
+            .build()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
+
+        let conn = db.connect().map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection: {}", e))
+        })?;
+
+        let mut rows = conn
+            .query(
+                "SELECT created_at FROM memories WHERE id = ?",
+                libsql::params![memory_id],
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query memory: {}", e))
+            })?;
+
+        let row = rows.next().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to fetch row: {}", e))
+        })?;
+
+        let row = row.ok_or_else(|| {
+            warn!("Memory not found: {}", memory_id);
+            MnemosyneError::NotFound(format!("Memory not found: {}", memory_id))
+        })?;
+
+        let created_at = row.get::<i64>(0).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get created_at: {}", e))
+        })?;
+
+        // Calculate days since creation
+        let now = chrono::Utc::now().timestamp();
+        let age_seconds = (now - created_at).max(0);
+        let days = age_seconds as f32 / 86400.0;
+
+        debug!("Memory {} is {:.1} days old", memory_id, days);
+        Ok(days)
+    }
+
+    /// Get memory access frequency (accesses per day)
+    async fn get_memory_access_frequency(&self, memory_id: &str) -> Result<f32> {
+        let db = libsql::Builder::new_local(&self.db_path)
+            .build()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
+
+        let conn = db.connect().map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection: {}", e))
+        })?;
+
+        let mut rows = conn
+            .query(
+                "SELECT access_count, created_at FROM memories WHERE id = ?",
+                libsql::params![memory_id],
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query memory: {}", e))
+            })?;
+
+        let row = rows.next().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to fetch row: {}", e))
+        })?;
+
+        let row = row.ok_or_else(|| {
+            warn!("Memory not found: {}", memory_id);
+            MnemosyneError::NotFound(format!("Memory not found: {}", memory_id))
+        })?;
+
+        let access_count = row.get::<i64>(0).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get access_count: {}", e))
+        })? as f32;
+
+        let created_at = row.get::<i64>(1).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get created_at: {}", e))
+        })?;
+
+        // Calculate frequency (accesses per day)
+        let now = chrono::Utc::now().timestamp();
+        let age_days = ((now - created_at).max(1) as f32) / 86400.0;
+        let frequency = access_count / age_days.max(1.0);
+
+        debug!(
+            "Memory {} has access frequency {:.3} accesses/day",
+            memory_id, frequency
+        );
+        Ok(frequency)
+    }
+
+    /// Get days since memory was last accessed
+    async fn get_memory_last_used_days(&self, memory_id: &str) -> Result<Option<f32>> {
+        let db = libsql::Builder::new_local(&self.db_path)
+            .build()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
+
+        let conn = db.connect().map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection: {}", e))
+        })?;
+
+        let mut rows = conn
+            .query(
+                "SELECT last_accessed_at FROM memories WHERE id = ?",
+                libsql::params![memory_id],
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query memory: {}", e))
+            })?;
+
+        let row = rows.next().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to fetch row: {}", e))
+        })?;
+
+        let row = row.ok_or_else(|| {
+            warn!("Memory not found: {}", memory_id);
+            MnemosyneError::NotFound(format!("Memory not found: {}", memory_id))
+        })?;
+
+        let last_accessed_at = row.get::<Option<i64>>(0).ok().flatten();
+
+        if let Some(timestamp) = last_accessed_at {
+            let now = chrono::Utc::now().timestamp();
+            let days_ago = ((now - timestamp).max(0) as f32) / 86400.0;
+            debug!("Memory {} was last accessed {:.1} days ago", memory_id, days_ago);
+            Ok(Some(days_ago))
+        } else {
+            debug!("Memory {} has never been accessed", memory_id);
+            Ok(None)
+        }
+    }
+
     /// Compute historical success rate for this context
+    ///
+    /// Success rate = (times accessed) / (times provided)
+    /// Requires at least 3 evaluations to return a meaningful score
     async fn compute_historical_success(
         &self,
-        _context_id: &str,
-        _context_type: &ContextType,
+        context_id: &str,
+        context_type: &ContextType,
     ) -> Result<Option<f32>> {
-        // Query past evaluations for this context
-        // Calculate: (times_accessed / times_provided)
-        // TODO: Implement historical query
-        Ok(None) // Placeholder - will implement with database queries
+        let db = libsql::Builder::new_local(&self.db_path)
+            .build()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
+
+        let conn = db.connect().map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection: {}", e))
+        })?;
+
+        let context_type_str = match context_type {
+            ContextType::Memory => "memory",
+            ContextType::Skill => "skill",
+            ContextType::File => "file",
+            ContextType::Commit => "commit",
+            ContextType::Plan => "plan",
+        };
+
+        let mut rows = conn
+            .query(
+                r#"
+                SELECT
+                    COUNT(*) as total_provided,
+                    SUM(was_accessed) as times_accessed
+                FROM context_evaluations
+                WHERE context_id = ? AND context_type = ?
+                "#,
+                libsql::params![context_id, context_type_str],
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query evaluations: {}", e))
+            })?;
+
+        let row = rows.next().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to fetch row: {}", e))
+        })?;
+
+        let row = row.ok_or_else(|| {
+            MnemosyneError::Database("No evaluation data found".to_string())
+        })?;
+
+        let total_provided = row.get::<i64>(0).unwrap_or(0);
+        let times_accessed = row.get::<i64>(1).unwrap_or(0);
+
+        // Require at least 3 evaluations for meaningful statistics
+        if total_provided < 3 {
+            debug!(
+                "Context {} has only {} evaluations, not enough for historical success",
+                context_id, total_provided
+            );
+            return Ok(None);
+        }
+
+        let success_rate = times_accessed as f32 / total_provided as f32;
+
+        debug!(
+            "Context {} historical success: {}/{} = {:.3}",
+            context_id, times_accessed, total_provided, success_rate
+        );
+
+        Ok(Some(success_rate))
     }
 
     /// Compute co-occurrence score
     ///
     /// How often does this context appear alongside other useful contexts?
+    /// Score = (times this context appeared with useful contexts) / (total appearances)
     async fn compute_co_occurrence(
         &self,
-        _context_id: &str,
+        context_id: &str,
         _session_id: &str,
     ) -> Result<Option<f32>> {
-        // Query other contexts in this session
-        // Calculate: (useful_cooccurrences / total_cooccurrences)
-        // TODO: Implement co-occurrence tracking
-        Ok(None) // Placeholder
+        let db = libsql::Builder::new_local(&self.db_path)
+            .build()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
+
+        let conn = db.connect().map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection: {}", e))
+        })?;
+
+        // Find sessions where this context appeared
+        let mut rows = conn
+            .query(
+                r#"
+                SELECT DISTINCT session_id
+                FROM context_evaluations
+                WHERE context_id = ?
+                LIMIT 10
+                "#,
+                libsql::params![context_id],
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query sessions: {}", e))
+            })?;
+
+        let mut sessions = Vec::new();
+        while let Ok(Some(row)) = rows.next().await {
+            if let Ok(sid) = row.get::<String>(0) {
+                sessions.push(sid);
+            }
+        }
+
+        if sessions.is_empty() {
+            debug!("No co-occurrence data for context {}", context_id);
+            return Ok(None);
+        }
+
+        // For each session, check if other contexts in that session were useful
+        let mut total_cooccurrences = 0;
+        let mut useful_cooccurrences = 0;
+
+        for sess_id in sessions {
+            let mut cooccur_rows = conn
+                .query(
+                    r#"
+                    SELECT was_accessed
+                    FROM context_evaluations
+                    WHERE session_id = ? AND context_id != ?
+                    "#,
+                    libsql::params![sess_id, context_id],
+                )
+                .await
+                .map_err(|e| {
+                    MnemosyneError::Database(format!("Failed to query co-occurrences: {}", e))
+                })?;
+
+            while let Ok(Some(row)) = cooccur_rows.next().await {
+                total_cooccurrences += 1;
+                let was_accessed = row.get::<i64>(0).unwrap_or(0);
+                if was_accessed != 0 {
+                    useful_cooccurrences += 1;
+                }
+            }
+        }
+
+        if total_cooccurrences < 3 {
+            debug!(
+                "Only {} co-occurrences for context {}, not enough data",
+                total_cooccurrences, context_id
+            );
+            return Ok(None);
+        }
+
+        let score = useful_cooccurrences as f32 / total_cooccurrences as f32;
+
+        debug!(
+            "Context {} co-occurrence: {}/{} = {:.3}",
+            context_id, useful_cooccurrences, total_cooccurrences, score
+        );
+
+        Ok(Some(score))
     }
 
     /// Determine if context was useful based on feedback signals
