@@ -2,8 +2,8 @@
 //!
 //! Verifies that when memory content is updated, embeddings are regenerated
 
-use mnemosyne_core::config::LlmConfig;
 use mnemosyne_core::services::embeddings::EmbeddingService;
+use mnemosyne_core::LlmConfig;
 use mnemosyne_core::storage::libsql::{ConnectionMode, LibsqlStorage};
 use mnemosyne_core::storage::StorageBackend;
 use mnemosyne_core::types::{MemoryId, MemoryNote, MemoryType, Namespace};
