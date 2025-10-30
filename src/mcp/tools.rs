@@ -678,8 +678,19 @@ impl ToolHandler {
 
         // Apply updates
         if let Some(content) = params.content {
-            memory.content = content;
-            // TODO: Re-generate embedding
+            memory.content = content.clone();
+
+            // Re-generate embedding when content changes
+            match self.embeddings.generate_embedding(&content).await {
+                Ok(new_embedding) => {
+                    memory.embedding = Some(new_embedding);
+                    info!("Regenerated embedding for updated memory");
+                }
+                Err(e) => {
+                    warn!("Failed to regenerate embedding: {}. Update will proceed without embedding.", e);
+                    // Continue with update even if embedding fails
+                }
+            }
         }
 
         if let Some(importance) = params.importance {

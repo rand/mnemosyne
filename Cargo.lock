@@ -5368,7 +5368,6 @@ dependencies = [
  "fuzzy-matcher",
  "hmac",
  "iroh",
- "iroh-net",
  "keyring",
  "libsql",
  "libsql_migration",
