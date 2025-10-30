@@ -11,6 +11,7 @@ use crate::error::Result;
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{OptimizerMessage, OrchestratorMessage};
+use crate::orchestration::skills::{SkillsDiscovery, get_skills_directory};
 use crate::orchestration::state::WorkItemId;
 use crate::storage::StorageBackend;
 use crate::types::{MemoryId, Namespace};
@@ -65,6 +66,9 @@ pub struct OptimizerState {
 
     /// Critical context tokens (always loaded)
     critical_tokens: usize,
+
+    /// Skills discovery engine
+    skills_discovery: SkillsDiscovery,
 }
 
 impl OptimizerState {
@@ -82,6 +86,7 @@ impl OptimizerState {
             avg_memory_tokens: 500,  // Estimated average tokens per memory
             tokens_per_skill: 3000,  // Estimated tokens per skill (~300 lines)
             critical_tokens: 80_000, // CRITICAL_BUDGET * context_budget
+            skills_discovery: SkillsDiscovery::new(get_skills_directory()),
         }
     }
 
@@ -109,13 +114,34 @@ impl OptimizerActor {
     ) -> Result<Vec<String>> {
         tracing::info!("Discovering skills for: {}", task_description);
 
-        // TODO: Implement skill discovery from filesystem
-        // For now, return empty list
-        let skills = Vec::new();
+        // Discover relevant skills using the skills discovery engine
+        let skill_matches = state
+            .skills_discovery
+            .discover_skills(&task_description, max_skills)
+            .await?;
+
+        // Load skill content from discovered matches
+        let mut skills = Vec::new();
+        for skill_match in &skill_matches {
+            match state.skills_discovery.load_skill(skill_match).await {
+                Ok(content) => skills.push(content),
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to load skill {}: {}",
+                        skill_match.metadata.name,
+                        e
+                    );
+                }
+            }
+        }
 
         state.loaded_skills = skills.len().min(max_skills);
 
-        tracing::info!("Discovered {} skills", state.loaded_skills);
+        tracing::info!(
+            "Discovered {} skills: {:?}",
+            state.loaded_skills,
+            skill_matches.iter().map(|m| &m.metadata.name).collect::<Vec<_>>()
+        );
         Ok(skills)
     }
 
