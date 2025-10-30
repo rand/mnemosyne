@@ -14,9 +14,9 @@ mod work_item_persistence_tests {
     use crate::storage::StorageBackend;
     use crate::types::MemoryId;
     use crate::{ConnectionMode, LibsqlStorage};
-    use chrono::Utc;
+    
     use std::path::PathBuf;
-    use std::sync::Arc;
+    
     use std::time::Duration;
     use tempfile::TempDir;
 

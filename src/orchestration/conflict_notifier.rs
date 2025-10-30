@@ -488,8 +488,8 @@ mod tests {
     use super::*;
     use crate::orchestration::conflict_detector::ConflictDetector;
     use std::path::PathBuf;
-    use std::thread;
-    use std::time::Duration as StdDuration;
+    
+    
 
     #[test]
     fn test_notify_on_save_new_conflict() {

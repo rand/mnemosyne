@@ -302,7 +302,7 @@ fn relative_time(dt: &DateTime<Utc>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{MemoryId, MemoryLink, MemoryType};
+    use crate::types::{MemoryId, MemoryType};
     use chrono::Utc;
 
     #[test]

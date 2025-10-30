@@ -15,12 +15,12 @@ mod e2e_tests {
     use crate::orchestration::branch_coordinator::{
         BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse,
     };
-    use crate::orchestration::branch_guard::{BranchGuard, BranchGuardConfig};
+    use crate::orchestration::branch_guard::BranchGuard;
     use crate::orchestration::branch_registry::{BranchRegistry, CoordinationMode, WorkIntent};
     use crate::orchestration::conflict_detector::ConflictDetector;
     use crate::orchestration::conflict_notifier::{ConflictNotifier, NotificationConfig};
     use crate::orchestration::file_tracker::{FileTracker, ModificationType};
-    use crate::orchestration::git_state::GitStateTracker;
+    
     use crate::orchestration::git_wrapper::GitWrapper;
     use crate::orchestration::identity::{AgentId, AgentIdentity};
     use crate::types::Namespace;

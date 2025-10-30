@@ -258,7 +258,7 @@ impl<S: StorageBackend> AgentMemoryView<S> {
 mod tests {
     use super::*;
     use crate::storage::libsql::LibsqlStorage;
-    use crate::types::{MemoryId, MemoryLink, Namespace};
+    use crate::types::{MemoryId, Namespace};
     use chrono::Utc;
     use tempfile::tempdir;
 
