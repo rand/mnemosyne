@@ -594,8 +594,24 @@ async fn main() -> Result<()> {
 
             info!("Launching Integrated Context Studio (ICS)...");
 
+            // Initialize storage backend
+            let db_path = get_db_path(None);
+            info!("Using database: {}", db_path);
+
+            // Ensure parent directory exists
+            if let Some(parent) = PathBuf::from(&db_path).parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
+            let storage = LibsqlStorage::new_with_validation(
+                ConnectionMode::Local(db_path),
+                true
+            ).await?;
+            let storage_backend: Arc<dyn StorageBackend> = Arc::new(storage);
+
+            // Create ICS app with storage
             let config = IcsConfig::default();
-            let mut app = IcsApp::new(config);
+            let mut app = IcsApp::new(config, storage_backend);
 
             // Load file if provided
             if let Some(file_path) = file {

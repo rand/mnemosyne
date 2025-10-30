@@ -13,8 +13,9 @@ use super::{
     diagnostics_panel::{DiagnosticsPanel, DiagnosticsPanelState},
 };
 use crate::{
+    storage::{MemorySortOrder, StorageBackend},
     tui::{EventLoop, TerminalConfig, TerminalManager, TuiEvent},
-    types::MemoryNote,
+    types::{MemoryNote, Namespace},
 };
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -25,6 +26,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph, StatefulWidget, Widget},
 };
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Application state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,9 +49,11 @@ pub struct IcsApp {
     status: String,
 
     // Phase 3: Memory Integration
+    /// Storage backend for memory retrieval
+    storage: Arc<dyn StorageBackend>,
     /// Memory panel state
     memory_panel: MemoryPanelState,
-    /// Placeholder memories (will be fetched from storage in real implementation)
+    /// Loaded memories (fetched from storage)
     memories: Vec<MemoryNote>,
 
     // Phase 4: Semantic Analysis
@@ -83,7 +87,11 @@ pub struct IcsApp {
 
 impl IcsApp {
     /// Create new ICS application
-    pub fn new(config: IcsConfig) -> Self {
+    ///
+    /// # Arguments
+    /// * `config` - ICS configuration
+    /// * `storage` - Storage backend for memory retrieval
+    pub fn new(config: IcsConfig, storage: Arc<dyn StorageBackend>) -> Self {
         Self {
             config,
             editor: IcsEditor::new(),
@@ -92,8 +100,9 @@ impl IcsApp {
             status: "ICS | Ctrl+Q: quit | Ctrl+M: memories | Ctrl+P: proposals | Ctrl+D: diagnostics | Ctrl+A: agents".to_string(),
 
             // Phase 3: Memory Integration
+            storage,
             memory_panel: MemoryPanelState::new(),
-            memories: Vec::new(), // TODO: fetch from storage
+            memories: Vec::new(), // Loaded on demand via load_memories()
 
             // Phase 4: Semantic Analysis
             semantic_analyzer: SemanticAnalyzer::new(),
@@ -155,6 +164,26 @@ impl IcsApp {
         self.diagnostics = self.validator.validate(&text);
     }
 
+    /// Load memories from storage into memory panel
+    ///
+    /// Queries the storage backend and populates the memories list.
+    /// Currently loads all memories without namespace filtering.
+    /// Sorts by importance by default.
+    pub async fn load_memories(&mut self) -> Result<()> {
+        // Query storage backend for memories (limit 100, sorted by importance)
+        // Note: Namespace filtering not yet implemented in IcsConfig
+        let memories = self.storage
+            .list_memories(None, 100, MemorySortOrder::Importance)
+            .await?;
+
+        // Update state
+        let count = memories.len();
+        self.memories = memories;
+        self.status = format!("Loaded {} memories", count);
+
+        Ok(())
+    }
+
     /// Run the ICS application
     pub async fn run(&mut self) -> Result<()> {
         // Initialize terminal
@@ -209,11 +238,14 @@ impl IcsApp {
                     // Toggle memory panel
                     (KeyCode::Char('m'), true) => {
                         self.memory_panel.toggle();
-                        self.status = if self.memory_panel.is_visible() {
-                            "Memory panel: visible".to_string()
+                        if self.memory_panel.is_visible() {
+                            // Load memories when panel becomes visible
+                            if let Err(e) = self.load_memories().await {
+                                self.status = format!("Error loading memories: {}", e);
+                            }
                         } else {
-                            "Memory panel: hidden".to_string()
-                        };
+                            self.status = "Memory panel: hidden".to_string();
+                        }
                     }
 
                     // Toggle proposals panel
@@ -515,11 +547,5 @@ impl IcsApp {
         })?;
 
         Ok(())
-    }
-}
-
-impl Default for IcsApp {
-    fn default() -> Self {
-        Self::new(IcsConfig::default())
     }
 }
