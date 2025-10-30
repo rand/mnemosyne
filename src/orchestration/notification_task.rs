@@ -167,7 +167,7 @@ async fn process_notifications(
         if let Some(coord) = coordinator {
             let message = CoordinationMessage {
                 id: notification.id.clone(),
-                from_agent: crate::orchestration::identity::AgentId::new("optimizer".to_string()),
+                from_agent: crate::orchestration::identity::AgentId::new(),
                 to_agent: Some(notification.agent_id.clone()),
                 message_type: MessageType::ConflictNotification,
                 timestamp: notification.timestamp,
@@ -228,7 +228,7 @@ async fn process_notifications(
             related_files: notification
                 .conflicts
                 .iter()
-                .map(|c| c.file_path.clone())
+                .map(|c| c.path.display().to_string())
                 .collect(),
             related_entities: vec![notification.agent_id.to_string()],
             access_count: 0,
@@ -261,7 +261,7 @@ async fn process_notifications(
                         notification
                             .conflicts
                             .iter()
-                            .map(|c| c.file_path.display().to_string())
+                            .map(|c| c.path.display().to_string())
                             .collect::<Vec<_>>()
                     );
                 }

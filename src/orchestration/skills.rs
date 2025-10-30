@@ -100,7 +100,9 @@ impl SkillsDiscovery {
 
         info!("Scanning skills directory: {:?}", self.skills_dir);
 
-        self.scan_directory_recursive(&self.skills_dir)?;
+        // Clone the path to avoid borrowing issues
+        let skills_dir = self.skills_dir.clone();
+        self.scan_directory_recursive(&skills_dir)?;
 
         info!("Loaded {} skills into cache", self.skill_cache.len());
         Ok(())

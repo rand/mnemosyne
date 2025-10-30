@@ -187,6 +187,14 @@ impl FeedbackCollector {
         }
     }
 
+    /// Initialize the database schema
+    ///
+    /// This should be called once per database to ensure tables exist.
+    /// Safe to call multiple times (uses IF NOT EXISTS).
+    pub async fn init_schema(&self) -> Result<()> {
+        crate::evaluation::schema::init_evaluation_tables(&self.db_path).await
+    }
+
     /// Record that context was provided to an agent
     ///
     /// Returns evaluation ID for tracking

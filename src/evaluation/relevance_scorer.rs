@@ -23,7 +23,7 @@
 //! 3. Phase-only (work_phase)
 //! 4. Generic (no constraints)
 
-use crate::error::Result;
+use crate::error::{MnemosyneError, Result};
 use crate::evaluation::feature_extractor::RelevanceFeatures;
 use crate::evaluation::feedback_collector::FeedbackCollector;
 use chrono::Utc;
@@ -156,6 +156,14 @@ impl RelevanceScorer {
     /// Create a new relevance scorer
     pub fn new(db_path: String) -> Self {
         Self { db_path }
+    }
+
+    /// Initialize the database schema
+    ///
+    /// This should be called once per database to ensure tables exist.
+    /// Safe to call multiple times (uses IF NOT EXISTS).
+    pub async fn init_schema(&self) -> Result<()> {
+        crate::evaluation::schema::init_evaluation_tables(&self.db_path).await
     }
 
     /// Score context relevance using learned weights
@@ -306,16 +314,107 @@ impl RelevanceScorer {
         task_type: Option<&str>,
         error_context: Option<&str>,
     ) -> Result<Option<WeightSet>> {
-        // TODO: Implement database query
-        // SELECT * FROM learned_relevance_weights
-        // WHERE scope = ? AND scope_id = ? AND context_type = ? AND agent_role = ?
-        //   AND (work_phase = ? OR work_phase IS NULL)
-        //   AND (task_type = ? OR task_type IS NULL)
-        //   AND (error_context = ? OR error_context IS NULL)
-        // ORDER BY sample_count DESC
-        // LIMIT 1
+        let conn = self.get_conn().await?;
 
-        Ok(None) // Placeholder
+        // Build query with NULL matching for optional fields
+        let query = r#"
+            SELECT * FROM learned_relevance_weights
+            WHERE scope = ? AND scope_id = ? AND context_type = ? AND agent_role = ?
+              AND (work_phase = ? OR (work_phase IS NULL AND ? IS NULL))
+              AND (task_type = ? OR (task_type IS NULL AND ? IS NULL))
+              AND (error_context = ? OR (error_context IS NULL AND ? IS NULL))
+            ORDER BY sample_count DESC
+            LIMIT 1
+        "#;
+
+        let mut rows = conn
+            .query(
+                query,
+                libsql::params![
+                    scope.to_string(),
+                    scope_id,
+                    context_type,
+                    agent_role,
+                    work_phase,
+                    work_phase,
+                    task_type,
+                    task_type,
+                    error_context,
+                    error_context,
+                ],
+            )
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query weights: {}", e)))?;
+
+        let row = match rows.next().await {
+            Ok(Some(row)) => row,
+            Ok(None) => return Ok(None),
+            Err(e) => {
+                return Err(MnemosyneError::Database(format!(
+                    "Failed to read row: {}",
+                    e
+                )))
+            }
+        };
+
+        // Parse row into WeightSet
+        let id: String = row.get(0).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let scope_str: String = row.get(1).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let scope_parsed = match scope_str.as_str() {
+            "session" => Scope::Session,
+            "project" => Scope::Project,
+            "global" => Scope::Global,
+            _ => return Err(MnemosyneError::Other(format!("Invalid scope: {}", scope_str))),
+        };
+
+        let scope_id: String = row.get(2).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let context_type: String = row.get(3).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let agent_role: String = row.get(4).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let work_phase: Option<String> = row.get(5).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let task_type: Option<String> = row.get(6).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let error_context: Option<String> = row.get(7).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+
+        let weights_json: String = row.get(8).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let weights: HashMap<String, f32> = serde_json::from_str(&weights_json)
+            .map_err(|e| MnemosyneError::Other(format!("Failed to parse weights: {}", e)))?;
+
+        let sample_count: u32 = row.get(9).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let last_updated_at: i64 = row.get(10).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+
+        // libsql uses f64, convert to f32
+        let confidence_f64: f64 = row.get(11).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let confidence = confidence_f64 as f32;
+
+        let learning_rate_f64: f64 = row.get(12).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let learning_rate = learning_rate_f64 as f32;
+
+        let avg_precision: Option<f64> = row.get(13).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let avg_precision = avg_precision.map(|v| v as f32);
+
+        let avg_recall: Option<f64> = row.get(14).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let avg_recall = avg_recall.map(|v| v as f32);
+
+        let avg_f1_score: Option<f64> = row.get(15).map_err(|e| MnemosyneError::Database(e.to_string()))?;
+        let avg_f1_score = avg_f1_score.map(|v| v as f32);
+
+        Ok(Some(WeightSet {
+            id,
+            scope: scope_parsed,
+            scope_id,
+            context_type,
+            agent_role,
+            work_phase,
+            task_type,
+            error_context,
+            weights,
+            sample_count,
+            last_updated_at,
+            confidence,
+            learning_rate,
+            avg_precision,
+            avg_recall,
+            avg_f1_score,
+        }))
     }
 
     /// Update weights based on feedback
@@ -336,15 +435,20 @@ impl RelevanceScorer {
         let context_type_str = evaluation.context_type.to_string();
         let agent_role = &evaluation.agent_role;
 
+        // Convert Option<Enum> to Option<String> to avoid lifetime issues
+        let work_phase_str = evaluation.work_phase.as_ref().map(|p| p.to_string());
+        let task_type_str = evaluation.task_type.as_ref().map(|t| t.to_string());
+        let error_context_str = evaluation.error_context.as_ref().map(|e| e.to_string());
+
         // Get or create weight sets for all three scopes
         let mut session_weights = self.get_weights_with_fallback(
             Scope::Session,
             session_id,
             &context_type_str,
             agent_role,
-            evaluation.work_phase.as_ref().map(|p| p.to_string().as_str()),
-            evaluation.task_type.as_ref().map(|t| t.to_string().as_str()),
-            evaluation.error_context.as_ref().map(|e| e.to_string().as_str()),
+            work_phase_str.as_deref(),
+            task_type_str.as_deref(),
+            error_context_str.as_deref(),
         ).await?;
 
         let mut project_weights = self.get_weights_with_fallback(
@@ -352,9 +456,9 @@ impl RelevanceScorer {
             project_id,
             &context_type_str,
             agent_role,
-            evaluation.work_phase.as_ref().map(|p| p.to_string().as_str()),
-            evaluation.task_type.as_ref().map(|t| t.to_string().as_str()),
-            evaluation.error_context.as_ref().map(|e| e.to_string().as_str()),
+            work_phase_str.as_deref(),
+            task_type_str.as_deref(),
+            error_context_str.as_deref(),
         ).await?;
 
         let mut global_weights = self.get_weights_with_fallback(
@@ -362,9 +466,9 @@ impl RelevanceScorer {
             "global",
             &context_type_str,
             agent_role,
-            evaluation.work_phase.as_ref().map(|p| p.to_string().as_str()),
-            evaluation.task_type.as_ref().map(|t| t.to_string().as_str()),
-            evaluation.error_context.as_ref().map(|e| e.to_string().as_str()),
+            work_phase_str.as_deref(),
+            task_type_str.as_deref(),
+            error_context_str.as_deref(),
         ).await?;
 
         // Compute predicted scores using current weights
@@ -478,10 +582,58 @@ impl RelevanceScorer {
     pub async fn store_weights(&self, weights: &WeightSet) -> Result<()> {
         debug!("Storing {} weights: {}", weights.scope, weights.id);
 
-        // TODO: Implement database upsert
-        // INSERT OR REPLACE INTO learned_relevance_weights (...)
+        let conn = self.get_conn().await?;
 
+        // Serialize weights HashMap to JSON
+        let weights_json = serde_json::to_string(&weights.weights)
+            .map_err(|e| MnemosyneError::Other(format!("Failed to serialize weights: {}", e)))?;
+
+        // Use INSERT OR REPLACE for upsert behavior
+        conn.execute(
+            r#"
+            INSERT OR REPLACE INTO learned_relevance_weights (
+                id, scope, scope_id, context_type, agent_role,
+                work_phase, task_type, error_context,
+                weights, sample_count, last_updated_at,
+                confidence, learning_rate,
+                avg_precision, avg_recall, avg_f1_score
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
+            libsql::params![
+                weights.id.clone(),
+                weights.scope.to_string(),
+                weights.scope_id.clone(),
+                weights.context_type.clone(),
+                weights.agent_role.clone(),
+                weights.work_phase.clone(),
+                weights.task_type.clone(),
+                weights.error_context.clone(),
+                weights_json,
+                weights.sample_count,
+                weights.last_updated_at,
+                weights.confidence,
+                weights.learning_rate,
+                weights.avg_precision,
+                weights.avg_recall,
+                weights.avg_f1_score,
+            ],
+        )
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Failed to store weights: {}", e)))?;
+
+        debug!("Stored {} weights successfully", weights.scope);
         Ok(())
+    }
+
+    /// Get database connection
+    async fn get_conn(&self) -> Result<libsql::Connection> {
+        let db = libsql::Builder::new_local(&self.db_path)
+            .build()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
+
+        db.connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))
     }
 
     /// Calculate performance metrics (precision, recall, F1) for a weight set

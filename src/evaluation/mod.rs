@@ -108,7 +108,9 @@
 pub mod feedback_collector;
 pub mod feature_extractor;
 pub mod relevance_scorer;
+pub mod schema;
 
 pub use feedback_collector::{FeedbackCollector, ProvidedContext, ContextEvaluation};
 pub use feature_extractor::{FeatureExtractor, RelevanceFeatures};
 pub use relevance_scorer::{RelevanceScorer, Scope, WeightSet};
+pub use schema::init_evaluation_tables;
