@@ -95,12 +95,42 @@ impl Highlighter {
             Language::Markdown => {
                 parser.set_language(&tree_sitter_md::LANGUAGE.into())?;
             }
+            Language::Rust => {
+                parser.set_language(&tree_sitter_rust::LANGUAGE.into())?;
+            }
+            Language::Python => {
+                parser.set_language(&tree_sitter_python::LANGUAGE.into())?;
+            }
+            Language::TypeScript => {
+                parser.set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())?;
+            }
+            Language::JavaScript => {
+                parser.set_language(&tree_sitter_javascript::LANGUAGE.into())?;
+            }
+            Language::JSON => {
+                parser.set_language(&tree_sitter_json::LANGUAGE.into())?;
+            }
+            Language::TOML => {
+                // tree-sitter-toml 0.20 uses old tree-sitter 0.20 - skip for now
+                // TODO: Find compatible TOML parser or upgrade when available
+            }
+            Language::YAML => {
+                parser.set_language(&tree_sitter_yaml::LANGUAGE.into())?;
+            }
+            Language::Bash => {
+                parser.set_language(&tree_sitter_bash::LANGUAGE.into())?;
+            }
+            Language::Go => {
+                parser.set_language(&tree_sitter_go::LANGUAGE.into())?;
+            }
+            Language::C => {
+                parser.set_language(&tree_sitter_c::LANGUAGE.into())?;
+            }
+            Language::Cpp => {
+                parser.set_language(&tree_sitter_cpp::LANGUAGE.into())?;
+            }
             Language::PlainText => {
                 // Plain text doesn't need parsing
-            }
-            _ => {
-                // For other languages, use plain text for now
-                // TODO: Add more language support
             }
         }
 
@@ -115,14 +145,13 @@ impl Highlighter {
     /// Get highlight spans for text
     pub fn highlight(&mut self, text: &str) -> Vec<HighlightSpan> {
         match self.language {
-            Language::Markdown => self.highlight_markdown(text),
             Language::PlainText => Vec::new(),
-            _ => Vec::new(),
+            _ => self.highlight_generic(text),
         }
     }
 
-    /// Highlight markdown text
-    fn highlight_markdown(&mut self, text: &str) -> Vec<HighlightSpan> {
+    /// Generic syntax highlighting for all tree-sitter languages
+    fn highlight_generic(&mut self, text: &str) -> Vec<HighlightSpan> {
         let tree = match self.parse(text) {
             Some(tree) => tree,
             None => return Vec::new(),
@@ -181,11 +210,42 @@ impl Highlighter {
             Language::Markdown => {
                 self.parser.set_language(&tree_sitter_md::LANGUAGE.into())?;
             }
+            Language::Rust => {
+                self.parser.set_language(&tree_sitter_rust::LANGUAGE.into())?;
+            }
+            Language::Python => {
+                self.parser.set_language(&tree_sitter_python::LANGUAGE.into())?;
+            }
+            Language::TypeScript => {
+                self.parser.set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())?;
+            }
+            Language::JavaScript => {
+                self.parser.set_language(&tree_sitter_javascript::LANGUAGE.into())?;
+            }
+            Language::JSON => {
+                self.parser.set_language(&tree_sitter_json::LANGUAGE.into())?;
+            }
+            Language::TOML => {
+                // tree-sitter-toml 0.20 uses old tree-sitter 0.20 - skip for now
+                // TODO: Find compatible TOML parser or upgrade when available
+            }
+            Language::YAML => {
+                self.parser.set_language(&tree_sitter_yaml::LANGUAGE.into())?;
+            }
+            Language::Bash => {
+                self.parser.set_language(&tree_sitter_bash::LANGUAGE.into())?;
+            }
+            Language::Go => {
+                self.parser.set_language(&tree_sitter_go::LANGUAGE.into())?;
+            }
+            Language::C => {
+                self.parser.set_language(&tree_sitter_c::LANGUAGE.into())?;
+            }
+            Language::Cpp => {
+                self.parser.set_language(&tree_sitter_cpp::LANGUAGE.into())?;
+            }
             Language::PlainText => {
                 // Plain text doesn't need parsing
-            }
-            _ => {
-                // For other languages, use plain text for now
             }
         }
         self.language = language;
