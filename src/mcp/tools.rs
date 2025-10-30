@@ -13,7 +13,7 @@ use crate::types::{MemoryId, Namespace};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 /// Tool schema definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
