@@ -89,7 +89,9 @@ pub struct CrdtBuffer {
     /// Change attributions
     attributions: Vec<Attribution>,
 
-    /// Undo/redo stack (operation IDs)
+    /// Undo/redo stack (document snapshots before operations)
+    /// We store full document state to enable reliable undo/redo
+    /// Limited to 100 snapshots to manage memory usage
     undo_stack: VecDeque<Vec<u8>>,
     redo_stack: VecDeque<Vec<u8>>,
 }
@@ -145,14 +147,13 @@ impl CrdtBuffer {
 
     /// Insert text at position
     pub fn insert(&mut self, pos: usize, text: &str) -> Result<()> {
-        // Save current state for undo
-        let changes = self.doc.get_last_local_change();
-        if let Some(change) = changes {
-            self.undo_stack.push_back(change.raw_bytes().to_vec());
-            if self.undo_stack.len() > 100 {
-                self.undo_stack.pop_front();
-            }
+        // Save current document state for undo (snapshot BEFORE operation)
+        let snapshot = self.doc.save();
+        self.undo_stack.push_back(snapshot);
+        if self.undo_stack.len() > 100 {
+            self.undo_stack.pop_front();
         }
+        // Clear redo stack since we're making a new change
         self.redo_stack.clear();
 
         // Insert text
@@ -179,14 +180,13 @@ impl CrdtBuffer {
 
         let delete_len = len.min(text_len - pos);
 
-        // Save current state for undo
-        let changes = self.doc.get_last_local_change();
-        if let Some(change) = changes {
-            self.undo_stack.push_back(change.raw_bytes().to_vec());
-            if self.undo_stack.len() > 100 {
-                self.undo_stack.pop_front();
-            }
+        // Save current document state for undo (snapshot BEFORE operation)
+        let snapshot = self.doc.save();
+        self.undo_stack.push_back(snapshot);
+        if self.undo_stack.len() > 100 {
+            self.undo_stack.pop_front();
         }
+        // Clear redo stack since we're making a new change
         self.redo_stack.clear();
 
         // Delete text
@@ -262,17 +262,57 @@ impl CrdtBuffer {
     }
 
     /// Undo last operation
+    ///
+    /// Restores the document to the state before the last operation.
+    /// Returns true if undo was performed, false if undo stack is empty.
     pub fn undo(&mut self) -> Result<bool> {
-        // TODO: Implement proper undo with Automerge
-        // For now, return false (not implemented)
-        Ok(false)
+        // Check if there's anything to undo
+        if self.undo_stack.is_empty() {
+            return Ok(false);
+        }
+
+        // Save current state to redo stack
+        let current_state = self.doc.save();
+        self.redo_stack.push_back(current_state);
+        if self.redo_stack.len() > 100 {
+            self.redo_stack.pop_front();
+        }
+
+        // Restore previous state from undo stack
+        if let Some(previous_state) = self.undo_stack.pop_back() {
+            self.load_state(&previous_state)?;
+            self.dirty = true;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Redo last undone operation
+    ///
+    /// Re-applies an operation that was undone.
+    /// Returns true if redo was performed, false if redo stack is empty.
     pub fn redo(&mut self) -> Result<bool> {
-        // TODO: Implement proper redo with Automerge
-        // For now, return false (not implemented)
-        Ok(false)
+        // Check if there's anything to redo
+        if self.redo_stack.is_empty() {
+            return Ok(false);
+        }
+
+        // Save current state to undo stack
+        let current_state = self.doc.save();
+        self.undo_stack.push_back(current_state);
+        if self.undo_stack.len() > 100 {
+            self.undo_stack.pop_front();
+        }
+
+        // Restore next state from redo stack
+        if let Some(next_state) = self.redo_stack.pop_back() {
+            self.load_state(&next_state)?;
+            self.dirty = true;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Get line count

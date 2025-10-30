@@ -1,12 +1,12 @@
 # Cargo build configuration for Mnemosyne
 
 [build]
-# Use all available CPU cores for parallel compilation
-jobs = 0  # 0 = number of logical CPUs
-
 # Incremental compilation for faster dev builds
 # (Automatically disabled for release builds with LTO)
 incremental = true
+
+# Note: Parallel compilation is enabled by default
+# To limit jobs: use CARGO_BUILD_JOBS environment variable
 
 [profile.dev]
 # Explicit incremental compilation for development
