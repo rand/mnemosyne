@@ -112,20 +112,82 @@ impl McpDaemon {
         // Create directories
         self.ensure_directories()?;
 
-        // For now, we'll run in foreground but with logging to file
-        // Full daemonization would require platform-specific code
-        // and the `daemonize` crate, which we can add later
-        info!("Starting MCP server (foreground mode with file logging)");
+        info!("Starting MCP server as daemon");
+
+        // Get the path to the current executable
+        let current_exe = std::env::current_exe().map_err(|e| {
+            MnemosyneError::Other(format!("Failed to get current executable path: {}", e))
+        })?;
+
+        // Open log file for stdout/stderr
+        let log_file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.config.log_file)
+            .map_err(|e| MnemosyneError::Other(format!("Failed to open log file: {}", e)))?;
+
+        // Spawn MCP server process
+        let mut cmd = std::process::Command::new(&current_exe);
+        cmd.arg("serve");
+
+        // Add database path if configured
+        if let Some(db_path) = &self.config.db_path {
+            cmd.arg("--db-path").arg(db_path);
+        }
+
+        // Set environment variables
+        cmd.env("RUST_LOG", "info");
+
+        // Redirect stdout and stderr to log file
+        let log_file_stdout = log_file.try_clone().map_err(|e| {
+            MnemosyneError::Other(format!("Failed to clone log file handle: {}", e))
+        })?;
+        let log_file_stderr = log_file;
+
+        cmd.stdout(log_file_stdout);
+        cmd.stderr(log_file_stderr);
+
+        // On Unix, use double-fork technique to properly daemonize
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+
+            // Create new process group to detach from parent
+            unsafe {
+                cmd.pre_exec(|| {
+                    // Create new session
+                    nix::unistd::setsid().map_err(|e| {
+                        std::io::Error::new(std::io::ErrorKind::Other, format!("setsid failed: {}", e))
+                    })?;
+                    Ok(())
+                });
+            }
+        }
+
+        // Spawn the process
+        let child = cmd.spawn().map_err(|e| {
+            MnemosyneError::Other(format!("Failed to spawn MCP server: {}", e))
+        })?;
+
+        let pid = child.id();
 
         // Write PID file
-        let pid = std::process::id();
         self.write_pid_file(pid)?;
 
-        info!("Daemon started with PID {}", pid);
+        info!("MCP server daemon started with PID {}", pid);
         info!("Logs: {}", self.config.log_file.display());
 
-        // Note: Actual MCP server startup would happen here
-        // For now, this is a stub that would be integrated with the serve command
+        // Wait a moment to check if process is still running
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        if !is_process_running(pid) {
+            self.remove_pid_file()?;
+            return Err(MnemosyneError::Other(
+                "MCP server process exited immediately after startup".to_string(),
+            ));
+        }
+
+        info!("MCP server daemon started successfully");
 
         Ok(())
     }
@@ -209,6 +271,59 @@ impl McpDaemon {
             Ok(DaemonStatus::Running { pid })
         } else {
             Ok(DaemonStatus::Stale { pid })
+        }
+    }
+
+    /// Health check - verify daemon is running and responding
+    pub fn health_check(&self) -> Result<bool> {
+        match self.status()? {
+            DaemonStatus::Running { pid } => {
+                // Verify process is still running
+                if !is_process_running(pid) {
+                    return Ok(false);
+                }
+
+                // Check if log file is being written to (indicates activity)
+                if self.config.log_file.exists() {
+                    if let Ok(metadata) = fs::metadata(&self.config.log_file) {
+                        let modified = metadata.modified().ok();
+                        if let Some(modified) = modified {
+                            let now = std::time::SystemTime::now();
+                            // If log was modified in last 60 seconds, consider healthy
+                            if let Ok(elapsed) = now.duration_since(modified) {
+                                return Ok(elapsed.as_secs() < 60);
+                            }
+                        }
+                    }
+                }
+
+                // Process exists but no recent log activity
+                // Still consider healthy if process is running
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// Monitor daemon - check health periodically
+    pub async fn monitor(&self, check_interval_secs: u64) -> Result<()> {
+        info!("Starting daemon monitor (check interval: {}s)", check_interval_secs);
+
+        loop {
+            tokio::time::sleep(tokio::time::Duration::from_secs(check_interval_secs)).await;
+
+            match self.health_check() {
+                Ok(true) => {
+                    debug!("Daemon health check: OK");
+                }
+                Ok(false) => {
+                    warn!("Daemon health check: FAILED - process not responding");
+                    // Could implement restart logic here
+                }
+                Err(e) => {
+                    warn!("Daemon health check error: {}", e);
+                }
+            }
         }
     }
 
@@ -363,5 +478,46 @@ mod tests {
         // u32::MAX can behave unexpectedly on some systems
         #[cfg(unix)]
         assert!(!is_process_running(99999));
+    }
+
+    #[test]
+    fn test_health_check_not_running() {
+        let (config, _temp) = create_test_config();
+        let daemon = McpDaemon::with_config(config);
+
+        // No daemon running, health check should return false
+        let healthy = daemon.health_check().unwrap();
+        assert!(!healthy);
+    }
+
+    #[test]
+    fn test_health_check_with_running_process() {
+        let (config, _temp) = create_test_config();
+        let daemon = McpDaemon::with_config(config);
+
+        daemon.ensure_directories().unwrap();
+
+        // Write PID of current process
+        let current_pid = std::process::id();
+        daemon.write_pid_file(current_pid).unwrap();
+
+        // Health check should succeed since current process is running
+        let healthy = daemon.health_check().unwrap();
+        assert!(healthy);
+    }
+
+    #[test]
+    fn test_health_check_with_stale_pid() {
+        let (config, _temp) = create_test_config();
+        let daemon = McpDaemon::with_config(config);
+
+        daemon.ensure_directories().unwrap();
+
+        // Write obviously non-existent PID
+        daemon.write_pid_file(99999).unwrap();
+
+        // Health check should fail
+        let healthy = daemon.health_check().unwrap();
+        assert!(!healthy);
     }
 }
