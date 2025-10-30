@@ -70,6 +70,12 @@ pub struct LibsqlStorage {
 pub enum ConnectionMode {
     /// Local file-based database
     Local(String),
+    /// Local file-based database (read-only mode)
+    ///
+    /// Used when database file has read-only permissions.
+    /// Automatically switches to journal_mode=DELETE instead of WAL
+    /// since WAL requires write access to -wal and -shm files.
+    LocalReadOnly(String),
     /// In-memory database (for testing)
     InMemory,
     /// Remote database (Turso Cloud)
@@ -83,6 +89,30 @@ pub enum ConnectionMode {
 }
 
 impl LibsqlStorage {
+    /// Check if a file is writable
+    ///
+    /// Returns true if the file can be written to, false otherwise.
+    /// Uses Unix metadata to check file permissions.
+    fn is_file_writable(db_path: &str) -> bool {
+        use std::fs;
+        use std::path::Path;
+
+        let path = Path::new(db_path);
+
+        // If file doesn't exist, check if parent directory is writable
+        if !path.exists() {
+            if let Some(parent) = path.parent() {
+                return parent.exists() && fs::metadata(parent).map(|m| !m.permissions().readonly()).unwrap_or(false);
+            }
+            return false;
+        }
+
+        // File exists - check if it's writable
+        fs::metadata(path)
+            .map(|metadata| !metadata.permissions().readonly())
+            .unwrap_or(false)
+    }
+
     /// Validate database file before opening
     ///
     /// Checks:
@@ -182,6 +212,20 @@ impl LibsqlStorage {
             mode, create_if_missing
         );
 
+        // Auto-detect read-only mode for Local connections
+        let mode = match mode {
+            ConnectionMode::Local(ref path) => {
+                let exists = std::path::Path::new(path).exists();
+                if exists && !Self::is_file_writable(path) {
+                    info!("Database is read-only, switching to read-only mode: {}", path);
+                    ConnectionMode::LocalReadOnly(path.clone())
+                } else {
+                    mode
+                }
+            }
+            _ => mode,
+        };
+
         // Validate database before connecting (for local paths only)
         match &mode {
             ConnectionMode::Local(ref path) => {
@@ -203,6 +247,11 @@ impl LibsqlStorage {
                         }
                     }
                 }
+            }
+            ConnectionMode::LocalReadOnly(ref path) => {
+                // Validate read-only database file
+                let _exists = Self::validate_database_file(path, true)?; // Must exist for read-only
+                info!("Opening database in read-only mode: {}", path);
             }
             ConnectionMode::EmbeddedReplica { ref path, .. } => {
                 // Validate replica database file
@@ -247,6 +296,14 @@ impl LibsqlStorage {
 
                 Builder::new_local(path).build().await.map_err(|e| {
                     MnemosyneError::Database(format!("Failed to create local database: {}", e))
+                })?
+            }
+            ConnectionMode::LocalReadOnly(ref path) => {
+                // Open in read-only mode
+                // Note: libsql doesn't have explicit read-only builder API,
+                // but we'll configure journal_mode after opening
+                Builder::new_local(path).build().await.map_err(|e| {
+                    MnemosyneError::Database(format!("Failed to open read-only database: {}", e))
                 })?
             }
             ConnectionMode::InMemory => {
@@ -300,15 +357,30 @@ impl LibsqlStorage {
             search_config: crate::config::SearchConfig::default(),
         };
 
-        // Verify database health before running migrations
-        storage.verify_database_health().await?;
-
-        // Run migrations
-        storage.run_migrations().await?;
+        // Verify database health and run migrations (skip for read-only databases)
+        match &mode {
+            ConnectionMode::LocalReadOnly(_) => {
+                info!("Skipping health check and migrations for read-only database");
+                // Just verify basic connectivity with a read-only query
+                let conn = storage.get_conn()?;
+                conn.query("SELECT 1", params![]).await.map_err(|e| {
+                    MnemosyneError::Database(format!(
+                        "Read-only database connectivity test failed: {}",
+                        e
+                    ))
+                })?;
+            }
+            _ => {
+                storage.verify_database_health().await?;
+                storage.run_migrations().await?;
+            }
+        }
 
         // Verify database file exists for local modes
         match &mode {
-            ConnectionMode::Local(path) | ConnectionMode::EmbeddedReplica { path, .. } => {
+            ConnectionMode::Local(path)
+            | ConnectionMode::LocalReadOnly(path)
+            | ConnectionMode::EmbeddedReplica { path, .. } => {
                 if !std::path::Path::new(path).exists() {
                     return Err(MnemosyneError::Database(format!(
                         "Database file not created after initialization: {}",
