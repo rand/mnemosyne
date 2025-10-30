@@ -58,7 +58,9 @@ impl ExecutorState {
 
 /// Executor actor implementation
 pub struct ExecutorActor {
+    #[allow(dead_code)]
     storage: Arc<dyn StorageBackend>,
+    #[allow(dead_code)]
     namespace: Namespace,
 }
 

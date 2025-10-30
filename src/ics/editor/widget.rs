@@ -1,4 +1,5 @@
 //! Editor widget for rendering text buffers
+#![allow(dead_code)]
 //!
 //! Provides elegant, minimal UI for text editing with:
 //! - Line numbers with subtle styling

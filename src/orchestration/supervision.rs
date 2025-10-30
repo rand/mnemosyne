@@ -55,13 +55,15 @@ impl Default for SupervisionConfig {
 
 /// Supervision tree managing all agents
 pub struct SupervisionTree {
-    /// Configuration
+    /// Configuration (WIP)
+    #[allow(dead_code)]
     config: SupervisionConfig,
 
     /// Storage backend
     storage: Arc<dyn StorageBackend>,
 
-    /// Network layer
+    /// Network layer (WIP)
+    #[allow(dead_code)]
     network: Arc<network::NetworkLayer>,
 
     /// Namespace for this session

@@ -1,4 +1,5 @@
 //! Python bindings for the evaluation system.
+#![allow(dead_code)]
 //!
 //! Provides Python access to:
 //! - FeedbackCollector: Record implicit feedback signals

@@ -1,4 +1,5 @@
 //! Relevance scoring with online learning and hierarchical weight management.
+#![allow(dead_code)]
 //!
 //! Implements an adaptive scoring system that learns from feedback signals
 //! and updates relevance weights at three levels:

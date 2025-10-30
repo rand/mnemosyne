@@ -1,4 +1,5 @@
 //! Remote embedding service using Voyage AI API
+#![allow(dead_code)]
 //!
 //! Provides high-quality semantic embeddings via Voyage AI's
 //! text embedding models for vector similarity search.

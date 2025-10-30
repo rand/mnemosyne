@@ -81,7 +81,8 @@ pub struct FileTracker {
     /// Active conflicts
     active_conflicts: Arc<RwLock<HashMap<String, ActiveConflict>>>,
 
-    /// Conflict detector
+    /// Conflict detector (WIP)
+    #[allow(dead_code)]
     conflict_detector: Arc<ConflictDetector>,
 }
 

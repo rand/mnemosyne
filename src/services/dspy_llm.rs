@@ -1,4 +1,5 @@
 //! DSPy-based LLM service for systematic prompt optimization
+#![allow(dead_code)]
 //!
 //! This module provides a DSPy-powered alternative to the manual prompt engineering
 //! approach in `llm.rs`. It uses DSRs (DSPy Rust) for:

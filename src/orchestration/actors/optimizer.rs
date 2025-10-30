@@ -19,10 +19,14 @@ use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::sync::Arc;
 use std::time::Duration;
 
-/// Context budget allocation percentages
+/// Context budget allocation percentages (WIP)
+#[allow(dead_code)]
 const CRITICAL_BUDGET: f32 = 0.40;
+#[allow(dead_code)]
 const SKILLS_BUDGET: f32 = 0.30;
+#[allow(dead_code)]
 const PROJECT_BUDGET: f32 = 0.20;
+#[allow(dead_code)]
 const GENERAL_BUDGET: f32 = 0.10;
 
 /// Context threshold for triggering preservation
@@ -48,10 +52,12 @@ pub struct OptimizerState {
     /// Loaded skill count
     loaded_skills: usize,
 
-    /// Max skills to load
+    /// Max skills to load (WIP)
+    #[allow(dead_code)]
     max_skills: usize,
 
-    /// Context monitoring interval
+    /// Context monitoring interval (WIP)
+    #[allow(dead_code)]
     monitor_interval: Duration,
 
     // Real metrics tracking
@@ -97,7 +103,9 @@ impl OptimizerState {
 
 /// Optimizer actor implementation
 pub struct OptimizerActor {
+    #[allow(dead_code)]
     storage: Arc<dyn StorageBackend>,
+    #[allow(dead_code)]
     namespace: Namespace,
 }
 

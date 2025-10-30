@@ -1,4 +1,5 @@
 //! PTY session management
+#![allow(dead_code)]
 
 use anyhow::{Context, Result};
 use portable_pty::{CommandBuilder, NativePtySystem, PtySize, PtySystem};

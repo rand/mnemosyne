@@ -95,7 +95,9 @@ impl ReviewerState {
 
 /// Reviewer actor implementation
 pub struct ReviewerActor {
+    #[allow(dead_code)]
     storage: Arc<dyn StorageBackend>,
+    #[allow(dead_code)]
     namespace: Namespace,
 }
 

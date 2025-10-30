@@ -1,4 +1,5 @@
 //! Memory prefetching with LRU cache
+#![allow(dead_code)]
 //!
 //! This module implements typed hole #9 (MemoryPrefetcher) from the v2.0 specification,
 //! providing intelligent memory preloading to reduce latency.

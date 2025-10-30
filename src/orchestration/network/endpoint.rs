@@ -5,6 +5,12 @@
 //! - QUIC connections to other agents
 //! - Automatic hole-punching + relay fallback
 
+// Allow deprecation warnings for iroh 0.28.x
+// We're already using the correct iroh::net::* paths, but they're re-exports
+// from deprecated iroh::iroh_net in this version. Will be resolved when
+// upgrading to iroh 0.29+.
+#![allow(deprecated)]
+
 use crate::error::{MnemosyneError, Result};
 use iroh::base::node_addr::NodeAddr;
 use iroh::net::key::SecretKey;
@@ -39,7 +45,8 @@ pub struct AgentEndpoint {
     /// Iroh endpoint
     endpoint: IrohEndpoint,
 
-    /// Agent keypair
+    /// Agent keypair (WIP)
+    #[allow(dead_code)]
     keypair: AgentKeypair,
 
     /// Node ID (cached)

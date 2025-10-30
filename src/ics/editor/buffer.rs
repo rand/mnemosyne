@@ -1,4 +1,5 @@
 //! Text buffer with rope data structure
+#![allow(dead_code)]
 //!
 //! Efficient text storage and manipulation using ropey
 

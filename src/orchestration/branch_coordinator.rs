@@ -112,7 +112,8 @@ pub struct BranchCoordinator {
     /// Cross-process coordinator (optional)
     cross_process: Option<Arc<RwLock<CrossProcessCoordinator>>>,
 
-    /// Git wrapper
+    /// Git wrapper (WIP)
+    #[allow(dead_code)]
     git_wrapper: Arc<GitWrapper>,
 
     /// Configuration

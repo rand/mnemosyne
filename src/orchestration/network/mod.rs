@@ -23,7 +23,8 @@ pub struct NetworkLayer {
     /// Local agent endpoint
     endpoint: Arc<RwLock<Option<AgentEndpoint>>>,
 
-    /// Message router
+    /// Message router (WIP)
+    #[allow(dead_code)]
     router: Arc<MessageRouter>,
 
     /// Whether network layer is started

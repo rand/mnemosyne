@@ -1,4 +1,5 @@
 //! Main ICS application
+#![allow(dead_code)]
 //!
 //! Standalone ICS application that can be run with `mnemosyne --ics`
 

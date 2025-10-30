@@ -81,9 +81,10 @@ pub enum NotificationType {
     SessionEndSummary,
 }
 
-/// Notification history entry
+/// Notification history entry (WIP)
 #[derive(Debug, Clone)]
-struct NotificationRecord {
+#[allow(dead_code)]
+pub struct NotificationRecord {
     notification_id: String,
     agent_id: AgentId,
     conflict_ids: Vec<String>,

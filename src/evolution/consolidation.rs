@@ -1,4 +1,5 @@
 // Periodic Consolidation Job
+#![allow(dead_code)]
 //
 // Detects and consolidates duplicate/similar memories using:
 // 1. Vector similarity (>0.90) for semantic duplication

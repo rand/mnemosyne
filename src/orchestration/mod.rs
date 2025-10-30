@@ -105,7 +105,8 @@ pub struct OrchestrationEngine {
     /// Network layer for distributed communication
     network: Arc<network::NetworkLayer>,
 
-    /// Storage backend for event persistence
+    /// Storage backend for event persistence (WIP)
+    #[allow(dead_code)]
     storage: Arc<dyn crate::storage::StorageBackend>,
 }
 

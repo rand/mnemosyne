@@ -43,7 +43,8 @@ pub struct OrchestratorState {
     /// Context usage percentage
     context_usage_pct: f32,
 
-    /// Deadlock check interval
+    /// Deadlock check interval (WIP)
+    #[allow(dead_code)]
     deadlock_check_interval: Duration,
 }
 
@@ -75,7 +76,9 @@ impl OrchestratorState {
 
 /// Orchestrator actor implementation
 pub struct OrchestratorActor {
+    #[allow(dead_code)]
     storage: Arc<dyn StorageBackend>,
+    #[allow(dead_code)]
     namespace: Namespace,
 }
 
@@ -599,7 +602,7 @@ impl Actor for OrchestratorActor {
     async fn post_start(
         &self,
         myself: ActorRef<Self::Msg>,
-        state: &mut Self::State,
+        _state: &mut Self::State,
     ) -> std::result::Result<(), ActorProcessingErr> {
         tracing::info!("Orchestrator actor started: {:?}", myself.get_id());
 

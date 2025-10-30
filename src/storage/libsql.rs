@@ -385,6 +385,7 @@ impl LibsqlStorage {
     ///
     /// This bypasses the normal initialization and migration process,
     /// useful when you need to set up a custom schema for testing.
+    #[allow(dead_code)]
     pub(crate) fn from_database(db: Database) -> Self {
         Self {
             db,
