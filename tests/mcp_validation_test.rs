@@ -26,7 +26,7 @@ async fn create_test_handler() -> (ToolHandler, TempDir) {
     );
 
     let llm_config = LlmConfig::default();
-    let llm = Arc::new(LlmService::new("test-key".to_string(), llm_config.clone()));
+    let llm = Arc::new(LlmService::new(llm_config.clone()).unwrap());
     let embeddings = Arc::new(EmbeddingService::new("test-key".to_string(), llm_config));
 
     let handler = ToolHandler::new(storage, llm, embeddings);
