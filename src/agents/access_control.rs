@@ -256,7 +256,7 @@ impl<S: StorageBackend> MemoryAccessControl<S> {
         let now = Utc::now();
 
         // Determine visibility
-        let visible_to = metadata
+        let _visible_to = metadata
             .visible_to
             .unwrap_or_else(|| self.default_visibility());
 
