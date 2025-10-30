@@ -503,6 +503,7 @@ impl BranchCoordinator {
 mod tests {
     use super::*;
     use crate::launcher::agents::AgentRole;
+    use crate::orchestration::branch_registry::BranchRegistry;
     use crate::orchestration::conflict_detector::ConflictDetector;
     use crate::orchestration::file_tracker::FileTracker;
     use crate::orchestration::git_state::GitStateTracker;
