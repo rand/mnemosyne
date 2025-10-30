@@ -10,6 +10,7 @@ use crate::orchestration::messages::{OrchestratorMessage, WorkResult};
 use crate::orchestration::state::{Phase, WorkItem, WorkItemId};
 use ractor::ActorRef;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{debug, info};
 
 /// Integration layer between evolution jobs and orchestration

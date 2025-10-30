@@ -17,7 +17,7 @@ use crate::orchestration::branch_guard::BranchGuard;
 use crate::orchestration::branch_registry::{
     AgentAssignment, CoordinationMode, SharedBranchRegistry, WorkIntent,
 };
-use crate::orchestration::conflict_notifier::ConflictNotifier;
+use crate::orchestration::conflict_notifier::{ConflictNotifier, NotificationConfig};
 use crate::orchestration::cross_process::{
     CoordinationMessage, CrossProcessCoordinator, MessageType,
 };
