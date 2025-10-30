@@ -43,16 +43,13 @@ fn bench_registry_operations(c: &mut Criterion) {
         b.iter(|| {
             let mut registry = BranchRegistry::new();
             let agent_id = AgentId::new();
-            let agent = create_test_agent(agent_id.clone());
 
             registry
-                .assign_branch(
-                    black_box(&agent_id),
-                    black_box(&agent),
-                    black_box("main"),
+                .assign_agent(
+                    black_box(agent_id),
+                    black_box("main".to_string()),
                     black_box(WorkIntent::FullBranch),
                     black_box(CoordinationMode::Isolated),
-                    black_box(vec![]),
                 )
                 .unwrap();
         });
@@ -62,15 +59,12 @@ fn bench_registry_operations(c: &mut Criterion) {
     group.bench_function("query_assignments", |b| {
         let mut registry = BranchRegistry::new();
         let agent_id = AgentId::new();
-        let agent = create_test_agent(agent_id.clone());
         registry
-            .assign_branch(
-                &agent_id,
-                &agent,
-                "main",
+            .assign_agent(
+                agent_id,
+                "main".to_string(),
                 WorkIntent::FullBranch,
                 CoordinationMode::Isolated,
-                vec![],
             )
             .unwrap();
 
@@ -86,15 +80,12 @@ fn bench_registry_operations(c: &mut Criterion) {
             || {
                 let mut registry = BranchRegistry::new();
                 let agent_id = AgentId::new();
-                let agent = create_test_agent(agent_id.clone());
                 registry
-                    .assign_branch(
-                        &agent_id,
-                        &agent,
-                        "main",
+                    .assign_agent(
+                        agent_id.clone(),
+                        "main".to_string(),
                         WorkIntent::FullBranch,
                         CoordinationMode::Isolated,
-                        vec![],
                     )
                     .unwrap();
                 (registry, agent_id)
@@ -127,7 +118,7 @@ fn bench_conflict_detection(c: &mut Criterion) {
                 b.iter(|| {
                     for i in 0..num_files {
                         file_tracker
-                            .track_modification(
+                            .record_modification(
                                 black_box(&agent_id),
                                 black_box(&PathBuf::from(format!("file_{}.rs", i))),
                                 black_box(ModificationType::Modified),
@@ -151,10 +142,10 @@ fn bench_conflict_detection(c: &mut Criterion) {
                 for i in 0..num_files {
                     let path = PathBuf::from(format!("file_{}.rs", i));
                     file_tracker
-                        .track_modification(&agent1, &path, ModificationType::Modified)
+                        .record_modification(&agent1, &path, ModificationType::Modified)
                         .unwrap();
                     file_tracker
-                        .track_modification(&agent2, &path, ModificationType::Modified)
+                        .record_modification(&agent2, &path, ModificationType::Modified)
                         .unwrap();
                 }
 
@@ -196,7 +187,7 @@ fn bench_cross_process(c: &mut Criterion) {
     group.bench_function("receive_messages", |b| {
         let temp_dir = TempDir::new().unwrap();
         let agent_id = AgentId::new();
-        let coordinator = CrossProcessCoordinator::new(temp_dir.path(), agent_id).unwrap();
+        let coordinator = CrossProcessCoordinator::new(temp_dir.path(), agent_id.clone()).unwrap();
 
         // Send 10 messages
         for _ in 0..10 {
@@ -232,28 +223,24 @@ fn bench_persistence(c: &mut Criterion) {
 
         b.iter_batched(
             || {
-                let mut registry = BranchRegistry::new();
-                registry.enable_persistence(registry_path.clone());
+                let mut registry = BranchRegistry::with_persistence(registry_path.clone());
 
                 // Add 10 assignments
                 for i in 0..10 {
                     let agent_id = AgentId::new();
-                    let agent = create_test_agent(agent_id.clone());
                     registry
-                        .assign_branch(
-                            &agent_id,
-                            &agent,
-                            &format!("branch_{}", i),
+                        .assign_agent(
+                            agent_id,
+                            format!("branch_{}", i),
                             WorkIntent::FullBranch,
                             CoordinationMode::Isolated,
-                            vec![],
                         )
                         .unwrap();
                 }
                 registry
             },
             |registry| {
-                // The persist is called automatically during assign_branch
+                // The persist is called automatically during assign_agent
                 black_box(registry);
             },
             criterion::BatchSize::SmallInput,
@@ -284,15 +271,15 @@ fn bench_notifications(c: &mut Criterion) {
         let agent2 = AgentId::new();
         let path = PathBuf::from("src/main.rs");
         file_tracker
-            .track_modification(&agent1, &path, ModificationType::Modified)
+            .record_modification(&agent1, &path, ModificationType::Modified)
             .unwrap();
         file_tracker
-            .track_modification(&agent2, &path, ModificationType::Modified)
+            .record_modification(&agent2, &path, ModificationType::Modified)
             .unwrap();
 
         b.iter(|| {
-            let notification = notifier.notify_on_save(black_box(&agent1), black_box(&path));
-            black_box(notification);
+            let notifications = notifier.notify_on_save(black_box(&agent1)).unwrap();
+            black_box(notifications);
         });
     });
 
@@ -313,16 +300,16 @@ fn bench_notifications(c: &mut Criterion) {
             let agent2 = AgentId::new();
             let path = PathBuf::from(format!("src/file_{}.rs", i));
             file_tracker
-                .track_modification(&agent1, &path, ModificationType::Modified)
+                .record_modification(&agent1, &path, ModificationType::Modified)
                 .unwrap();
             file_tracker
-                .track_modification(&agent2, &path, ModificationType::Modified)
+                .record_modification(&agent2, &path, ModificationType::Modified)
                 .unwrap();
         }
 
         b.iter(|| {
-            let notification = notifier.generate_periodic_notification(black_box(&agent1));
-            black_box(notification);
+            let notifications = notifier.generate_periodic_summaries().unwrap();
+            black_box(notifications);
         });
     });
 
