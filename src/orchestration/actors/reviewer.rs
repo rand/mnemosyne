@@ -108,15 +108,14 @@ impl ReviewerActor {
         // Check if memories were created (documentation)
         gates.documentation_complete = !result.memory_ids.is_empty();
 
-        // TODO: Implement actual test verification
-        // For now, assume tests pass if work succeeded
-        gates.tests_passing = result.success;
+        // Verify tests by checking memories for test-related content
+        gates.tests_passing = Self::verify_tests(state, &result).await?;
 
-        // TODO: Check for anti-patterns
-        gates.no_anti_patterns = true;
+        // Check for anti-patterns in created memories
+        gates.no_anti_patterns = Self::check_anti_patterns(state, &result).await?;
 
-        // TODO: Verify constraints
-        gates.constraints_maintained = true;
+        // Verify constraints on created memories
+        gates.constraints_maintained = Self::verify_constraints(state, &result).await?;
 
         let passed = gates.all_passed();
 
@@ -144,6 +143,147 @@ impl ReviewerActor {
             .await?;
 
         Ok(passed)
+    }
+
+    /// Verify tests by checking if work included test validation
+    ///
+    /// Checks for evidence of testing in:
+    /// - Work success status (failed work = tests didn't pass)
+    /// - Memory content for test-related keywords
+    /// - Error messages indicating test failures
+    async fn verify_tests(state: &ReviewerState, result: &WorkResult) -> Result<bool> {
+        // If work failed, tests didn't pass
+        if !result.success {
+            if let Some(error) = &result.error {
+                tracing::debug!("Work failed, likely due to test failure: {}", error);
+            }
+            return Ok(false);
+        }
+
+        // Check memories for test-related content
+        for memory_id in &result.memory_ids {
+            match state.storage.get_memory(*memory_id).await {
+                Ok(memory) => {
+                    let content_lower = memory.content.to_lowercase();
+                    let summary_lower = memory.summary.to_lowercase();
+
+                    // Look for test failure indicators
+                    let failure_indicators = ["test failed", "tests failed", "failing test", "test error"];
+                    for indicator in &failure_indicators {
+                        if content_lower.contains(indicator) || summary_lower.contains(indicator) {
+                            tracing::warn!("Test failure detected in memory {}: {}", memory_id, indicator);
+                            return Ok(false);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to retrieve memory {} for test verification: {:?}", memory_id, e);
+                    // Don't fail the gate if we can't retrieve memory
+                }
+            }
+        }
+
+        // If work succeeded and no test failures found, tests pass
+        Ok(true)
+    }
+
+    /// Check for anti-patterns in created memories
+    ///
+    /// Detects common anti-patterns:
+    /// - TODO/FIXME comments left in documentation
+    /// - Mock/stub implementations not replaced
+    /// - Incomplete work markers
+    async fn check_anti_patterns(state: &ReviewerState, result: &WorkResult) -> Result<bool> {
+        // Define anti-pattern keywords to check
+        let anti_patterns = [
+            "TODO:", "FIXME:", "HACK:", "XXX:",
+            "NOT IMPLEMENTED", "STUB", "MOCK",
+            "PLACEHOLDER", "TEMPORARY",
+        ];
+
+        for memory_id in &result.memory_ids {
+            match state.storage.get_memory(*memory_id).await {
+                Ok(memory) => {
+                    let content_upper = memory.content.to_uppercase();
+                    let summary_upper = memory.summary.to_uppercase();
+
+                    for pattern in &anti_patterns {
+                        if content_upper.contains(pattern) || summary_upper.contains(pattern) {
+                            tracing::warn!(
+                                "Anti-pattern detected in memory {}: {}",
+                                memory_id,
+                                pattern
+                            );
+                            return Ok(false);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to retrieve memory {} for anti-pattern check: {:?}", memory_id, e);
+                    // Don't fail the gate if we can't retrieve memory
+                }
+            }
+        }
+
+        Ok(true)
+    }
+
+    /// Verify constraints on created memories
+    ///
+    /// Validates:
+    /// - Memories have proper structure (non-empty content, summary)
+    /// - Importance and confidence are within valid ranges
+    /// - Required metadata is present
+    async fn verify_constraints(state: &ReviewerState, result: &WorkResult) -> Result<bool> {
+        for memory_id in &result.memory_ids {
+            match state.storage.get_memory(*memory_id).await {
+                Ok(memory) => {
+                    // Check content is not empty
+                    if memory.content.trim().is_empty() {
+                        tracing::warn!("Memory {} has empty content", memory_id);
+                        return Ok(false);
+                    }
+
+                    // Check summary is not empty
+                    if memory.summary.trim().is_empty() {
+                        tracing::warn!("Memory {} has empty summary", memory_id);
+                        return Ok(false);
+                    }
+
+                    // Verify importance range (1-10)
+                    if memory.importance < 1 || memory.importance > 10 {
+                        tracing::warn!(
+                            "Memory {} has invalid importance: {}",
+                            memory_id,
+                            memory.importance
+                        );
+                        return Ok(false);
+                    }
+
+                    // Verify confidence range (0.0-1.0)
+                    if memory.confidence < 0.0 || memory.confidence > 1.0 {
+                        tracing::warn!(
+                            "Memory {} has invalid confidence: {}",
+                            memory_id,
+                            memory.confidence
+                        );
+                        return Ok(false);
+                    }
+
+                    // Check that memory type is valid (enum validation happens at type level)
+                    // No additional check needed
+
+                    tracing::debug!("Memory {} passed constraint validation", memory_id);
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to retrieve memory {} for constraint verification: {:?}", memory_id, e);
+                    // Fail the gate if we can't retrieve memory - this is a constraint violation
+                    return Ok(false);
+                }
+            }
+        }
+
+        Ok(true)
     }
 
     /// Validate phase transition
