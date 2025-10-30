@@ -240,7 +240,39 @@ impl SupervisionTree {
             )
             .await;
 
-        self.orchestrator = Some(orchestrator_ref);
+        self.orchestrator = Some(orchestrator_ref.clone());
+
+        // Wire agents together - send agent references to connect the mesh
+        if let (Some(optimizer), Some(reviewer), Some(executor)) = (
+            self.optimizer.as_ref(),
+            self.reviewer.as_ref(),
+            self.executor.as_ref(),
+        ) {
+            // Wire Orchestrator with Optimizer, Reviewer, Executor
+            orchestrator_ref
+                .cast(OrchestratorMessage::RegisterAgents {
+                    optimizer: optimizer.clone(),
+                    reviewer: reviewer.clone(),
+                    executor: executor.clone(),
+                })
+                .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
+
+            // Wire Optimizer with Orchestrator
+            optimizer
+                .cast(OptimizerMessage::RegisterOrchestrator(
+                    orchestrator_ref.clone(),
+                ))
+                .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
+
+            // Wire Reviewer with Orchestrator
+            reviewer
+                .cast(ReviewerMessage::RegisterOrchestrator(
+                    orchestrator_ref.clone(),
+                ))
+                .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
+
+            tracing::info!("Agents wired: Full mesh topology established");
+        }
 
         tracing::info!("Supervision tree started with {} agents", 4);
 

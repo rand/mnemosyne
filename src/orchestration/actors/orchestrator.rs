@@ -626,6 +626,15 @@ impl Actor for OrchestratorActor {
             OrchestratorMessage::Initialize => {
                 tracing::info!("Orchestrator initialized");
             }
+            OrchestratorMessage::RegisterAgents {
+                optimizer,
+                reviewer,
+                executor,
+            } => {
+                tracing::info!("Registering agent references with Orchestrator");
+                state.register_agents(optimizer, reviewer, executor);
+                tracing::info!("Agents wired: Optimizer, Reviewer, Executor");
+            }
             OrchestratorMessage::SubmitWork(item) => {
                 Self::handle_submit_work(state, item)
                     .await

@@ -644,6 +644,10 @@ impl Actor for OptimizerActor {
             OptimizerMessage::Initialize => {
                 tracing::info!("Optimizer initialized");
             }
+            OptimizerMessage::RegisterOrchestrator(orchestrator_ref) => {
+                tracing::info!("Registering orchestrator reference with Optimizer");
+                state.orchestrator = Some(orchestrator_ref);
+            }
             OptimizerMessage::DiscoverSkills {
                 task_description,
                 max_skills,

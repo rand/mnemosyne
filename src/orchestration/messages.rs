@@ -19,6 +19,14 @@ pub enum OrchestratorMessage {
     /// Initialize work queue from stored state
     Initialize,
 
+    /// Register agent references for inter-agent communication
+    #[serde(skip)]
+    RegisterAgents {
+        optimizer: ractor::ActorRef<OptimizerMessage>,
+        reviewer: ractor::ActorRef<ReviewerMessage>,
+        executor: ractor::ActorRef<ExecutorMessage>,
+    },
+
     /// Submit a new work item to the queue
     SubmitWork(WorkItem),
 
@@ -63,6 +71,10 @@ pub enum OrchestratorMessage {
 pub enum OptimizerMessage {
     /// Initialize optimizer with current context
     Initialize,
+
+    /// Register orchestrator reference for communication
+    #[serde(skip)]
+    RegisterOrchestrator(ractor::ActorRef<OrchestratorMessage>),
 
     /// Discover skills for a task description
     DiscoverSkills {
@@ -122,6 +134,10 @@ pub struct ReviewFeedback {
 pub enum ReviewerMessage {
     /// Initialize reviewer
     Initialize,
+
+    /// Register orchestrator reference for communication
+    #[serde(skip)]
+    RegisterOrchestrator(ractor::ActorRef<OrchestratorMessage>),
 
     /// Review work item results (with full work item for context)
     ReviewWork {

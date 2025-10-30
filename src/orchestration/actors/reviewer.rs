@@ -691,6 +691,10 @@ impl Actor for ReviewerActor {
             ReviewerMessage::Initialize => {
                 tracing::info!("Reviewer initialized");
             }
+            ReviewerMessage::RegisterOrchestrator(orchestrator_ref) => {
+                tracing::info!("Registering orchestrator reference with Reviewer");
+                state.orchestrator = Some(orchestrator_ref);
+            }
             ReviewerMessage::ReviewWork {
                 item_id,
                 result,
