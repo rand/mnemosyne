@@ -10,7 +10,11 @@
 //! - Provides handle for task management
 
 use crate::error::Result;
-use crate::orchestration::conflict_notifier::{ConflictNotification, ConflictNotifier};
+use crate::orchestration::conflict_notifier::{ConflictNotification, ConflictNotifier, NotificationType};
+use crate::orchestration::cross_process::{CoordinationMessage, CrossProcessCoordinator, MessageType};
+use crate::storage::StorageBackend;
+use crate::types::{MemoryNote, MemoryId, MemoryType, Namespace};
+use chrono::Utc;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::time::{interval, Duration};
@@ -30,12 +34,30 @@ impl NotificationTaskHandle {
     /// # Arguments
     ///
     /// * `notifier` - Conflict notifier for generating summaries
+    /// * `storage` - Storage backend for persisting notifications
+    /// * `coordinator` - Cross-process coordinator for sending messages (optional)
+    /// * `namespace` - Namespace for storing notification memories
     /// * `interval_minutes` - Interval in minutes (default: 20)
-    pub fn spawn(notifier: Arc<ConflictNotifier>, interval_minutes: u64) -> Self {
+    pub fn spawn(
+        notifier: Arc<ConflictNotifier>,
+        storage: Arc<dyn StorageBackend>,
+        coordinator: Option<Arc<CrossProcessCoordinator>>,
+        namespace: Namespace,
+        interval_minutes: u64,
+    ) -> Self {
         let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
 
         let task_handle = tokio::spawn(async move {
-            if let Err(e) = run_notification_loop(notifier, interval_minutes, shutdown_rx).await {
+            if let Err(e) = run_notification_loop(
+                notifier,
+                storage,
+                coordinator,
+                namespace,
+                interval_minutes,
+                shutdown_rx,
+            )
+            .await
+            {
                 tracing::error!("Notification task error: {}", e);
             }
         });
@@ -74,6 +96,9 @@ impl NotificationTaskHandle {
 /// Run the notification loop
 async fn run_notification_loop(
     notifier: Arc<ConflictNotifier>,
+    storage: Arc<dyn StorageBackend>,
+    coordinator: Option<Arc<CrossProcessCoordinator>>,
+    namespace: Namespace,
     interval_minutes: u64,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<()> {
@@ -97,7 +122,14 @@ async fn run_notification_loop(
                             );
 
                             // Process notifications (e.g., send to agents, log, etc.)
-                            process_notifications(&notifier, notifications).await?;
+                            process_notifications(
+                                &notifier,
+                                &storage,
+                                coordinator.as_ref(),
+                                &namespace,
+                                notifications,
+                            )
+                            .await?;
                         }
                     }
                     Err(e) => {
@@ -116,16 +148,14 @@ async fn run_notification_loop(
     Ok(())
 }
 
-/// Process notifications (placeholder for actual notification delivery)
+/// Process notifications - implements actual notification delivery
 async fn process_notifications(
     _notifier: &Arc<ConflictNotifier>,
+    storage: &Arc<dyn StorageBackend>,
+    coordinator: Option<&Arc<CrossProcessCoordinator>>,
+    namespace: &Namespace,
     notifications: Vec<ConflictNotification>,
 ) -> Result<()> {
-    // In a real implementation, this would:
-    // 1. Send notifications to agents via message queue
-    // 2. Log to notification storage
-    // 3. Trigger alerts if severity is high
-
     for notification in notifications {
         tracing::debug!(
             "Processing notification for agent {}: {:?}",
@@ -133,11 +163,124 @@ async fn process_notifications(
             notification.notification_type
         );
 
-        // TODO: Implement actual notification delivery
-        // This could integrate with:
-        // - Cross-process coordinator for external agents
-        // - Actor messaging for internal agents
-        // - Notification storage for historical tracking
+        // 1. Send notification via cross-process coordinator if available
+        if let Some(coord) = coordinator {
+            let message = CoordinationMessage {
+                id: notification.id.clone(),
+                from_agent: crate::orchestration::identity::AgentId::new("optimizer".to_string()),
+                to_agent: Some(notification.agent_id.clone()),
+                message_type: MessageType::ConflictNotification,
+                timestamp: notification.timestamp,
+                payload: serde_json::to_value(&notification).map_err(|e| {
+                    crate::error::MnemosyneError::Other(format!(
+                        "Failed to serialize notification: {}",
+                        e
+                    ))
+                })?,
+            };
+
+            if let Err(e) = coord.send_message(message) {
+                tracing::warn!(
+                    "Failed to send notification via coordinator to agent {}: {}",
+                    notification.agent_id,
+                    e
+                );
+            } else {
+                tracing::info!(
+                    "Sent notification {} to agent {} via coordinator",
+                    notification.id,
+                    notification.agent_id
+                );
+            }
+        }
+
+        // 2. Store notification as memory for historical tracking
+        let memory = MemoryNote {
+            id: MemoryId::new(),
+            namespace: namespace.clone(),
+            created_at: notification.timestamp,
+            updated_at: notification.timestamp,
+            content: notification.message.clone(),
+            summary: format!(
+                "{:?} notification for agent {}",
+                notification.notification_type, notification.agent_id
+            ),
+            keywords: vec![
+                "notification".to_string(),
+                "conflict".to_string(),
+                format!("{:?}", notification.notification_type).to_lowercase(),
+            ],
+            tags: vec!["notification".to_string(), "conflict".to_string()],
+            context: format!(
+                "Notification {} for agent {} with {} conflict(s)",
+                notification.id,
+                notification.agent_id,
+                notification.conflicts.len()
+            ),
+            memory_type: MemoryType::AgentEvent,
+            importance: match notification.notification_type {
+                NotificationType::NewConflict => 7,
+                NotificationType::PeriodicSummary => 6,
+                NotificationType::SessionEndSummary => 8,
+            },
+            confidence: 1.0,
+            links: vec![],
+            related_files: notification
+                .conflicts
+                .iter()
+                .map(|c| c.file_path.clone())
+                .collect(),
+            related_entities: vec![notification.agent_id.to_string()],
+            access_count: 0,
+            last_accessed_at: notification.timestamp,
+            expires_at: None,
+            is_archived: false,
+            superseded_by: None,
+            embedding: None,
+            embedding_model: String::new(),
+        };
+
+        if let Err(e) = storage.store_memory(&memory).await {
+            tracing::warn!(
+                "Failed to store notification {} as memory: {}",
+                notification.id,
+                e
+            );
+        } else {
+            tracing::debug!("Stored notification {} as memory {}", notification.id, memory.id);
+        }
+
+        // 3. Log high-severity notifications
+        if !notification.conflicts.is_empty() {
+            match notification.notification_type {
+                NotificationType::NewConflict => {
+                    tracing::warn!(
+                        "New conflict detected for agent {}: {} conflict(s) in files: {:?}",
+                        notification.agent_id,
+                        notification.conflicts.len(),
+                        notification
+                            .conflicts
+                            .iter()
+                            .map(|c| c.file_path.display().to_string())
+                            .collect::<Vec<_>>()
+                    );
+                }
+                NotificationType::SessionEndSummary => {
+                    tracing::warn!(
+                        "Session ending with {} unresolved conflict(s) for agent {}",
+                        notification.conflicts.len(),
+                        notification.agent_id
+                    );
+                }
+                NotificationType::PeriodicSummary => {
+                    tracing::info!(
+                        "Periodic summary: {} active conflict(s) for agent {}",
+                        notification.conflicts.len(),
+                        notification.agent_id
+                    );
+                }
+            }
+        }
     }
 
     Ok(())
@@ -149,6 +292,7 @@ mod tests {
     use crate::orchestration::conflict_detector::ConflictDetector;
     use crate::orchestration::conflict_notifier::NotificationConfig;
     use crate::orchestration::file_tracker::FileTracker;
+    use crate::{ConnectionMode, LibsqlStorage};
     use std::sync::Arc;
     use tokio::time::{sleep, Duration};
 
@@ -166,8 +310,19 @@ mod tests {
 
         let notifier = Arc::new(ConflictNotifier::new(config, file_tracker));
 
+        let storage = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create test storage"),
+        ) as Arc<dyn StorageBackend>;
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
         // Spawn task with short interval for testing
-        let mut handle = NotificationTaskHandle::spawn(notifier, 1);
+        let mut handle = NotificationTaskHandle::spawn(notifier, storage, None, namespace, 1);
 
         assert!(handle.is_running());
 
@@ -194,7 +349,18 @@ mod tests {
 
         let notifier = Arc::new(ConflictNotifier::new(config, file_tracker));
 
-        let mut handle = NotificationTaskHandle::spawn(notifier, 1);
+        let storage = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create test storage"),
+        ) as Arc<dyn StorageBackend>;
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        let mut handle = NotificationTaskHandle::spawn(notifier, storage, None, namespace, 1);
 
         // Stop task
         handle.stop().await.unwrap();
@@ -217,8 +383,19 @@ mod tests {
 
         let notifier = Arc::new(ConflictNotifier::new(config, file_tracker));
 
+        let storage = Arc::new(
+            LibsqlStorage::new(ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create test storage"),
+        ) as Arc<dyn StorageBackend>;
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
         // Spawn task with 1-second interval for testing
-        let mut handle = NotificationTaskHandle::spawn(notifier, 1);
+        let mut handle = NotificationTaskHandle::spawn(notifier, storage, None, namespace, 1);
 
         // Let it run for 2.5 seconds (should trigger ~2 times)
         sleep(Duration::from_millis(2500)).await;
