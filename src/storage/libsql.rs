@@ -188,14 +188,18 @@ impl LibsqlStorage {
                 // Validate database file
                 let exists = Self::validate_database_file(path, !create_if_missing)?;
 
-                // If creating and doesn't exist, check parent directory
+                // If creating and doesn't exist, create parent directory
                 if create_if_missing && !exists {
                     if let Some(parent) = std::path::Path::new(path).parent() {
                         if !parent.exists() {
-                            return Err(MnemosyneError::Database(format!(
-                                "Database directory '{}' does not exist. Please create it first.",
-                                parent.display()
-                            )));
+                            std::fs::create_dir_all(parent).map_err(|e| {
+                                MnemosyneError::Database(format!(
+                                    "Failed to create database directory '{}': {}",
+                                    parent.display(),
+                                    e
+                                ))
+                            })?;
+                            info!("Created database directory: {}", parent.display());
                         }
                     }
                 }
@@ -204,14 +208,18 @@ impl LibsqlStorage {
                 // Validate replica database file
                 let exists = Self::validate_database_file(path, !create_if_missing)?;
 
-                // If creating and doesn't exist, check parent directory
+                // If creating and doesn't exist, create parent directory
                 if create_if_missing && !exists {
                     if let Some(parent) = std::path::Path::new(path).parent() {
                         if !parent.exists() {
-                            return Err(MnemosyneError::Database(format!(
-                                "Database directory '{}' does not exist. Please create it first.",
-                                parent.display()
-                            )));
+                            std::fs::create_dir_all(parent).map_err(|e| {
+                                MnemosyneError::Database(format!(
+                                    "Failed to create database directory '{}': {}",
+                                    parent.display(),
+                                    e
+                                ))
+                            })?;
+                            info!("Created database directory: {}", parent.display());
                         }
                     }
                 }
