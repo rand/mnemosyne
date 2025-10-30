@@ -87,6 +87,14 @@ pub struct IcsApp {
     validator: Validator,
     /// Current diagnostics
     diagnostics: Vec<Diagnostic>,
+
+    // Phase 7: Real-time Completion
+    /// Symbol registry for completion
+    symbol_registry: super::SharedSymbolRegistry,
+    /// Completion engine
+    completion_engine: Option<super::CompletionEngine>,
+    /// Completion popup widget
+    completion_popup: super::CompletionPopup,
 }
 
 impl IcsApp {
@@ -138,6 +146,11 @@ impl IcsApp {
             diagnostics_panel: DiagnosticsPanelState::new(),
             validator: Validator::new(),
             diagnostics: Vec::new(),
+
+            // Phase 7: Real-time Completion
+            symbol_registry: Arc::new(std::sync::RwLock::new(super::SymbolRegistry::new())),
+            completion_engine: None, // Initialized lazily when first needed
+            completion_popup: super::CompletionPopup::new(),
         }
     }
 
@@ -445,6 +458,134 @@ impl IcsApp {
         }
     }
 
+    /// Initialize completion engine (lazy)
+    fn ensure_completion_engine(&mut self) {
+        if self.completion_engine.is_none() {
+            let namespace = Namespace::Session {
+                project: "ics".to_string(),
+                session_id: format!("{}", chrono::Utc::now().timestamp()),
+            };
+
+            let engine = super::CompletionEngine::new(
+                self.symbol_registry.clone(),
+                self.storage.clone(),
+                namespace,
+                None, // Project root not set yet
+            );
+
+            self.completion_engine = Some(engine);
+        }
+    }
+
+    /// Trigger completion check at current cursor position
+    ///
+    /// Checks if user is typing after @ or # and shows completion popup
+    async fn trigger_completion(&mut self) {
+        self.ensure_completion_engine();
+
+        let buffer = self.editor.active_buffer();
+        let cursor = buffer.cursor.position;
+
+        // Get current line text
+        let text = match buffer.text() {
+            Ok(text) => text,
+            Err(_) => return,
+        };
+
+        let lines: Vec<&str> = text.lines().collect();
+        if cursor.line >= lines.len() {
+            return;
+        }
+
+        let line = lines[cursor.line];
+
+        // Get completions from engine
+        if let Some(ref engine) = self.completion_engine {
+            let candidates = engine.get_completions(line, cursor.column).await;
+
+            if !candidates.is_empty() {
+                // Extract prefix from line
+                let (_, prefix) = engine.detect_context(line, cursor.column);
+
+                // Show popup
+                self.completion_popup.show(candidates, cursor, prefix);
+            } else {
+                // Hide popup if no candidates
+                self.completion_popup.hide();
+            }
+        }
+    }
+
+    /// Insert selected completion at cursor
+    fn insert_completion(&mut self) {
+        if let Some(candidate) = self.completion_popup.selected_completion() {
+            let buffer = self.editor.active_buffer_mut();
+            let cursor_pos = buffer.cursor.position;
+
+            // Get current line
+            let text = match buffer.text() {
+                Ok(text) => text,
+                Err(_) => {
+                    self.completion_popup.hide();
+                    return;
+                }
+            };
+
+            let lines: Vec<&str> = text.lines().collect();
+            if cursor_pos.line >= lines.len() {
+                self.completion_popup.hide();
+                return;
+            }
+
+            let line = lines[cursor_pos.line];
+
+            // Find the start of the completion (@ or # trigger)
+            let prefix_len = self.completion_popup.prefix().len();
+            let trigger_col = if cursor_pos.column >= prefix_len {
+                cursor_pos.column - prefix_len
+            } else {
+                0
+            };
+
+            // Check if there's a @ or # before the prefix
+            let has_trigger = if trigger_col > 0 {
+                let char_before = line.chars().nth(trigger_col - 1);
+                char_before == Some('@') || char_before == Some('#')
+            } else {
+                false
+            };
+
+            let start_col = if has_trigger && trigger_col > 0 {
+                trigger_col - 1 // Include the @ or #
+            } else {
+                trigger_col
+            };
+
+            // Delete characters from start to cursor (delete the prefix + trigger)
+            let chars_to_delete = cursor_pos.column - start_col;
+            for _ in 0..chars_to_delete {
+                // Move left and delete
+                if let Err(e) = buffer.move_cursor(Movement::Left) {
+                    eprintln!("Failed to move cursor for deletion: {}", e);
+                    break;
+                }
+            }
+            for _ in 0..chars_to_delete {
+                if let Err(e) = buffer.delete_at_cursor() {
+                    eprintln!("Failed to delete character: {}", e);
+                    break;
+                }
+            }
+
+            // Insert completion text
+            if let Err(e) = buffer.insert_at_cursor(&candidate.text) {
+                eprintln!("Failed to insert completion: {}", e);
+            }
+
+            self.completion_popup.hide();
+        }
+    }
+
     // Test accessors for internal state
     #[cfg(test)]
     pub fn memories(&self) -> &[MemoryNote] {
@@ -653,6 +794,17 @@ impl IcsApp {
                         }
                     }
 
+                    // Tab - accept completion if popup is visible
+                    (KeyCode::Tab, _) if self.completion_popup.is_visible() => {
+                        self.insert_completion();
+                    }
+
+                    // Escape - cancel completion
+                    (KeyCode::Esc, _) if self.completion_popup.is_visible() => {
+                        self.completion_popup.hide();
+                        self.status = "Completion cancelled".to_string();
+                    }
+
                     // Text input
                     (KeyCode::Char(c), false) => {
                         if let Err(e) = buffer.insert_at_cursor(&c.to_string()) {
@@ -660,7 +812,14 @@ impl IcsApp {
                         } else {
                             self.trigger_semantic_analysis();
                             self.run_validation();
+                            // Trigger completion on @ or # or continue existing completion
+                            self.trigger_completion().await;
                         }
+                    }
+
+                    // Enter - accept completion if visible, otherwise newline
+                    (KeyCode::Enter, _) if self.completion_popup.is_visible() => {
+                        self.insert_completion();
                     }
 
                     // Newline
@@ -698,18 +857,30 @@ impl IcsApp {
                         }
                     }
 
-                    // Cursor movement
+                    // Cursor movement - navigate completion if visible
+                    (KeyCode::Up, _) if self.completion_popup.is_visible() => {
+                        self.completion_popup.select_previous();
+                    }
+                    (KeyCode::Down, _) if self.completion_popup.is_visible() => {
+                        self.completion_popup.select_next();
+                    }
+
+                    // Regular cursor movement
                     (KeyCode::Left, _) => {
                         let _ = buffer.move_cursor(Movement::Left);
+                        self.completion_popup.hide(); // Hide on cursor movement
                     }
                     (KeyCode::Right, _) => {
                         let _ = buffer.move_cursor(Movement::Right);
+                        self.completion_popup.hide(); // Hide on cursor movement
                     }
                     (KeyCode::Up, _) => {
                         let _ = buffer.move_cursor(Movement::Up);
+                        self.completion_popup.hide(); // Hide on cursor movement
                     }
                     (KeyCode::Down, _) => {
                         let _ = buffer.move_cursor(Movement::Down);
+                        self.completion_popup.hide(); // Hide on cursor movement
                     }
                     (KeyCode::Home, _) => {
                         let _ = buffer.move_cursor(Movement::LineStart);
@@ -912,6 +1083,18 @@ impl IcsApp {
                 .style(Style::default().fg(Color::DarkGray));
             let info_bar_index = if bottom_panels_visible { 3 } else { 2 };
             frame.render_widget(info_widget, main_chunks[info_bar_index]);
+
+            // Render completion popup (overlay on top of everything)
+            if self.completion_popup.is_visible() {
+                let cursor_pos = buffer.cursor.position;
+                let popup_area = self.completion_popup.popup_area(
+                    size,
+                    cursor_pos.line as u16,
+                    cursor_pos.column as u16,
+                );
+                let buf = frame.buffer_mut();
+                self.completion_popup.render(popup_area, buf);
+            }
         })?;
 
         Ok(())

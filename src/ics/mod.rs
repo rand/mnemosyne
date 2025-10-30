@@ -25,6 +25,7 @@ pub mod diagnostics_panel;
 pub mod symbols;
 pub mod holes;
 pub mod suggestions;
+pub mod completion_popup;
 pub mod commands;
 pub mod views;
 pub mod layout;
@@ -46,3 +47,6 @@ pub use agent_status::{AgentStatusWidget, AgentStatusState, AgentInfo, AgentActi
 pub use attribution::{AttributionPanel, AttributionPanelState, AttributionEntry, ChangeType};
 pub use proposals::{ProposalsPanel, ProposalsPanelState, ChangeProposal, ProposalStatus};
 pub use diagnostics_panel::{DiagnosticsPanel, DiagnosticsPanelState};
+pub use completion_popup::CompletionPopup;
+pub use suggestions::CompletionEngine;
+pub use symbols::{SymbolRegistry, SharedSymbolRegistry};
