@@ -110,7 +110,11 @@ impl IcsApp {
 
             // Phase 5: Agent Collaboration
             agent_status_panel: AgentStatusState::new(),
-            agents: Vec::new(), // TODO: track active agents
+            // NOTE: Agent tracking requires ractor agent registry implementation.
+            // Current orchestration system has actor definitions (orchestrator, optimizer, executor, reviewer)
+            // but no centralized registry to query for active agents.
+            // Full implementation blocked on ractor agent registry (Phase 4.1+).
+            agents: Vec::new(),
             attribution_panel: AttributionPanelState::new(),
             // NOTE: Attributions require IcsEditor to use CrdtBuffer instead of TextBuffer.
             // CrdtBuffer has built-in attribution tracking (see src/ics/editor/crdt_buffer.rs).
