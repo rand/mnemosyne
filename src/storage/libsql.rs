@@ -1490,6 +1490,14 @@ impl StorageBackend for LibsqlStorage {
             "#
         };
 
+        // Serialize embedding outside params! macro to handle errors properly
+        let embedding_json = match &memory.embedding {
+            Some(emb) => Some(serde_json::to_string(emb).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to serialize embedding: {}", e))
+            })?),
+            None => None,
+        };
+
         tx.execute(
             sql,
             params![
@@ -1502,7 +1510,11 @@ impl StorageBackend for LibsqlStorage {
                 serde_json::to_string(&memory.keywords)?,
                 serde_json::to_string(&memory.tags)?,
                 memory.context.clone(),
-                serde_json::to_value(memory.memory_type)?.as_str().unwrap(),
+                serde_json::to_value(memory.memory_type)?
+                    .as_str()
+                    .ok_or_else(|| MnemosyneError::Database(
+                        "Failed to serialize memory_type as string".to_string()
+                    ))?,
                 memory.importance as i64,
                 memory.confidence as f64,
                 serde_json::to_string(&memory.related_files)?,
@@ -1513,15 +1525,20 @@ impl StorageBackend for LibsqlStorage {
                 if memory.is_archived { 1i64 } else { 0i64 },
                 memory.superseded_by.map(|id| id.to_string()),
                 memory.embedding_model.clone(),
-                memory.embedding.as_ref().map(|emb| {
-                    serde_json::to_string(emb).expect("Failed to serialize embedding")
-                })
+                embedding_json
             ],
         )
         .await?;
 
         // Store links
         for link in &memory.links {
+            let link_type_str = serde_json::to_value(link.link_type)?
+                .as_str()
+                .ok_or_else(|| MnemosyneError::Database(
+                    "Failed to serialize link_type as string".to_string()
+                ))?
+                .to_string();
+
             tx.execute(
                 r#"
                 INSERT INTO memory_links (source_id, target_id, link_type, strength, reason, created_at)
@@ -1530,7 +1547,7 @@ impl StorageBackend for LibsqlStorage {
                 params![
                     memory.id.to_string(),
                     link.target_id.to_string(),
-                    serde_json::to_value(link.link_type)?.as_str().unwrap(),
+                    link_type_str,
                     link.strength as f64,
                     link.reason.clone(),
                     link.created_at.to_rfc3339(),
@@ -1739,6 +1756,13 @@ impl StorageBackend for LibsqlStorage {
         .await?;
 
         for link in &memory.links {
+            let link_type_str = serde_json::to_value(link.link_type)?
+                .as_str()
+                .ok_or_else(|| MnemosyneError::Database(
+                    "Failed to serialize link_type as string".to_string()
+                ))?
+                .to_string();
+
             tx.execute(
                 r#"
                 INSERT INTO memory_links (source_id, target_id, link_type, strength, reason, created_at)
@@ -1747,7 +1771,7 @@ impl StorageBackend for LibsqlStorage {
                 params![
                     memory.id.to_string(),
                     link.target_id.to_string(),
-                    serde_json::to_value(link.link_type)?.as_str().unwrap(),
+                    link_type_str,
                     link.strength as f64,
                     link.reason.clone(),
                     link.created_at.to_rfc3339(),
@@ -1884,7 +1908,12 @@ impl StorageBackend for LibsqlStorage {
     ) -> Result<Vec<SearchResult>> {
         debug!("Keyword search: {} (namespace: {:?})", query, namespace);
 
-        let namespace_filter = namespace.map(|ns| serde_json::to_string(&ns).unwrap());
+        let namespace_filter = match namespace {
+            Some(ns) => Some(serde_json::to_string(&ns).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to serialize namespace: {}", e))
+            })?),
+            None => None,
+        };
 
         // Convert multi-word queries to OR logic for FTS5
         // "database architecture" -> "database OR architecture"
@@ -2293,7 +2322,10 @@ impl StorageBackend for LibsqlStorage {
         }
 
         // Sort by score and limit results
-        scored_results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        // Handle potential NaN values gracefully - treat them as lowest priority
+        scored_results.sort_by(|a, b| {
+            b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Less)
+        });
         scored_results.truncate(max_results);
 
         debug!("Hybrid search returned {} results", scored_results.len());
@@ -2620,27 +2652,67 @@ impl StorageBackend for LibsqlStorage {
             .await
             .map_err(|e| MnemosyneError::NotFound(format!("Work item not found: {}", e)))?;
 
-        // Parse fields from row
-        let description: String = row.get(1).unwrap();
-        let original_intent: String = row.get(2).unwrap();
-        let agent_role_str: String = row.get(3).unwrap();
-        let state_str: String = row.get(4).unwrap();
-        let phase_str: String = row.get(5).unwrap();
-        let priority: i64 = row.get(6).unwrap();
-        let dependencies_json: String = row.get(7).unwrap();
-        let created_at_ms: i64 = row.get(8).unwrap();
-        let started_at_ms: Option<i64> = row.get(9).unwrap();
-        let completed_at_ms: Option<i64> = row.get(10).unwrap();
-        let error: Option<String> = row.get(11).unwrap();
-        let timeout_secs: Option<i64> = row.get(12).unwrap();
-        let review_feedback_json: String = row.get(13).unwrap();
-        let suggested_tests_json: String = row.get(14).unwrap();
-        let review_attempt: i64 = row.get(15).unwrap();
-        let execution_memory_ids_json: String = row.get(16).unwrap();
-        let consolidated_context_id_str: Option<String> = row.get(17).unwrap();
-        let estimated_context_tokens: i64 = row.get(18).unwrap();
-        let assigned_branch: Option<String> = row.get(19).unwrap();
-        let file_scope_json: String = row.get(20).unwrap();
+        // Parse fields from row with proper error handling
+        let description: String = row.get(1).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get description from row: {}", e))
+        })?;
+        let original_intent: String = row.get(2).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get original_intent from row: {}", e))
+        })?;
+        let agent_role_str: String = row.get(3).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get agent_role from row: {}", e))
+        })?;
+        let state_str: String = row.get(4).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get state from row: {}", e))
+        })?;
+        let phase_str: String = row.get(5).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get phase from row: {}", e))
+        })?;
+        let priority: i64 = row.get(6).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get priority from row: {}", e))
+        })?;
+        let dependencies_json: String = row.get(7).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get dependencies from row: {}", e))
+        })?;
+        let created_at_ms: i64 = row.get(8).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get created_at from row: {}", e))
+        })?;
+        let started_at_ms: Option<i64> = row.get(9).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get started_at from row: {}", e))
+        })?;
+        let completed_at_ms: Option<i64> = row.get(10).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get completed_at from row: {}", e))
+        })?;
+        let error: Option<String> = row.get(11).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get error from row: {}", e))
+        })?;
+        let timeout_secs: Option<i64> = row.get(12).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get timeout_secs from row: {}", e))
+        })?;
+        let review_feedback_json: String = row.get(13).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get review_feedback from row: {}", e))
+        })?;
+        let suggested_tests_json: String = row.get(14).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get suggested_tests from row: {}", e))
+        })?;
+        let review_attempt: i64 = row.get(15).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get review_attempt from row: {}", e))
+        })?;
+        let execution_memory_ids_json: String = row.get(16).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get execution_memory_ids from row: {}", e))
+        })?;
+        let consolidated_context_id_str: Option<String> = row.get(17).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get consolidated_context_id from row: {}", e))
+        })?;
+        let estimated_context_tokens: i64 = row.get(18).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get estimated_context_tokens from row: {}", e))
+        })?;
+        let assigned_branch: Option<String> = row.get(19).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get assigned_branch from row: {}", e))
+        })?;
+        let file_scope_json: String = row.get(20).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get file_scope from row: {}", e))
+        })?;
 
         // Deserialize JSON fields
         let dependencies: Vec<crate::orchestration::state::WorkItemId> =
