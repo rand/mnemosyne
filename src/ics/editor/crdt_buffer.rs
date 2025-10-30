@@ -357,6 +357,11 @@ impl CrdtBuffer {
             .find(|attr| pos >= attr.range.0 && pos < attr.range.1)
     }
 
+    /// Get all attributions
+    pub fn get_attributions(&self) -> &[Attribution] {
+        &self.attributions
+    }
+
     // === File I/O Methods ===
 
     /// Load file from disk

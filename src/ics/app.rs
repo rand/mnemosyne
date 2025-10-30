@@ -116,10 +116,7 @@ impl IcsApp {
             // Full implementation blocked on ractor agent registry (Phase 4.1+).
             agents: Vec::new(),
             attribution_panel: AttributionPanelState::new(),
-            // NOTE: Attributions require IcsEditor to use CrdtBuffer instead of TextBuffer.
-            // CrdtBuffer has built-in attribution tracking (see src/ics/editor/crdt_buffer.rs).
-            // Current IcsEditor uses TextBuffer which doesn't track attributions.
-            // Full implementation blocked on editor migration to CrdtBuffer.
+            // Attributions extracted from CrdtBuffer on demand (via Ctrl+T)
             attributions: Vec::new(),
             proposals_panel: ProposalsPanelState::new(),
             // NOTE: Agent proposals require ractor agent message queue integration.
@@ -329,6 +326,72 @@ impl IcsApp {
         self.diagnostics = self.validator.validate(&text);
     }
 
+    /// Extract attributions from CRDT buffer
+    ///
+    /// Converts CRDT Attribution objects to AttributionEntry objects
+    /// with line numbers and change descriptions.
+    fn extract_attributions(&mut self) {
+        use super::attribution::{AttributionEntry, ChangeType};
+        use std::time::SystemTime;
+
+        let buffer = self.editor.active_buffer();
+
+        // Get text to calculate line numbers
+        let text = match buffer.text() {
+            Ok(text) => text,
+            Err(e) => {
+                eprintln!("Error getting buffer text for attributions: {}", e);
+                return;
+            }
+        };
+
+        // Get all attributions from buffer
+        let crdt_attributions = buffer.get_attributions();
+
+        // Convert to AttributionEntry
+        let mut entries = Vec::new();
+        for attr in crdt_attributions {
+            // Calculate line number from character position
+            let line = text[..attr.range.0.min(text.len())]
+                .chars()
+                .filter(|&c| c == '\n')
+                .count();
+
+            // Extract changed text snippet (max 50 chars)
+            let changed_text: String = text
+                .chars()
+                .skip(attr.range.0)
+                .take(attr.range.1 - attr.range.0)
+                .take(50)
+                .collect();
+
+            let description = if changed_text.len() > 47 {
+                format!("\"{}...\"", &changed_text[..47])
+            } else {
+                format!("\"{}\"", changed_text)
+            };
+
+            // Convert actor to author name
+            let author = format!("{:?}", attr.actor);
+
+            // Convert timestamp
+            let timestamp = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(attr.timestamp.timestamp() as u64);
+
+            entries.push(AttributionEntry {
+                author,
+                change_type: ChangeType::Insert, // CRDT currently tracks all changes as inserts
+                timestamp,
+                line,
+                description,
+            });
+        }
+
+        // Sort by timestamp (most recent first)
+        entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+
+        self.attributions = entries;
+    }
+
     /// Load memories from storage into memory panel
     ///
     /// Queries the storage backend and populates the memories list.
@@ -458,11 +521,13 @@ impl IcsApp {
                     // Toggle attribution panel
                     (KeyCode::Char('t'), true) => {
                         self.attribution_panel.toggle();
-                        self.status = if self.attribution_panel.is_visible() {
-                            "Attribution: visible".to_string()
+                        if self.attribution_panel.is_visible() {
+                            // Extract attributions when panel becomes visible
+                            self.extract_attributions();
+                            self.status = format!("Attribution: visible ({} entries)", self.attributions.len());
                         } else {
-                            "Attribution: hidden".to_string()
-                        };
+                            self.status = "Attribution: hidden".to_string();
+                        }
                     }
 
                     // Undo/Redo
