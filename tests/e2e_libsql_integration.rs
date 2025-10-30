@@ -345,21 +345,23 @@ async fn test_e2e_vector_search_with_embeddings() {
         .expect("Vector search failed");
 
     println!("\nVector search results:");
-    for (i, result) in results.iter().enumerate() {
+    for (i, (memory_id, score)) in results.iter().enumerate() {
+        // Fetch memory to display content
+        let mem = storage.get_memory(*memory_id).await.expect("Should get memory");
         println!(
             "{}. [Score: {:.3}] {}",
             i + 1,
-            result.score,
-            &result.memory.content[..result.memory.content.len().min(50)]
+            score,
+            &mem.content[..mem.content.len().min(50)]
         );
     }
 
     assert_eq!(results.len(), 3, "Should return 3 results");
 
     // The most similar should be mem1 or mem2 (closer embeddings)
-    let top_result = &results[0];
+    let (top_memory_id, _score) = &results[0];
     assert!(
-        top_result.memory.id == mem1.id || top_result.memory.id == mem2.id,
+        *top_memory_id == mem1.id || *top_memory_id == mem2.id,
         "Top result should be ML-related memory"
     );
 
@@ -436,7 +438,7 @@ async fn test_e2e_graph_traversal() {
 
     // Test graph traversal starting from mem3
     let graph_results = storage
-        .graph_traverse(&[mem3.id], 2)
+        .graph_traverse(&[mem3.id], 2, None)
         .await
         .expect("Graph traversal failed");
 

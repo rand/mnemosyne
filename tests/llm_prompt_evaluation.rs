@@ -376,23 +376,23 @@ async fn test_consolidation_accuracy() {
         match service.should_consolidate(&memory_a, &memory_b).await {
             Ok(decision) => {
                 let decision_str = match decision {
-                    mnemosyne::types::ConsolidationDecision::Merge { .. } => "MERGE",
-                    mnemosyne::types::ConsolidationDecision::Supersede { .. } => "SUPERSEDE",
-                    mnemosyne::types::ConsolidationDecision::KeepBoth => "KEEP_BOTH",
+                    mnemosyne_core::types::ConsolidationDecision::Merge { .. } => "MERGE",
+                    mnemosyne_core::types::ConsolidationDecision::Supersede { .. } => "SUPERSEDE",
+                    mnemosyne_core::types::ConsolidationDecision::KeepBoth => "KEEP_BOTH",
                 };
 
-                let matches = match (expected, &decision) {
+                let matches = match (&expected, &decision) {
                     (
                         ConsolidationExpectation::Merge,
-                        mnemosyne::types::ConsolidationDecision::Merge { .. },
+                        mnemosyne_core::types::ConsolidationDecision::Merge { .. },
                     ) => true,
                     (
                         ConsolidationExpectation::Supersede,
-                        mnemosyne::types::ConsolidationDecision::Supersede { .. },
+                        mnemosyne_core::types::ConsolidationDecision::Supersede { .. },
                     ) => true,
                     (
                         ConsolidationExpectation::KeepBoth,
-                        mnemosyne::types::ConsolidationDecision::KeepBoth,
+                        mnemosyne_core::types::ConsolidationDecision::KeepBoth,
                     ) => true,
                     (ConsolidationExpectation::Any, _) => true,
                     _ => false,

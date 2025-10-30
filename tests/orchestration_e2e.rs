@@ -152,20 +152,12 @@ async fn test_graceful_shutdown_with_active_work() {
     // Submit work item
     let orchestrator = engine.orchestrator();
 
-    let work_item = WorkItem {
-        id: WorkItemId::new(),
-        description: "Test work".to_string(),
-        agent: AgentRole::Executor,
-        state: AgentState::Ready,
-        phase: Phase::PromptToSpec,
-        priority: 5,
-        dependencies: vec![],
-        created_at: chrono::Utc::now(),
-        started_at: None,
-        completed_at: None,
-        error: None,
-        timeout: None,
-    };
+    let work_item = WorkItem::new(
+        "Test work".to_string(),
+        AgentRole::Executor,
+        Phase::PromptToSpec,
+        5,
+    );
 
     orchestrator
         .cast(OrchestratorMessage::SubmitWork(work_item))

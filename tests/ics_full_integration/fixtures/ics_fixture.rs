@@ -36,12 +36,14 @@ impl IcsFixture {
 
     /// Add text to active buffer
     pub fn add_text(&mut self, text: &str) {
-        self.editor.active_buffer_mut().insert(text);
+        let buffer = self.editor.active_buffer_mut();
+        let pos = buffer.text_len().expect("Should get text length");
+        buffer.insert(pos, text).expect("Should insert");
     }
 
     /// Get buffer content
     pub fn buffer_content(&self) -> String {
-        self.editor.active_buffer().content.to_string()
+        self.editor.active_buffer().text().expect("Should get text")
     }
 
     /// Trigger semantic analysis
