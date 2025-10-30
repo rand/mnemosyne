@@ -20,6 +20,12 @@ pub struct StatusBar<'a> {
     style: Style,
 }
 
+impl<'a> Default for StatusBar<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> StatusBar<'a> {
     /// Create new status bar
     pub fn new() -> Self {

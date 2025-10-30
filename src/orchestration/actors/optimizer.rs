@@ -300,7 +300,7 @@ impl OptimizerActor {
             .persist(AgentEvent::ContextCheckpoint {
                 agent: AgentRole::Optimizer,
                 usage_pct: state.context_usage,
-                snapshot_id: memory.id.clone(),
+                snapshot_id: memory.id,
                 reason,
             })
             .await?;

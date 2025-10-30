@@ -189,7 +189,7 @@ impl<S: StorageBackend> AgentMemoryView<S> {
             .map(|r| r.memory)
             .filter(|m| {
                 relevant_types.contains(&m.memory_type)
-                    && min_importance.map_or(true, |min| m.importance >= min)
+                    && min_importance.is_none_or(|min| m.importance >= min)
             })
             .take(limit)
             .collect();

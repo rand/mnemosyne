@@ -36,6 +36,12 @@ pub struct PrefetchMetrics {
     prefetch_count: AtomicU64,
 }
 
+impl Default for PrefetchMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PrefetchMetrics {
     /// Create new metrics
     pub fn new() -> Self {

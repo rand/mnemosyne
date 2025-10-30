@@ -567,11 +567,7 @@ impl IcsApp {
 
             // Find the start of the completion (@ or # trigger)
             let prefix_len = self.completion_popup.prefix().len();
-            let trigger_col = if cursor_pos.column >= prefix_len {
-                cursor_pos.column - prefix_len
-            } else {
-                0
-            };
+            let trigger_col = cursor_pos.column.saturating_sub(prefix_len);
 
             // Check if there's a @ or # before the prefix
             let has_trigger = if trigger_col > 0 {

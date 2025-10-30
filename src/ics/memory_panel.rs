@@ -388,7 +388,7 @@ impl<'a> MemoryPanel<'a> {
         let content_lines: Vec<Line> = memory
             .content
             .lines()
-            .map(|line| Line::from(line))
+            .map(Line::from)
             .collect();
 
         let all_lines: Vec<Line> = lines.into_iter().chain(content_lines).collect();

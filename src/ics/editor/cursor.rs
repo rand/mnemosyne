@@ -2,6 +2,7 @@
 
 /// Position in text buffer
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub struct Position {
     /// Line number (0-indexed)
     pub line: usize,
@@ -9,14 +10,10 @@ pub struct Position {
     pub column: usize,
 }
 
-impl Default for Position {
-    fn default() -> Self {
-        Self { line: 0, column: 0 }
-    }
-}
 
 /// Cursor state
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct CursorState {
     /// Current cursor position
     pub position: Position,
@@ -30,15 +27,6 @@ pub struct CursorState {
     pub virtual_column: usize,
 }
 
-impl Default for CursorState {
-    fn default() -> Self {
-        Self {
-            position: Position::default(),
-            anchor: None,
-            virtual_column: 0,
-        }
-    }
-}
 
 /// Cursor movement commands
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

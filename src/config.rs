@@ -187,15 +187,13 @@ impl EmbeddingConfig {
     /// Validate the configuration
     pub fn validate(&self) -> Result<()> {
         // Check if model is supported
-        let supported_models = vec![
-            "nomic-embed-text-v1.5",
+        let supported_models = ["nomic-embed-text-v1.5",
             "nomic-embed-text-v1",
             "all-MiniLM-L6-v2",
             "all-MiniLM-L12-v2",
             "bge-small-en-v1.5",
             "bge-base-en-v1.5",
-            "bge-large-en-v1.5",
-        ];
+            "bge-large-en-v1.5"];
 
         if !supported_models.contains(&self.model.as_str()) {
             return Err(MnemosyneError::Config(config::ConfigError::Message(
@@ -405,12 +403,12 @@ impl ConfigManager {
         println!("You can also set the ANTHROPIC_API_KEY environment variable.\n");
 
         print!("Enter your Anthropic API key (starts with sk-ant-): ");
-        std::io::Write::flush(&mut std::io::stdout()).map_err(|e| MnemosyneError::Io(e))?;
+        std::io::Write::flush(&mut std::io::stdout()).map_err(MnemosyneError::Io)?;
 
         let mut input = String::new();
         std::io::stdin()
             .read_line(&mut input)
-            .map_err(|e| MnemosyneError::Io(e))?;
+            .map_err(MnemosyneError::Io)?;
 
         let key = input.trim();
 

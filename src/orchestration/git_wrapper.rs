@@ -117,7 +117,7 @@ impl GitWrapper {
     ///
     /// Command output if allowed, error if blocked
     pub fn execute(&self, agent_id: &AgentId, args: &[String]) -> Result<Output> {
-        let operation_type = self.categorize_operation(&args);
+        let operation_type = self.categorize_operation(args);
 
         // Validate operation
         if let Err(e) = self.validate_operation(agent_id, &operation_type, args) {

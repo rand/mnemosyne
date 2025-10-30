@@ -264,9 +264,7 @@ impl CrossProcessCoordinator {
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-')
         {
-            return Err(MnemosyneError::Other(format!(
-                "Invalid message ID: contains illegal characters"
-            )));
+            return Err(MnemosyneError::Other("Invalid message ID: contains illegal characters".to_string()));
         }
 
         let message_path = self.queue_dir.join(format!("{}.json", message.id));

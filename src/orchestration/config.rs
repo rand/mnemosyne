@@ -41,6 +41,7 @@ use std::path::{Path, PathBuf};
 
 /// Complete configuration for branch isolation system
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct BranchIsolationConfig {
     /// Branch isolation settings
     #[serde(default)]
@@ -59,16 +60,6 @@ pub struct BranchIsolationConfig {
     pub cross_process: CrossProcessSettings,
 }
 
-impl Default for BranchIsolationConfig {
-    fn default() -> Self {
-        Self {
-            branch_isolation: BranchIsolationSettings::default(),
-            conflict_detection: ConflictDetectionSettings::default(),
-            notifications: NotificationSettings::default(),
-            cross_process: CrossProcessSettings::default(),
-        }
-    }
-}
 
 /// Branch isolation settings
 #[derive(Debug, Clone, Serialize, Deserialize)]

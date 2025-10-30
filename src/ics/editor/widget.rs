@@ -341,7 +341,7 @@ impl<'a> EditorWidget<'a> {
                 style = style.add_modifier(Modifier::UNDERLINED);
             }
 
-            buf.set_string(x + i as u16, y, &ch.to_string(), style);
+            buf.set_string(x + i as u16, y, ch.to_string(), style);
         }
     }
 
@@ -359,7 +359,7 @@ impl<'a> EditorWidget<'a> {
             let color = self.attribution_color(char_pos).unwrap_or(Color::White);
             let style = Style::default().fg(color);
 
-            buf.set_string(x + i as u16, y, &ch.to_string(), style);
+            buf.set_string(x + i as u16, y, ch.to_string(), style);
         }
     }
 }

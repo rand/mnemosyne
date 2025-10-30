@@ -85,6 +85,12 @@ pub struct OutputParser {
     buffer: String,
 }
 
+impl Default for OutputParser {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OutputParser {
     /// Create new parser
     pub fn new() -> Self {

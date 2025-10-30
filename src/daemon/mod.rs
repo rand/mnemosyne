@@ -44,7 +44,7 @@ pub struct DaemonConfig {
 impl Default for DaemonConfig {
     fn default() -> Self {
         let runtime_dir = dirs::runtime_dir()
-            .or_else(|| dirs::data_local_dir())
+            .or_else(dirs::data_local_dir)
             .unwrap_or_else(|| PathBuf::from("."));
 
         let log_dir = dirs::data_local_dir()
@@ -75,6 +75,12 @@ pub enum DaemonStatus {
 /// MCP Daemon manager
 pub struct McpDaemon {
     config: DaemonConfig,
+}
+
+impl Default for McpDaemon {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl McpDaemon {
@@ -157,8 +163,7 @@ impl McpDaemon {
                 cmd.pre_exec(|| {
                     // Create new session
                     nix::unistd::setsid().map_err(|e| {
-                        std::io::Error::new(
-                            std::io::ErrorKind::Other,
+                        std::io::Error::other(
                             format!("setsid failed: {}", e),
                         )
                     })?;

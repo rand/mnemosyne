@@ -131,7 +131,7 @@ impl LocalEmbeddingService {
         })
         .await
         .map_err(|e| MnemosyneError::Other(format!("Task join error: {}", e)))?
-        .map_err(|e| MnemosyneError::EmbeddingError(e))?;
+        .map_err(MnemosyneError::EmbeddingError)?;
 
         // Validate dimensions
         for (i, embedding) in embeddings.iter().enumerate() {

@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 /// Quality gates that must pass (8 total: 5 existing + 3 pillars)
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct QualityGates {
     // Existing gates
     pub intent_satisfied: bool,
@@ -61,20 +62,6 @@ pub struct ReviewFeedback {
     pub execution_context: Vec<crate::types::MemoryId>,
 }
 
-impl Default for QualityGates {
-    fn default() -> Self {
-        Self {
-            intent_satisfied: false,
-            tests_passing: false,
-            documentation_complete: false,
-            no_anti_patterns: false,
-            constraints_maintained: false,
-            completeness: false,
-            correctness: false,
-            principled_implementation: false,
-        }
-    }
-}
 
 /// Reviewer actor state
 pub struct ReviewerState {

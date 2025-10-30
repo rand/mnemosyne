@@ -117,7 +117,7 @@ impl ClaudeCodeLauncher {
             .config
             .mnemosyne_db_path
             .clone()
-            .unwrap_or_else(|| get_default_db_path());
+            .unwrap_or_else(get_default_db_path);
 
         let storage = match crate::storage::libsql::LibsqlStorage::new(
             crate::storage::libsql::ConnectionMode::Local(db_path.clone()),
@@ -239,7 +239,7 @@ impl ClaudeCodeLauncher {
 
         let agent_config = self.generate_agent_config()?;
         let mcp_config = self.generate_mcp_config()?;
-        let args = self.build_command_args(&agent_config, &mcp_config, &String::new());
+        let args = self.build_command_args(&agent_config, &mcp_config, "");
 
         let status = Command::new(&self.claude_binary)
             .args(&args)
@@ -270,13 +270,13 @@ impl ClaudeCodeLauncher {
                 .config
                 .mnemosyne_namespace
                 .clone()
-                .unwrap_or_else(|| detect_namespace()),
+                .unwrap_or_else(detect_namespace),
             db_path: self
                 .config
                 .mnemosyne_db_path
                 .clone()
-                .unwrap_or_else(|| get_default_db_path()),
-            agent_role: self.config.primary_agent_role.clone(),
+                .unwrap_or_else(get_default_db_path),
+            agent_role: self.config.primary_agent_role,
         };
 
         generator.generate_config()
@@ -291,7 +291,7 @@ impl ClaudeCodeLauncher {
             .config
             .mnemosyne_namespace
             .clone()
-            .unwrap_or_else(|| detect_namespace());
+            .unwrap_or_else(detect_namespace);
 
         let loader = context::ContextLoader::new(storage);
 
@@ -393,7 +393,7 @@ fn get_mnemosyne_binary_path() -> Result<String> {
 fn detect_namespace() -> String {
     // Try to detect from git
     if let Ok(output) = Command::new("git")
-        .args(&["rev-parse", "--show-toplevel"])
+        .args(["rev-parse", "--show-toplevel"])
         .output()
     {
         if output.status.success() {

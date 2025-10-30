@@ -214,7 +214,7 @@ impl ConflictNotifier {
             for agent_id in &conflict.agents {
                 conflicts_by_agent
                     .entry(agent_id.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(conflict.clone());
             }
         }
@@ -270,7 +270,7 @@ impl ConflictNotifier {
             for agent_id in &conflict.agents {
                 conflicts_by_agent
                     .entry(agent_id.clone())
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(conflict.clone());
             }
         }

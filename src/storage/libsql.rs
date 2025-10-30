@@ -1319,7 +1319,7 @@ impl LibsqlStorage {
         let mut rows = conn
             .query(
                 sql,
-                params![days_threshold as i64, days_threshold as i64, limit as i64],
+                params![days_threshold, days_threshold, limit as i64],
             )
             .await?;
 
@@ -1494,7 +1494,7 @@ impl StorageBackend for LibsqlStorage {
                 serde_json::to_string(&memory.keywords)?,
                 serde_json::to_string(&memory.tags)?,
                 memory.context.clone(),
-                serde_json::to_value(&memory.memory_type)?.as_str().unwrap(),
+                serde_json::to_value(memory.memory_type)?.as_str().unwrap(),
                 memory.importance as i64,
                 memory.confidence as f64,
                 serde_json::to_string(&memory.related_files)?,
@@ -1522,7 +1522,7 @@ impl StorageBackend for LibsqlStorage {
                 params![
                     memory.id.to_string(),
                     link.target_id.to_string(),
-                    serde_json::to_value(&link.link_type)?.as_str().unwrap(),
+                    serde_json::to_value(link.link_type)?.as_str().unwrap(),
                     link.strength as f64,
                     link.reason.clone(),
                     link.created_at.to_rfc3339(),
@@ -1739,7 +1739,7 @@ impl StorageBackend for LibsqlStorage {
                 params![
                     memory.id.to_string(),
                     link.target_id.to_string(),
-                    serde_json::to_value(&link.link_type)?.as_str().unwrap(),
+                    serde_json::to_value(link.link_type)?.as_str().unwrap(),
                     link.strength as f64,
                     link.reason.clone(),
                     link.created_at.to_rfc3339(),
@@ -1885,7 +1885,7 @@ impl StorageBackend for LibsqlStorage {
         let fts_query = if query.contains(' ') {
             query
                 .split_whitespace()
-                .map(|term| Self::escape_fts5_query(term))
+                .map(Self::escape_fts5_query)
                 .collect::<Vec<String>>()
                 .join(" OR ")
         } else {

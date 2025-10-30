@@ -20,6 +20,12 @@ pub struct ChatView {
     scroll_offset: usize,
 }
 
+impl Default for ChatView {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ChatView {
     /// Create new chat view
     pub fn new() -> Self {
@@ -107,6 +113,12 @@ pub struct Dashboard {
     cpu_percent: f32,
 }
 
+impl Default for Dashboard {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Dashboard {
     /// Create new dashboard
     pub fn new() -> Self {
@@ -142,7 +154,7 @@ impl Dashboard {
         // Format: ps -p <pid> -o rss=,pcpu=
         // Output: "12345 1.5" (RSS in KB, CPU percentage)
         let output = Command::new("ps")
-            .args(&[
+            .args([
                 "-p",
                 &pid.to_string(),
                 "-o",
@@ -153,7 +165,7 @@ impl Dashboard {
         match output {
             Ok(output) if output.status.success() => {
                 let output_str = String::from_utf8_lossy(&output.stdout);
-                let parts: Vec<&str> = output_str.trim().split_whitespace().collect();
+                let parts: Vec<&str> = output_str.split_whitespace().collect();
 
                 if parts.len() >= 2 {
                     // Parse RSS (in KB) and convert to MB
@@ -214,6 +226,12 @@ pub struct IcsPanel {
     content: String,
     /// Whether panel is visible
     visible: bool,
+}
+
+impl Default for IcsPanel {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl IcsPanel {

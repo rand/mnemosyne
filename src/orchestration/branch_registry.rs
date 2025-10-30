@@ -67,19 +67,16 @@ impl WorkIntent {
 
 /// Coordination mode - how should agents coordinate on this branch?
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum CoordinationMode {
     /// Isolated: Agent is the only one on this branch (default)
+    #[default]
     Isolated,
 
     /// Coordinated: Multiple agents allowed with conflict detection
     Coordinated,
 }
 
-impl Default for CoordinationMode {
-    fn default() -> Self {
-        CoordinationMode::Isolated
-    }
-}
 
 /// Agent assignment to a branch
 ///
@@ -277,7 +274,7 @@ impl BranchRegistry {
 
         self.assignments
             .entry(branch)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(assignment);
 
         self.persist()?;

@@ -133,12 +133,12 @@ impl InteractivePrompter {
         println!("  q. Quit");
 
         print!("\nYour choice: ");
-        io::stdout().flush().map_err(|e| MnemosyneError::Io(e))?;
+        io::stdout().flush().map_err(MnemosyneError::Io)?;
 
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)
-            .map_err(|e| MnemosyneError::Io(e))?;
+            .map_err(MnemosyneError::Io)?;
 
         match input.trim() {
             "1" => Ok(JoinDecision::Approve),
@@ -183,12 +183,12 @@ impl InteractivePrompter {
         println!("  q. Quit");
 
         print!("\nYour choice: ");
-        io::stdout().flush().map_err(|e| MnemosyneError::Io(e))?;
+        io::stdout().flush().map_err(MnemosyneError::Io)?;
 
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)
-            .map_err(|e| MnemosyneError::Io(e))?;
+            .map_err(MnemosyneError::Io)?;
 
         match input.trim() {
             "1" => Ok(ConflictDecision::Continue),
@@ -218,12 +218,12 @@ impl InteractivePrompter {
         println!("  2. Coordinated - Allow multiple agents with conflict detection");
 
         print!("\nYour choice [1]: ");
-        io::stdout().flush().map_err(|e| MnemosyneError::Io(e))?;
+        io::stdout().flush().map_err(MnemosyneError::Io)?;
 
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)
-            .map_err(|e| MnemosyneError::Io(e))?;
+            .map_err(MnemosyneError::Io)?;
 
         match input.trim() {
             "" | "1" => Ok(CoordinationMode::Isolated),
@@ -251,12 +251,12 @@ impl InteractivePrompter {
         println!("  3. Full branch - Complete write access");
 
         print!("\nYour choice [1]: ");
-        io::stdout().flush().map_err(|e| MnemosyneError::Io(e))?;
+        io::stdout().flush().map_err(MnemosyneError::Io)?;
 
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)
-            .map_err(|e| MnemosyneError::Io(e))?;
+            .map_err(MnemosyneError::Io)?;
 
         match input.trim() {
             "" | "1" => Ok(WorkIntent::ReadOnly),
@@ -264,12 +264,12 @@ impl InteractivePrompter {
                 // Prompt for file paths
                 println!("\nEnter file paths (comma-separated):");
                 print!("> ");
-                io::stdout().flush().map_err(|e| MnemosyneError::Io(e))?;
+                io::stdout().flush().map_err(MnemosyneError::Io)?;
 
                 let mut files_input = String::new();
                 io::stdin()
                     .read_line(&mut files_input)
-                    .map_err(|e| MnemosyneError::Io(e))?;
+                    .map_err(MnemosyneError::Io)?;
 
                 let files: Vec<PathBuf> = files_input
                     .trim()
@@ -340,12 +340,12 @@ impl InteractivePrompter {
 
         let prompt_suffix = if default_yes { " [Y/n]: " } else { " [y/N]: " };
         print!("{}{}", message, prompt_suffix);
-        io::stdout().flush().map_err(|e| MnemosyneError::Io(e))?;
+        io::stdout().flush().map_err(MnemosyneError::Io)?;
 
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)
-            .map_err(|e| MnemosyneError::Io(e))?;
+            .map_err(MnemosyneError::Io)?;
 
         match input.trim().to_lowercase().as_str() {
             "" => Ok(default_yes),

@@ -507,7 +507,7 @@ impl CrdtBuffer {
                     while pos > 0
                         && chars
                             .get(pos.saturating_sub(1))
-                            .map_or(false, |c| c.is_whitespace())
+                            .is_some_and(|c| c.is_whitespace())
                     {
                         pos = pos.saturating_sub(1);
                     }
@@ -516,7 +516,7 @@ impl CrdtBuffer {
                     while pos > 0
                         && chars
                             .get(pos.saturating_sub(1))
-                            .map_or(false, |c| !c.is_whitespace())
+                            .is_some_and(|c| !c.is_whitespace())
                     {
                         pos = pos.saturating_sub(1);
                     }
@@ -615,9 +615,7 @@ impl CrdtBuffer {
                         pos += 1;
                     }
 
-                    if pos > 0 {
-                        pos -= 1; // Move back to last character of word
-                    }
+                    pos = pos.saturating_sub(1);
 
                     if pos >= chars.len()
                         && self.cursor.position.line < line_count.saturating_sub(1)

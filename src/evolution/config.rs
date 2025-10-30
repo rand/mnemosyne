@@ -64,8 +64,10 @@ pub struct JobConfig {
 /// Decision mode for consolidation job
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum DecisionMode {
     /// Use heuristics only (fast, free, less accurate)
+    #[default]
     Heuristic,
 
     /// Use LLM for all decisions (slow, costs money, most accurate)
@@ -94,11 +96,6 @@ pub struct ConsolidationConfig {
     pub max_cost_per_run_usd: f32,
 }
 
-impl Default for DecisionMode {
-    fn default() -> Self {
-        DecisionMode::Heuristic
-    }
-}
 
 impl Default for ConsolidationConfig {
     fn default() -> Self {

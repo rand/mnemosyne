@@ -256,7 +256,7 @@ impl HoleNavigator {
             .filter(|hole| {
                 self.resolutions
                     .get(&hole.name)
-                    .map_or(true, |res| !res.accepted)
+                    .is_none_or(|res| !res.accepted)
             })
             .collect()
     }

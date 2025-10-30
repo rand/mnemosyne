@@ -169,21 +169,21 @@ impl ConsolidationJob {
 
         for (m1, m2, sim) in candidates {
             graph
-                .entry(m1.id.clone())
+                .entry(m1.id)
                 .or_default()
-                .insert(m2.id.clone());
+                .insert(m2.id);
             graph
-                .entry(m2.id.clone())
+                .entry(m2.id)
                 .or_default()
-                .insert(m1.id.clone());
+                .insert(m1.id);
 
-            memory_map.insert(m1.id.clone(), m1.clone());
-            memory_map.insert(m2.id.clone(), m2.clone());
+            memory_map.insert(m1.id, m1.clone());
+            memory_map.insert(m2.id, m2.clone());
 
             let key = if m1.id.to_string() < m2.id.to_string() {
-                (m1.id.clone(), m2.id.clone())
+                (m1.id, m2.id)
             } else {
-                (m2.id.clone(), m1.id.clone())
+                (m2.id, m1.id)
             };
             similarity_map.insert(key, *sim);
         }
@@ -199,19 +199,19 @@ impl ConsolidationJob {
 
             // BFS to find cluster
             let mut cluster_ids = HashSet::new();
-            let mut queue = vec![start_id.clone()];
+            let mut queue = vec![*start_id];
 
             while let Some(id) = queue.pop() {
-                if !visited.insert(id.clone()) {
+                if !visited.insert(id) {
                     continue;
                 }
 
-                cluster_ids.insert(id.clone());
+                cluster_ids.insert(id);
 
                 if let Some(neighbors) = graph.get(&id) {
                     for neighbor in neighbors {
                         if !visited.contains(neighbor) {
-                            queue.push(neighbor.clone());
+                            queue.push(*neighbor);
                         }
                     }
                 }
@@ -233,13 +233,13 @@ impl ConsolidationJob {
             for (i, m1) in cluster_memories.iter().enumerate() {
                 for m2 in cluster_memories.iter().skip(i + 1) {
                     let key = if m1.id.to_string() < m2.id.to_string() {
-                        (m1.id.clone(), m2.id.clone())
+                        (m1.id, m2.id)
                     } else {
-                        (m2.id.clone(), m1.id.clone())
+                        (m2.id, m1.id)
                     };
 
                     if let Some(&sim) = similarity_map.get(&key) {
-                        similarity_scores.push((m1.id.clone(), m2.id.clone(), sim));
+                        similarity_scores.push((m1.id, m2.id, sim));
                         total_similarity += sim;
                         pair_count += 1;
                     }
@@ -345,7 +345,7 @@ impl ConsolidationJob {
         if cluster.memories.len() < 2 {
             return ConsolidationDecision {
                 action: ConsolidationAction::Keep,
-                memory_ids: cluster.memories.iter().map(|m| m.id.clone()).collect(),
+                memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
                 superseded_id: None,
                 superseding_id: None,
                 reason: "Single memory in cluster".to_string(),
@@ -363,9 +363,9 @@ impl ConsolidationJob {
 
             return ConsolidationDecision {
                 action: ConsolidationAction::Supersede,
-                memory_ids: cluster.memories.iter().map(|m| m.id.clone()).collect(),
-                superseded_id: Some(oldest.id.clone()),
-                superseding_id: Some(newest.id.clone()),
+                memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
+                superseded_id: Some(oldest.id),
+                superseding_id: Some(newest.id),
                 reason: format!(
                     "High similarity ({:.2}) - newer memory supersedes older",
                     cluster.avg_similarity
@@ -377,7 +377,7 @@ impl ConsolidationJob {
         if cluster.avg_similarity > 0.85 {
             return ConsolidationDecision {
                 action: ConsolidationAction::Keep,
-                memory_ids: cluster.memories.iter().map(|m| m.id.clone()).collect(),
+                memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
                 superseded_id: None,
                 superseding_id: None,
                 reason: format!(
@@ -390,7 +390,7 @@ impl ConsolidationJob {
         // Moderate similarity → Keep separate
         ConsolidationDecision {
             action: ConsolidationAction::Keep,
-            memory_ids: cluster.memories.iter().map(|m| m.id.clone()).collect(),
+            memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
             superseded_id: None,
             superseding_id: None,
             reason: format!(

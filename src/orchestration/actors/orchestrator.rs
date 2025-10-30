@@ -298,7 +298,7 @@ impl OrchestratorActor {
         deadlocked_items.sort_by_key(|(_, priority, _)| *priority);
 
         // Cancel lower-priority items (bottom 50%)
-        let cancel_count = (deadlocked_items.len() + 1) / 2;
+        let cancel_count = deadlocked_items.len().div_ceil(2);
         let to_cancel: Vec<_> = deadlocked_items
             .iter()
             .take(cancel_count)
@@ -369,7 +369,7 @@ impl OrchestratorActor {
             let mut queue = state.work_queue.write().await;
             queue
                 .transition_phase(to)
-                .map_err(|e| crate::error::MnemosyneError::Other(e))?;
+                .map_err(crate::error::MnemosyneError::Other)?;
         }
 
         // Persist event
@@ -548,7 +548,7 @@ impl OrchestratorActor {
                 let mut queue = state.work_queue.write().await;
                 queue
                     .re_enqueue(work_item.clone())
-                    .map_err(|e| crate::error::MnemosyneError::Other(e))?;
+                    .map_err(crate::error::MnemosyneError::Other)?;
             }
 
             // Persist event
