@@ -123,6 +123,157 @@ export MNEMOSYNE_DB_PATH=./test_mnemosyne.db
 
 ---
 
+## Build Optimization
+
+### Build Profiles
+
+Mnemosyne is configured with multiple build profiles optimized for different scenarios:
+
+#### Development Build (Default)
+```bash
+cargo build
+```
+- **Time**: ~2-3 minutes incremental, ~5-6 minutes clean
+- **Features**: Incremental compilation enabled, minimal optimization
+- **Use for**: Day-to-day development, quick iterations
+- **Config**: `.cargo/config.toml` enables incremental builds by default
+
+#### Fast Release Build
+```bash
+cargo build --profile fast-release
+```
+- **Time**: ~3-4 minutes (faster than full release)
+- **Features**: Thin LTO, parallel codegen, good optimization (opt-level=2)
+- **Use for**: Testing release features without full optimization wait
+- **Trade-off**: 10-15% slower runtime than full release, but 40% faster to compile
+
+#### Production Release Build
+```bash
+cargo build --release
+```
+- **Time**: ~6-7 minutes clean build
+- **Features**: Full LTO, single codegen-unit, maximum optimization (opt-level=3)
+- **Use for**: Production binaries, benchmarking, final testing
+- **Result**: Fastest possible runtime performance
+
+### Build Performance
+
+**Compilation bottlenecks** (from `cargo build --release --timings`):
+
+| Category | Time | Primary Crates |
+|----------|------|----------------|
+| Apache Arrow/Parquet | ~250s | arrow-cast, parquet, arrow-ord, arrow-select, arrow-arith |
+| LLM Integration | ~122s | rig-core, dspy-rs |
+| P2P Networking | ~82s | iroh-net, iroh-docs, iroh-blobs |
+| Database | ~79s | libsql, libsqlite3-sys, libsql-ffi |
+| Embeddings/ML | ~90s | tokenizers, fastembed, image |
+| **Main binary** | ~176s | mnemosyne (links all dependencies) |
+| **Total** | ~397s | 6.6 minutes for clean release build |
+
+**Why these are necessary**:
+- **Arrow/Parquet**: Used for efficient vector search and data processing
+- **LLM Integration**: Core functionality for memory enrichment
+- **P2P Networking**: Required for distributed orchestration (Phase 4)
+- **Database**: LibSQL provides scalable storage with vector support
+- **Embeddings**: Fast local embeddings (nomic-embed-text-v1.5)
+
+### Optimizing Your Development Workflow
+
+**For faster iteration** (recommended for most development):
+```bash
+# 1. Use dev builds (incremental compilation)
+cargo build
+
+# 2. Run specific tests instead of full suite
+cargo test --test specific_test_name
+
+# 3. Use cargo check for syntax validation (faster than build)
+cargo check
+
+# 4. Use fast-release for near-production testing
+cargo build --profile fast-release
+```
+
+**For CI/CD pipelines**:
+```bash
+# Cache target/ directory between runs
+# Use sccache or similar for distributed caching
+# Parallel test execution
+cargo test --jobs 4
+```
+
+### Reducing Build Times
+
+**Already implemented**:
+- ✅ Incremental compilation for dev builds (`.cargo/config.toml`)
+- ✅ Build script optimization (`opt-level = 3` for build.rs)
+- ✅ Fast-release profile for quick testing
+- ✅ Parallel compilation (`jobs = 0` uses all CPU cores)
+
+**Not recommended** (breaks functionality):
+- ❌ Making Arrow/fastembed optional (core to vector search)
+- ❌ Making iroh optional (required for Phase 4 distributed features)
+- ❌ Making dspy-rs optional (core LLM integration)
+- ❌ Disabling LTO in release builds (30-40% performance regression)
+
+### Build Troubleshooting
+
+**Issue**: Build times out or takes > 10 minutes
+```bash
+# Check if you're accidentally using release profile
+cargo build --verbose | grep "profile"
+
+# Ensure incremental compilation is enabled
+grep incremental .cargo/config.toml
+
+# Clean and rebuild if corruption suspected
+cargo clean && cargo build
+```
+
+**Issue**: Out of memory during compilation
+```bash
+# Reduce parallel jobs
+cargo build --jobs 2
+
+# Or use environment variable
+export CARGO_BUILD_JOBS=2
+```
+
+**Issue**: Linker errors or cryptic failures
+```bash
+# Clean build artifacts
+cargo clean
+
+# Update dependencies
+cargo update
+
+# Check for conflicting features
+cargo tree -d
+```
+
+### Profiling Build Performance
+
+```bash
+# Generate HTML timing report
+cargo build --release --timings
+
+# View report
+open target/cargo-timings/cargo-timing.html
+
+# Analyze slowest dependencies
+python3 << 'EOF'
+import json, re
+with open('target/cargo-timings/cargo-timing.html') as f:
+    match = re.search(r'const UNIT_DATA = (\[.*?\]);', f.read(), re.DOTALL)
+    if match:
+        units = sorted(json.loads(match.group(1)), key=lambda x: x.get('duration', 0), reverse=True)
+        for u in units[:10]:
+            print(f"{u['name']:30} {u.get('duration', 0):.1f}s")
+EOF
+```
+
+---
+
 ## Development Workflow
 
 ### Branch Strategy
@@ -652,4 +803,4 @@ Thank you for contributing to Mnemosyne!
 ---
 
 **Version**: 1.0.0
-**Last Updated**: 2025-10-27
+**Last Updated**: 2025-10-29

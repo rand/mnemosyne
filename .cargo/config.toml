@@ -1,0 +1,41 @@
+# Cargo build configuration for Mnemosyne
+
+[build]
+# Use all available CPU cores for parallel compilation
+jobs = 0  # 0 = number of logical CPUs
+
+# Incremental compilation for faster dev builds
+# (Automatically disabled for release builds with LTO)
+incremental = true
+
+[profile.dev]
+# Explicit incremental compilation for development
+incremental = true
+# Fast compilation, minimal optimization
+opt-level = 0
+
+[profile.dev.build-override]
+# Optimize build scripts even in dev mode
+opt-level = 3
+
+[profile.release]
+# Inherits from Cargo.toml:
+# - opt-level = 3
+# - lto = true
+# - codegen-units = 1
+# Incremental automatically disabled due to LTO
+
+# Fast release build for testing (not for production)
+[profile.fast-release]
+inherits = "release"
+lto = "thin"           # Thin LTO instead of full LTO (much faster)
+codegen-units = 16     # Parallel codegen (faster builds)
+incremental = true     # Enable incremental compilation
+opt-level = 2          # Good optimization, faster than opt-level = 3
+
+# Environment variable hints for faster builds
+[env]
+# Use system LLVM linker if available (faster than default)
+# Uncomment based on your system:
+# RUSTFLAGS = "-C link-arg=-fuse-ld=lld"  # Linux with lld
+# RUSTFLAGS = "-C link-arg=-fuse-ld=mold" # Linux with mold (fastest)
