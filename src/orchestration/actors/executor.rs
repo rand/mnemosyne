@@ -138,9 +138,9 @@ impl ExecutorActor {
 
         // Check if we can spawn more sub-agents
         if state.sub_agents.len() >= state.max_concurrent {
-            tracing::warn!("Max sub-agents reached, queuing work");
-            // In production, would queue the work
-            return Ok(());
+            tracing::warn!("Max sub-agents reached, falling back to inline execution");
+            // Fall back to inline execution when at capacity
+            return Self::execute_work(state, work_item).await;
         }
 
         // Persist spawn event
@@ -153,9 +153,38 @@ impl ExecutorActor {
             })
             .await?;
 
-        // TODO: Actually spawn a sub-agent actor
-        // For now, just execute inline
-        Self::execute_work(state, work_item).await?;
+        // Spawn child ExecutorActor
+        let storage = state.storage.clone();
+        let namespace = state.events.namespace.clone();
+
+        let (child_ref, _handle) = Actor::spawn(
+            None,
+            ExecutorActor::new(storage.clone(), namespace.clone()),
+            (storage, namespace),
+        )
+        .await
+        .map_err(|e| crate::error::MnemosyneError::Other(
+            format!("Failed to spawn sub-agent: {:?}", e)
+        ))?;
+
+        // Register orchestrator reference with child so it can report completion
+        if let Some(ref orchestrator) = state.orchestrator {
+            let _ = child_ref
+                .cast(ExecutorMessage::RegisterOrchestrator(orchestrator.clone()))
+                .map_err(|e| tracing::warn!("Failed to register orchestrator with sub-agent: {:?}", e));
+        }
+
+        // Store child reference for tracking
+        state.sub_agents.push(child_ref.clone());
+
+        // Send work to child
+        child_ref
+            .cast(ExecutorMessage::ExecuteWork(work_item))
+            .map_err(|e| crate::error::MnemosyneError::Other(
+                format!("Failed to send work to sub-agent: {:?}", e)
+            ))?;
+
+        tracing::debug!("Sub-agent spawned successfully, {} active sub-agents", state.sub_agents.len());
 
         Ok(())
     }
@@ -228,6 +257,10 @@ impl Actor for ExecutorActor {
                 Self::handle_sub_agent_completed(state, item_id, result)
                     .await
                     .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+            }
+            ExecutorMessage::RegisterOrchestrator(orchestrator_ref) => {
+                tracing::debug!("Registering orchestrator reference");
+                state.register_orchestrator(orchestrator_ref);
             }
         }
 

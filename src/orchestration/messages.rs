@@ -129,6 +129,10 @@ pub enum ExecutorMessage {
         item_id: WorkItemId,
         result: WorkResult,
     },
+
+    /// Register orchestrator reference (for sub-agents)
+    #[serde(skip)]
+    RegisterOrchestrator(ractor::ActorRef<OrchestratorMessage>),
 }
 
 /// Generic agent message envelope for unified handling
