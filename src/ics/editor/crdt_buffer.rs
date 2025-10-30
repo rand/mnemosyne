@@ -8,6 +8,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::path::PathBuf;
+use std::fs;
+
+use super::{CursorState, Language, Movement};
 
 /// Buffer identifier
 pub type BufferId = usize;
@@ -83,8 +86,14 @@ pub struct CrdtBuffer {
     /// File path (if loaded from disk)
     pub path: Option<PathBuf>,
 
+    /// Language for syntax highlighting
+    pub language: Language,
+
     /// Whether buffer has unsaved changes
     pub dirty: bool,
+
+    /// Cursor state
+    pub cursor: CursorState,
 
     /// Change attributions
     attributions: Vec<Attribution>,
@@ -106,13 +115,21 @@ impl CrdtBuffer {
             .put_object(automerge::ROOT, "text", ObjType::Text)
             .context("Failed to create text object")?;
 
+        // Detect language from path
+        let language = path
+            .as_ref()
+            .and_then(|p| Language::from_path(p))
+            .unwrap_or(Language::PlainText);
+
         Ok(Self {
             id,
             doc,
             text_id,
             local_actor: actor,
             path,
+            language,
             dirty: false,
+            cursor: CursorState::default(),
             attributions: Vec::new(),
             undo_stack: VecDeque::new(),
             redo_stack: VecDeque::new(),
@@ -338,6 +355,147 @@ impl CrdtBuffer {
             .iter()
             .rev()
             .find(|attr| pos >= attr.range.0 && pos < attr.range.1)
+    }
+
+    // === File I/O Methods ===
+
+    /// Load file from disk
+    pub fn load_file(&mut self, path: PathBuf) -> Result<()> {
+        let content = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read file: {}", path.display()))?;
+
+        self.load_content(&content)?;
+        self.path = Some(path.clone());
+        self.language = Language::from_path(&path).unwrap_or(Language::PlainText);
+        self.dirty = false;
+
+        Ok(())
+    }
+
+    /// Save buffer to file
+    pub fn save_file(&mut self) -> Result<()> {
+        let path = self.path.as_ref()
+            .context("Cannot save buffer without path")?;
+
+        let content = self.text()?;
+        fs::write(path, content)
+            .with_context(|| format!("Failed to write file: {}", path.display()))?;
+
+        self.dirty = false;
+        Ok(())
+    }
+
+    // === Cursor-Aware Editing Methods ===
+
+    /// Convert cursor position to character index
+    fn cursor_to_char_idx(&self) -> Result<usize> {
+        let text = self.text()?;
+        let mut char_idx = 0;
+        let mut line = 0;
+        let mut col = 0;
+
+        for ch in text.chars() {
+            if line == self.cursor.position.line && col == self.cursor.position.column {
+                return Ok(char_idx);
+            }
+
+            if ch == '\n' {
+                line += 1;
+                col = 0;
+            } else {
+                col += 1;
+            }
+
+            char_idx += 1;
+        }
+
+        Ok(char_idx)
+    }
+
+    /// Insert text at cursor position (wrapper around insert)
+    pub fn insert_at_cursor(&mut self, text: &str) -> Result<()> {
+        let pos = self.cursor_to_char_idx()?;
+        self.insert(pos, text)?;
+
+        // Move cursor forward by text length
+        self.cursor.position.column += text.chars().count();
+
+        Ok(())
+    }
+
+    /// Delete character at cursor position (wrapper around delete)
+    pub fn delete_at_cursor(&mut self) -> Result<()> {
+        let pos = self.cursor_to_char_idx()?;
+        let len = self.text_len()?;
+
+        if pos >= len {
+            return Ok(()); // Nothing to delete
+        }
+
+        self.delete(pos, 1)?;
+
+        Ok(())
+    }
+
+    /// Move cursor
+    pub fn move_cursor(&mut self, movement: Movement) -> Result<()> {
+        let text = self.text()?;
+        let lines: Vec<&str> = text.lines().collect();
+        let line_count = lines.len().max(1);
+
+        match movement {
+            Movement::Up => {
+                if self.cursor.position.line > 0 {
+                    self.cursor.position.line -= 1;
+                    // Clamp column to line length
+                    if let Some(line) = lines.get(self.cursor.position.line) {
+                        self.cursor.position.column = self.cursor.position.column.min(line.len());
+                    }
+                }
+            }
+            Movement::Down => {
+                if self.cursor.position.line < line_count.saturating_sub(1) {
+                    self.cursor.position.line += 1;
+                    // Clamp column to line length
+                    if let Some(line) = lines.get(self.cursor.position.line) {
+                        self.cursor.position.column = self.cursor.position.column.min(line.len());
+                    }
+                }
+            }
+            Movement::Left => {
+                if self.cursor.position.column > 0 {
+                    self.cursor.position.column -= 1;
+                } else if self.cursor.position.line > 0 {
+                    // Move to end of previous line
+                    self.cursor.position.line -= 1;
+                    if let Some(line) = lines.get(self.cursor.position.line) {
+                        self.cursor.position.column = line.len();
+                    }
+                }
+            }
+            Movement::Right => {
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    if self.cursor.position.column < line.len() {
+                        self.cursor.position.column += 1;
+                    } else if self.cursor.position.line < line_count.saturating_sub(1) {
+                        // Move to start of next line
+                        self.cursor.position.line += 1;
+                        self.cursor.position.column = 0;
+                    }
+                }
+            }
+            Movement::LineStart => {
+                self.cursor.position.column = 0;
+            }
+            Movement::LineEnd => {
+                if let Some(line) = lines.get(self.cursor.position.line) {
+                    self.cursor.position.column = line.len();
+                }
+            }
+            _ => {} // Other movements not implemented yet
+        }
+
+        Ok(())
     }
 }
 

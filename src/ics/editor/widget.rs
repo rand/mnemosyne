@@ -7,7 +7,7 @@
 //! - Change attribution (color-coded by actor)
 //! - Inline diagnostic indicators (gutter icons and text underlines)
 
-use super::{Attribution, CrdtBuffer, CursorState, Diagnostic, Severity, TextBuffer};
+use super::{Attribution, CrdtBuffer, CursorState, Diagnostic, Severity};
 use ratatui::{
     buffer::Buffer as RatatuiBuffer,
     layout::{Constraint, Direction, Layout, Rect},
@@ -59,13 +59,10 @@ impl EditorState {
     }
 }
 
-/// Editor widget for TextBuffer
+/// Editor widget for CrdtBuffer
 pub struct EditorWidget<'a> {
-    /// Text buffer to render
-    buffer: &'a TextBuffer,
-
-    /// Optional CRDT buffer for attribution
-    crdt_buffer: Option<&'a CrdtBuffer>,
+    /// CRDT buffer to render (with built-in attribution)
+    buffer: &'a CrdtBuffer,
 
     /// Optional diagnostics for inline indicators
     diagnostics: Option<&'a [Diagnostic]>,
@@ -79,20 +76,13 @@ pub struct EditorWidget<'a> {
 
 impl<'a> EditorWidget<'a> {
     /// Create new editor widget
-    pub fn new(buffer: &'a TextBuffer) -> Self {
+    pub fn new(buffer: &'a CrdtBuffer) -> Self {
         Self {
             buffer,
-            crdt_buffer: None,
             diagnostics: None,
             block: None,
             focused: false,
         }
-    }
-
-    /// Set CRDT buffer for attribution display
-    pub fn crdt_buffer(mut self, crdt: &'a CrdtBuffer) -> Self {
-        self.crdt_buffer = Some(crdt);
-        self
     }
 
     /// Set diagnostics for inline indicators
@@ -124,11 +114,9 @@ impl<'a> EditorWidget<'a> {
 
     /// Get attribution color for character position
     fn attribution_color(&self, char_pos: usize) -> Option<Color> {
-        if let Some(crdt) = self.crdt_buffer {
-            if let Some(attr) = crdt.attribution_at(char_pos) {
-                let (r, g, b) = attr.actor.color();
-                return Some(Color::Rgb(r, g, b));
-            }
+        if let Some(attr) = self.buffer.attribution_at(char_pos) {
+            let (r, g, b) = attr.actor.color();
+            return Some(Color::Rgb(r, g, b));
         }
         None
     }

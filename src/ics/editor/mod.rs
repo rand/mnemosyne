@@ -12,7 +12,7 @@ mod syntax;
 mod validation;
 mod widget;
 
-pub use buffer::{TextBuffer, BufferId};
+pub use buffer::{BufferId};
 pub use completion::{CompletionEngine, CompletionItem, CompletionKind};
 pub use crdt_buffer::{Actor, Attribution, CrdtBuffer};
 pub use cursor::{CursorState, Position, Movement};
@@ -35,7 +35,7 @@ use std::path::PathBuf;
 ///
 /// These invariants ensure that `active_buffer()` and `active_buffer_mut()` never panic.
 pub struct IcsEditor {
-    buffers: HashMap<BufferId, TextBuffer>,
+    buffers: HashMap<BufferId, CrdtBuffer>,
     active_buffer: BufferId,
     next_buffer_id: usize,
 }
@@ -50,7 +50,8 @@ impl IcsEditor {
         };
 
         // Create initial empty buffer (maintains invariant: buffer 0 always exists)
-        let initial_buffer = TextBuffer::new(0, None);
+        let initial_buffer = CrdtBuffer::new(0, Actor::Human, None)
+            .expect("Failed to create initial buffer");
         editor.buffers.insert(0, initial_buffer);
 
         editor
@@ -61,7 +62,8 @@ impl IcsEditor {
         let id = self.next_buffer_id;
         self.next_buffer_id += 1;
 
-        let buffer = TextBuffer::new(id, path);
+        let buffer = CrdtBuffer::new(id, Actor::Human, path)
+            .expect("Failed to create buffer");
         self.buffers.insert(id, buffer);
 
         id
@@ -72,7 +74,7 @@ impl IcsEditor {
     /// # Panics
     ///
     /// Never panics due to maintained invariant that active_buffer always exists
-    pub fn active_buffer(&self) -> &TextBuffer {
+    pub fn active_buffer(&self) -> &CrdtBuffer {
         self.buffers
             .get(&self.active_buffer)
             .expect("INVARIANT VIOLATION: active_buffer should always exist")
@@ -83,19 +85,19 @@ impl IcsEditor {
     /// # Panics
     ///
     /// Never panics due to maintained invariant that active_buffer always exists
-    pub fn active_buffer_mut(&mut self) -> &mut TextBuffer {
+    pub fn active_buffer_mut(&mut self) -> &mut CrdtBuffer {
         self.buffers
             .get_mut(&self.active_buffer)
             .expect("INVARIANT VIOLATION: active_buffer should always exist")
     }
 
     /// Get buffer by ID
-    pub fn buffer(&self, id: BufferId) -> Option<&TextBuffer> {
+    pub fn buffer(&self, id: BufferId) -> Option<&CrdtBuffer> {
         self.buffers.get(&id)
     }
 
     /// Get mutable buffer by ID
-    pub fn buffer_mut(&mut self, id: BufferId) -> Option<&mut TextBuffer> {
+    pub fn buffer_mut(&mut self, id: BufferId) -> Option<&mut CrdtBuffer> {
         self.buffers.get_mut(&id)
     }
 

@@ -154,7 +154,13 @@ impl IcsApp {
     /// Trigger semantic analysis on current buffer
     fn trigger_semantic_analysis(&mut self) {
         let buffer = self.editor.active_buffer();
-        let text = buffer.text().to_string();
+        let text = match buffer.text() {
+            Ok(text) => text,
+            Err(e) => {
+                eprintln!("Error getting buffer text: {}", e);
+                return;
+            }
+        };
 
         // Trigger background analysis
         if let Err(e) = self.semantic_analyzer.analyze(text) {
@@ -311,7 +317,13 @@ impl IcsApp {
     /// Run validation on current buffer
     fn run_validation(&mut self) {
         let buffer = self.editor.active_buffer();
-        let text = buffer.text().to_string();
+        let text = match buffer.text() {
+            Ok(text) => text,
+            Err(e) => {
+                eprintln!("Error getting buffer text for validation: {}", e);
+                return;
+            }
+        };
 
         // Run validation
         self.diagnostics = self.validator.validate(&text);
@@ -455,64 +467,83 @@ impl IcsApp {
 
                     // Undo/Redo
                     (KeyCode::Char('z'), true) => {
-                        buffer.undo();
-                        self.status = "Undo".to_string();
+                        if let Err(e) = buffer.undo() {
+                            self.status = format!("Undo failed: {}", e);
+                        } else {
+                            self.status = "Undo".to_string();
+                        }
                     }
                     (KeyCode::Char('y'), true) => {
-                        buffer.redo();
-                        self.status = "Redo".to_string();
+                        if let Err(e) = buffer.redo() {
+                            self.status = format!("Redo failed: {}", e);
+                        } else {
+                            self.status = "Redo".to_string();
+                        }
                     }
 
                     // Text input
                     (KeyCode::Char(c), false) => {
-                        buffer.insert(&c.to_string());
-                        self.trigger_semantic_analysis();
-                        self.run_validation();
+                        if let Err(e) = buffer.insert_at_cursor(&c.to_string()) {
+                            self.status = format!("Insert failed: {}", e);
+                        } else {
+                            self.trigger_semantic_analysis();
+                            self.run_validation();
+                        }
                     }
 
                     // Newline
                     (KeyCode::Enter, _) => {
-                        buffer.insert("\n");
-                        self.trigger_semantic_analysis();
-                        self.run_validation();
+                        if let Err(e) = buffer.insert_at_cursor("\n") {
+                            self.status = format!("Insert failed: {}", e);
+                        } else {
+                            self.trigger_semantic_analysis();
+                            self.run_validation();
+                        }
                     }
 
                     // Backspace
                     (KeyCode::Backspace, _) => {
                         let pos = buffer.cursor.position.column;
                         if pos > 0 {
-                            buffer.move_cursor(Movement::Left);
-                            buffer.delete();
-                            self.trigger_semantic_analysis();
-                            self.run_validation();
+                            if let Err(e) = buffer.move_cursor(Movement::Left) {
+                                self.status = format!("Move cursor failed: {}", e);
+                            } else if let Err(e) = buffer.delete_at_cursor() {
+                                self.status = format!("Delete failed: {}", e);
+                            } else {
+                                self.trigger_semantic_analysis();
+                                self.run_validation();
+                            }
                         }
                     }
 
                     // Delete
                     (KeyCode::Delete, _) => {
-                        buffer.delete();
-                        self.trigger_semantic_analysis();
-                        self.run_validation();
+                        if let Err(e) = buffer.delete_at_cursor() {
+                            self.status = format!("Delete failed: {}", e);
+                        } else {
+                            self.trigger_semantic_analysis();
+                            self.run_validation();
+                        }
                     }
 
                     // Cursor movement
                     (KeyCode::Left, _) => {
-                        buffer.move_cursor(Movement::Left);
+                        let _ = buffer.move_cursor(Movement::Left);
                     }
                     (KeyCode::Right, _) => {
-                        buffer.move_cursor(Movement::Right);
+                        let _ = buffer.move_cursor(Movement::Right);
                     }
                     (KeyCode::Up, _) => {
-                        buffer.move_cursor(Movement::Up);
+                        let _ = buffer.move_cursor(Movement::Up);
                     }
                     (KeyCode::Down, _) => {
-                        buffer.move_cursor(Movement::Down);
+                        let _ = buffer.move_cursor(Movement::Down);
                     }
                     (KeyCode::Home, _) => {
-                        buffer.move_cursor(Movement::LineStart);
+                        let _ = buffer.move_cursor(Movement::LineStart);
                     }
                     (KeyCode::End, _) => {
-                        buffer.move_cursor(Movement::LineEnd);
+                        let _ = buffer.move_cursor(Movement::LineEnd);
                     }
 
                     _ => {}
