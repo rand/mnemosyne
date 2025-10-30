@@ -387,6 +387,7 @@ impl FeatureExtractor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::Utc;
 
     #[test]
     fn test_keyword_overlap_jaccard() {

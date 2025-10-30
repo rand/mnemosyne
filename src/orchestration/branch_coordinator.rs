@@ -517,6 +517,7 @@ mod tests {
     use crate::orchestration::conflict_detector::ConflictDetector;
     use crate::orchestration::file_tracker::FileTracker;
     use crate::orchestration::git_state::GitStateTracker;
+    use crate::orchestration::NotificationConfig;
     use crate::types::Namespace;
     use std::sync::Arc;
 

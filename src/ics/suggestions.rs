@@ -377,6 +377,7 @@ impl CompletionEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ics::editor::Position;
     use crate::ics::symbols::SymbolRegistry;
     use crate::storage::libsql::ConnectionMode;
     use crate::LibsqlStorage;

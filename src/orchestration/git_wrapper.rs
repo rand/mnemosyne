@@ -405,6 +405,7 @@ impl GitWrapper {
 mod tests {
     use super::*;
     use crate::orchestration::branch_registry::{BranchRegistry, CoordinationMode};
+    use crate::orchestration::WorkIntent;
     use tempfile::TempDir;
 
     fn setup_test_repo() -> TempDir {
