@@ -25,6 +25,7 @@
 
 use crate::error::Result;
 use crate::evaluation::feature_extractor::RelevanceFeatures;
+use crate::evaluation::feedback_collector::FeedbackCollector;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -323,9 +324,90 @@ impl RelevanceScorer {
     pub async fn update_weights(&self, evaluation_id: &str, features: &RelevanceFeatures) -> Result<()> {
         info!("Updating weights based on evaluation {}", evaluation_id);
 
-        // Get all relevant weight sets (session, project, global)
-        // For now, placeholder
-        // TODO: Implement full update logic
+        // Extract context information from features
+        // Note: We need to determine scope and context from the evaluation
+        // For now, we'll create a FeedbackCollector to fetch the evaluation
+        let collector = FeedbackCollector::new(self.db_path.clone());
+        let evaluation = collector.get_evaluation(evaluation_id).await?;
+
+        // Determine scope IDs
+        let session_id = &evaluation.session_id;
+        let project_id = &evaluation.namespace;  // namespace serves as project ID
+        let context_type_str = evaluation.context_type.to_string();
+        let agent_role = &evaluation.agent_role;
+
+        // Get or create weight sets for all three scopes
+        let mut session_weights = self.get_weights_with_fallback(
+            Scope::Session,
+            session_id,
+            &context_type_str,
+            agent_role,
+            evaluation.work_phase.as_ref().map(|p| p.to_string().as_str()),
+            evaluation.task_type.as_ref().map(|t| t.to_string().as_str()),
+            evaluation.error_context.as_ref().map(|e| e.to_string().as_str()),
+        ).await?;
+
+        let mut project_weights = self.get_weights_with_fallback(
+            Scope::Project,
+            project_id,
+            &context_type_str,
+            agent_role,
+            evaluation.work_phase.as_ref().map(|p| p.to_string().as_str()),
+            evaluation.task_type.as_ref().map(|t| t.to_string().as_str()),
+            evaluation.error_context.as_ref().map(|e| e.to_string().as_str()),
+        ).await?;
+
+        let mut global_weights = self.get_weights_with_fallback(
+            Scope::Global,
+            "global",
+            &context_type_str,
+            agent_role,
+            evaluation.work_phase.as_ref().map(|p| p.to_string().as_str()),
+            evaluation.task_type.as_ref().map(|t| t.to_string().as_str()),
+            evaluation.error_context.as_ref().map(|e| e.to_string().as_str()),
+        ).await?;
+
+        // Compute predicted scores using current weights
+        let session_score = self.compute_weighted_score(features, &session_weights.weights);
+        let project_score = self.compute_weighted_score(features, &project_weights.weights);
+        let global_score = self.compute_weighted_score(features, &global_weights.weights);
+
+        // Update each weight set using gradient descent
+        let actual_outcome = features.was_useful;
+
+        self.update_single_weight_set(
+            &mut session_weights,
+            features,
+            session_score,
+            actual_outcome,
+        );
+
+        self.update_single_weight_set(
+            &mut project_weights,
+            features,
+            project_score,
+            actual_outcome,
+        );
+
+        self.update_single_weight_set(
+            &mut global_weights,
+            features,
+            global_score,
+            actual_outcome,
+        );
+
+        // Store updated weights
+        self.store_weights(&session_weights).await?;
+        self.store_weights(&project_weights).await?;
+        self.store_weights(&global_weights).await?;
+
+        info!(
+            "Updated weights for evaluation {} across all scopes (session: {:.2}, project: {:.2}, global: {:.2})",
+            evaluation_id,
+            session_weights.confidence,
+            project_weights.confidence,
+            global_weights.confidence
+        );
 
         Ok(())
     }
