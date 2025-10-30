@@ -40,6 +40,7 @@ pub mod messages;
 pub mod network;
 pub mod notification_task;
 pub mod prompts;
+pub mod proposal_queue;
 pub mod registry;
 pub mod state;
 pub mod status_line;
@@ -71,6 +72,7 @@ pub use messages::{AgentMessage, ExecutorMessage, OptimizerMessage, Orchestrator
 pub use network::{AgentEndpoint, AgentProtocol, MessageRouter};
 pub use notification_task::NotificationTaskHandle;
 pub use prompts::{ConflictDecision, ConflictPrompt, InteractivePrompter, JoinDecision, JoinRequestPrompt};
+pub use proposal_queue::{ProposalQueue, ProposalSender, SendError};
 pub use registry::AgentRegistry;
 pub use state::{AgentState, Phase, WorkItem, WorkQueue};
 pub use status_line::{ShellIntegration, StatusLine, StatusLineFormat, StatusLineProvider};
