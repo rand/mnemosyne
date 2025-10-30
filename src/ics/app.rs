@@ -13,6 +13,7 @@ use super::{
     diagnostics_panel::{DiagnosticsPanel, DiagnosticsPanelState},
 };
 use crate::{
+    orchestration::AgentRegistry,
     storage::{MemorySortOrder, StorageBackend},
     tui::{EventLoop, TerminalConfig, TerminalManager, TuiEvent},
     types::{MemoryId, MemoryNote, MemoryType, Namespace},
@@ -51,6 +52,8 @@ pub struct IcsApp {
     // Phase 3: Memory Integration
     /// Storage backend for memory retrieval
     storage: Arc<dyn StorageBackend>,
+    /// Optional agent registry for orchestration mode
+    agent_registry: Option<AgentRegistry>,
     /// Memory panel state
     memory_panel: MemoryPanelState,
     /// Loaded memories (fetched from storage)
@@ -91,7 +94,12 @@ impl IcsApp {
     /// # Arguments
     /// * `config` - ICS configuration
     /// * `storage` - Storage backend for memory retrieval
-    pub fn new(config: IcsConfig, storage: Arc<dyn StorageBackend>) -> Self {
+    /// * `agent_registry` - Optional agent registry for orchestration mode
+    pub fn new(
+        config: IcsConfig,
+        storage: Arc<dyn StorageBackend>,
+        agent_registry: Option<AgentRegistry>,
+    ) -> Self {
         Self {
             config,
             editor: IcsEditor::new(),
@@ -101,6 +109,7 @@ impl IcsApp {
 
             // Phase 3: Memory Integration
             storage,
+            agent_registry,
             memory_panel: MemoryPanelState::new(),
             memories: Vec::new(), // Loaded on demand via load_memories()
 
@@ -110,10 +119,8 @@ impl IcsApp {
 
             // Phase 5: Agent Collaboration
             agent_status_panel: AgentStatusState::new(),
-            // NOTE: Agent tracking requires ractor agent registry implementation.
-            // Current orchestration system has actor definitions (orchestrator, optimizer, executor, reviewer)
-            // but no centralized registry to query for active agents.
-            // Full implementation blocked on ractor agent registry (Phase 4.1+).
+            // Agent tracking available when AgentRegistry is provided (orchestration mode)
+            // In standalone mode (no registry), agents list remains empty
             agents: Vec::new(),
             attribution_panel: AttributionPanelState::new(),
             // Attributions extracted from CrdtBuffer on demand (via Ctrl+T)
@@ -412,6 +419,18 @@ impl IcsApp {
         Ok(())
     }
 
+    /// Load agents from registry
+    ///
+    /// Queries the agent registry (if available) and populates the agents list.
+    /// If no registry is available (standalone mode), shows empty list.
+    pub async fn load_agents(&mut self) {
+        if let Some(ref registry) = self.agent_registry {
+            self.agents = registry.list_agents().await;
+        } else {
+            self.agents = Vec::new();
+        }
+    }
+
     /// Run the ICS application
     pub async fn run(&mut self) -> Result<()> {
         // Initialize terminal
@@ -511,11 +530,22 @@ impl IcsApp {
                     // Toggle agent status panel
                     (KeyCode::Char('a'), true) => {
                         self.agent_status_panel.toggle();
-                        self.status = if self.agent_status_panel.is_visible() {
-                            "Agent status: visible".to_string()
+                        if self.agent_status_panel.is_visible() {
+                            // Load agents when panel becomes visible
+                            self.load_agents().await;
+                            let mode = if self.agent_registry.is_some() {
+                                "orchestration"
+                            } else {
+                                "standalone"
+                            };
+                            self.status = format!(
+                                "Agent status: visible ({} agents, {} mode)",
+                                self.agents.len(),
+                                mode
+                            );
                         } else {
-                            "Agent status: hidden".to_string()
-                        };
+                            self.status = "Agent status: hidden".to_string();
+                        }
                     }
 
                     // Toggle attribution panel
