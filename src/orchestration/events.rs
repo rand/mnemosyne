@@ -547,4 +547,116 @@ mod tests {
         assert_eq!(state.completed_items.len(), 1);
         assert_eq!(state.completed_items[0], item_id);
     }
+
+    #[tokio::test]
+    async fn test_event_to_api_event_mapping() {
+        // Create a broadcaster for testing
+        let broadcaster = crate::api::EventBroadcaster::new(10);
+
+        let storage = Arc::new(
+            LibsqlStorage::new(crate::ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create in-memory storage")
+        );
+
+        let persistence = EventPersistence::new_with_broadcaster(
+            storage,
+            Namespace::Session {
+                project: "test".to_string(),
+                session_id: "test-mapping".to_string(),
+            },
+            Some(broadcaster.clone()),
+        );
+
+        // Test WorkItemStarted mapping
+        let event = AgentEvent::WorkItemStarted {
+            agent: AgentRole::Executor,
+            item_id: WorkItemId::new(),
+        };
+        let api_event = persistence.to_api_event(&event);
+        assert!(api_event.is_some());
+        if let Some(api_event) = api_event {
+            assert!(matches!(api_event.event_type, crate::api::EventType::AgentStarted { .. }));
+        }
+
+        // Test WorkItemCompleted mapping
+        let event = AgentEvent::WorkItemCompleted {
+            agent: AgentRole::Reviewer,
+            item_id: WorkItemId::new(),
+            duration_ms: 1000,
+            memory_ids: vec![],
+        };
+        let api_event = persistence.to_api_event(&event);
+        assert!(api_event.is_some());
+        if let Some(api_event) = api_event {
+            assert!(matches!(api_event.event_type, crate::api::EventType::AgentCompleted { .. }));
+        }
+
+        // Test WorkItemFailed mapping
+        let event = AgentEvent::WorkItemFailed {
+            agent: AgentRole::Optimizer,
+            item_id: WorkItemId::new(),
+            error: "Test error".to_string(),
+        };
+        let api_event = persistence.to_api_event(&event);
+        assert!(api_event.is_some());
+        if let Some(api_event) = api_event {
+            assert!(matches!(api_event.event_type, crate::api::EventType::AgentFailed { .. }));
+        }
+
+        // Test that other events are not mapped
+        let event = AgentEvent::PhaseTransition {
+            from: Phase::PromptToSpec,
+            to: Phase::SpecToFullSpec,
+            approved_by: AgentRole::Orchestrator,
+        };
+        let api_event = persistence.to_api_event(&event);
+        assert!(api_event.is_none()); // Phase transitions are not broadcast
+    }
+
+    #[tokio::test]
+    async fn test_event_broadcasting() {
+        // Create a broadcaster
+        let broadcaster = crate::api::EventBroadcaster::new(10);
+        let mut subscriber = broadcaster.subscribe();
+
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let persistence = EventPersistence::new_with_broadcaster(
+            storage.clone(),
+            Namespace::Session {
+                project: "test".to_string(),
+                session_id: "test-broadcast".to_string(),
+            },
+            Some(broadcaster.clone()),
+        );
+
+        // Persist an event that should be broadcast
+        let event = AgentEvent::WorkItemStarted {
+            agent: AgentRole::Executor,
+            item_id: WorkItemId::new(),
+        };
+
+        persistence.persist(event).await.unwrap();
+
+        // Check that the event was broadcast
+        let api_event = tokio::time::timeout(
+            tokio::time::Duration::from_millis(100),
+            subscriber.recv()
+        ).await;
+
+        assert!(api_event.is_ok(), "Event should have been broadcast");
+        let api_event = api_event.unwrap().unwrap();
+        assert!(matches!(api_event.event_type, crate::api::EventType::AgentStarted { .. }));
+    }
 }

@@ -20,7 +20,7 @@ use once_cell::sync::Lazy;
 use std::ops::Range;
 
 /// Semantic role type
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SemanticRole {
     /// Performer of action
     Agent,
