@@ -71,26 +71,32 @@ src/ics/semantic_highlighter/
 - [x] Real-time performance (<5ms)
 - [x] Comprehensive test coverage
 
-### ✅ Tier 2: Relational (100% Complete)
+### ⚠️ Tier 2: Relational (95% Complete - Missing Incremental)
 - [x] Entity recognizer (5 types)
 - [x] Relationship extractor (5 relation types)
 - [x] Semantic role labeler (6 roles)
 - [x] Coreference resolver (distance-based)
 - [x] Anaphora resolver (4 pronoun types)
-- [x] Incremental analysis support
+- [ ] **Incremental analysis (TODO - schedule_analysis stubbed)**
 - [x] LRU caching
 - [x] Comprehensive test coverage
 
-### ✅ Tier 3: Analytical (100% Complete)
-- [x] Discourse analyzer (8 RST relations)
-- [x] Contradiction detector (4 types)
-- [x] Pragmatics analyzer (presuppositions, implicatures, speech acts)
-- [x] Request batching system
+**Status**: All analyzers functional, but incremental/debounced analysis not yet implemented
+
+### ⚠️ Tier 3: Analytical (30% Complete - Infrastructure Only)
+- [x] Type definitions and data structures
+- [x] Prompt builders for all analyzers
+- [x] Conversion methods (to spans/connections)
+- [x] Request batching infrastructure
 - [x] Rate limiting (token bucket)
 - [x] Content-hash deduplication
-- [x] Priority-based scheduling
-- [x] Background processing
-- [x] Async/await support
+- [x] Priority-based scheduling framework
+- [ ] **LLM service integration (not implemented)**
+- [ ] **Response parsing (not implemented)**
+- [ ] **Background processing loop (stubbed)**
+- [ ] **Async analysis execution (stubbed)**
+
+**Status**: Scaffolding complete, but no actual LLM calls or analysis functionality
 
 ### ✅ Infrastructure (100% Complete)
 - [x] Dual caching strategy
@@ -337,13 +343,22 @@ fn test_entity_recognition() {
 - [ ] Performance profiling tools
 - [ ] Visual debugging tools
 
-## Known Limitations
+## Known Gaps and Limitations
 
+### Incomplete Features
+1. **Tier 3 LLM Integration**: All three analyzers return empty results - LLM calls not implemented
+2. **Background Processing**: Loop exists but doesn't process requests - needs completion
+3. **Incremental Analysis**: `schedule_analysis()` method is stubbed - debouncing not implemented
+4. **ICS Integration**: Not integrated with editor - completely standalone
+5. **Cache Invalidation**: No dirty region tracking for incremental updates
+
+### Technical Limitations
 1. **Tier 2 Heuristics**: Uses pattern matching, not full parsing
 2. **English-centric**: Optimized for English language
 3. **API Dependency**: Tier 3 requires Claude API key
 4. **Context Window**: Coreference limited to 500 chars
 5. **False Positives**: Entity recognition can mis-identify uncommon names
+6. **No Performance Benchmarks**: Claims of <5ms/<200ms not validated
 
 ## Migration Notes
 
@@ -363,15 +378,29 @@ The old semantic highlighting (`src/ics/semantic.rs`) can be gradually replaced:
 
 ## Conclusion
 
-This implementation provides a production-ready, comprehensive semantic highlighting system with:
+This implementation provides a **partially complete** semantic highlighting system with:
 
-✅ **Performance**: <5ms for real-time, <200ms for incremental
-✅ **Scalability**: Caching, batching, rate limiting
-✅ **Flexibility**: Configurable, extensible, modular
-✅ **Quality**: 170+ tests, comprehensive docs
-✅ **Completeness**: All tiers fully implemented
+✅ **Tier 1 (Complete)**: Production-ready real-time structural analysis
+✅ **Tier 2 (95%)**: Functional local NLP, missing incremental updates
+⚠️ **Tier 3 (30%)**: Infrastructure only, no LLM integration
+✅ **Architecture**: Well-designed, modular, extensible
+✅ **Testing**: 109 unit tests, 20 integration tests (basic coverage)
+❌ **Integration**: Not yet integrated with ICS
+❌ **Performance**: Claims not validated with benchmarks
 
-The system is ready for integration into ICS and can operate independently as a library.
+### Current Status
+- **Production Ready**: Tier 1 structural analysis only
+- **Usable with Limitations**: Tier 2 works but no incremental analysis
+- **Not Functional**: Tier 3 requires implementation (est. 3-5 days)
+- **Estimated Work**: 10-12 days for full functionality, 20+ days with all enhancements
+
+### Next Steps
+1. Implement Tier 3 LLM integration
+2. Complete background processing
+3. Add incremental analysis with debouncing
+4. Integrate with ICS editor
+5. Add performance benchmarks
+6. Expand test coverage
 
 ## Quick Start
 
