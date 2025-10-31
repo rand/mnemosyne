@@ -3159,31 +3159,79 @@ impl StorageBackend for LibsqlStorage {
         while let Some(row) = rows.next().await.map_err(|e| {
             MnemosyneError::Database(format!("Failed to fetch work item row: {}", e))
         })? {
-            // Parse fields from row
-            let id_str: String = row.get(0).unwrap();
-            let description: String = row.get(1).unwrap();
-            let original_intent: String = row.get(2).unwrap();
-            let agent_role_str: String = row.get(3).unwrap();
-            let state_str: String = row.get(4).unwrap();
-            let phase_str: String = row.get(5).unwrap();
-            let priority: i64 = row.get(6).unwrap();
-            let dependencies_json: String = row.get(7).unwrap();
-            let created_at_ms: i64 = row.get(8).unwrap();
-            let started_at_ms: Option<i64> = row.get(9).unwrap();
-            let completed_at_ms: Option<i64> = row.get(10).unwrap();
-            let error: Option<String> = row.get(11).unwrap();
-            let timeout_secs: Option<i64> = row.get(12).unwrap();
-            let review_feedback_json: String = row.get(13).unwrap();
-            let suggested_tests_json: String = row.get(14).unwrap();
-            let review_attempt: i64 = row.get(15).unwrap();
-            let execution_memory_ids_json: String = row.get(16).unwrap();
-            let consolidated_context_id_str: Option<String> = row.get(17).unwrap();
-            let estimated_context_tokens: i64 = row.get(18).unwrap();
-            let assigned_branch: Option<String> = row.get(19).unwrap();
-            let file_scope_json: String = row.get(20).unwrap();
-            let requirements_json: String = row.get(21).unwrap();
-            let requirement_status_json: String = row.get(22).unwrap();
-            let implementation_evidence_json: String = row.get(23).unwrap();
+            // Parse fields from row with proper error handling
+            let id_str: String = row.get(0).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get work item id: {}", e))
+            })?;
+            let description: String = row.get(1).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get description: {}", e))
+            })?;
+            let original_intent: String = row.get(2).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get original_intent: {}", e))
+            })?;
+            let agent_role_str: String = row.get(3).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get agent_role: {}", e))
+            })?;
+            let state_str: String = row.get(4).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get state: {}", e))
+            })?;
+            let phase_str: String = row.get(5).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get phase: {}", e))
+            })?;
+            let priority: i64 = row.get(6).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get priority: {}", e))
+            })?;
+            let dependencies_json: String = row.get(7).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get dependencies: {}", e))
+            })?;
+            let created_at_ms: i64 = row.get(8).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get created_at: {}", e))
+            })?;
+            let started_at_ms: Option<i64> = row.get(9).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get started_at: {}", e))
+            })?;
+            let completed_at_ms: Option<i64> = row.get(10).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get completed_at: {}", e))
+            })?;
+            let error: Option<String> = row.get(11).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get error: {}", e))
+            })?;
+            let timeout_secs: Option<i64> = row.get(12).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get timeout_secs: {}", e))
+            })?;
+            let review_feedback_json: String = row.get(13).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get review_feedback: {}", e))
+            })?;
+            let suggested_tests_json: String = row.get(14).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get suggested_tests: {}", e))
+            })?;
+            let review_attempt: i64 = row.get(15).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get review_attempt: {}", e))
+            })?;
+            let execution_memory_ids_json: String = row.get(16).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get execution_memory_ids: {}", e))
+            })?;
+            let consolidated_context_id_str: Option<String> = row.get(17).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get consolidated_context_id: {}", e))
+            })?;
+            let estimated_context_tokens: i64 = row.get(18).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get estimated_context_tokens: {}", e))
+            })?;
+            let assigned_branch: Option<String> = row.get(19).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get assigned_branch: {}", e))
+            })?;
+            let file_scope_json: String = row.get(20).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get file_scope: {}", e))
+            })?;
+            let requirements_json: String = row.get(21).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get requirements: {}", e))
+            })?;
+            let requirement_status_json: String = row.get(22).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get requirement_status: {}", e))
+            })?;
+            let implementation_evidence_json: String = row.get(23).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get implementation_evidence: {}", e))
+            })?;
 
             // Deserialize JSON fields
             let dependencies: Vec<crate::orchestration::state::WorkItemId> =
