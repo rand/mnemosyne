@@ -349,11 +349,34 @@ install_binary() {
 init_database() {
     print_header "Initializing database"
 
+    # Check if database already exists (project-local takes precedence)
+    local db_path=""
+    if [ -f ".mnemosyne/project.db" ]; then
+        db_path=".mnemosyne/project.db"
+    elif [ -f "${HOME}/.local/share/mnemosyne/mnemosyne.db" ]; then
+        db_path="${HOME}/.local/share/mnemosyne/mnemosyne.db"
+    fi
+
+    if [ -n "$db_path" ]; then
+        print_success "Database already exists: $db_path"
+        echo "  Skipping initialization"
+        return 0
+    fi
+
     # Run mnemosyne init
+    echo "  Initializing new database..."
     if "${BIN_DIR}/mnemosyne" init; then
         print_success "Database initialized"
     else
         print_error "Failed to initialize database"
+        echo ""
+        echo "Troubleshooting:"
+        echo "  1. Check if another instance is running:"
+        echo "     ps aux | grep mnemosyne"
+        echo "  2. Try initializing manually:"
+        echo "     ${BIN_DIR}/mnemosyne init"
+        echo "  3. Check logs for errors (RUST_LOG=debug)"
+        echo ""
         exit 1
     fi
 }
