@@ -1,8 +1,8 @@
 //! Main TUI application integrating all components
 
 use super::{
-    ChatView, CommandPalette, Dashboard, EventLoop, IcsPanel, LayoutManager, TerminalConfig,
-    TerminalManager, TuiEvent,
+    ChatView, CommandPalette, Dashboard, EventLoop, HelpOverlay, IcsPanel, LayoutManager,
+    TerminalConfig, TerminalManager, TuiEvent,
 };
 use crate::pty::ClaudeCodeWrapper;
 use anyhow::Result;
@@ -32,6 +32,8 @@ pub struct TuiApp {
     ics_panel: IcsPanel,
     /// Command palette
     command_palette: CommandPalette,
+    /// Help overlay
+    help_overlay: HelpOverlay,
     /// Layout manager
     layout: LayoutManager,
     /// Claude Code wrapper
@@ -117,6 +119,7 @@ impl TuiApp {
         });
 
         let layout = LayoutManager::new(ratatui::layout::Rect::default());
+        let help_overlay = HelpOverlay::new();
 
         Ok(Self {
             terminal,
@@ -125,6 +128,7 @@ impl TuiApp {
             dashboard,
             ics_panel,
             command_palette,
+            help_overlay,
             layout,
             wrapper: None,
             state: AppState::Running,
@@ -182,6 +186,24 @@ impl TuiApp {
                 self.state = AppState::Quitting;
             }
             TuiEvent::Key(key) => {
+                // Handle help overlay toggle (? key)
+                if key.code == KeyCode::Char('?') {
+                    let ics_visible = self.ics_panel.is_visible();
+                    self.help_overlay.toggle(ics_visible);
+                    return Ok(());
+                }
+
+                // Handle help overlay dismiss (Esc when help is visible)
+                if self.help_overlay.is_visible() && key.code == KeyCode::Esc {
+                    self.help_overlay.hide();
+                    return Ok(());
+                }
+
+                // Don't process other keys if help is visible
+                if self.help_overlay.is_visible() {
+                    return Ok(());
+                }
+
                 // Handle command palette toggle
                 if key.code == KeyCode::Char('p')
                     && key
@@ -355,6 +377,11 @@ impl TuiApp {
                     height: size.height / 2,
                 };
                 frame.render_widget(&self.command_palette, palette_area);
+            }
+
+            // Render help overlay if visible (renders on top of everything)
+            if self.help_overlay.is_visible() {
+                frame.render_widget(&self.help_overlay, size);
             }
 
             // Build and render status bar with context-aware hints

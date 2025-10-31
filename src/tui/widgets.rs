@@ -552,6 +552,182 @@ impl<'a> Widget for &ScrollableList<'a> {
     }
 }
 
+/// Help overlay widget - shows keybindings
+pub struct HelpOverlay {
+    /// Whether overlay is visible
+    visible: bool,
+    /// Context mode (for context-aware help)
+    ics_mode: bool,
+}
+
+impl HelpOverlay {
+    /// Create new help overlay
+    pub fn new() -> Self {
+        Self {
+            visible: false,
+            ics_mode: false,
+        }
+    }
+
+    /// Show overlay
+    pub fn show(&mut self, ics_mode: bool) {
+        self.visible = true;
+        self.ics_mode = ics_mode;
+    }
+
+    /// Hide overlay
+    pub fn hide(&mut self) {
+        self.visible = false;
+    }
+
+    /// Toggle visibility
+    pub fn toggle(&mut self, ics_mode: bool) {
+        if self.visible {
+            self.hide();
+        } else {
+            self.show(ics_mode);
+        }
+    }
+
+    /// Check if visible
+    pub fn is_visible(&self) -> bool {
+        self.visible
+    }
+}
+
+impl Default for HelpOverlay {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Widget for &HelpOverlay {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        if !self.visible {
+            return;
+        }
+
+        // Create centered help panel
+        let help_width = 60.min(area.width.saturating_sub(4));
+        let help_height = 20.min(area.height.saturating_sub(4));
+        let help_x = (area.width.saturating_sub(help_width)) / 2;
+        let help_y = (area.height.saturating_sub(help_height)) / 2;
+
+        let help_area = Rect {
+            x: help_x,
+            y: help_y,
+            width: help_width,
+            height: help_height,
+        };
+
+        // Build help content based on mode
+        let mut help_text = vec![
+            Line::from(vec![
+                Span::styled(
+                    "Keyboard Shortcuts",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]),
+            Line::from(""),
+        ];
+
+        if self.ics_mode {
+            // ICS-specific help
+            help_text.extend(vec![
+                Line::from(vec![
+                    Span::styled("ICS Mode", Style::default().add_modifier(Modifier::BOLD)),
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("  Ctrl+Enter", Style::default().fg(Color::Yellow)),
+                    Span::raw("  Submit refined context to Claude"),
+                ]),
+                Line::from(vec![
+                    Span::styled("  Ctrl+S", Style::default().fg(Color::Yellow)),
+                    Span::raw("      Save edited document"),
+                ]),
+                Line::from(vec![
+                    Span::styled("  Ctrl+E", Style::default().fg(Color::Yellow)),
+                    Span::raw("      Focus/toggle ICS editor"),
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("Patterns", Style::default().add_modifier(Modifier::BOLD)),
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("  #file.rs", Style::default().fg(Color::Blue)),
+                    Span::raw("    File reference (blue)"),
+                ]),
+                Line::from(vec![
+                    Span::styled("  @symbol", Style::default().fg(Color::Green)),
+                    Span::raw("     Symbol reference (green)"),
+                ]),
+                Line::from(vec![
+                    Span::styled("  ?hole", Style::default().fg(Color::Yellow)),
+                    Span::raw("       Typed hole (yellow)"),
+                ]),
+            ]);
+        } else {
+            // General TUI help
+            help_text.extend(vec![
+                Line::from(vec![
+                    Span::styled("Navigation", Style::default().add_modifier(Modifier::BOLD)),
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::styled("  Ctrl+P", Style::default().fg(Color::Yellow)),
+                    Span::raw("      Open command palette"),
+                ]),
+                Line::from(vec![
+                    Span::styled("  Ctrl+E", Style::default().fg(Color::Yellow)),
+                    Span::raw("      Toggle ICS panel"),
+                ]),
+                Line::from(vec![
+                    Span::styled("  Ctrl+D", Style::default().fg(Color::Yellow)),
+                    Span::raw("      Toggle dashboard"),
+                ]),
+                Line::from(vec![
+                    Span::styled("  Ctrl+Q", Style::default().fg(Color::Yellow)),
+                    Span::raw("      Quit application"),
+                ]),
+            ]);
+        }
+
+        // Add common footer
+        help_text.extend(vec![
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("  ?/Esc", Style::default().fg(Color::Yellow)),
+                Span::raw("       Close this help"),
+            ]),
+        ]);
+
+        // Create paragraph with help text
+        let help_block = Block::default()
+            .title(" Help ")
+            .borders(Borders::ALL)
+            .border_style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .style(Style::default().bg(Color::Black));
+
+        let help_paragraph = Paragraph::new(help_text)
+            .block(help_block)
+            .style(Style::default().fg(Color::White));
+
+        // Render with background overlay
+        let clear = Block::default().style(Style::default().bg(Color::Black));
+        clear.render(area, buf);
+
+        help_paragraph.render(help_area, buf);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -23,4 +23,4 @@ pub use events::{EventHandler, EventLoop, TuiEvent};
 pub use layout::{LayoutManager, PanelConfig, Split};
 pub use terminal::{TerminalConfig, TerminalManager};
 pub use views::{ChatView, Dashboard, IcsPanel};
-pub use widgets::{Command, CommandCategory, CommandPalette, ScrollableList, StatusBar};
+pub use widgets::{Command, CommandCategory, CommandPalette, HelpOverlay, ScrollableList, StatusBar};
