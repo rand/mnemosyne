@@ -38,9 +38,9 @@ Mnemosyne provides persistent semantic memory with sub-millisecond retrieval, bu
 
 ### Interactive Collaborative Space (ICS)
 - **CRDT Editing**: Automerge-based collaborative text editor
-- **Syntax Highlighting**: Tree-sitter based highlighting for 8+ languages (Rust, Python, TypeScript, Go, C/C++, Shell, Markdown, JSON/TOML/YAML)
+- **Syntax Highlighting**: Tree-sitter 0.23 based highlighting for 13 languages (Rust, Python, Go, TypeScript, JavaScript, JSON, TOML, YAML, Markdown, Bash, C, C++, Zig)
 - **Semantic Highlighting**: Type information, scopes, error overlays
-- **Vim Mode**: Full vi/vim keybindings with modal editing
+- **Vim Mode**: Complete vi/vim keybindings with modal editing (14 movement commands: w/b/e, f/F/t/T, PageUp/Down, gg/G)
 - **Panels**: Memory browser, agent status, attribution, diagnostics
 - **Semantic Analysis**: Real-time triple extraction, typed hole detection, dependency graphs
 - **Undo/Redo**: Transaction-based history with Automerge
