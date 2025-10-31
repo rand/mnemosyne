@@ -20,6 +20,18 @@ pub enum MnemosyneError {
     #[error("LLM API error: {0}")]
     LlmApi(String),
 
+    /// LLM API timeout
+    #[error("LLM API timeout after {0}s")]
+    LlmTimeout(u64),
+
+    /// LLM API retry limit exceeded
+    #[error("LLM API retry limit exceeded after {0} attempts: {1}")]
+    LlmRetryExhausted(u32, String),
+
+    /// Python interop error (PyO3)
+    #[error("Python interop error: {0}")]
+    PythonInterop(String),
+
     /// Embedding generation failed
     #[error("Embedding error: {0}")]
     Embedding(String),

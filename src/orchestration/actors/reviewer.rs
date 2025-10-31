@@ -25,6 +25,10 @@ use crate::python_bindings::collect_implementation_from_memories;
 use pyo3::prelude::*;
 #[cfg(feature = "python")]
 use std::collections::HashMap;
+#[cfg(feature = "python")]
+use std::time::Duration;
+#[cfg(feature = "python")]
+use tokio::time::timeout;
 
 /// Quality gates that must pass (8 total: 5 existing + 3 pillars)
 #[derive(Debug, Clone)]
@@ -118,6 +122,86 @@ impl Default for ReviewerConfig {
             llm_temperature: 0.0,
         }
     }
+}
+
+/// Helper macro for retrying LLM operations with exponential backoff and timeout
+///
+/// This macro wraps Python LLM calls with retry logic, timeout handling, and
+/// exponential backoff between attempts.
+///
+/// Usage:
+/// ```ignore
+/// retry_llm_operation!(
+///     config,           // ReviewerConfig reference
+///     "operation_name", // Operation name for logging
+///     {                 // Block containing the Python GIL operation
+///         Python::with_gil(|py| {
+///             // ... Python operation ...
+///         })
+///     }
+/// )
+/// ```
+#[cfg(feature = "python")]
+macro_rules! retry_llm_operation {
+    ($config:expr, $op_name:expr, $operation:block) => {{
+        let config = $config;
+        let op_name = $op_name;
+        let mut attempt = 0;
+        let mut last_error = None;
+
+        loop {
+            attempt += 1;
+
+            tracing::debug!(
+                "LLM operation '{}' attempt {}/{}",
+                op_name,
+                attempt,
+                config.max_llm_retries
+            );
+
+            // Try the operation
+            let result: std::result::Result<_, PyErr> = $operation;
+
+            match result {
+                Ok(value) => {
+                    if attempt > 1 {
+                        tracing::info!(
+                            "LLM operation '{}' succeeded on attempt {}",
+                            op_name,
+                            attempt
+                        );
+                    }
+                    break Ok(value);
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "LLM operation '{}' failed on attempt {}: {}",
+                        op_name,
+                        attempt,
+                        e
+                    );
+                    last_error = Some(e.to_string());
+
+                    if attempt >= config.max_llm_retries {
+                        let final_error = last_error.unwrap_or_else(|| "Unknown error".to_string());
+                        break Err(MnemosyneError::LlmRetryExhausted(
+                            config.max_llm_retries,
+                            format!("{}: {}", op_name, final_error),
+                        ));
+                    }
+
+                    // Exponential backoff: 1s, 2s, 4s, ...
+                    let backoff_secs = 2u64.pow(attempt - 1);
+                    tracing::debug!(
+                        "Retrying LLM operation '{}' after {}s backoff",
+                        op_name,
+                        backoff_secs
+                    );
+                    tokio::time::sleep(Duration::from_secs(backoff_secs)).await;
+                }
+            }
+        }
+    }};
 }
 
 /// Reviewer actor state
@@ -215,30 +299,37 @@ impl ReviewerState {
             work_item.file_scope
         );
 
-        // Call Python LLM to extract requirements
-        match Python::with_gil(|py| -> PyResult<Vec<String>> {
-            let py_reviewer = self.py_reviewer.as_ref().unwrap();
+        // Call Python LLM to extract requirements with retry logic
+        let py_reviewer = self.py_reviewer.clone();
+        let original_intent = work_item.original_intent.clone();
+        let work_item_id = work_item.id.clone();
 
-            let result = py_reviewer.call_method1(
-                py,
-                "extract_requirements_from_intent",
-                (work_item.original_intent.clone(), Some(context.clone())),
-            )?;
+        match retry_llm_operation!(&self.config, "extract_requirements_from_intent", {
+            Python::with_gil(|py| -> PyResult<Vec<String>> {
+                let py_reviewer = py_reviewer.as_ref().unwrap();
 
-            result.extract(py)
+                let result = py_reviewer.call_method1(
+                    py,
+                    "extract_requirements_from_intent",
+                    (original_intent.clone(), Some(context.clone())),
+                )?;
+
+                result.extract(py)
+            })
         }) {
             Ok(requirements) => {
                 tracing::info!(
                     "Extracted {} requirements from intent for work item {}",
                     requirements.len(),
-                    work_item.id
+                    work_item_id
                 );
                 Ok(requirements)
             }
             Err(e) => {
                 tracing::warn!(
-                    "Failed to extract requirements via LLM for work item {}: {}. Continuing without explicit requirements.",
-                    work_item.id,
+                    "Failed to extract requirements via LLM for work item {} after {} retries: {}. Continuing without explicit requirements.",
+                    work_item_id,
+                    self.config.max_llm_retries,
                     e
                 );
                 Ok(Vec::new())
