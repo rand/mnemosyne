@@ -271,16 +271,16 @@ impl Default for EngineBuilder {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_engine_creation() {
+    #[tokio::test]
+    async fn test_engine_creation() {
         let engine = SemanticHighlightEngine::new(None);
         assert!(engine.structural.is_enabled());
         assert!(engine.relational.is_some());
         assert!(engine.analytical.is_none());
     }
 
-    #[test]
-    fn test_builder_pattern() {
+    #[tokio::test]
+    async fn test_builder_pattern() {
         let settings = HighlightSettings {
             enable_relational: false,
             ..Default::default()
@@ -291,8 +291,8 @@ mod tests {
         assert!(engine.relational.is_none());
     }
 
-    #[test]
-    fn test_highlight_line_basic() {
+    #[tokio::test]
+    async fn test_highlight_line_basic() {
         let mut engine = SemanticHighlightEngine::new(None);
         let line = engine.highlight_line("Hello world");
 
