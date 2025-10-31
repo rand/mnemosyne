@@ -185,7 +185,7 @@ impl CoreferenceResolver {
         let re = regex::Regex::new(r"\b(the|this|that)\s+([a-z]+)\b").unwrap();
 
         for cap in re.captures_iter(&text.to_lowercase()) {
-            if let Some(noun) = cap.get(2) {
+            if let Some(_noun) = cap.get(2) {
                 // Get the actual text (not lowercased)
                 let full_start = cap.get(0).unwrap().start();
                 let full_end = cap.get(0).unwrap().end();

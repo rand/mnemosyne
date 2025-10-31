@@ -231,7 +231,6 @@ impl EntityRecognizer {
         for cap in self.patterns.multi_cap.captures_iter(text) {
             let phrase = cap.get(1).unwrap();
             let phrase_text = phrase.as_str();
-            let phrase_lower = phrase_text.to_lowercase();
 
             // Check if followed by organization indicator
             let end_pos = phrase.end();

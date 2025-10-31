@@ -1,6 +1,6 @@
 //! Visualization types and rendering utilities
 
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 

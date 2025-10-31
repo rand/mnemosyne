@@ -140,7 +140,7 @@ impl RequestBatcher {
     pub async fn submit(&self, request: BatchRequest) -> Result<()> {
         // Check deduplication
         let mut cache = self.dedup_cache.write().await;
-        if let Some(existing) = cache.get(&request.content_hash) {
+        if let Some(_existing) = cache.get(&request.content_hash) {
             // Already have this request, just add ID to waiting list
             cache.get_mut(&request.content_hash)
                 .unwrap()

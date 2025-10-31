@@ -95,7 +95,7 @@ impl RelationshipExtractor {
     }
 
     /// Convert relationships to highlight spans
-    pub fn relationships_to_spans(&self, relationships: &[Relationship], text: &str) -> Vec<HighlightSpan> {
+    pub fn relationships_to_spans(&self, relationships: &[Relationship], _text: &str) -> Vec<HighlightSpan> {
         let mut spans = Vec::new();
 
         for rel in relationships {

@@ -278,10 +278,10 @@ Example format:
 
     /// Assess coherence of text
     pub async fn assess_coherence(&self, text: &str) -> Result<CoherenceScore> {
-        let prompt = self.build_coherence_prompt(text);
+        let _prompt = self.build_coherence_prompt(text);
 
         // Placeholder - would call LLM service
-        // let response = self.llm_service.generate(&prompt).await?;
+        // let response = self.llm_service.call_api(&_prompt).await?;
 
         Ok(CoherenceScore {
             overall: 0.8,
