@@ -301,6 +301,9 @@ impl TuiApp {
 
     /// Render UI
     fn render(&mut self) -> Result<()> {
+        // Capture ICS visibility state before entering draw closure
+        let ics_visible = self.ics_panel.is_visible();
+
         self.terminal.terminal_mut().draw(|frame| {
             let size = frame.area();
 
@@ -313,11 +316,12 @@ impl TuiApp {
                 .constraints([
                     Constraint::Min(10),   // Chat + ICS
                     Constraint::Length(6), // Dashboard
+                    Constraint::Length(1), // Status bar
                 ])
                 .split(size);
 
             // Split top section if ICS is visible
-            let top_chunks = if self.ics_panel.is_visible() {
+            let top_chunks = if ics_visible {
                 Layout::default()
                     .direction(Direction::Horizontal)
                     .constraints([
@@ -334,7 +338,7 @@ impl TuiApp {
             self.chat_view.render(frame, top_chunks[0]);
 
             // Render ICS panel if visible
-            if self.ics_panel.is_visible() && top_chunks.len() > 1 {
+            if ics_visible && top_chunks.len() > 1 {
                 self.ics_panel.render(frame, top_chunks[1]);
             }
 
@@ -352,6 +356,27 @@ impl TuiApp {
                 };
                 frame.render_widget(&self.command_palette, palette_area);
             }
+
+            // Build and render status bar with context-aware hints
+            use super::StatusBar;
+            let status_bar = if ics_visible {
+                // ICS mode hints
+                StatusBar::new()
+                    .left_item("Mode", "ICS")
+                    .right_item("Ctrl+Enter", "Submit")
+                    .right_item("Ctrl+S", "Save")
+                    .right_item("?", "Help")
+                    .right_item("Ctrl+P", "Commands")
+            } else {
+                // Normal mode hints
+                StatusBar::new()
+                    .left_item("Mode", "Chat")
+                    .right_item("Ctrl+P", "Commands")
+                    .right_item("Ctrl+E", "ICS")
+                    .right_item("Ctrl+D", "Dashboard")
+                    .right_item("Ctrl+Q", "Quit")
+            };
+            frame.render_widget(status_bar, chunks[2]);
         })?;
 
         Ok(())
