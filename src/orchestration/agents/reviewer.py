@@ -876,3 +876,83 @@ Be specific and actionable. Focus on WHAT to fix and HOW to fix it."""
             responses.append(str(message))
 
         return " ".join(responses)
+
+    async def extract_requirements_from_intent(
+        self,
+        original_intent: str,
+        context: Optional[str] = None
+    ) -> List[str]:
+        """
+        Extract explicit, testable requirements from user intent using Claude.
+
+        This method analyzes the original intent string and extracts a list of
+        concrete, actionable requirements that can be individually tracked and validated.
+
+        Args:
+            original_intent: The original user request/intent
+            context: Optional additional context (e.g., project background)
+
+        Returns:
+            List of requirement strings, each being specific and testable
+
+        Example:
+            intent = "Add JWT authentication with refresh tokens"
+            requirements = await extract_requirements_from_intent(intent)
+            # Returns: [
+            #   "Implement JWT token generation",
+            #   "Implement refresh token rotation",
+            #   "Add token validation middleware",
+            #   "Handle token expiration errors"
+            # ]
+        """
+        prompt = f"""Analyze the following user intent and extract explicit, testable requirements.
+
+# User Intent
+{original_intent}
+
+{f"# Additional Context\\n{context}\\n" if context else ""}
+
+# Task
+Extract a list of concrete, actionable requirements from this intent. Each requirement should be:
+1. **Specific**: Clearly define what needs to be done
+2. **Testable**: Can be verified through testing or inspection
+3. **Atomic**: Represents a single, focused piece of work
+4. **Implementation-oriented**: Focuses on what to build, not how
+
+# Requirements Format
+Return ONLY a JSON array of requirement strings, with no additional commentary.
+
+Example format:
+["Requirement 1", "Requirement 2", "Requirement 3"]
+
+# Guidelines
+- Break down high-level goals into concrete implementation tasks
+- Include both functional requirements (features) and non-functional requirements (error handling, edge cases)
+- Focus on observable, verifiable outcomes
+- Keep each requirement concise (1-2 sentences max)
+- Aim for 3-8 requirements for typical tasks
+
+Extract the requirements now, returning ONLY the JSON array:"""
+
+        await self.claude_client.query(prompt)
+
+        responses = []
+        async for message in self.claude_client.receive_response():
+            responses.append(str(message))
+
+        response_text = " ".join(responses)
+
+        # Parse JSON response
+        try:
+            # Extract JSON array from response (handle potential markdown formatting)
+            import re
+            json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
+            if json_match:
+                requirements = json.loads(json_match.group())
+                return requirements
+            else:
+                # Fallback: return empty list if no valid JSON found
+                return []
+        except json.JSONDecodeError:
+            # Fallback: return empty list if JSON parsing fails
+            return []
