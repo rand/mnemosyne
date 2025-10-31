@@ -333,6 +333,17 @@ install_binary() {
 
     # Make executable
     chmod +x "${BIN_DIR}/mnemosyne"
+
+    # On macOS, clear extended attributes and re-sign to avoid SIGKILL issues
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        xattr -c "${BIN_DIR}/mnemosyne" 2>/dev/null || true
+        codesign --force --sign - "${BIN_DIR}/mnemosyne" 2>/dev/null || {
+            print_warning "Could not re-sign binary (codesign failed)"
+            echo "  Binary may not run correctly. If you get 'Killed: 9' errors:"
+            echo "  Run: codesign --force --sign - ${BIN_DIR}/mnemosyne"
+        }
+    fi
+
     print_success "Installed to ${BIN_DIR}/mnemosyne"
 
     # Check if bin directory is in PATH
