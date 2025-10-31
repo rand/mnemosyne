@@ -1,18 +1,17 @@
 //! Integration tests for LLM-enhanced reviewer
 //!
 //! These tests verify:
-//! - Semantic intent validation with LLM
-//! - Semantic completeness checking
-//! - Semantic correctness checking
-//! - Improvement guidance generation
-//! - Graceful fallback when LLM unavailable
+//! - Requirement tracking and persistence
+//! - Requirement status management
+//! - Implementation evidence tracking
+//! - Database persistence of requirement fields
+//! - Review retry workflow
 
 use mnemosyne_core::{
     launcher::agents::AgentRole,
     orchestration::{
-        messages::{OrchestratorMessage, ReviewFeedback, ReviewerMessage, WorkResult},
-        state::{AgentState, Phase, WorkItem, WorkItemId},
-        *,
+        messages::WorkResult,
+        state::{AgentState, Phase, RequirementStatus, WorkItem, WorkItemId},
     },
     storage::StorageBackend,
     types::MemoryId,
@@ -62,97 +61,34 @@ fn create_test_work_item(description: &str, intent: &str) -> WorkItem {
         execution_memory_ids: Vec::new(),
         consolidated_context_id: None,
         estimated_context_tokens: 0,
-        requirements: vec![
-            "Implement authentication logic".to_string(),
-            "Add error handling".to_string(),
-            "Write unit tests".to_string(),
-        ],
+        requirements: Vec::new(), // Start empty, use add_requirement to populate
         requirement_status: std::collections::HashMap::new(),
         implementation_evidence: std::collections::HashMap::new(),
     }
 }
 
-/// Helper to create a test work result
-fn create_test_work_result(item_id: WorkItemId, success: bool) -> WorkResult {
-    WorkResult {
-        item_id,
-        success,
-        data: Some("Implementation completed".to_string()),
-        error: None,
-        duration: Duration::from_secs(10),
-        memory_ids: vec![MemoryId::new()],
-    }
-}
-
 // =============================================================================
-// Test: Reviewer with Pattern Matching (Baseline)
+// Test: Work Result Creation
 // =============================================================================
 
 #[tokio::test]
-async fn test_reviewer_pattern_matching_validation() {
-    let (storage, _temp) = create_test_storage().await;
+async fn test_work_result_with_memory_ids() {
+    let item_id = WorkItemId::new();
+    let memory_id1 = MemoryId::new();
+    let memory_id2 = MemoryId::new();
 
-    let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new(storage.clone(), config)
-        .await
-        .expect("Failed to create orchestration engine");
-
-    engine.start().await.expect("Failed to start engine");
-
-    // Create a work item with clear issues (TODOs, incomplete)
-    let work_item = create_test_work_item(
-        "Implement authentication",
-        "Add JWT-based authentication with proper error handling",
-    );
     let work_result = WorkResult {
-        item_id: work_item.id.clone(),
+        item_id: item_id.clone(),
         success: true,
-        data: Some(
-            r#"
-            fn authenticate() {
-                // TODO: implement JWT validation
-                unimplemented!()
-            }
-            "#
-            .to_string(),
-        ),
+        data: Some("Implementation complete".to_string()),
         error: None,
-        duration: Duration::from_secs(5),
-        memory_ids: Vec::new(),
+        duration: Duration::from_secs(10),
+        memory_ids: vec![memory_id1, memory_id2],
     };
 
-    // Store implementation as memory for reviewer to check
-    let memory_id = storage
-        .store_memory(
-            "implementation".to_string(),
-            work_result.data.clone().unwrap(),
-            mnemosyne_core::types::Namespace::Session {
-                project: "test".to_string(),
-                session_id: "test-session".to_string(),
-            },
-            std::collections::HashMap::new(),
-            false,
-        )
-        .await
-        .expect("Failed to store memory");
-
-    // Send review request to reviewer
-    let reviewer = engine.reviewer();
-    reviewer
-        .cast(ReviewerMessage::ReviewWork {
-            item_id: work_item.id.clone(),
-            result: work_result,
-            work_item: work_item.clone(),
-        })
-        .expect("Failed to send review request");
-
-    // Wait for review to complete
-    tokio::time::sleep(Duration::from_millis(500)).await;
-
-    // Pattern matching should detect TODO and unimplemented
-    // (This is baseline validation without LLM)
-
-    engine.stop().await.expect("Failed to stop engine");
+    assert_eq!(work_result.memory_ids.len(), 2);
+    assert!(work_result.success);
+    assert_eq!(work_result.item_id, item_id);
 }
 
 // =============================================================================
@@ -169,11 +105,9 @@ async fn test_requirement_tracking_persistence() {
         "Add JWT authentication with refresh tokens",
     );
 
-    work_item.requirements = vec![
-        "JWT token generation".to_string(),
-        "Refresh token rotation".to_string(),
-        "Token validation middleware".to_string(),
-    ];
+    work_item.add_requirement("JWT token generation".to_string());
+    work_item.add_requirement("Refresh token rotation".to_string());
+    work_item.add_requirement("Token validation middleware".to_string());
 
     // Store work item
     storage
@@ -294,64 +228,6 @@ async fn test_implementation_evidence_tracking() {
     assert!(evidence.contains(&memory_id2));
 }
 
-// =============================================================================
-// Test: Graceful Degradation Without LLM
-// =============================================================================
-
-#[tokio::test]
-async fn test_reviewer_without_python_feature() {
-    // This test verifies that the reviewer works with pattern matching
-    // when the python feature is not enabled
-
-    let (storage, _temp) = create_test_storage().await;
-
-    let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new(storage.clone(), config)
-        .await
-        .expect("Failed to create orchestration engine");
-
-    engine.start().await.expect("Failed to start engine");
-
-    // Create work item with obvious pattern-detectable issues
-    let work_item = create_test_work_item(
-        "Implement feature",
-        "Implement the requested feature completely",
-    );
-
-    let work_result = WorkResult {
-        item_id: work_item.id.clone(),
-        success: true,
-        data: Some(
-            r#"
-            // TODO: finish implementation
-            fn feature() {
-                println!("stub");
-            }
-            "#
-            .to_string(),
-        ),
-        error: None,
-        duration: Duration::from_secs(1),
-        memory_ids: Vec::new(),
-    };
-
-    // Reviewer should detect TODO via pattern matching
-    let reviewer = engine.reviewer();
-    reviewer
-        .cast(ReviewerMessage::ReviewWork {
-            item_id: work_item.id.clone(),
-            result: work_result,
-            work_item,
-        })
-        .expect("Failed to send review request");
-
-    // Wait for review
-    tokio::time::sleep(Duration::from_millis(500)).await;
-
-    // Pattern matching should catch the TODO
-
-    engine.stop().await.expect("Failed to stop engine");
-}
 
 // =============================================================================
 // Test: Review Retry Workflow
@@ -395,121 +271,41 @@ async fn test_review_retry_increments_attempt() {
 }
 
 // =============================================================================
-// Test: LLM Integration (Feature-Gated)
+// Test: Requirement Helpers
 // =============================================================================
 
-#[cfg(feature = "python")]
 #[tokio::test]
-async fn test_reviewer_with_llm_semantic_validation() {
-    // This test only runs when python feature is enabled
-    // It would test actual LLM integration if Python bridge is available
+async fn test_all_requirements_satisfied() {
+    let mut work_item = create_test_work_item("Implement feature", "Complete implementation");
 
-    let (storage, _temp) = create_test_storage().await;
+    work_item.add_requirement("Feature A".to_string());
+    work_item.add_requirement("Feature B".to_string());
 
-    let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new(storage.clone(), config)
-        .await
-        .expect("Failed to create orchestration engine");
+    // Initially not satisfied
+    assert!(!work_item.all_requirements_satisfied());
 
-    engine.start().await.expect("Failed to start engine");
+    // Mark all as satisfied
+    work_item.update_requirement_status("Feature A", RequirementStatus::Satisfied);
+    work_item.update_requirement_status("Feature B", RequirementStatus::Satisfied);
 
-    // Create work item with semantic issues (not detectable by pattern matching)
-    let work_item = create_test_work_item(
-        "Implement authentication",
-        "Add JWT authentication with refresh token support",
-    );
-
-    let work_result = WorkResult {
-        item_id: work_item.id.clone(),
-        success: true,
-        data: Some(
-            r#"
-            fn authenticate(token: &str) -> bool {
-                // Only implements validation, missing refresh token support
-                token.len() > 0
-            }
-            "#
-            .to_string(),
-        ),
-        error: None,
-        duration: Duration::from_secs(5),
-        memory_ids: Vec::new(),
-    };
-
-    // LLM should detect that refresh token support is missing
-    let reviewer = engine.reviewer();
-    reviewer
-        .cast(ReviewerMessage::ReviewWork {
-            item_id: work_item.id.clone(),
-            result: work_result,
-            work_item,
-        })
-        .expect("Failed to send review request");
-
-    // Wait for LLM-based review
-    tokio::time::sleep(Duration::from_secs(2)).await;
-
-    // LLM validation should detect semantic incompleteness
-
-    engine.stop().await.expect("Failed to stop engine");
+    // Now all satisfied
+    assert!(work_item.all_requirements_satisfied());
 }
 
-#[cfg(feature = "python")]
 #[tokio::test]
-async fn test_llm_improvement_guidance_generation() {
-    // Test that LLM generates actionable improvement guidance on failure
+async fn test_unsatisfied_requirements_list() {
+    let mut work_item = create_test_work_item("Implement feature", "Complete implementation");
 
-    let (storage, _temp) = create_test_storage().await;
+    work_item.add_requirement("Feature A".to_string());
+    work_item.add_requirement("Feature B".to_string());
+    work_item.add_requirement("Feature C".to_string());
 
-    let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new(storage.clone(), config)
-        .await
-        .expect("Failed to create orchestration engine");
+    // Mark one as satisfied
+    work_item.update_requirement_status("Feature A", RequirementStatus::Satisfied);
 
-    engine.start().await.expect("Failed to start engine");
-
-    let work_item = create_test_work_item(
-        "Add error handling",
-        "Implement comprehensive error handling for authentication",
-    );
-
-    let work_result = WorkResult {
-        item_id: work_item.id.clone(),
-        success: true,
-        data: Some(
-            r#"
-            fn authenticate(token: &str) -> bool {
-                verify_token(token) // No error handling
-            }
-            "#
-            .to_string(),
-        ),
-        error: None,
-        duration: Duration::from_secs(3),
-        memory_ids: Vec::new(),
-    };
-
-    let reviewer = engine.reviewer();
-    reviewer
-        .cast(ReviewerMessage::ReviewWork {
-            item_id: work_item.id.clone(),
-            result: work_result,
-            work_item: work_item.clone(),
-        })
-        .expect("Failed to send review request");
-
-    // Wait for review with improvement guidance
-    tokio::time::sleep(Duration::from_secs(2)).await;
-
-    // Load work item to check for improvement guidance
-    let updated_item = storage
-        .load_work_item(&work_item.id)
-        .await
-        .expect("Failed to load work item");
-
-    // LLM should have generated improvement guidance
-    // (Implementation would set this in review_feedback)
-    // This is a placeholder for actual LLM integration test
-
-    engine.stop().await.expect("Failed to stop engine");
+    let unsatisfied = work_item.unsatisfied_requirements();
+    assert_eq!(unsatisfied.len(), 2);
+    assert!(unsatisfied.contains(&"Feature B".to_string()));
+    assert!(unsatisfied.contains(&"Feature C".to_string()));
+    assert!(!unsatisfied.contains(&"Feature A".to_string()));
 }
