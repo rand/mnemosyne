@@ -7,7 +7,9 @@
 //! - Test coverage verification
 //! - Documentation completeness checks
 
-use crate::error::{MnemosyneError, Result};
+use crate::error::Result;
+#[cfg(feature = "python")]
+use crate::error::MnemosyneError;
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{OrchestratorMessage, ReviewerMessage, WorkResult};
@@ -127,6 +129,64 @@ impl ReviewerState {
     pub fn disable_llm_validation(&mut self) {
         self.llm_validation_enabled = false;
         tracing::info!("LLM validation disabled, using pattern matching only");
+    }
+
+    /// Extract explicit requirements from work item intent using LLM
+    ///
+    /// This method uses the Python ReviewerAgent to analyze the original_intent
+    /// and extract structured requirements that can be tracked and validated.
+    ///
+    /// Returns: List of extracted requirements, or empty vec if extraction fails or LLM unavailable
+    #[cfg(feature = "python")]
+    async fn extract_requirements_from_intent(
+        &self,
+        work_item: &WorkItem,
+    ) -> Result<Vec<String>> {
+        if !self.llm_validation_enabled || self.py_reviewer.is_none() {
+            tracing::debug!("LLM validation not enabled, skipping requirement extraction");
+            return Ok(Vec::new());
+        }
+
+        tracing::info!("Extracting requirements from intent for work item {}", work_item.id);
+
+        // Gather context about the work item
+        let context = format!(
+            "Work Item: {}\nPhase: {:?}\nAgent: {:?}\nFile Scope: {:?}",
+            work_item.description,
+            work_item.phase,
+            work_item.agent,
+            work_item.file_scope
+        );
+
+        // Call Python LLM to extract requirements
+        match Python::with_gil(|py| -> PyResult<Vec<String>> {
+            let py_reviewer = self.py_reviewer.as_ref().unwrap();
+
+            let result = py_reviewer.call_method1(
+                py,
+                "extract_requirements_from_intent",
+                (work_item.original_intent.clone(), Some(context.clone())),
+            )?;
+
+            result.extract(py)
+        }) {
+            Ok(requirements) => {
+                tracing::info!(
+                    "Extracted {} requirements from intent for work item {}",
+                    requirements.len(),
+                    work_item.id
+                );
+                Ok(requirements)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to extract requirements via LLM for work item {}: {}. Continuing without explicit requirements.",
+                    work_item.id,
+                    e
+                );
+                Ok(Vec::new())
+            }
+        }
     }
 }
 
@@ -1058,7 +1118,45 @@ impl Actor for ReviewerActor {
                 result,
                 work_item,
             } => {
-                let feedback = Self::review_work(state, item_id.clone(), result, work_item.clone())
+                // Extract requirements from intent if not already present
+                #[cfg(feature = "python")]
+                let work_item_with_reqs = if work_item.requirements.is_empty() {
+                    match state.extract_requirements_from_intent(&work_item).await {
+                        Ok(requirements) if !requirements.is_empty() => {
+                            tracing::info!(
+                                "Extracted {} requirements for work item {}: {:?}",
+                                requirements.len(),
+                                item_id,
+                                requirements
+                            );
+                            let mut updated = work_item.clone();
+                            updated.requirements = requirements;
+                            updated
+                        }
+                        Ok(_) => {
+                            tracing::debug!(
+                                "No requirements extracted for work item {}, will use original intent",
+                                item_id
+                            );
+                            work_item.clone()
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                "Failed to extract requirements for work item {}: {}",
+                                item_id,
+                                e
+                            );
+                            work_item.clone()
+                        }
+                    }
+                } else {
+                    work_item.clone()
+                };
+
+                #[cfg(not(feature = "python"))]
+                let work_item_with_reqs = work_item.clone();
+
+                let feedback = Self::review_work(state, item_id.clone(), result, work_item_with_reqs.clone())
                     .await
                     .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
 
