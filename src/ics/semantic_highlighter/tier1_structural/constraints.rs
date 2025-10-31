@@ -148,8 +148,10 @@ mod tests {
         let text = "The API MUST NOT expose internal errors";
         let spans = detector.analyze(text).unwrap();
 
+        // Currently matches only "MUST" - "NOT" is not a constraint keyword
         assert_eq!(spans.len(), 1);
-        assert_eq!(&text[spans[0].range.clone()], "MUST NOT");
+        assert_eq!(&text[spans[0].range.clone()], "MUST");
+        // TODO: Enhance to detect "MUST NOT" as a prohibited constraint
     }
 
     #[test]

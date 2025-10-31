@@ -267,14 +267,18 @@ mod tests {
 
     #[test]
     fn test_rate_limiter_consume() {
-        let mut limiter = RateLimiter::new(60);
-        limiter.tokens = 5.0;
+        let mut limiter = RateLimiter::new(120); // 2 tokens/sec, max 4 tokens
+        limiter.tokens = 3.5;
+        limiter.last_refill = std::time::Instant::now(); // Prevent refill during test
 
-        assert!(limiter.try_consume(3));
-        assert_eq!(limiter.tokens, 2.0);
+        // Can consume 2 tokens
+        assert!(limiter.try_consume(2));
+        // Check approximately equal (refill may add tiny amount due to time elapsed)
+        assert!((limiter.tokens - 1.5).abs() < 0.01);
 
-        assert!(!limiter.try_consume(5)); // Not enough tokens
-        assert_eq!(limiter.tokens, 2.0); // Unchanged
+        // Cannot consume 3 tokens (only ~1.5 available)
+        assert!(!limiter.try_consume(3));
+        assert!((limiter.tokens - 1.5).abs() < 0.01); // Still approximately 1.5
     }
 
     #[tokio::test]
