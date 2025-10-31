@@ -106,7 +106,7 @@ use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::sync::Arc;
 
 #[cfg(feature = "python")]
-use crate::python_bindings::collect_implementation_from_memories;
+use crate::python_bindings::{collect_implementation_from_memories, execution_memories_to_python_format};
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
 #[cfg(feature = "python")]
@@ -644,11 +644,11 @@ impl ReviewerActor {
                 &result.memory_ids
             ).await?;
 
-            // Convert memory IDs to strings for Python
-            let memory_id_strings: Vec<String> = result.memory_ids
-                .iter()
-                .map(|id| id.to_string())
-                .collect();
+            // Convert memory IDs to Python-compatible format (List[Dict[str, Any]])
+            let execution_memories = execution_memories_to_python_format(
+                &state.storage,
+                &result.memory_ids
+            ).await?;
 
             // Clone data for retry macro
             let py_reviewer = state.py_reviewer.clone();
@@ -666,7 +666,7 @@ impl ReviewerActor {
                         (
                             original_intent.clone(),
                             implementation.clone(),
-                            memory_id_strings.clone(),
+                            execution_memories.clone(),
                         ),
                     )?;
 
@@ -912,11 +912,11 @@ impl ReviewerActor {
                 vec![work_item.original_intent.clone()]
             };
 
-            // Convert memory IDs to strings
-            let memory_id_strings: Vec<String> = result.memory_ids
-                .iter()
-                .map(|id| id.to_string())
-                .collect();
+            // Convert memory IDs to Python-compatible format (List[Dict[str, Any]])
+            let execution_memories = execution_memories_to_python_format(
+                &state.storage,
+                &result.memory_ids
+            ).await?;
 
             // Clone data for retry macro
             let py_reviewer = state.py_reviewer.clone();
@@ -933,7 +933,7 @@ impl ReviewerActor {
                         (
                             requirements.clone(),
                             implementation.clone(),
-                            memory_id_strings.clone(),
+                            execution_memories.clone(),
                         ),
                     )?;
 
@@ -1047,11 +1047,11 @@ impl ReviewerActor {
             // Build test results JSON (empty if no test info available)
             let test_results_json = String::new(); // TODO: Extract test results from execution memories
 
-            // Convert memory IDs to strings
-            let memory_id_strings: Vec<String> = result.memory_ids
-                .iter()
-                .map(|id| id.to_string())
-                .collect();
+            // Convert memory IDs to Python-compatible format (List[Dict[str, Any]])
+            let execution_memories = execution_memories_to_python_format(
+                &state.storage,
+                &result.memory_ids
+            ).await?;
 
             // Clone data for retry macro
             let py_reviewer = state.py_reviewer.clone();
@@ -1068,7 +1068,7 @@ impl ReviewerActor {
                         (
                             implementation.clone(),
                             test_results_json.clone(),
-                            memory_id_strings.clone(),
+                            execution_memories.clone(),
                         ),
                     )?;
 
@@ -1189,11 +1189,11 @@ impl ReviewerActor {
         failed_gates.insert("correctness".to_string(), gates.correctness);
         failed_gates.insert("principled_implementation".to_string(), gates.principled_implementation);
 
-        // Convert memory IDs to strings
-        let memory_id_strings: Vec<String> = result.memory_ids
-            .iter()
-            .map(|id| id.to_string())
-            .collect();
+        // Convert memory IDs to Python-compatible format (List[Dict[str, Any]])
+        let execution_memories = execution_memories_to_python_format(
+            &state.storage,
+            &result.memory_ids
+        ).await?;
 
         // Clone data for retry macro
         let py_reviewer = state.py_reviewer.clone();
@@ -1213,7 +1213,7 @@ impl ReviewerActor {
                         failed_gates.clone(),
                         issues_vec.clone(),
                         original_intent.clone(),
-                        memory_id_strings.clone(),
+                        execution_memories.clone(),
                     ),
                 )?;
 
