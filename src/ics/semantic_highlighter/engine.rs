@@ -86,8 +86,7 @@ impl SemanticHighlightEngine {
         };
 
         // Tier 3: Requires LLM service and configuration
-        let (analytical, analysis_tx) = if settings.enable_analytical && llm_service.is_some() {
-            let llm = llm_service.unwrap();
+        let (analytical, analysis_tx) = if let (true, Some(llm)) = (settings.enable_analytical, llm_service) {
             let (tx, rx) = mpsc::channel(32);
             let processor = AnalyticalProcessor::new(
                 llm,

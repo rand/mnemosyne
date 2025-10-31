@@ -259,7 +259,7 @@ impl WorkItem {
     pub fn add_implementation_evidence(&mut self, requirement: &str, memory_id: crate::types::MemoryId) {
         self.implementation_evidence
             .entry(requirement.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(memory_id);
     }
 
