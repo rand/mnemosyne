@@ -422,10 +422,42 @@ impl OrchestratorActor {
             if passed { "PASS" } else { "FAIL" }
         );
 
-        if passed {
-            // Review passed - mark as complete
+        // Enforce requirement satisfaction before marking complete
+        let all_requirements_satisfied = feedback.unsatisfied_requirements.is_empty();
+
+        if !all_requirements_satisfied {
+            tracing::warn!(
+                "Work item {:?} has {} unsatisfied requirements: {:?}",
+                item_id,
+                feedback.unsatisfied_requirements.len(),
+                feedback.unsatisfied_requirements
+            );
+        }
+
+        if passed && all_requirements_satisfied {
+            // Review passed AND all requirements satisfied - mark as complete
+
+            // Update work item with requirement tracking
             {
                 let mut queue = state.work_queue.write().await;
+                if let Some(work_item) = queue.get_mut(&item_id) {
+                    // Store extracted requirements if not already present
+                    if work_item.requirements.is_empty() && !feedback.extracted_requirements.is_empty() {
+                        work_item.requirements = feedback.extracted_requirements.clone();
+                    }
+
+                    // Mark all requirements as satisfied
+                    for req in &work_item.requirements {
+                        work_item.requirement_status.insert(
+                            req.clone(),
+                            crate::orchestration::state::RequirementStatus::Satisfied
+                        );
+                    }
+
+                    // Store implementation evidence
+                    work_item.implementation_evidence = feedback.satisfied_requirements.clone();
+                }
+
                 queue.mark_completed(&item_id);
             }
 
@@ -440,7 +472,7 @@ impl OrchestratorActor {
                 })
                 .await?;
 
-            tracing::info!("Work item passed all quality gates: {:?}", item_id);
+            tracing::info!("Work item passed all quality gates and satisfied all requirements: {:?}", item_id);
 
             // Dispatch next items
             Self::dispatch_work(state).await?;
@@ -471,6 +503,28 @@ impl OrchestratorActor {
                 let mut all_tests = work_item.suggested_tests.unwrap_or_default();
                 all_tests.extend(feedback.suggested_tests.clone());
                 work_item.suggested_tests = Some(all_tests);
+
+                // Store extracted requirements if not already present
+                if work_item.requirements.is_empty() && !feedback.extracted_requirements.is_empty() {
+                    work_item.requirements = feedback.extracted_requirements.clone();
+                }
+
+                // Track unsatisfied requirements
+                for req in &feedback.unsatisfied_requirements {
+                    work_item.requirement_status.insert(
+                        req.clone(),
+                        crate::orchestration::state::RequirementStatus::InProgress
+                    );
+                }
+
+                // Track satisfied requirements (partial completion)
+                for (req, evidence) in &feedback.satisfied_requirements {
+                    work_item.requirement_status.insert(
+                        req.clone(),
+                        crate::orchestration::state::RequirementStatus::Satisfied
+                    );
+                    work_item.implementation_evidence.insert(req.clone(), evidence.clone());
+                }
 
                 // Send to Optimizer for context consolidation
                 if let Some(ref optimizer) = state.optimizer {

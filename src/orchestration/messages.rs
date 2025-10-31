@@ -141,6 +141,15 @@ pub struct ReviewFeedback {
 
     /// LLM-generated improvement guidance for retry (if review failed)
     pub improvement_guidance: Option<String>,
+
+    /// Extracted requirements (if not already present in work item)
+    pub extracted_requirements: Vec<String>,
+
+    /// Requirements identified as unsatisfied during review
+    pub unsatisfied_requirements: Vec<String>,
+
+    /// Requirements identified as satisfied with evidence
+    pub satisfied_requirements: std::collections::HashMap<String, Vec<MemoryId>>,
 }
 
 /// Messages for the Reviewer agent

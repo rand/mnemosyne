@@ -72,6 +72,15 @@ pub struct ReviewFeedback {
 
     /// LLM-generated improvement guidance for retry (if review failed)
     pub improvement_guidance: Option<String>,
+
+    /// Extracted requirements (if not already present in work item)
+    pub extracted_requirements: Vec<String>,
+
+    /// Requirements identified as unsatisfied during review
+    pub unsatisfied_requirements: Vec<String>,
+
+    /// Requirements identified as satisfied with evidence
+    pub satisfied_requirements: std::collections::HashMap<String, Vec<crate::types::MemoryId>>,
 }
 
 
@@ -301,12 +310,33 @@ impl ReviewerActor {
             })
             .await?;
 
+        // Track requirement satisfaction
+        let extracted_requirements = work_item.requirements.clone();
+        let mut satisfied_requirements = std::collections::HashMap::new();
+        let mut unsatisfied_requirements = Vec::new();
+
+        // Determine requirement satisfaction based on completeness gate
+        if !work_item.requirements.is_empty() {
+            if completeness_passed {
+                // All requirements satisfied - link to execution memories
+                for req in &work_item.requirements {
+                    satisfied_requirements.insert(req.clone(), result.memory_ids.clone());
+                }
+            } else {
+                // Requirements not satisfied
+                unsatisfied_requirements = work_item.requirements.clone();
+            }
+        }
+
         Ok(ReviewFeedback {
             gates,
             issues: all_issues,
             suggested_tests,
             execution_context: result.memory_ids.clone(),
             improvement_guidance,
+            extracted_requirements,
+            unsatisfied_requirements,
+            satisfied_requirements,
         })
     }
 
@@ -1173,6 +1203,9 @@ impl Actor for ReviewerActor {
                             suggested_tests: feedback.suggested_tests.clone(),
                             execution_context: feedback.execution_context.clone(),
                             improvement_guidance: feedback.improvement_guidance.clone(),
+                            extracted_requirements: feedback.extracted_requirements.clone(),
+                            unsatisfied_requirements: feedback.unsatisfied_requirements.clone(),
+                            satisfied_requirements: feedback.satisfied_requirements.clone(),
                         },
                     };
 
