@@ -115,7 +115,8 @@ impl AmbiguityDetector {
             let annotation = if self.show_annotations {
                 Some(Annotation {
                     annotation_type: AnnotationType::Warning,
-                    text: format!("{}: Consider being more specific", AmbiguityType::VagueQuantifier.description()),
+                    underline: None,
+                    tooltip: Some(format!("{}: Consider being more specific", AmbiguityType::VagueQuantifier.description())),
                 })
             } else {
                 None
@@ -163,7 +164,8 @@ impl AmbiguityDetector {
             let annotation = if self.show_annotations && confidence > 0.6 {
                 Some(Annotation {
                     annotation_type: AnnotationType::Information,
-                    text: ambiguity_type.description().to_string(),
+                    underline: None,
+                    tooltip: Some(ambiguity_type.description().to_string()),
                 })
             } else {
                 None
@@ -216,7 +218,8 @@ impl AmbiguityDetector {
                     let annotation = if self.show_annotations {
                         Some(Annotation {
                             annotation_type: AnnotationType::Warning,
-                            text: "Potentially unclear reference".to_string(),
+                            underline: None,
+                            tooltip: Some("Potentially unclear reference".to_string()),
                         })
                     } else {
                         None

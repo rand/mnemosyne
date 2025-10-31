@@ -154,7 +154,8 @@ impl PragmaticsAnalyzer {
                     source: HighlightSource::Analytical,
                     annotation: Some(Annotation {
                         annotation_type: AnnotationType::Information,
-                        text: annotation_text,
+                        underline: None,
+                        tooltip: Some(annotation_text),
                     }),
                     confidence: element.confidence,
                     metadata: None,

@@ -196,20 +196,21 @@ impl RequestBatcher {
     /// Get next batch to process
     pub async fn get_batch(&self) -> Result<Vec<BatchRequest>> {
         // Check rate limit
-        let mut limiter = self.rate_limiter.lock().await;
-        if !limiter.try_consume(1) {
-            let wait = limiter.wait_time(1);
-            drop(limiter);
+        {
+            let mut limiter = self.rate_limiter.lock().await;
+            if !limiter.try_consume(1) {
+                let wait = limiter.wait_time(1);
+                drop(limiter);
 
-            if wait > Duration::from_secs(5) {
-                return Err(SemanticError::AnalysisFailed(
-                    "Rate limit exceeded, wait time too long".to_string()
-                ));
+                if wait > Duration::from_secs(5) {
+                    return Err(SemanticError::AnalysisFailed(
+                        "Rate limit exceeded, wait time too long".to_string()
+                    ));
+                }
+
+                tokio::time::sleep(wait).await;
             }
-
-            tokio::time::sleep(wait).await;
         }
-        drop(limiter);
 
         // Get pending requests
         let mut pending = self.pending.lock().await;

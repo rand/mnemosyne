@@ -157,6 +157,7 @@ impl EntityRecognizer {
                         entity_id: None,
                         entity_type: Some(entity.entity_type.description().to_string()),
                         relations: Vec::new(),
+                        properties: std::collections::HashMap::new(),
                     }),
                 }
             })

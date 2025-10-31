@@ -101,10 +101,8 @@ impl ConstraintDetector {
                 .add_modifier(Modifier::UNDERLINED);
 
             let annotation = if self.show_annotations {
-                Some(Annotation {
-                    annotation_type: AnnotationType::Information,
-                    text: format!("RFC 2119: {}", level.description()),
-                })
+                Some(Annotation::new(AnnotationType::Information)
+                    .with_tooltip(format!("RFC 2119: {}", level.description())))
             } else {
                 None
             };
@@ -202,7 +200,7 @@ mod tests {
 
         assert_eq!(spans.len(), 1);
         assert!(spans[0].annotation.is_some());
-        assert!(spans[0].annotation.as_ref().unwrap().text.contains("RFC 2119"));
+        assert!(spans[0].annotation.as_ref().unwrap().tooltip.as_ref().unwrap().contains("RFC 2119"));
     }
 
     #[test]

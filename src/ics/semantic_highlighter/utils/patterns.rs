@@ -13,7 +13,7 @@ impl CommonPatterns {
     /// XML-style tags: <tag>, </tag>, <tag attr="value">
     pub fn xml_tag() -> &'static Regex {
         static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"<(/?)([a-zA-Z][a-zA-Z0-9_-]*)((?:\s+[a-zA-Z][a-zA-Z0-9_-]*\s*=\s*(?:\"[^\"]*\"|'[^']*'))*)\s*(/?)>")
+            Regex::new(r#"<(/?)([a-zA-Z][a-zA-Z0-9_-]*)((?:\s+[a-zA-Z][a-zA-Z0-9_-]*\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(/?)>"#)
                 .expect("Valid XML tag regex")
         });
         &PATTERN

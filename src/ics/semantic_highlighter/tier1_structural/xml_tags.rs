@@ -167,10 +167,8 @@ impl XmlTagAnalyzer {
                                 .fg(Color::Red)
                                 .add_modifier(Modifier::UNDERLINED),
                             source: HighlightSource::Structural,
-                            annotation: Some(Annotation {
-                                annotation_type: AnnotationType::Warning,
-                                text: format!("Mismatched tag: expected </{}>", open_tag),
-                            }),
+                            annotation: Some(Annotation::new(AnnotationType::Warning)
+                                .with_tooltip(format!("Mismatched tag: expected </{}>", open_tag))),
                             confidence: 1.0,
                             metadata: None,
                         });
@@ -183,10 +181,8 @@ impl XmlTagAnalyzer {
                             .fg(Color::Red)
                             .add_modifier(Modifier::UNDERLINED),
                         source: HighlightSource::Structural,
-                        annotation: Some(Annotation {
-                            annotation_type: AnnotationType::Warning,
-                            text: "Closing tag without opening tag".to_string(),
-                        }),
+                        annotation: Some(Annotation::new(AnnotationType::Warning)
+                            .with_tooltip("Closing tag without opening tag")),
                         confidence: 1.0,
                         metadata: None,
                     });
@@ -207,10 +203,8 @@ impl XmlTagAnalyzer {
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::UNDERLINED),
                     source: HighlightSource::Structural,
-                    annotation: Some(Annotation {
-                        annotation_type: AnnotationType::Warning,
-                        text: format!("Unclosed tag: <{}>", tag_name),
-                    }),
+                    annotation: Some(Annotation::new(AnnotationType::Warning)
+                        .with_tooltip(format!("Unclosed tag: <{}>", tag_name))),
                     confidence: 1.0,
                     metadata: None,
                 });
@@ -283,7 +277,8 @@ mod tests {
         // Check for unclosed tag warning
         let has_warning = spans.iter().any(|s| {
             s.annotation.as_ref()
-                .and_then(|a| a.text.as_str().strip_prefix("Unclosed tag"))
+                .and_then(|a| a.tooltip.as_ref())
+                .and_then(|t| t.strip_prefix("Unclosed tag"))
                 .is_some()
         });
         assert!(has_warning);

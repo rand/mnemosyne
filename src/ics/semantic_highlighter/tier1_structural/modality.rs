@@ -9,7 +9,9 @@
 //! This helps identify hedged language, speculative statements, and certainty levels.
 
 use crate::ics::semantic_highlighter::{
-    visualization::{HighlightSpan, HighlightSource, UnderlineStyle},
+    visualization::{
+        annotations::UnderlineStyle, HighlightSpan, HighlightSource,
+    },
     utils::ModalityDictionaries,
     Result,
 };

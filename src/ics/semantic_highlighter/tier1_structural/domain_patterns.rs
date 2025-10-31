@@ -135,7 +135,8 @@ impl DomainPatternMatcher {
             let annotation = if self.show_annotations {
                 Some(Annotation {
                     annotation_type: AnnotationType::Information,
-                    text: PatternType::FilePath.description().to_string(),
+                    underline: None,
+                    tooltip: Some(PatternType::FilePath.description().to_string()),
                 })
             } else {
                 None
@@ -166,7 +167,8 @@ impl DomainPatternMatcher {
             let annotation = if self.show_annotations {
                 Some(Annotation {
                     annotation_type: AnnotationType::Information,
-                    text: PatternType::Symbol.description().to_string(),
+                    underline: None,
+                    tooltip: Some(PatternType::Symbol.description().to_string()),
                 })
             } else {
                 None
@@ -197,7 +199,8 @@ impl DomainPatternMatcher {
             let annotation = if self.show_annotations {
                 Some(Annotation {
                     annotation_type: AnnotationType::Warning,
-                    text: PatternType::TypedHole.description().to_string(),
+                    underline: None,
+                    tooltip: Some(PatternType::TypedHole.description().to_string()),
                 })
             } else {
                 None

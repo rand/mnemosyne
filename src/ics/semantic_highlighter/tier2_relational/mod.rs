@@ -43,17 +43,17 @@ impl RelationalAnalyzer {
             settings: settings.clone(),
             cache,
             entity_recognizer: EntityRecognizer::new()
-                .with_threshold(settings.confidence_threshold),
+                .with_threshold(settings.min_entity_confidence),
             coref_resolver: CoreferenceResolver::new()
                 .with_max_distance(settings.max_coref_distance)
-                .with_threshold(settings.confidence_threshold),
+                .with_threshold(settings.min_entity_confidence),
             relation_extractor: RelationshipExtractor::new()
-                .with_threshold(settings.confidence_threshold),
+                .with_threshold(settings.min_entity_confidence),
             role_labeler: SemanticRoleLabeler::new()
-                .with_threshold(settings.confidence_threshold),
+                .with_threshold(settings.min_entity_confidence),
             anaphora_resolver: AnaphoraResolver::new()
                 .with_max_lookback(settings.max_coref_distance)
-                .with_threshold(settings.confidence_threshold),
+                .with_threshold(settings.min_entity_confidence),
         }
     }
 
@@ -90,7 +90,7 @@ impl RelationalAnalyzer {
         self.settings = settings.clone();
 
         // Update threshold for all analyzers
-        let threshold = settings.confidence_threshold;
+        let threshold = settings.min_entity_confidence;
         self.entity_recognizer = EntityRecognizer::new().with_threshold(threshold);
         self.coref_resolver = CoreferenceResolver::new()
             .with_max_distance(settings.max_coref_distance)

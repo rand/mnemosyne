@@ -71,9 +71,9 @@ pub mod visualization;
 pub mod utils;
 
 // Re-exports
-pub use engine::SemanticHighlightEngine;
-pub use settings::{HighlightSettings, AnalyticalSettings};
-pub use cache::SemanticCache;
+pub use engine::{SemanticHighlightEngine, EngineBuilder};
+pub use settings::{HighlightSettings, AnalyticalSettings, RelationalSettings};
+pub use cache::{SemanticCache, CacheStats};
 
 // Core types
 pub use visualization::{HighlightSpan, HighlightSource, AnnotationType};

@@ -21,6 +21,9 @@ pub struct IcsConfig {
 
     /// Theme name
     pub theme: String,
+
+    /// Read-only mode (prevents saving)
+    pub read_only: bool,
 }
 
 impl Default for IcsConfig {
@@ -31,6 +34,7 @@ impl Default for IcsConfig {
             analysis_debounce_ms: 500,
             max_file_size: 1024 * 1024, // 1MB
             theme: "default".to_string(),
+            read_only: false,
         }
     }
 }

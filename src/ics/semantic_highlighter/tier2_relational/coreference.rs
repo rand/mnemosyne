@@ -262,7 +262,7 @@ impl CoreferenceResolver {
 
     /// Score coreference likelihood between two mentions
     fn score_coreference(&self, m1: &Mention, m2: &Mention, _text: &str) -> f32 {
-        let mut score = 0.0;
+        let mut score: f32 = 0.0;
 
         // Gender/number agreement for pronouns
         if m2.mention_type == MentionType::Pronoun {

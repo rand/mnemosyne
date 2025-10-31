@@ -29,6 +29,7 @@ pub mod memory_panel;
 pub mod proposals;
 pub mod rendering;
 pub mod semantic;
+pub mod semantic_highlighter;
 pub mod storage;
 pub mod suggestions;
 pub mod symbols;
@@ -39,7 +40,7 @@ mod config;
 mod events;
 
 pub use agent_status::{AgentActivity, AgentInfo, AgentStatusState, AgentStatusWidget};
-pub use app::IcsApp;
+pub use app::{IcsApp, PanelType};
 pub use attribution::{AttributionEntry, AttributionPanel, AttributionPanelState, ChangeType};
 pub use completion_popup::CompletionPopup;
 pub use config::IcsConfig;

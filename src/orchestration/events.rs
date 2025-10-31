@@ -251,12 +251,47 @@ impl AgentEvent {
 pub struct EventPersistence {
     storage: Arc<dyn StorageBackend>,
     pub(crate) namespace: Namespace,
+    /// Optional event broadcaster for real-time API updates
+    event_broadcaster: Option<crate::api::EventBroadcaster>,
 }
 
 impl EventPersistence {
     /// Create a new event persistence layer
     pub fn new(storage: Arc<dyn StorageBackend>, namespace: Namespace) -> Self {
-        Self { storage, namespace }
+        Self::new_with_broadcaster(storage, namespace, None)
+    }
+
+    /// Create a new event persistence layer with event broadcasting
+    pub fn new_with_broadcaster(
+        storage: Arc<dyn StorageBackend>,
+        namespace: Namespace,
+        event_broadcaster: Option<crate::api::EventBroadcaster>,
+    ) -> Self {
+        Self {
+            storage,
+            namespace,
+            event_broadcaster,
+        }
+    }
+
+    /// Convert orchestration event to API event for real-time broadcasting
+    fn to_api_event(&self, event: &AgentEvent) -> Option<crate::api::Event> {
+        use crate::api::Event;
+
+        match event {
+            AgentEvent::WorkItemStarted { agent, .. } => {
+                Some(Event::agent_started(format!("{:?}", agent)))
+            }
+            AgentEvent::WorkItemCompleted { agent, .. } => {
+                Some(Event::agent_completed(format!("{:?}", agent), event.summary()))
+            }
+            AgentEvent::WorkItemFailed { agent, error, .. } => {
+                Some(Event::agent_failed(format!("{:?}", agent), error.clone()))
+            }
+            // Only broadcast high-priority events to API (work item lifecycle)
+            // Other events are persisted but not broadcast
+            _ => None,
+        }
     }
 
     /// Persist an event to Mnemosyne
@@ -296,6 +331,16 @@ impl EventPersistence {
         self.storage.store_memory(&memory).await?;
 
         tracing::debug!("Persisted event: {}", event.summary());
+
+        // Broadcast to API if broadcaster is available
+        if let Some(broadcaster) = &self.event_broadcaster {
+            if let Some(api_event) = self.to_api_event(&event) {
+                if let Err(e) = broadcaster.broadcast(api_event) {
+                    tracing::debug!("Failed to broadcast event to API: {}", e);
+                    // Don't fail persistence if broadcasting fails
+                }
+            }
+        }
 
         Ok(memory.id)
     }

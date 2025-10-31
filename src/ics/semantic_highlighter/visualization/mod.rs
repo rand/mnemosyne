@@ -9,7 +9,7 @@ pub mod annotations;
 pub mod connections;
 
 pub use colors::ColorScheme;
-pub use annotations::{AnnotationType, Annotation};
+pub use annotations::{AnnotationType, Annotation, UnderlineStyle};
 pub use connections::{Connection, ConnectionType};
 
 /// A highlighted span of text with styling and metadata

@@ -108,6 +108,9 @@ pub struct OrchestrationEngine {
     /// Storage backend for event persistence (WIP)
     #[allow(dead_code)]
     storage: Arc<dyn crate::storage::StorageBackend>,
+
+    /// Optional event broadcaster for real-time API updates
+    event_broadcaster: Option<crate::api::EventBroadcaster>,
 }
 
 impl OrchestrationEngine {
@@ -115,6 +118,15 @@ impl OrchestrationEngine {
     pub async fn new(
         storage: Arc<dyn crate::storage::StorageBackend>,
         config: SupervisionConfig,
+    ) -> Result<Self> {
+        Self::new_with_events(storage, config, None).await
+    }
+
+    /// Create a new orchestration engine with event broadcasting
+    pub async fn new_with_events(
+        storage: Arc<dyn crate::storage::StorageBackend>,
+        config: SupervisionConfig,
+        event_broadcaster: Option<crate::api::EventBroadcaster>,
     ) -> Result<Self> {
         // Initialize network layer
         let network = Arc::new(network::NetworkLayer::new().await?);
@@ -126,6 +138,7 @@ impl OrchestrationEngine {
             supervision,
             network,
             storage,
+            event_broadcaster,
         })
     }
 
@@ -134,6 +147,16 @@ impl OrchestrationEngine {
         storage: Arc<dyn crate::storage::StorageBackend>,
         config: SupervisionConfig,
         namespace: crate::types::Namespace,
+    ) -> Result<Self> {
+        Self::new_with_namespace_and_events(storage, config, namespace, None).await
+    }
+
+    /// Create a new orchestration engine with explicit namespace and event broadcasting
+    pub async fn new_with_namespace_and_events(
+        storage: Arc<dyn crate::storage::StorageBackend>,
+        config: SupervisionConfig,
+        namespace: crate::types::Namespace,
+        event_broadcaster: Option<crate::api::EventBroadcaster>,
     ) -> Result<Self> {
         // Initialize network layer
         let network = Arc::new(network::NetworkLayer::new().await?);
@@ -151,6 +174,7 @@ impl OrchestrationEngine {
             supervision,
             network,
             storage,
+            event_broadcaster,
         })
     }
 
@@ -185,6 +209,11 @@ impl OrchestrationEngine {
     /// Get reference to orchestrator actor
     pub fn orchestrator(&self) -> &ractor::ActorRef<OrchestratorMessage> {
         self.supervision.orchestrator()
+    }
+
+    /// Get reference to event broadcaster
+    pub fn event_broadcaster(&self) -> Option<&crate::api::EventBroadcaster> {
+        self.event_broadcaster.as_ref()
     }
 }
 

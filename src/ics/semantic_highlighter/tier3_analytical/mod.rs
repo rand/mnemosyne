@@ -53,9 +53,9 @@ impl AnalyticalProcessor {
         request_rx: mpsc::Receiver<AnalysisRequest>,
     ) -> Self {
         let batch_config = BatchConfig {
-            max_batch_size: settings.max_batch_size,
-            max_wait_duration: std::time::Duration::from_millis(settings.batch_wait_ms),
-            rate_limit_rpm: settings.rate_limit_rpm,
+            max_batch_size: 5,
+            max_wait_duration: std::time::Duration::from_millis(settings.debounce_ms),
+            rate_limit_rpm: settings.max_api_calls_per_minute as usize,
             ..Default::default()
         };
 

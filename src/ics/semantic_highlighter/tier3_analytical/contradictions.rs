@@ -140,11 +140,12 @@ impl ContradictionDetector {
 
             let annotation = Annotation {
                 annotation_type: AnnotationType::Contradiction,
-                text: format!(
+                underline: None,
+                tooltip: Some(format!(
                     "{}: {}",
                     contradiction.contradiction_type.description(),
                     contradiction.explanation
-                ),
+                )),
             };
 
             // Highlight first statement

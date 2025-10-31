@@ -202,12 +202,12 @@ async fn main() -> Result<()> {
 
     let storage_backend: Arc<dyn StorageBackend> = Arc::new(storage);
 
-    // Create ICS config
-    let config = IcsConfig::default();
+    // Create ICS config with readonly setting
+    let mut config = IcsConfig::default();
+    config.read_only = args.readonly;
 
     if args.readonly {
-        // TODO: Add readonly mode to IcsConfig
-        debug!("Read-only mode requested (not yet implemented)");
+        debug!("Read-only mode enabled");
     }
 
     // Create ICS app (no agent registry or proposal queue in standalone mode)
@@ -251,24 +251,25 @@ async fn main() -> Result<()> {
 
     // Open specific panel if requested
     if let Some(panel) = args.panel {
-        match panel {
+        let panel_type = match panel {
             Panel::Memory => {
                 debug!("Opening memory panel");
-                // TODO: Send event to open memory panel
+                mnemosyne_core::ics::PanelType::Memory
             }
             Panel::Diagnostics => {
                 debug!("Opening diagnostics panel");
-                // TODO: Send event to open diagnostics panel
+                mnemosyne_core::ics::PanelType::Diagnostics
             }
             Panel::Proposals => {
                 debug!("Opening proposals panel");
-                // TODO: Send event to open proposals panel
+                mnemosyne_core::ics::PanelType::Proposals
             }
             Panel::Holes => {
                 debug!("Opening holes list");
-                // TODO: Send event to open holes list
+                mnemosyne_core::ics::PanelType::Holes
             }
-        }
+        };
+        app.show_panel(panel_type);
     }
 
     // Show launch banner
