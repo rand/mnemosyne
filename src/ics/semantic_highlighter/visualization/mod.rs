@@ -214,6 +214,7 @@ impl Default for SpanMerger {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ratatui::style::Color;
 
     #[test]
     fn test_span_creation() {

@@ -354,7 +354,7 @@ mod tests {
 
     #[test]
     fn test_threshold_filtering() {
-        let contradictions = vec![
+        let _contradictions = vec![
             Contradiction {
                 statement1: 0..5,
                 text1: "A".to_string(),
@@ -378,7 +378,7 @@ mod tests {
         // Mock detector with threshold 0.7
         // In real tests, would need proper mocking
         // let detector = ContradictionDetector::new(mock_llm()).with_threshold(0.7);
-        // let connections = detector.contradictions_to_connections(&contradictions);
+        // let connections = detector.contradictions_to_connections(&_contradictions);
         // Should only include the first one (confidence 0.9 > 0.7)
         // assert_eq!(connections.len(), 1);
     }

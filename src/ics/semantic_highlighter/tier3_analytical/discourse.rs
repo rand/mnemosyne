@@ -381,7 +381,7 @@ mod tests {
 
     #[test]
     fn test_segments_to_spans() {
-        let segments = vec![
+        let _segments = vec![
             DiscourseSegment {
                 range: 0..10,
                 text: "First part".to_string(),
@@ -394,7 +394,7 @@ mod tests {
         // Mock analyzer without LLM service for this test
         // In real implementation, we'd need proper mocking
         // let analyzer = DiscourseAnalyzer::new(mock_llm_service());
-        // let spans = analyzer.segments_to_spans(&segments);
+        // let spans = analyzer.segments_to_spans(&_segments);
         // assert_eq!(spans.len(), 1);
     }
 
