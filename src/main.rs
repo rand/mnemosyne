@@ -208,6 +208,7 @@ async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
 #[derive(Parser)]
 #[command(name = "mnemosyne")]
 #[command(about = "Project-aware agentic memory system for Claude Code", long_about = None)]
+#[command(version)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
@@ -706,8 +707,91 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Some(Commands::Status) => {
-            println!("Mnemosyne v{}", env!("CARGO_PKG_VERSION"));
-            println!("Status: Operational (Phase 1 - Core Types)");
+            // Print header
+            println!("╭─────────────────────────────────────────╮");
+            println!("│  Mnemosyne v{}                    │", env!("CARGO_PKG_VERSION"));
+            println!("│  Project-Aware Agentic Memory          │");
+            println!("╰─────────────────────────────────────────╯");
+            println!();
+
+            // Get database path
+            let db_path = get_db_path(cli.db_path.clone());
+            let db_path_obj = PathBuf::from(&db_path);
+
+            // Check database status
+            let db_exists = db_path_obj.exists();
+            let db_size = if db_exists {
+                std::fs::metadata(&db_path)
+                    .ok()
+                    .map(|m| {
+                        let bytes = m.len();
+                        if bytes < 1024 {
+                            format!("{} B", bytes)
+                        } else if bytes < 1024 * 1024 {
+                            format!("{:.1} KB", bytes as f64 / 1024.0)
+                        } else if bytes < 1024 * 1024 * 1024 {
+                            format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+                        } else {
+                            format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
+                        }
+                    })
+                    .unwrap_or_else(|| "unknown".to_string())
+            } else {
+                "N/A".to_string()
+            };
+
+            println!("📊 Database");
+            println!("   Path:   {}", db_path);
+            println!("   Status: {}", if db_exists { "✓ exists" } else { "✗ not initialized" });
+            if db_exists {
+                println!("   Size:   {}", db_size);
+
+                // Try to count memories (only if database exists)
+                match LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), false).await {
+                    Ok(storage) => {
+                        match storage.count_memories(None).await {
+                            Ok(count) => {
+                                println!("   Memories: {}", count);
+                            }
+                            Err(_) => {
+                                println!("   Memories: Unable to query");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        println!("   Health:  ✗ {}", e);
+                    }
+                }
+            }
+            println!();
+
+            // Check API key
+            println!("🔑 Configuration");
+            let config = ConfigManager::new()?;
+            match config.get_api_key() {
+                Ok(_) => println!("   API Key: ✓ configured"),
+                Err(_) => println!("   API Key: ✗ not configured (set with: mnemosyne config set-key)"),
+            }
+
+            // Check if env var is set
+            if std::env::var("ANTHROPIC_API_KEY").is_ok() {
+                println!("   Env Var: ✓ ANTHROPIC_API_KEY set");
+            }
+            println!();
+
+            // System info
+            println!("⚙️  System");
+            println!("   Rust:    {}", rustc_version_runtime::version());
+            println!("   OS:      {}", std::env::consts::OS);
+            println!("   Arch:    {}", std::env::consts::ARCH);
+            println!();
+
+            if !db_exists {
+                println!("💡 Next steps:");
+                println!("   Initialize database: mnemosyne init");
+                println!();
+            }
+
             Ok(())
         }
         Some(Commands::Ics { file }) => {
