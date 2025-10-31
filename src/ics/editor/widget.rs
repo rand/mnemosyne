@@ -7,6 +7,7 @@
 //! - Smooth scrolling
 //! - Change attribution (color-coded by actor)
 //! - Inline diagnostic indicators (gutter icons and text underlines)
+//! - Semantic highlighting (three-tier analysis)
 
 use super::{CrdtBuffer, CursorState, Diagnostic, Severity};
 use ratatui::{
@@ -15,6 +16,7 @@ use ratatui::{
     style::{Color, Modifier, Style},
     widgets::{Block, StatefulWidget, Widget},
 };
+use std::collections::HashMap;
 
 /// Editor widget state
 pub struct EditorState {
@@ -29,6 +31,9 @@ pub struct EditorState {
 
     /// Whether to show change attribution colors
     pub show_attribution: bool,
+
+    /// Whether to show semantic highlighting
+    pub show_semantic_highlighting: bool,
 }
 
 impl Default for EditorState {
@@ -38,6 +43,7 @@ impl Default for EditorState {
             h_scroll_offset: 0,
             show_line_numbers: true,
             show_attribution: true,
+            show_semantic_highlighting: true,
         }
     }
 }
@@ -154,6 +160,33 @@ impl<'a> EditorWidget<'a> {
                 && column >= d.position.column
                 && column < d.position.column + d.length
         })
+    }
+
+    /// Get semantic style map for a line
+    fn semantic_styles_for_line(&self, line_text: &str) -> HashMap<usize, Style> {
+        let mut style_map = HashMap::new();
+
+        // Get semantic highlighting from buffer's engine if available
+        if let Some(ref engine_cell) = self.buffer.semantic_engine {
+            // Use RefCell to get mutable access through immutable reference
+            let line = engine_cell.borrow_mut().highlight_line(line_text);
+
+            // Extract styles from the Line's spans
+            let mut pos = 0;
+            for span in line.spans {
+                let span_len = span.content.len();
+                let span_style = span.style;
+
+                // Map each character position in this span to its style
+                for i in 0..span_len {
+                    style_map.insert(pos + i, span_style);
+                }
+
+                pos += span_len;
+            }
+        }
+
+        style_map
     }
 }
 
@@ -310,7 +343,7 @@ impl<'a> EditorWidget<'a> {
         }
     }
 
-    /// Render line with diagnostics (and optionally attribution)
+    /// Render line with diagnostics (and optionally attribution + semantic highlighting)
     fn render_line_with_diagnostics(
         &self,
         x: u16,
@@ -322,22 +355,31 @@ impl<'a> EditorWidget<'a> {
         show_attribution: bool,
         buf: &mut RatatuiBuffer,
     ) {
+        // Get semantic styles for the entire line if enabled
+        let semantic_styles = self.semantic_styles_for_line(text);
+
         for (i, ch) in text.chars().enumerate() {
             let column = h_scroll + i;
             let char_pos = start_char_pos + i;
 
-            // Get base color (attribution or default)
-            let base_color = if show_attribution {
-                self.attribution_color(char_pos).unwrap_or(Color::White)
+            // Priority: semantic > attribution > default
+            let base_style = if let Some(&semantic_style) = semantic_styles.get(&i) {
+                // Semantic highlighting takes priority
+                semantic_style
+            } else if show_attribution {
+                // Fall back to attribution color
+                let color = self.attribution_color(char_pos).unwrap_or(Color::White);
+                Style::default().fg(color)
             } else {
-                Color::White
+                // Default white
+                Style::default().fg(Color::White)
             };
 
             // Check for diagnostic at this position
             let has_diagnostic = self.diagnostic_at(line_num, column).is_some();
 
-            // Build style with underline if diagnostic present
-            let mut style = Style::default().fg(base_color);
+            // Apply diagnostic underline if present
+            let mut style = base_style;
             if has_diagnostic {
                 style = style.add_modifier(Modifier::UNDERLINED);
             }
