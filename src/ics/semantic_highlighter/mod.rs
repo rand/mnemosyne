@@ -63,6 +63,7 @@
 pub mod engine;
 pub mod settings;
 pub mod cache;
+pub mod incremental;
 
 pub mod tier1_structural;
 pub mod tier2_relational;

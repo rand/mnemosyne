@@ -95,6 +95,23 @@ impl<T: Clone> RelationalCache<T> {
         }
     }
 
+    /// Invalidate cache entries overlapping with range
+    pub fn invalidate_range(&self, range: &Range<usize>) {
+        if let Ok(mut cache) = self.cache.write() {
+            // Collect keys to remove (to avoid borrowing issues)
+            let keys_to_remove: Vec<_> = cache
+                .iter()
+                .filter(|(key, _)| ranges_overlap(key, range))
+                .map(|(key, _)| key.clone())
+                .collect();
+
+            // Remove overlapping entries
+            for key in keys_to_remove {
+                cache.pop(&key);
+            }
+        }
+    }
+
     /// Get cache statistics
     pub fn stats(&self) -> CacheStats {
         if let Ok(cache) = self.cache.read() {
@@ -109,6 +126,11 @@ impl<T: Clone> RelationalCache<T> {
             }
         }
     }
+}
+
+/// Check if two ranges overlap
+fn ranges_overlap(a: &Range<usize>, b: &Range<usize>) -> bool {
+    a.start < b.end && b.start < a.end
 }
 
 /// Content-hash based cache for analytical results
@@ -310,5 +332,45 @@ mod tests {
         assert_eq!(stats.size, 2);
         assert_eq!(stats.capacity, 10);
         assert_eq!(stats.utilization(), 0.2);
+    }
+
+    #[test]
+    fn test_cache_invalidate_range() {
+        let cache = RelationalCache::new(10, 60);
+        cache.insert(0..10, CachedResult::new("data1".to_string()));
+        cache.insert(20..30, CachedResult::new("data2".to_string()));
+        cache.insert(40..50, CachedResult::new("data3".to_string()));
+
+        // Invalidate middle region (overlaps with second entry)
+        cache.invalidate_range(&(15..35));
+
+        // First and last should remain
+        assert!(cache.get(&(0..10)).is_some());
+        assert!(cache.get(&(20..30)).is_none()); // Invalidated
+        assert!(cache.get(&(40..50)).is_some());
+    }
+
+    #[test]
+    fn test_cache_invalidate_multiple_ranges() {
+        let cache = RelationalCache::new(10, 60);
+        cache.insert(0..10, CachedResult::new("data1".to_string()));
+        cache.insert(5..15, CachedResult::new("data2".to_string()));
+        cache.insert(10..20, CachedResult::new("data3".to_string()));
+
+        // Invalidate overlapping region
+        cache.invalidate_range(&(5..15));
+
+        // Only non-overlapping should remain
+        assert!(cache.get(&(0..10)).is_none()); // Overlaps 5..15
+        assert!(cache.get(&(5..15)).is_none()); // Exact match
+        assert!(cache.get(&(10..20)).is_none()); // Overlaps 5..15
+    }
+
+    #[test]
+    fn test_ranges_overlap_utility() {
+        assert!(ranges_overlap(&(0..10), &(5..15)));  // Overlapping
+        assert!(ranges_overlap(&(0..10), &(0..10)));  // Identical
+        assert!(!ranges_overlap(&(0..10), &(10..20))); // Adjacent (no overlap)
+        assert!(!ranges_overlap(&(0..10), &(15..20))); // Separate
     }
 }
