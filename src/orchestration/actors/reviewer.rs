@@ -113,8 +113,6 @@ use pyo3::prelude::*;
 use std::collections::HashMap;
 #[cfg(feature = "python")]
 use std::time::Duration;
-#[cfg(feature = "python")]
-use tokio::time::timeout;
 
 /// Quality gates that must pass (8 total: 5 existing + 3 pillars)
 #[derive(Debug, Clone)]
@@ -233,6 +231,7 @@ macro_rules! retry_llm_operation {
         let config = $config;
         let op_name = $op_name;
         let mut attempt = 0;
+        #[allow(unused_assignments)] // False positive: last_error IS used on line 272
         let mut last_error = None;
 
         loop {
@@ -1514,7 +1513,6 @@ impl Actor for ReviewerActor {
 mod tests {
     use super::*;
     use crate::LibsqlStorage;
-    use crate::orchestration::state::RequirementStatus;
     use crate::storage::test_utils::create_test_storage;
     use std::time::Duration;
     use tempfile::TempDir;
@@ -1953,9 +1951,10 @@ mod tests {
     #[tokio::test]
     async fn test_python_memory_format_conversion() {
         use crate::python_bindings::execution_memories_to_python_format;
+        use crate::storage::StorageBackend;
 
-        // Setup storage
-        let storage = create_test_storage()
+        // Setup storage (cast to trait object for python_bindings function)
+        let storage: Arc<dyn StorageBackend> = create_test_storage()
             .await
             .expect("Failed to create test storage");
         let namespace = Namespace::Session {
