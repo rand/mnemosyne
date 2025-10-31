@@ -411,9 +411,9 @@ All tools work on Windows:
 ## Getting Help
 
 **Documentation:**
-- [ICS Guide](./ICS.md)
-- [Architecture](./ARCHITECTURE.md)
-- [MCP Integration](./MCP_SERVER.md)
+- [ICS Guide](./ICS_README.md)
+- [Architecture](../ARCHITECTURE.md)
+- [MCP Integration](../MCP_SERVER.md)
 
 **Community:**
 - GitHub Issues: https://github.com/rand/mnemosyne/issues
