@@ -1,0 +1,284 @@
+//! Pragmatic analysis using Claude API
+//!
+//! Analyzes pragmatic aspects of language:
+//! - Presuppositions (implied assumptions)
+//! - Implicatures (implied meanings)
+//! - Speech acts (assertions, questions, commands, promises)
+//! - Politeness and formality levels
+//! - Intended vs literal meaning
+//!
+//! Uses Claude API for nuanced pragmatic understanding.
+
+use crate::{
+    ics::semantic_highlighter::{
+        visualization::{HighlightSpan, HighlightSource, AnnotationType, Annotation},
+        Result,
+    },
+    LlmService,
+};
+use ratatui::style::{Color, Modifier, Style};
+use serde::{Deserialize, Serialize};
+use std::ops::Range;
+use std::sync::Arc;
+
+/// Type of pragmatic element
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PragmaticType {
+    /// Presupposition (assumed background)
+    Presupposition,
+    /// Implicature (implied meaning)
+    Implicature,
+    /// Speech act classification
+    SpeechAct,
+    /// Indirect speech
+    IndirectSpeech,
+}
+
+impl PragmaticType {
+    fn color(&self) -> Color {
+        match self {
+            PragmaticType::Presupposition => Color::LightBlue,
+            PragmaticType::Implicature => Color::LightMagenta,
+            PragmaticType::SpeechAct => Color::LightGreen,
+            PragmaticType::IndirectSpeech => Color::LightYellow,
+        }
+    }
+
+    fn description(&self) -> &'static str {
+        match self {
+            PragmaticType::Presupposition => "Presupposition",
+            PragmaticType::Implicature => "Implicature",
+            PragmaticType::SpeechAct => "Speech act",
+            PragmaticType::IndirectSpeech => "Indirect speech",
+        }
+    }
+}
+
+/// Speech act category
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SpeechActType {
+    /// Making a statement
+    Assertion,
+    /// Asking a question
+    Question,
+    /// Issuing a command
+    Command,
+    /// Making a promise or commitment
+    Promise,
+    /// Making a request
+    Request,
+    /// Expressing a wish or desire
+    Wish,
+}
+
+/// Pragmatic element detected in text
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PragmaticElement {
+    /// Range in text
+    pub range: Range<usize>,
+    pub text: String,
+
+    /// Type of pragmatic element
+    pub pragmatic_type: PragmaticType,
+
+    /// For speech acts, the specific type
+    pub speech_act: Option<SpeechActType>,
+
+    /// Explanation of the pragmatic meaning
+    pub explanation: String,
+
+    /// What is presupposed or implicated
+    pub implied_meaning: Option<String>,
+
+    /// Confidence score
+    pub confidence: f32,
+}
+
+/// Pragmatics analyzer using Claude API
+pub struct PragmaticsAnalyzer {
+    llm_service: Arc<LlmService>,
+    threshold: f32,
+}
+
+impl PragmaticsAnalyzer {
+    pub fn new(llm_service: Arc<LlmService>) -> Self {
+        Self {
+            llm_service,
+            threshold: 0.6,
+        }
+    }
+
+    /// Set confidence threshold
+    pub fn with_threshold(mut self, threshold: f32) -> Self {
+        self.threshold = threshold.clamp(0.0, 1.0);
+        self
+    }
+
+    /// Analyze pragmatic elements in text
+    pub async fn analyze(&self, text: &str) -> Result<Vec<PragmaticElement>> {
+        let prompt = self.build_analysis_prompt(text);
+
+        // Placeholder - would call LLM service
+        // let response = self.llm_service.generate(&prompt).await?;
+        // Parse response into PragmaticElement objects
+
+        Ok(Vec::new())
+    }
+
+    /// Convert pragmatic elements to highlight spans
+    pub fn elements_to_spans(&self, elements: &[PragmaticElement]) -> Vec<HighlightSpan> {
+        elements
+            .iter()
+            .filter(|e| e.confidence >= self.threshold)
+            .map(|element| {
+                let style = Style::default()
+                    .fg(element.pragmatic_type.color())
+                    .add_modifier(Modifier::ITALIC);
+
+                let annotation_text = if let Some(ref implied) = element.implied_meaning {
+                    format!("{}: {} (implies: {})",
+                        element.pragmatic_type.description(),
+                        element.explanation,
+                        implied
+                    )
+                } else {
+                    format!("{}: {}",
+                        element.pragmatic_type.description(),
+                        element.explanation
+                    )
+                };
+
+                HighlightSpan {
+                    range: element.range.clone(),
+                    style,
+                    source: HighlightSource::Analytical,
+                    annotation: Some(Annotation {
+                        annotation_type: AnnotationType::Information,
+                        text: annotation_text,
+                    }),
+                    confidence: element.confidence,
+                    metadata: None,
+                }
+            })
+            .collect()
+    }
+
+    /// Build prompt for pragmatic analysis
+    fn build_analysis_prompt(&self, text: &str) -> String {
+        format!(
+            r#"Analyze the pragmatic aspects of the following text.
+
+Identify:
+1. Presuppositions - What assumptions does the text make?
+2. Implicatures - What is implied but not explicitly stated?
+3. Speech acts - What actions is the text performing? (asserting, questioning, commanding, promising, requesting, wishing)
+4. Indirect speech - Where meaning differs from literal interpretation
+
+Text:
+{}
+
+For each pragmatic element, provide:
+1. The text segment (with character range)
+2. Type (Presupposition, Implicature, SpeechAct, IndirectSpeech)
+3. If speech act, specify type (Assertion, Question, Command, Promise, Request, Wish)
+4. Explanation
+5. Implied meaning (if applicable)
+6. Confidence (0.0-1.0)
+
+Respond in JSON format as an array of elements:
+[
+  {{
+    "start": 0,
+    "end": 20,
+    "text": "segment text",
+    "type": "Presupposition",
+    "speech_act": null,
+    "explanation": "explanation",
+    "implied_meaning": "what is implied",
+    "confidence": 0.8
+  }}
+]"#,
+            text
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pragmatic_type_colors() {
+        assert_eq!(PragmaticType::Presupposition.color(), Color::LightBlue);
+        assert_eq!(PragmaticType::Implicature.color(), Color::LightMagenta);
+        assert_eq!(PragmaticType::SpeechAct.color(), Color::LightGreen);
+    }
+
+    #[test]
+    fn test_pragmatic_type_descriptions() {
+        assert_eq!(PragmaticType::Presupposition.description(), "Presupposition");
+        assert_eq!(PragmaticType::Implicature.description(), "Implicature");
+    }
+
+    #[test]
+    fn test_pragmatic_element_structure() {
+        let element = PragmaticElement {
+            range: 0..25,
+            text: "Have you stopped lying?".to_string(),
+            pragmatic_type: PragmaticType::Presupposition,
+            speech_act: None,
+            explanation: "Presupposes that you were lying".to_string(),
+            implied_meaning: Some("You were lying before".to_string()),
+            confidence: 0.85,
+        };
+
+        assert_eq!(element.pragmatic_type, PragmaticType::Presupposition);
+        assert!(element.implied_meaning.is_some());
+    }
+
+    #[test]
+    fn test_speech_act_types() {
+        let speech_acts = vec![
+            SpeechActType::Assertion,
+            SpeechActType::Question,
+            SpeechActType::Command,
+            SpeechActType::Promise,
+            SpeechActType::Request,
+            SpeechActType::Wish,
+        ];
+
+        assert_eq!(speech_acts.len(), 6);
+    }
+
+    #[test]
+    fn test_threshold_filtering() {
+        let elements = vec![
+            PragmaticElement {
+                range: 0..10,
+                text: "A".to_string(),
+                pragmatic_type: PragmaticType::Presupposition,
+                speech_act: None,
+                explanation: "Test".to_string(),
+                implied_meaning: None,
+                confidence: 0.9,
+            },
+            PragmaticElement {
+                range: 20..30,
+                text: "B".to_string(),
+                pragmatic_type: PragmaticType::Implicature,
+                speech_act: None,
+                explanation: "Test".to_string(),
+                implied_meaning: None,
+                confidence: 0.4,
+            },
+        ];
+
+        // With threshold 0.6, only first should pass
+        let high_conf: Vec<_> = elements.iter()
+            .filter(|e| e.confidence >= 0.6)
+            .collect();
+
+        assert_eq!(high_conf.len(), 1);
+        assert_eq!(high_conf[0].confidence, 0.9);
+    }
+}

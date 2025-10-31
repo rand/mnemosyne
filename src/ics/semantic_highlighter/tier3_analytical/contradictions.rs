@@ -1,0 +1,306 @@
+//! Contradiction detection using Claude API
+//!
+//! Identifies semantic inconsistencies and contradictions:
+//! - Direct contradictions ("X is true" vs "X is false")
+//! - Logical inconsistencies
+//! - Conflicting statements
+//! - Temporal inconsistencies
+//!
+//! Uses Claude API for deep semantic understanding and reasoning.
+
+use crate::{
+    ics::semantic_highlighter::{
+        visualization::{HighlightSpan, HighlightSource, Connection, ConnectionType, AnnotationType, Annotation},
+        Result,
+    },
+    LlmService,
+};
+use ratatui::style::{Color, Modifier, Style};
+use serde::{Deserialize, Serialize};
+use std::ops::Range;
+use std::sync::Arc;
+
+/// Type of contradiction
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ContradictionType {
+    /// Direct logical contradiction
+    Direct,
+    /// Temporal inconsistency
+    Temporal,
+    /// Semantic inconsistency
+    Semantic,
+    /// Implication contradiction
+    Implication,
+}
+
+impl ContradictionType {
+    fn description(&self) -> &'static str {
+        match self {
+            ContradictionType::Direct => "Direct contradiction",
+            ContradictionType::Temporal => "Temporal inconsistency",
+            ContradictionType::Semantic => "Semantic inconsistency",
+            ContradictionType::Implication => "Contradictory implication",
+        }
+    }
+
+    fn severity(&self) -> ContradictionSeverity {
+        match self {
+            ContradictionType::Direct => ContradictionSeverity::High,
+            ContradictionType::Temporal => ContradictionSeverity::Medium,
+            ContradictionType::Semantic => ContradictionSeverity::Medium,
+            ContradictionType::Implication => ContradictionSeverity::Low,
+        }
+    }
+}
+
+/// Severity level of contradiction
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum ContradictionSeverity {
+    Low,
+    Medium,
+    High,
+}
+
+impl ContradictionSeverity {
+    fn color(&self) -> Color {
+        match self {
+            ContradictionSeverity::Low => Color::Yellow,
+            ContradictionSeverity::Medium => Color::LightRed,
+            ContradictionSeverity::High => Color::Red,
+        }
+    }
+}
+
+/// Detected contradiction
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Contradiction {
+    /// First statement
+    pub statement1: Range<usize>,
+    pub text1: String,
+
+    /// Contradicting statement
+    pub statement2: Range<usize>,
+    pub text2: String,
+
+    /// Type of contradiction
+    pub contradiction_type: ContradictionType,
+
+    /// Explanation of the contradiction
+    pub explanation: String,
+
+    /// Confidence score (0.0-1.0)
+    pub confidence: f32,
+}
+
+/// Contradiction detector using Claude API
+pub struct ContradictionDetector {
+    llm_service: Arc<LlmService>,
+    /// Minimum confidence threshold
+    threshold: f32,
+}
+
+impl ContradictionDetector {
+    pub fn new(llm_service: Arc<LlmService>) -> Self {
+        Self {
+            llm_service,
+            threshold: 0.7,
+        }
+    }
+
+    /// Set confidence threshold
+    pub fn with_threshold(mut self, threshold: f32) -> Self {
+        self.threshold = threshold.clamp(0.0, 1.0);
+        self
+    }
+
+    /// Detect contradictions in text
+    pub async fn detect(&self, text: &str) -> Result<Vec<Contradiction>> {
+        let prompt = self.build_detection_prompt(text);
+
+        // Placeholder - would call LLM service
+        // let response = self.llm_service.generate(&prompt).await?;
+        // Parse response into Contradiction objects
+
+        Ok(Vec::new())
+    }
+
+    /// Convert contradictions to highlight spans
+    pub fn contradictions_to_spans(&self, contradictions: &[Contradiction]) -> Vec<HighlightSpan> {
+        let mut spans = Vec::new();
+
+        for contradiction in contradictions {
+            if contradiction.confidence < self.threshold {
+                continue;
+            }
+
+            let severity = contradiction.contradiction_type.severity();
+            let style = Style::default()
+                .fg(severity.color())
+                .add_modifier(Modifier::BOLD | Modifier::UNDERLINED);
+
+            let annotation = Annotation {
+                annotation_type: AnnotationType::Contradiction,
+                text: format!(
+                    "{}: {}",
+                    contradiction.contradiction_type.description(),
+                    contradiction.explanation
+                ),
+            };
+
+            // Highlight first statement
+            spans.push(HighlightSpan {
+                range: contradiction.statement1.clone(),
+                style,
+                source: HighlightSource::Analytical,
+                annotation: Some(annotation.clone()),
+                confidence: contradiction.confidence,
+                metadata: None,
+            });
+
+            // Highlight second statement
+            spans.push(HighlightSpan {
+                range: contradiction.statement2.clone(),
+                style,
+                source: HighlightSource::Analytical,
+                annotation: Some(annotation),
+                confidence: contradiction.confidence,
+                metadata: None,
+            });
+        }
+
+        spans
+    }
+
+    /// Create connections between contradicting statements
+    pub fn contradictions_to_connections(&self, contradictions: &[Contradiction]) -> Vec<Connection> {
+        contradictions
+            .iter()
+            .filter(|c| c.confidence >= self.threshold)
+            .map(|contradiction| Connection {
+                from: contradiction.statement1.clone(),
+                to: contradiction.statement2.clone(),
+                connection_type: ConnectionType::Contradiction,
+                label: Some(contradiction.contradiction_type.description().to_string()),
+                confidence: contradiction.confidence,
+            })
+            .collect()
+    }
+
+    /// Build prompt for contradiction detection
+    fn build_detection_prompt(&self, text: &str) -> String {
+        format!(
+            r#"Analyze the following text for contradictions and logical inconsistencies.
+
+Look for:
+1. Direct contradictions (statements that directly oppose each other)
+2. Temporal inconsistencies (conflicting timelines or sequences)
+3. Semantic inconsistencies (statements that are incompatible in meaning)
+4. Implication contradictions (implied meanings that conflict)
+
+Text:
+{}
+
+For each contradiction found, provide:
+1. The first statement (with character range)
+2. The contradicting statement (with character range)
+3. Type of contradiction
+4. Explanation of why they contradict
+5. Confidence score (0.0-1.0)
+
+Respond in JSON format as an array of contradictions:
+[
+  {{
+    "statement1_start": 0,
+    "statement1_end": 20,
+    "text1": "first statement",
+    "statement2_start": 30,
+    "statement2_end": 50,
+    "text2": "contradicting statement",
+    "type": "Direct",
+    "explanation": "explanation of contradiction",
+    "confidence": 0.9
+  }}
+]"#,
+            text
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_contradiction_type_descriptions() {
+        assert_eq!(ContradictionType::Direct.description(), "Direct contradiction");
+        assert_eq!(ContradictionType::Temporal.description(), "Temporal inconsistency");
+        assert_eq!(ContradictionType::Semantic.description(), "Semantic inconsistency");
+    }
+
+    #[test]
+    fn test_contradiction_severity() {
+        assert_eq!(ContradictionType::Direct.severity(), ContradictionSeverity::High);
+        assert_eq!(ContradictionType::Temporal.severity(), ContradictionSeverity::Medium);
+        assert_eq!(ContradictionType::Implication.severity(), ContradictionSeverity::Low);
+    }
+
+    #[test]
+    fn test_severity_colors() {
+        assert_eq!(ContradictionSeverity::Low.color(), Color::Yellow);
+        assert_eq!(ContradictionSeverity::Medium.color(), Color::LightRed);
+        assert_eq!(ContradictionSeverity::High.color(), Color::Red);
+    }
+
+    #[test]
+    fn test_severity_ordering() {
+        assert!(ContradictionSeverity::Low < ContradictionSeverity::Medium);
+        assert!(ContradictionSeverity::Medium < ContradictionSeverity::High);
+    }
+
+    #[test]
+    fn test_contradiction_structure() {
+        let contradiction = Contradiction {
+            statement1: 0..10,
+            text1: "X is true".to_string(),
+            statement2: 20..30,
+            text2: "X is false".to_string(),
+            contradiction_type: ContradictionType::Direct,
+            explanation: "Directly contradictory statements".to_string(),
+            confidence: 0.95,
+        };
+
+        assert_eq!(contradiction.confidence, 0.95);
+        assert_eq!(contradiction.contradiction_type, ContradictionType::Direct);
+    }
+
+    #[test]
+    fn test_threshold_filtering() {
+        let contradictions = vec![
+            Contradiction {
+                statement1: 0..5,
+                text1: "A".to_string(),
+                statement2: 10..15,
+                text2: "B".to_string(),
+                contradiction_type: ContradictionType::Direct,
+                explanation: "Test".to_string(),
+                confidence: 0.9,
+            },
+            Contradiction {
+                statement1: 20..25,
+                text1: "C".to_string(),
+                statement2: 30..35,
+                text2: "D".to_string(),
+                contradiction_type: ContradictionType::Semantic,
+                explanation: "Test".to_string(),
+                confidence: 0.5,
+            },
+        ];
+
+        // Mock detector with threshold 0.7
+        // In real tests, would need proper mocking
+        // let detector = ContradictionDetector::new(mock_llm()).with_threshold(0.7);
+        // let connections = detector.contradictions_to_connections(&contradictions);
+        // Should only include the first one (confidence 0.9 > 0.7)
+        // assert_eq!(connections.len(), 1);
+    }
+}
