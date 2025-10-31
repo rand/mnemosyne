@@ -31,15 +31,15 @@ use super::engine::AnalysisRequest;
 ///
 /// Runs in background, batches requests, caches aggressively.
 pub struct AnalyticalProcessor {
-    llm_service: Arc<LlmService>,
-    settings: AnalyticalSettings,
+    _llm_service: Arc<LlmService>,
+    _settings: AnalyticalSettings,
     cache: Arc<SemanticCache>,
     request_rx: mpsc::Receiver<AnalysisRequest>,
 
     // Analyzers
-    discourse_analyzer: DiscourseAnalyzer,
-    contradiction_detector: ContradictionDetector,
-    pragmatics_analyzer: PragmaticsAnalyzer,
+    _discourse_analyzer: DiscourseAnalyzer,
+    _contradiction_detector: ContradictionDetector,
+    _pragmatics_analyzer: PragmaticsAnalyzer,
 
     // Batching system
     batcher: Arc<RequestBatcher>,
@@ -60,14 +60,14 @@ impl AnalyticalProcessor {
         };
 
         Self {
-            discourse_analyzer: DiscourseAnalyzer::new(Arc::clone(&llm_service)),
-            contradiction_detector: ContradictionDetector::new(Arc::clone(&llm_service))
+            _discourse_analyzer: DiscourseAnalyzer::new(Arc::clone(&llm_service)),
+            _contradiction_detector: ContradictionDetector::new(Arc::clone(&llm_service))
                 .with_threshold(0.7),
-            pragmatics_analyzer: PragmaticsAnalyzer::new(Arc::clone(&llm_service))
+            _pragmatics_analyzer: PragmaticsAnalyzer::new(Arc::clone(&llm_service))
                 .with_threshold(0.6),
             batcher: Arc::new(RequestBatcher::new(batch_config)),
-            llm_service,
-            settings,
+            _llm_service: llm_service,
+            _settings: settings,
             cache,
             request_rx,
         }

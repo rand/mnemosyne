@@ -277,7 +277,7 @@ impl ToolHandler {
 
     /// Validate importance value (must be 1-10)
     fn validate_importance(importance: u8) -> Result<()> {
-        if importance < 1 || importance > 10 {
+        if !(1..=10).contains(&importance) {
             return Err(crate::error::MnemosyneError::ValidationError(
                 format!("Importance must be between 1-10, got {}", importance)
             ));

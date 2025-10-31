@@ -10,7 +10,7 @@
 
 use crate::ics::semantic_highlighter::{
     visualization::{
-        annotations::UnderlineStyle, HighlightSpan, HighlightSource,
+        HighlightSpan, HighlightSource,
     },
     utils::ModalityDictionaries,
     Result,
@@ -50,7 +50,7 @@ impl ModalityLevel {
     }
 
     /// Get description for this modality level
-    fn description(&self) -> &'static str {
+    fn _description(&self) -> &'static str {
         match self {
             ModalityLevel::Certain => "High certainty",
             ModalityLevel::Probable => "Probable",

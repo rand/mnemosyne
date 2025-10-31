@@ -35,7 +35,7 @@ pub enum PragmaticType {
 }
 
 impl PragmaticType {
-    fn color(&self) -> Color {
+    fn _color(&self) -> Color {
         match self {
             PragmaticType::Presupposition => Color::LightBlue,
             PragmaticType::Implicature => Color::LightMagenta,
@@ -44,7 +44,7 @@ impl PragmaticType {
         }
     }
 
-    fn description(&self) -> &'static str {
+    fn _description(&self) -> &'static str {
         match self {
             PragmaticType::Presupposition => "Presupposition",
             PragmaticType::Implicature => "Implicature",
@@ -96,14 +96,14 @@ pub struct PragmaticElement {
 
 /// Pragmatics analyzer using Claude API
 pub struct PragmaticsAnalyzer {
-    llm_service: Arc<LlmService>,
+    _llm_service: Arc<LlmService>,
     threshold: f32,
 }
 
 impl PragmaticsAnalyzer {
     pub fn new(llm_service: Arc<LlmService>) -> Self {
         Self {
-            llm_service,
+            _llm_service: llm_service,
             threshold: 0.6,
         }
     }
@@ -132,18 +132,18 @@ impl PragmaticsAnalyzer {
             .filter(|e| e.confidence >= self.threshold)
             .map(|element| {
                 let style = Style::default()
-                    .fg(element.pragmatic_type.color())
+                    .fg(element.pragmatic_type._color())
                     .add_modifier(Modifier::ITALIC);
 
                 let annotation_text = if let Some(ref implied) = element.implied_meaning {
                     format!("{}: {} (implies: {})",
-                        element.pragmatic_type.description(),
+                        element.pragmatic_type._description(),
                         element.explanation,
                         implied
                     )
                 } else {
                     format!("{}: {}",
-                        element.pragmatic_type.description(),
+                        element.pragmatic_type._description(),
                         element.explanation
                     )
                 };
@@ -210,15 +210,15 @@ mod tests {
 
     #[test]
     fn test_pragmatic_type_colors() {
-        assert_eq!(PragmaticType::Presupposition.color(), Color::LightBlue);
-        assert_eq!(PragmaticType::Implicature.color(), Color::LightMagenta);
-        assert_eq!(PragmaticType::SpeechAct.color(), Color::LightGreen);
+        assert_eq!(PragmaticType::Presupposition._color(), Color::LightBlue);
+        assert_eq!(PragmaticType::Implicature._color(), Color::LightMagenta);
+        assert_eq!(PragmaticType::SpeechAct._color(), Color::LightGreen);
     }
 
     #[test]
     fn test_pragmatic_type_descriptions() {
-        assert_eq!(PragmaticType::Presupposition.description(), "Presupposition");
-        assert_eq!(PragmaticType::Implicature.description(), "Implicature");
+        assert_eq!(PragmaticType::Presupposition._description(), "Presupposition");
+        assert_eq!(PragmaticType::Implicature._description(), "Implicature");
     }
 
     #[test]

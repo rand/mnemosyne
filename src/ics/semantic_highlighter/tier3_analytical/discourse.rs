@@ -11,7 +11,7 @@
 use crate::{
     ics::semantic_highlighter::{
         visualization::{HighlightSpan, HighlightSource, Connection, ConnectionType},
-        Result, SemanticError,
+        Result,
     },
     LlmService,
 };
@@ -42,7 +42,7 @@ pub enum DiscourseRelation {
 }
 
 impl DiscourseRelation {
-    fn color(&self) -> Color {
+    fn _color(&self) -> Color {
         match self {
             DiscourseRelation::Elaboration => Color::LightBlue,
             DiscourseRelation::Contrast => Color::Red,
@@ -55,7 +55,7 @@ impl DiscourseRelation {
         }
     }
 
-    fn description(&self) -> &'static str {
+    fn _description(&self) -> &'static str {
         match self {
             DiscourseRelation::Elaboration => "Elaborates on",
             DiscourseRelation::Contrast => "Contrasts with",
@@ -94,12 +94,12 @@ pub struct CoherenceScore {
 
 /// Discourse analyzer using Claude API
 pub struct DiscourseAnalyzer {
-    llm_service: Arc<LlmService>,
+    _llm_service: Arc<LlmService>,
 }
 
 impl DiscourseAnalyzer {
     pub fn new(llm_service: Arc<LlmService>) -> Self {
-        Self { llm_service }
+        Self { _llm_service: llm_service }
     }
 
     /// Analyze discourse structure in text
@@ -132,7 +132,7 @@ impl DiscourseAnalyzer {
                 seg.relation.map(|rel| HighlightSpan {
                     range: seg.range.clone(),
                     style: Style::default()
-                        .fg(rel.color())
+                        .fg(rel._color())
                         .add_modifier(Modifier::UNDERLINED),
                     source: HighlightSource::Analytical,
                     annotation: None,
@@ -153,7 +153,7 @@ impl DiscourseAnalyzer {
                         from: seg.range.clone(),
                         to: related_to,
                         connection_type: ConnectionType::Discourse,
-                        label: Some(relation.description().to_string()),
+                        label: Some(relation._description().to_string()),
                         confidence: seg.confidence,
                     })
                 } else {
@@ -189,7 +189,7 @@ Respond in JSON format:
     }
 
     /// Build prompt for discourse relation analysis
-    fn build_discourse_prompt(&self, text: &str) -> String {
+    fn _build_discourse_prompt(&self, text: &str) -> String {
         format!(
             r#"Analyze the discourse structure of the following text using Rhetorical Structure Theory (RST).
 
@@ -230,15 +230,15 @@ mod tests {
 
     #[test]
     fn test_discourse_relation_colors() {
-        assert_eq!(DiscourseRelation::Elaboration.color(), Color::LightBlue);
-        assert_eq!(DiscourseRelation::Contrast.color(), Color::Red);
-        assert_eq!(DiscourseRelation::Cause.color(), Color::Yellow);
+        assert_eq!(DiscourseRelation::Elaboration._color(), Color::LightBlue);
+        assert_eq!(DiscourseRelation::Contrast._color(), Color::Red);
+        assert_eq!(DiscourseRelation::Cause._color(), Color::Yellow);
     }
 
     #[test]
     fn test_discourse_relation_descriptions() {
-        assert_eq!(DiscourseRelation::Elaboration.description(), "Elaborates on");
-        assert_eq!(DiscourseRelation::Contrast.description(), "Contrasts with");
+        assert_eq!(DiscourseRelation::Elaboration._description(), "Elaborates on");
+        assert_eq!(DiscourseRelation::Contrast._description(), "Contrasts with");
     }
 
     #[test]

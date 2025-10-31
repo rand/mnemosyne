@@ -29,7 +29,7 @@ pub use anaphora::{AnaphoraResolver, AnaphoraResolution, Anaphor};
 /// Performs local NLP analysis with caching and debouncing.
 pub struct RelationalAnalyzer {
     settings: RelationalSettings,
-    cache: Arc<SemanticCache>,
+    _cache: Arc<SemanticCache>,
     entity_recognizer: EntityRecognizer,
     coref_resolver: CoreferenceResolver,
     relation_extractor: RelationshipExtractor,
@@ -41,7 +41,7 @@ impl RelationalAnalyzer {
     pub fn new(settings: RelationalSettings, cache: Arc<SemanticCache>) -> Self {
         Self {
             settings: settings.clone(),
-            cache,
+            _cache: cache,
             entity_recognizer: EntityRecognizer::new()
                 .with_threshold(settings.min_entity_confidence),
             coref_resolver: CoreferenceResolver::new()

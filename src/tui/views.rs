@@ -469,7 +469,7 @@ impl IcsPanel {
             let highlighted_line = self.highlighter.highlight_line(line);
             let line_area = Rect {
                 x: inner.x,
-                y: inner.y + y_offset as u16,
+                y: inner.y + y_offset,
                 width: inner.width,
                 height: 1,
             };

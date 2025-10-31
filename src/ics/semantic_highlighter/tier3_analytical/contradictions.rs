@@ -34,7 +34,7 @@ pub enum ContradictionType {
 }
 
 impl ContradictionType {
-    fn description(&self) -> &'static str {
+    fn _description(&self) -> &'static str {
         match self {
             ContradictionType::Direct => "Direct contradiction",
             ContradictionType::Temporal => "Temporal inconsistency",
@@ -94,7 +94,7 @@ pub struct Contradiction {
 
 /// Contradiction detector using Claude API
 pub struct ContradictionDetector {
-    llm_service: Arc<LlmService>,
+    _llm_service: Arc<LlmService>,
     /// Minimum confidence threshold
     threshold: f32,
 }
@@ -102,7 +102,7 @@ pub struct ContradictionDetector {
 impl ContradictionDetector {
     pub fn new(llm_service: Arc<LlmService>) -> Self {
         Self {
-            llm_service,
+            _llm_service: llm_service,
             threshold: 0.7,
         }
     }
@@ -143,7 +143,7 @@ impl ContradictionDetector {
                 underline: None,
                 tooltip: Some(format!(
                     "{}: {}",
-                    contradiction.contradiction_type.description(),
+                    contradiction.contradiction_type._description(),
                     contradiction.explanation
                 )),
             };
@@ -181,7 +181,7 @@ impl ContradictionDetector {
                 from: contradiction.statement1.clone(),
                 to: contradiction.statement2.clone(),
                 connection_type: ConnectionType::Contradiction,
-                label: Some(contradiction.contradiction_type.description().to_string()),
+                label: Some(contradiction.contradiction_type._description().to_string()),
                 confidence: contradiction.confidence,
             })
             .collect()
@@ -233,9 +233,9 @@ mod tests {
 
     #[test]
     fn test_contradiction_type_descriptions() {
-        assert_eq!(ContradictionType::Direct.description(), "Direct contradiction");
-        assert_eq!(ContradictionType::Temporal.description(), "Temporal inconsistency");
-        assert_eq!(ContradictionType::Semantic.description(), "Semantic inconsistency");
+        assert_eq!(ContradictionType::Direct._description(), "Direct contradiction");
+        assert_eq!(ContradictionType::Temporal._description(), "Temporal inconsistency");
+        assert_eq!(ContradictionType::Semantic._description(), "Semantic inconsistency");
     }
 
     #[test]

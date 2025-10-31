@@ -48,7 +48,7 @@ impl SemanticRole {
         }
     }
 
-    fn description(&self) -> &'static str {
+    fn _description(&self) -> &'static str {
         match self {
             SemanticRole::Agent => "Agent (who/what does)",
             SemanticRole::Patient => "Patient (receives action)",

@@ -275,11 +275,10 @@ impl CoreferenceResolver {
         }
 
         // Partial name matching
-        if m1.mention_type == MentionType::ProperName && m2.mention_type == MentionType::PartialName {
-            if m1.text.contains(&m2.text) {
+        if m1.mention_type == MentionType::ProperName && m2.mention_type == MentionType::PartialName
+            && m1.text.contains(&m2.text) {
                 score += 0.8;
             }
-        }
 
         // Same text (but different positions)
         if m1.text.to_lowercase() == m2.text.to_lowercase() {

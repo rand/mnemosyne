@@ -16,8 +16,6 @@ use crate::ics::semantic_highlighter::{
 };
 use ratatui::style::{Color, Modifier, Style};
 use regex::Regex;
-use once_cell::sync::Lazy;
-use std::collections::HashSet;
 
 /// Entity type classification
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
