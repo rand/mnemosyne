@@ -1735,4 +1735,216 @@ mod tests {
         assert_eq!(unsatisfied_requirements.len(), 0);
         assert_eq!(extracted_requirements.len(), 0);
     }
+
+    #[cfg(feature = "python")]
+    #[tokio::test]
+    async fn test_reviewer_config_defaults() {
+        let config = ReviewerConfig::default();
+
+        assert_eq!(config.max_llm_retries, 3);
+        assert_eq!(config.llm_timeout_secs, 60);
+        assert_eq!(config.enable_llm_validation, true);
+        assert_eq!(config.llm_model, "claude-3-5-sonnet-20241022");
+        assert_eq!(config.max_context_tokens, 4096);
+        assert_eq!(config.llm_temperature, 0.0);
+    }
+
+    #[cfg(feature = "python")]
+    #[tokio::test]
+    async fn test_reviewer_config_update() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        let mut state = ReviewerState::new(storage.clone(), namespace);
+
+        // Create custom config
+        let custom_config = ReviewerConfig {
+            max_llm_retries: 5,
+            llm_timeout_secs: 120,
+            enable_llm_validation: true,
+            llm_model: "claude-3-opus-20240229".to_string(),
+            max_context_tokens: 8192,
+            llm_temperature: 0.1,
+        };
+
+        // Update config
+        state.update_config(custom_config.clone());
+
+        // Verify config was updated
+        assert_eq!(state.config.max_llm_retries, 5);
+        assert_eq!(state.config.llm_timeout_secs, 120);
+        assert_eq!(state.config.llm_model, "claude-3-opus-20240229");
+        assert_eq!(state.config.max_context_tokens, 8192);
+        assert_eq!(state.config.llm_temperature, 0.1);
+    }
+
+    #[cfg(feature = "python")]
+    #[tokio::test]
+    async fn test_disable_llm_validation() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        let mut state = ReviewerState::new(storage.clone(), namespace);
+
+        // Initially enabled by default
+        assert!(state.config.enable_llm_validation);
+
+        // Disable LLM validation
+        state.disable_llm_validation();
+
+        // Verify it's disabled
+        assert!(!state.config.enable_llm_validation);
+    }
+
+    #[tokio::test]
+    async fn test_pattern_matching_fallback() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        // Create and store a memory with anti-pattern markers
+        let memory = crate::types::MemoryNote {
+            id: crate::types::MemoryId(uuid::Uuid::new_v4()),
+            namespace: namespace.clone(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            content: "TODO: Implement this feature".to_string(),
+            summary: "Test memory".to_string(),
+            keywords: vec![],
+            tags: vec![],
+            context: "Test context".to_string(),
+            memory_type: crate::types::MemoryType::CodePattern,
+            importance: 5,
+            confidence: 0.8,
+            links: vec![],
+            related_files: vec![],
+            related_entities: vec![],
+            access_count: 0,
+            last_accessed_at: chrono::Utc::now(),
+            expires_at: None,
+            is_archived: false,
+            superseded_by: None,
+            embedding: None,
+            embedding_model: "test".to_string(),
+        };
+
+        storage
+            .store_memory(&memory)
+            .await
+            .expect("Failed to store memory");
+
+        let state = ReviewerState::new(storage.clone(), namespace);
+
+        // Create work result with the memory
+        let work_item = crate::orchestration::state::WorkItem::new(
+            "Test work".to_string(),
+            AgentRole::Executor,
+            crate::orchestration::state::Phase::PlanToArtifacts,
+            5,
+        );
+
+        let mut result = crate::orchestration::messages::WorkResult::success(
+            work_item.id.clone(),
+            Duration::from_secs(1),
+        );
+        result.memory_ids.push(memory.id);
+
+        // Check anti-patterns (pattern matching fallback)
+        let passed = ReviewerActor::check_anti_patterns(&state, &result)
+            .await
+            .expect("Anti-pattern check failed");
+
+        // Should detect TODO marker
+        assert!(!passed, "Anti-pattern check should have failed due to TODO marker");
+    }
+
+    #[tokio::test]
+    async fn test_quality_gates_all_pass() {
+        let gates = QualityGates {
+            intent_satisfied: true,
+            tests_passing: true,
+            documentation_complete: true,
+            no_anti_patterns: true,
+            constraints_maintained: true,
+            completeness: true,
+            correctness: true,
+            principled_implementation: true,
+        };
+
+        assert!(gates.all_passed());
+    }
+
+    #[tokio::test]
+    async fn test_quality_gates_one_fails() {
+        let gates = QualityGates {
+            intent_satisfied: true,
+            tests_passing: true,
+            documentation_complete: true,
+            no_anti_patterns: true,
+            constraints_maintained: true,
+            completeness: false, // This one fails
+            correctness: true,
+            principled_implementation: true,
+        };
+
+        assert!(!gates.all_passed());
+    }
+
+    #[tokio::test]
+    async fn test_work_result_with_memories() {
+        let item_id = crate::orchestration::state::WorkItemId::new();
+        let mut result = crate::orchestration::messages::WorkResult::success(
+            item_id.clone(),
+            Duration::from_secs(5),
+        );
+
+        // Add memory IDs
+        result.memory_ids.push(crate::types::MemoryId(uuid::Uuid::new_v4()));
+        result.memory_ids.push(crate::types::MemoryId(uuid::Uuid::new_v4()));
+
+        assert_eq!(result.memory_ids.len(), 2);
+        assert!(result.success);
+        assert_eq!(result.duration, Duration::from_secs(5));
+    }
 }
