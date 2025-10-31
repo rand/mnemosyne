@@ -138,6 +138,104 @@ prompt_yes_no() {
     done
 }
 
+# Monitor cargo build with real-time progress streaming
+monitor_cargo_build() {
+    local start_time=$(date +%s)
+    local dep_count=0
+    local main_crate_started=false
+    local last_update_time=$start_time
+
+    # Create temporary file for output
+    local temp_output=$(mktemp)
+
+    # Run cargo with stderr+stdout merged, tee to temp file
+    {
+        cargo build --release 2>&1 | while IFS= read -r line; do
+            # Stream output to user
+            echo "$line"
+
+            # Parse for milestones
+            if [[ "$line" =~ Compiling\ ([a-zA-Z0-9_-]+)\ v([0-9.]+) ]]; then
+                dep_count=$((dep_count + 1))
+                local current_time=$(date +%s)
+
+                # Show progress every 10 dependencies or every 30 seconds
+                if (( dep_count % 10 == 0 )) || (( current_time - last_update_time >= 30 )); then
+                    local elapsed=$((current_time - start_time))
+                    local minutes=$((elapsed / 60))
+                    local seconds=$((elapsed % 60))
+                    echo -e "${BLUE}   ⏱  Progress: $dep_count crates compiled (${minutes}m ${seconds}s elapsed)${NC}" >&2
+                    last_update_time=$current_time
+                fi
+            fi
+
+            # Detect main crate compilation
+            if [[ "$line" =~ Compiling\ mnemosyne ]] && [ "$main_crate_started" = false ]; then
+                main_crate_started=true
+                local elapsed=$(($(date +%s) - start_time))
+                local minutes=$((elapsed / 60))
+                local seconds=$((elapsed % 60))
+                echo -e "${GREEN}   ✓ Dependencies complete! Building main binary... (${minutes}m ${seconds}s)${NC}" >&2
+            fi
+        done
+
+        # Return cargo's exit code
+        echo ${PIPESTATUS[0]}
+    } | tee "$temp_output" | tail -1
+
+    local exit_code=$?
+    rm -f "$temp_output"
+    return $exit_code
+}
+
+# Show build error with specific fix instructions
+show_build_error() {
+    local error_output="$1"
+    local error_log="/tmp/mnemosyne-build-error-$(date +%s).log"
+
+    # Save full error log
+    echo "$error_output" > "$error_log"
+
+    echo ""
+    print_error "Build failed"
+    echo ""
+
+    # Detect error type and show specific fix
+    if echo "$error_output" | grep -q "linker.*not found\|cannot find -l"; then
+        echo "Common cause: Missing C compiler and linker"
+        echo ""
+        echo "Fix:"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            echo "  ${BOLD}xcode-select --install${NC}"
+        elif [[ -f /etc/debian_version ]]; then
+            echo "  ${BOLD}sudo apt-get install build-essential${NC}"
+        elif [[ -f /etc/redhat-release ]]; then
+            echo "  ${BOLD}sudo dnf groupinstall 'Development Tools'${NC}"
+        else
+            echo "  Install your distribution's build tools package"
+        fi
+    elif echo "$error_output" | grep -q "failed to run custom build command"; then
+        echo "Common cause: Incompatible Rust version or missing dependencies"
+        echo ""
+        echo "Fix:"
+        echo "  ${BOLD}rustup update stable${NC}"
+        echo "  ${BOLD}rustup default stable${NC}"
+        echo "  ${BOLD}cargo clean${NC}"
+        echo "  Then retry: ${BOLD}./scripts/install/install.sh${NC}"
+    elif echo "$error_output" | grep -q "could not compile"; then
+        echo "Build compilation error detected."
+        echo "See full error log for details."
+    else
+        echo "An unexpected build error occurred."
+        echo "See full error log for details."
+    fi
+
+    echo ""
+    echo "Full build log saved to: ${BOLD}$error_log${NC}"
+    echo "For more help: ${BOLD}${PROJECT_ROOT}/TROUBLESHOOTING.md${NC}"
+    echo ""
+}
+
 # Check prerequisites
 check_prerequisites() {
     print_header "Checking prerequisites"
@@ -171,19 +269,50 @@ check_prerequisites() {
 build_binary() {
     print_header "Building Mnemosyne (release mode)"
 
+    # Pre-build messaging with expectations
+    echo ""
+    echo "This will compile ~150 Rust dependencies plus the main binary."
+    echo "Expected time: ${BOLD}2-3 minutes${NC} on most systems (longer on first build)"
+    echo ""
+    echo "Build progress will stream below - this is normal!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
     cd "$PROJECT_ROOT"
 
-    if ! cargo build --release; then
-        print_error "Failed to build Mnemosyne"
+    # Track build time
+    local build_start=$(date +%s)
+
+    # Run build with progress monitoring
+    if ! monitor_cargo_build; then
+        # Build failed - capture error output for diagnosis
+        local error_output=$(cargo build --release 2>&1)
+        show_build_error "$error_output"
         exit 1
     fi
 
+    # Calculate build time
+    local build_end=$(date +%s)
+    local build_duration=$((build_end - build_start))
+    local build_minutes=$((build_duration / 60))
+    local build_seconds=$((build_duration % 60))
+
+    # Verify binary exists
     if [ ! -f "target/release/mnemosyne" ]; then
         print_error "Binary not found after build"
         exit 1
     fi
 
-    print_success "Build complete"
+    # Get binary size
+    local binary_size=$(ls -lh target/release/mnemosyne | awk '{print $5}')
+
+    # Success summary
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_success "Build complete in ${build_minutes}m ${build_seconds}s"
+    print_success "Binary size: $binary_size"
+    print_success "Location: target/release/mnemosyne"
+    echo ""
 }
 
 # Install binary

@@ -74,6 +74,58 @@ sudo apt-get install build-essential
 sudo dnf groupinstall "Development Tools"
 ```
 
+**Note**: The installation script now provides platform-specific instructions automatically when this error occurs.
+
+#### Build Appears Stuck or Hung
+
+**Symptoms**: No output for extended period during installation build.
+
+**Normal behavior**:
+- Build takes 2-3 minutes on most systems
+- Progress indicators appear every 10 crates or 30 seconds
+- Some large dependencies (like `libsql`) can take 30-60 seconds to compile
+- You should see "Compiling..." messages streaming
+
+**If truly stuck** (no output for >2 minutes):
+1. Check your internet connection (dependencies download from crates.io)
+2. Press Ctrl+C to cancel
+3. Clean build cache: `cargo clean`
+4. Retry installation: `./scripts/install/install.sh`
+
+**Check build logs**:
+```bash
+# If build fails, error log is saved to:
+ls -lt /tmp/mnemosyne-build-error-*.log | head -1
+
+# View the most recent error log:
+cat $(ls -t /tmp/mnemosyne-build-error-*.log | head -1)
+```
+
+#### Understanding Build Progress Indicators
+
+The enhanced installation script provides real-time progress feedback:
+
+**Progress messages**:
+- `⏱  Progress: N crates compiled (Xm Ys elapsed)` - Appears every 10 crates
+- `✓ Dependencies complete! Building main binary...` - All deps compiled, building mnemosyne
+- `✓ Build complete in Xm Ys` - Build finished successfully
+
+**If you see these, the build is working correctly:**
+```
+   Compiling libc v0.2.147
+   Compiling cfg-if v1.0.0
+   ⏱  Progress: 10 crates compiled (0m 25s elapsed)
+   ...
+   ✓ Dependencies complete! Building main binary... (2m 15s)
+   Compiling mnemosyne v2.0.0
+   ✓ Build complete in 2m 45s
+```
+
+**Build time variations**:
+- **First build**: 2-3 minutes (downloads all dependencies)
+- **Incremental build**: 10-30 seconds (reuses cached dependencies)
+- **After `cargo clean`**: 2-3 minutes (full rebuild)
+
 ### Database Initialization Errors
 
 #### "Error: failed to initialize database: unable to open database file"

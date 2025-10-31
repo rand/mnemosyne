@@ -61,28 +61,68 @@ cd mnemosyne
 
 **Expected output:**
 ```
-🔨 Building Mnemosyne...
-✓ Build complete
+==> Building Mnemosyne (release mode)
 
-📦 Installing binary...
-✓ Binary installed: /Users/you/.local/bin/mnemosyne
+This will compile ~150 Rust dependencies plus the main binary.
+Expected time: 2-3 minutes on most systems (longer on first build)
 
-🗄️  Initializing database...
-✓ Database created: /Users/you/.local/share/mnemosyne/mnemosyne.db
+Build progress will stream below - this is normal!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔐 Configuring API key...
-✓ API key configured via age encryption
+   Compiling libc v0.2.147
+   Compiling cfg-if v1.0.0
+   ... (many dependencies) ...
+   ⏱  Progress: 50 crates compiled (1m 15s elapsed)
+   ... (more dependencies) ...
+   ⏱  Progress: 100 crates compiled (2m 5s elapsed)
+   ... (more dependencies) ...
+   ✓ Dependencies complete! Building main binary... (2m 20s)
+   Compiling mnemosyne v2.0.0
+   Finished `release` profile [optimized] target(s) in 2m 45s
 
-⚙️  Setting up MCP server...
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Build complete in 2m 45s
+✓ Binary size: 48.2 MB
+✓ Location: target/release/mnemosyne
+
+==> Installing binary to /Users/you/.local/bin
+✓ Installed to /Users/you/.local/bin/mnemosyne
+
+==> Initializing database
+✓ Database initialized
+
+==> Configuring Anthropic API key
+✓ API key configured
+
+==> Configuring MCP server
 ✓ MCP config updated: /Users/you/.claude/mcp_config.json
 
-🎉 Mnemosyne installation complete!
+Installation complete!
 
 Next steps:
-  1. Restart Claude Code to load MCP server
-  2. Try: /memory-store Your first memory
-  3. Read: https://github.com/rand/mnemosyne/blob/main/QUICK_START.md
+  1. Test the installation: mnemosyne status
+  2. Start using Mnemosyne in Claude Code
+  3. See: QUICK_START.md for getting started
 ```
+
+**What you'll see during the build:**
+- **Real-time compilation output** - Every crate being compiled streams to the terminal
+- **Progress updates** - Every 10 crates compiled, you'll see a progress indicator with elapsed time
+- **Milestone notifications** - When dependency compilation completes and main binary build starts
+- **Build summary** - Total build time, binary size, and location after completion
+
+**Build process is working correctly if:**
+- ✅ You see "Compiling..." messages streaming
+- ✅ Progress indicators appear every 10-30 seconds
+- ✅ Build completes with "Finished" message
+- ✅ No red error messages appear
+
+**Build might be stuck if:**
+- ❌ No output for more than 2 minutes
+- ❌ Error messages appear and build stops
+- ❌ Process hangs without "Finished" message
+
+See [Troubleshooting](#troubleshooting) section below if build fails.
 
 ---
 
