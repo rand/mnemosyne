@@ -16,7 +16,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     launcher::launch_orchestrated_session(None, None).await?;
+//!     launcher::launch_orchestrated_session(None, None, None).await?;
 //!     Ok(())
 //! }
 //! ```
@@ -32,7 +32,7 @@ use std::process::Command;
 use tracing::{debug, warn};
 
 /// Configuration for launching Claude Code sessions
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LauncherConfig {
     /// Primary agent role for this session (default: Executor)
     pub primary_agent_role: agents::AgentRole,
@@ -66,6 +66,9 @@ pub struct LauncherConfig {
 
     /// Initial prompt to send to Claude Code (optional)
     pub initial_prompt: Option<String>,
+
+    /// Optional event broadcaster for real-time API updates
+    pub event_broadcaster: Option<crate::api::EventBroadcaster>,
 }
 
 impl Default for LauncherConfig {
@@ -82,7 +85,27 @@ impl Default for LauncherConfig {
             model: "sonnet".to_string(),
             enable_hooks: true,
             initial_prompt: None,
+            event_broadcaster: None,
         }
+    }
+}
+
+impl std::fmt::Debug for LauncherConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LauncherConfig")
+            .field("primary_agent_role", &self.primary_agent_role)
+            .field("enable_subagents", &self.enable_subagents)
+            .field("max_concurrent_agents", &self.max_concurrent_agents)
+            .field("mnemosyne_namespace", &self.mnemosyne_namespace)
+            .field("mnemosyne_db_path", &self.mnemosyne_db_path)
+            .field("load_context_on_start", &self.load_context_on_start)
+            .field("context_config", &self.context_config)
+            .field("permission_mode", &self.permission_mode)
+            .field("model", &self.model)
+            .field("enable_hooks", &self.enable_hooks)
+            .field("initial_prompt", &self.initial_prompt)
+            .field("event_broadcaster", &self.event_broadcaster.is_some())
+            .finish()
     }
 }
 
@@ -144,9 +167,10 @@ impl ClaudeCodeLauncher {
             max_concurrent_agents: self.config.max_concurrent_agents as usize,
         };
 
-        let orchestration_engine = match crate::orchestration::OrchestrationEngine::new(
+        let orchestration_engine = match crate::orchestration::OrchestrationEngine::new_with_events(
             storage.clone(),
             orchestration_config,
+            self.config.event_broadcaster.clone(),
         )
         .await
         {
@@ -434,10 +458,12 @@ fn get_default_db_path() -> String {
 pub async fn launch_orchestrated_session(
     db_path: Option<String>,
     initial_prompt: Option<String>,
+    event_broadcaster: Option<crate::api::EventBroadcaster>,
 ) -> Result<()> {
     let mut config = LauncherConfig::default();
     config.mnemosyne_db_path = db_path;
     config.initial_prompt = initial_prompt;
+    config.event_broadcaster = event_broadcaster;
 
     let launcher = ClaudeCodeLauncher::with_config(config)?;
     launcher.launch().await

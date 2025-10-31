@@ -1268,7 +1268,7 @@ async fn main() -> Result<()> {
             println!("🚀 Starting orchestration engine...");
             println!();
 
-            launcher::launch_orchestrated_session(Some(db_path), Some(plan)).await?;
+            launcher::launch_orchestrated_session(Some(db_path), Some(plan), None).await?;
 
             println!();
             println!("✨ Orchestration session complete");
@@ -2036,7 +2036,7 @@ async fn main() -> Result<()> {
             progress.show_loading_message();
 
             // Launch orchestrated session
-            let result = launcher::launch_orchestrated_session(Some(db_path), None).await;
+            let result = launcher::launch_orchestrated_session(Some(db_path), None, None).await;
 
             // Show completion or error
             if result.is_ok() {
