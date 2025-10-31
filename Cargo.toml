@@ -10,6 +10,10 @@ license = "MIT"
 name = "mnemosyne"
 path = "src/main.rs"
 
+[[bin]]
+name = "mnemosyne-ics"
+path = "src/bin/ics.rs"
+
 [lib]
 name = "mnemosyne_core"
 crate-type = ["cdylib", "rlib"]  # cdylib for Python, rlib for Rust binary
