@@ -45,10 +45,15 @@ pub struct SemanticHighlightEngine {
 #[derive(Debug, Clone)]
 pub enum AnalysisRequest {
     /// Analyze specific range
-    Range(std::ops::Range<usize>),
+    Range {
+        text: String,
+        range: std::ops::Range<usize>,
+    },
 
     /// Analyze full document
-    Full,
+    Full {
+        text: String,
+    },
 
     /// Clear all caches
     ClearCache,
