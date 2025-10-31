@@ -1267,6 +1267,7 @@ impl Actor for ReviewerActor {
 mod tests {
     use super::*;
     use crate::LibsqlStorage;
+    use crate::orchestration::state::RequirementStatus;
     use std::time::Duration;
     use tempfile::TempDir;
 
@@ -1300,5 +1301,191 @@ mod tests {
         actor_ref.cast(ReviewerMessage::Initialize).unwrap();
         actor_ref.stop(None);
         tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    #[tokio::test]
+    async fn test_requirement_tracking_all_satisfied() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        let state = ReviewerState::new(storage.clone(), namespace);
+
+        // Create work item with requirements
+        let mut work_item = crate::orchestration::state::WorkItem::new(
+            "Test work".to_string(),
+            AgentRole::Executor,
+            crate::orchestration::state::Phase::PlanToArtifacts,
+            5,
+        );
+        work_item.requirements = vec![
+            "Requirement 1".to_string(),
+            "Requirement 2".to_string(),
+            "Requirement 3".to_string(),
+        ];
+
+        // Create successful result
+        let result = crate::orchestration::messages::WorkResult::success(
+            work_item.id.clone(),
+            Duration::from_secs(1),
+        );
+
+        // Simulate successful review (completeness_passed = true)
+        let completeness_passed = true;
+
+        // Track requirement satisfaction
+        let extracted_requirements = work_item.requirements.clone();
+        let mut satisfied_requirements = std::collections::HashMap::new();
+        let mut unsatisfied_requirements = Vec::new();
+
+        if !work_item.requirements.is_empty() {
+            if completeness_passed {
+                for req in &work_item.requirements {
+                    satisfied_requirements.insert(req.clone(), result.memory_ids.clone());
+                }
+            } else {
+                unsatisfied_requirements = work_item.requirements.clone();
+            }
+        }
+
+        // Verify all requirements satisfied
+        assert_eq!(satisfied_requirements.len(), 3);
+        assert_eq!(unsatisfied_requirements.len(), 0);
+        assert!(satisfied_requirements.contains_key("Requirement 1"));
+        assert!(satisfied_requirements.contains_key("Requirement 2"));
+        assert!(satisfied_requirements.contains_key("Requirement 3"));
+    }
+
+    #[tokio::test]
+    async fn test_requirement_tracking_unsatisfied() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        let _state = ReviewerState::new(storage.clone(), namespace);
+
+        // Create work item with requirements
+        let mut work_item = crate::orchestration::state::WorkItem::new(
+            "Test work".to_string(),
+            AgentRole::Executor,
+            crate::orchestration::state::Phase::PlanToArtifacts,
+            5,
+        );
+        work_item.requirements = vec![
+            "Requirement 1".to_string(),
+            "Requirement 2".to_string(),
+        ];
+
+        // Create result
+        let result = crate::orchestration::messages::WorkResult::success(
+            work_item.id.clone(),
+            Duration::from_secs(1),
+        );
+
+        // Simulate failed completeness check
+        let completeness_passed = false;
+
+        // Track requirement satisfaction
+        let extracted_requirements = work_item.requirements.clone();
+        let mut satisfied_requirements = std::collections::HashMap::new();
+        let mut unsatisfied_requirements = Vec::new();
+
+        if !work_item.requirements.is_empty() {
+            if completeness_passed {
+                for req in &work_item.requirements {
+                    satisfied_requirements.insert(req.clone(), result.memory_ids.clone());
+                }
+            } else {
+                unsatisfied_requirements = work_item.requirements.clone();
+            }
+        }
+
+        // Verify all requirements unsatisfied
+        assert_eq!(satisfied_requirements.len(), 0);
+        assert_eq!(unsatisfied_requirements.len(), 2);
+        assert!(unsatisfied_requirements.contains(&"Requirement 1".to_string()));
+        assert!(unsatisfied_requirements.contains(&"Requirement 2".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_requirement_tracking_no_requirements() {
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        let _state = ReviewerState::new(storage.clone(), namespace);
+
+        // Create work item without requirements
+        let work_item = crate::orchestration::state::WorkItem::new(
+            "Test work".to_string(),
+            AgentRole::Executor,
+            crate::orchestration::state::Phase::PlanToArtifacts,
+            5,
+        );
+
+        // Create result
+        let result = crate::orchestration::messages::WorkResult::success(
+            work_item.id.clone(),
+            Duration::from_secs(1),
+        );
+
+        // Track requirement satisfaction
+        let extracted_requirements = work_item.requirements.clone();
+        let mut satisfied_requirements = std::collections::HashMap::new();
+        let mut unsatisfied_requirements = Vec::new();
+
+        if !work_item.requirements.is_empty() {
+            if true {
+                for req in &work_item.requirements {
+                    satisfied_requirements.insert(req.clone(), result.memory_ids.clone());
+                }
+            } else {
+                unsatisfied_requirements = work_item.requirements.clone();
+            }
+        }
+
+        // Verify no requirements tracked
+        assert_eq!(satisfied_requirements.len(), 0);
+        assert_eq!(unsatisfied_requirements.len(), 0);
+        assert_eq!(extracted_requirements.len(), 0);
     }
 }

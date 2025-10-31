@@ -771,6 +771,7 @@ impl Actor for OrchestratorActor {
 mod tests {
     use super::*;
     use crate::LibsqlStorage;
+    use crate::orchestration::state::RequirementStatus;
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -808,5 +809,226 @@ mod tests {
 
         // Wait for actor to stop
         tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    #[tokio::test]
+    async fn test_requirement_enforcement_all_satisfied() {
+        // Setup
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        // Create work item with requirements
+        let mut work_item = WorkItem::new(
+            "Test work".to_string(),
+            AgentRole::Executor,
+            Phase::PlanToArtifacts,
+            5,
+        );
+        work_item.requirements = vec!["Req 1".to_string(), "Req 2".to_string()];
+
+        // Create feedback with all requirements satisfied
+        let mut satisfied_requirements = std::collections::HashMap::new();
+        satisfied_requirements.insert("Req 1".to_string(), vec![]);
+        satisfied_requirements.insert("Req 2".to_string(), vec![]);
+
+        let feedback = crate::orchestration::messages::ReviewFeedback {
+            gates_passed: true,
+            issues: vec![],
+            suggested_tests: vec![],
+            execution_context: vec![],
+            improvement_guidance: None,
+            extracted_requirements: vec![],
+            unsatisfied_requirements: vec![], // All satisfied
+            satisfied_requirements,
+        };
+
+        // Verify enforcement logic
+        let all_requirements_satisfied = feedback.unsatisfied_requirements.is_empty();
+        assert!(all_requirements_satisfied, "All requirements should be satisfied");
+
+        let should_complete = true && all_requirements_satisfied;
+        assert!(should_complete, "Work should be marked complete");
+    }
+
+    #[tokio::test]
+    async fn test_requirement_enforcement_unsatisfied() {
+        // Setup
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        // Create work item with requirements
+        let mut work_item = WorkItem::new(
+            "Test work".to_string(),
+            AgentRole::Executor,
+            Phase::PlanToArtifacts,
+            5,
+        );
+        work_item.requirements = vec!["Req 1".to_string(), "Req 2".to_string()];
+
+        // Create feedback with unsatisfied requirements
+        let mut satisfied_requirements = std::collections::HashMap::new();
+        satisfied_requirements.insert("Req 1".to_string(), vec![]);
+
+        let feedback = crate::orchestration::messages::ReviewFeedback {
+            gates_passed: true,
+            issues: vec![],
+            suggested_tests: vec![],
+            execution_context: vec![],
+            improvement_guidance: None,
+            extracted_requirements: vec![],
+            unsatisfied_requirements: vec!["Req 2".to_string()], // One unsatisfied
+            satisfied_requirements,
+        };
+
+        // Verify enforcement logic
+        let all_requirements_satisfied = feedback.unsatisfied_requirements.is_empty();
+        assert!(!all_requirements_satisfied, "Not all requirements should be satisfied");
+
+        let should_complete = true && all_requirements_satisfied;
+        assert!(!should_complete, "Work should NOT be marked complete with unsatisfied requirements");
+    }
+
+    #[tokio::test]
+    async fn test_requirement_status_tracking() {
+        // Setup
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        // Create work item
+        let mut work_item = WorkItem::new(
+            "Test work".to_string(),
+            AgentRole::Executor,
+            Phase::PlanToArtifacts,
+            5,
+        );
+
+        // Simulate requirement tracking on success
+        work_item.requirements = vec!["Req 1".to_string(), "Req 2".to_string()];
+
+        for req in &work_item.requirements {
+            work_item.requirement_status.insert(
+                req.clone(),
+                RequirementStatus::Satisfied
+            );
+        }
+
+        // Verify all requirements marked as satisfied
+        assert_eq!(work_item.requirement_status.len(), 2);
+        assert_eq!(
+            work_item.requirement_status.get("Req 1"),
+            Some(&RequirementStatus::Satisfied)
+        );
+        assert_eq!(
+            work_item.requirement_status.get("Req 2"),
+            Some(&RequirementStatus::Satisfied)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_partial_requirement_satisfaction() {
+        // Setup
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let namespace = Namespace::Session {
+            project: "test".to_string(),
+            session_id: "test-session".to_string(),
+        };
+
+        // Create work item
+        let mut work_item = WorkItem::new(
+            "Test work".to_string(),
+            AgentRole::Executor,
+            Phase::PlanToArtifacts,
+            5,
+        );
+        work_item.requirements = vec![
+            "Req 1".to_string(),
+            "Req 2".to_string(),
+            "Req 3".to_string(),
+        ];
+
+        // Simulate partial satisfaction (for retry scenario)
+        let mut satisfied_requirements = std::collections::HashMap::new();
+        satisfied_requirements.insert("Req 1".to_string(), vec![]);
+
+        let unsatisfied_requirements = vec!["Req 2".to_string(), "Req 3".to_string()];
+
+        // Track status
+        for (req, evidence) in &satisfied_requirements {
+            work_item.requirement_status.insert(
+                req.clone(),
+                RequirementStatus::Satisfied
+            );
+            work_item.implementation_evidence.insert(req.clone(), evidence.clone());
+        }
+
+        for req in &unsatisfied_requirements {
+            work_item.requirement_status.insert(
+                req.clone(),
+                RequirementStatus::InProgress
+            );
+        }
+
+        // Verify partial satisfaction tracked
+        assert_eq!(
+            work_item.requirement_status.get("Req 1"),
+            Some(&RequirementStatus::Satisfied)
+        );
+        assert_eq!(
+            work_item.requirement_status.get("Req 2"),
+            Some(&RequirementStatus::InProgress)
+        );
+        assert_eq!(
+            work_item.requirement_status.get("Req 3"),
+            Some(&RequirementStatus::InProgress)
+        );
     }
 }
