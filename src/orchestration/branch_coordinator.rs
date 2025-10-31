@@ -248,50 +248,60 @@ impl BranchCoordinator {
 
     /// Create assignment after validation succeeds
     async fn create_assignment(&self, request: JoinRequest) -> Result<JoinResponse> {
-        let mut registry = self.registry.write().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e))
-        })?;
+        // Scope the lock to prevent holding it across await points (deadlock risk)
+        let (assignment_id, target_branch, other_agent_ids) = {
+            let mut registry = self.registry.write().map_err(|e| {
+                MnemosyneError::Other(format!("Failed to acquire registry lock: {}", e))
+            })?;
 
-        // Check if there are other agents on this branch
-        let existing = registry
-            .get_assignments(&request.target_branch)
-            .into_iter()
-            .filter(|a| a.agent_id != request.agent_identity.id)
-            .collect::<Vec<_>>();
+            // Check if there are other agents on this branch
+            let existing = registry
+                .get_assignments(&request.target_branch)
+                .into_iter()
+                .filter(|a| a.agent_id != request.agent_identity.id)
+                .collect::<Vec<_>>();
 
-        registry.assign_agent(
-            request.agent_identity.id.clone(),
-            request.target_branch.clone(),
-            request.intent,
-            request.mode,
-        )?;
+            registry.assign_agent(
+                request.agent_identity.id.clone(),
+                request.target_branch.clone(),
+                request.intent,
+                request.mode,
+            )?;
 
-        // Update work items if provided
-        if !request.work_items.is_empty() {
-            registry.update_work_items(&request.agent_identity.id, request.work_items)?;
-        }
+            // Update work items if provided
+            if !request.work_items.is_empty() {
+                registry.update_work_items(&request.agent_identity.id, request.work_items)?;
+            }
 
-        if existing.is_empty() {
+            let other_ids: Vec<AgentId> = existing.iter().map(|a| a.agent_id.clone()).collect();
+
+            // Extract data needed after lock is dropped
+            (
+                request.agent_identity.id.to_string(),
+                request.target_branch.clone(),
+                other_ids,
+            )
+        }; // Lock is dropped here, before any await points
+
+        // Now safe to perform async operations without holding the lock
+        if other_agent_ids.is_empty() {
             // No other agents, proceed
             Ok(JoinResponse::Approved {
-                assignment_id: request.agent_identity.id.to_string(),
-                message: format!("Assigned to branch '{}'", request.target_branch),
+                assignment_id,
+                message: format!("Assigned to branch '{}'", target_branch),
             })
         } else {
             // Other agents present, requires coordination
-            let other_agent_ids: Vec<AgentId> =
-                existing.iter().map(|a| a.agent_id.clone()).collect();
-
-            // Send coordination notifications
+            // Send coordination notifications (async operation, lock already dropped)
             self.notify_coordination_required(&request.agent_identity.id, &other_agent_ids)
                 .await?;
 
             Ok(JoinResponse::RequiresCoordination {
-                assignment_id: request.agent_identity.id.to_string(),
+                assignment_id,
                 other_agents: other_agent_ids.clone(),
                 message: format!(
                     "Assigned to branch '{}'. Coordination required with {} other agent(s).",
-                    request.target_branch,
+                    target_branch,
                     other_agent_ids.len()
                 ),
             })
