@@ -650,21 +650,28 @@ impl ReviewerActor {
                 .map(|id| id.to_string())
                 .collect();
 
-            // Call Python LLM validator
-            match Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
-                let py_reviewer = state.py_reviewer.as_ref().unwrap();
+            // Clone data for retry macro
+            let py_reviewer = state.py_reviewer.clone();
+            let original_intent = work_item.original_intent.clone();
+            let config = state.config.clone();
 
-                let result = py_reviewer.call_method1(
-                    py,
-                    "semantic_intent_check",
-                    (
-                        work_item.original_intent.clone(),
-                        implementation.clone(),
-                        memory_id_strings.clone(),
-                    ),
-                )?;
+            // Call Python LLM validator with retry logic
+            match retry_llm_operation!(&config, "semantic_intent_check", {
+                Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
+                    let py_reviewer = py_reviewer.as_ref().unwrap();
 
-                result.extract(py)
+                    let result = py_reviewer.call_method1(
+                        py,
+                        "semantic_intent_check",
+                        (
+                            original_intent.clone(),
+                            implementation.clone(),
+                            memory_id_strings.clone(),
+                        ),
+                    )?;
+
+                    result.extract(py)
+                })
             }) {
                 Ok((passed, llm_issues)) => {
                     if !passed {
@@ -680,7 +687,8 @@ impl ReviewerActor {
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "LLM semantic validation error (falling back to pattern matching): {:?}",
+                        "LLM semantic validation error after {} retries (falling back to pattern matching): {}",
+                        config.max_llm_retries,
                         e
                     );
                     // Fall through to pattern matching
@@ -910,21 +918,27 @@ impl ReviewerActor {
                 .map(|id| id.to_string())
                 .collect();
 
-            // Call Python LLM validator
-            match Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
-                let py_reviewer = state.py_reviewer.as_ref().unwrap();
+            // Clone data for retry macro
+            let py_reviewer = state.py_reviewer.clone();
+            let config = state.config.clone();
 
-                let result = py_reviewer.call_method1(
-                    py,
-                    "semantic_completeness_check",
-                    (
-                        requirements.clone(),
-                        implementation.clone(),
-                        memory_id_strings.clone(),
-                    ),
-                )?;
+            // Call Python LLM validator with retry logic
+            match retry_llm_operation!(&config, "semantic_completeness_check", {
+                Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
+                    let py_reviewer = py_reviewer.as_ref().unwrap();
 
-                result.extract(py)
+                    let result = py_reviewer.call_method1(
+                        py,
+                        "semantic_completeness_check",
+                        (
+                            requirements.clone(),
+                            implementation.clone(),
+                            memory_id_strings.clone(),
+                        ),
+                    )?;
+
+                    result.extract(py)
+                })
             }) {
                 Ok((passed, llm_issues)) => {
                     if !passed {
@@ -939,7 +953,8 @@ impl ReviewerActor {
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "LLM completeness validation error (continuing with pattern matching): {:?}",
+                        "LLM completeness validation error after {} retries (continuing with pattern matching): {}",
+                        config.max_llm_retries,
                         e
                     );
                     // Continue with pattern matching results
@@ -1038,21 +1053,27 @@ impl ReviewerActor {
                 .map(|id| id.to_string())
                 .collect();
 
-            // Call Python LLM validator
-            match Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
-                let py_reviewer = state.py_reviewer.as_ref().unwrap();
+            // Clone data for retry macro
+            let py_reviewer = state.py_reviewer.clone();
+            let config = state.config.clone();
 
-                let result = py_reviewer.call_method1(
-                    py,
-                    "semantic_correctness_check",
-                    (
-                        implementation.clone(),
-                        test_results_json.clone(),
-                        memory_id_strings.clone(),
-                    ),
-                )?;
+            // Call Python LLM validator with retry logic
+            match retry_llm_operation!(&config, "semantic_correctness_check", {
+                Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
+                    let py_reviewer = py_reviewer.as_ref().unwrap();
 
-                result.extract(py)
+                    let result = py_reviewer.call_method1(
+                        py,
+                        "semantic_correctness_check",
+                        (
+                            implementation.clone(),
+                            test_results_json.clone(),
+                            memory_id_strings.clone(),
+                        ),
+                    )?;
+
+                    result.extract(py)
+                })
             }) {
                 Ok((passed, llm_issues)) => {
                     if !passed {
@@ -1067,7 +1088,8 @@ impl ReviewerActor {
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "LLM correctness validation error (continuing with pattern matching): {:?}",
+                        "LLM correctness validation error after {} retries (continuing with pattern matching): {}",
+                        config.max_llm_retries,
                         e
                     );
                     // Continue with pattern matching results
@@ -1173,28 +1195,30 @@ impl ReviewerActor {
             .map(|id| id.to_string())
             .collect();
 
-        // Call Python LLM validator
-        let guidance = Python::with_gil(|py| -> PyResult<String> {
-            let py_reviewer = state.py_reviewer.as_ref().unwrap();
+        // Clone data for retry macro
+        let py_reviewer = state.py_reviewer.clone();
+        let original_intent = work_item.original_intent.clone();
+        let issues_vec = issues.to_vec();
+        let config = state.config.clone();
 
-            let result = py_reviewer.call_method1(
-                py,
-                "generate_improvement_guidance",
-                (
-                    failed_gates.clone(),
-                    issues.to_vec(),
-                    work_item.original_intent.clone(),
-                    memory_id_strings.clone(),
-                ),
-            )?;
+        // Call Python LLM validator with retry logic
+        let guidance = retry_llm_operation!(&config, "generate_improvement_guidance", {
+            Python::with_gil(|py| -> PyResult<String> {
+                let py_reviewer = py_reviewer.as_ref().unwrap();
 
-            result.extract(py)
-        })
-        .map_err(|e| {
-            MnemosyneError::ValidationError(format!(
-                "Failed to generate improvement guidance via LLM: {}",
-                e
-            ))
+                let result = py_reviewer.call_method1(
+                    py,
+                    "generate_improvement_guidance",
+                    (
+                        failed_gates.clone(),
+                        issues_vec.clone(),
+                        original_intent.clone(),
+                        memory_id_strings.clone(),
+                    ),
+                )?;
+
+                result.extract(py)
+            })
         })?;
 
         Ok(guidance)
