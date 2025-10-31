@@ -11,7 +11,7 @@
 use crate::{
     ics::semantic_highlighter::{
         visualization::{HighlightSpan, HighlightSource, Connection, ConnectionType, AnnotationType, Annotation},
-        Result,
+        Result, SemanticError,
     },
     LlmService,
 };
@@ -19,6 +19,7 @@ use ratatui::style::{Color, Modifier, Style};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use std::sync::Arc;
+use tracing::warn;
 
 /// Type of contradiction
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -93,6 +94,7 @@ pub struct Contradiction {
 }
 
 /// Contradiction detector using Claude API
+#[derive(Clone)]
 pub struct ContradictionDetector {
     _llm_service: Arc<LlmService>,
     /// Minimum confidence threshold
@@ -117,11 +119,87 @@ impl ContradictionDetector {
     pub async fn detect(&self, text: &str) -> Result<Vec<Contradiction>> {
         let prompt = self.build_detection_prompt(text);
 
-        // Placeholder - would call LLM service
-        // let response = self.llm_service.generate(&prompt).await?;
-        // Parse response into Contradiction objects
+        // Call LLM with timeout
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            self._llm_service.call_api(&prompt)
+        )
+        .await
+        .map_err(|_| SemanticError::AnalysisFailed("Timeout after 30s".to_string()))?
+        .map_err(|e| SemanticError::AnalysisFailed(format!("LLM API error: {}", e)))?;
 
-        Ok(Vec::new())
+        // Parse JSON response
+        let contradictions = self.parse_contradiction_response(&response, text.len())?;
+
+        // Filter by threshold
+        let filtered = contradictions
+            .into_iter()
+            .filter(|c| c.confidence >= self.threshold)
+            .collect();
+
+        Ok(filtered)
+    }
+
+    /// Parse contradiction response from LLM
+    fn parse_contradiction_response(&self, json: &str, text_len: usize) -> Result<Vec<Contradiction>> {
+        #[derive(Deserialize)]
+        struct ContradictionJson {
+            statement1_start: usize,
+            statement1_end: usize,
+            text1: String,
+            statement2_start: usize,
+            statement2_end: usize,
+            text2: String,
+            #[serde(rename = "type")]
+            contradiction_type: String,
+            explanation: String,
+            confidence: f32,
+        }
+
+        let contradictions: Vec<ContradictionJson> = serde_json::from_str(json)
+            .map_err(|e| SemanticError::AnalysisFailed(
+                format!("JSON parse error: {}", e)
+            ))?;
+
+        // Convert and validate
+        let result = contradictions
+            .into_iter()
+            .filter_map(|c| {
+                // Validate ranges
+                if c.statement1_end > text_len || c.statement2_end > text_len ||
+                   c.statement1_start >= c.statement1_end || c.statement2_start >= c.statement2_end {
+                    warn!("Invalid contradiction ranges: {}..{} and {}..{} (text len: {})",
+                        c.statement1_start, c.statement1_end,
+                        c.statement2_start, c.statement2_end,
+                        text_len);
+                    return None;
+                }
+
+                // Parse contradiction type
+                let contradiction_type = match c.contradiction_type.as_str() {
+                    "Direct" => ContradictionType::Direct,
+                    "Temporal" => ContradictionType::Temporal,
+                    "Semantic" => ContradictionType::Semantic,
+                    "Implication" => ContradictionType::Implication,
+                    other => {
+                        warn!("Unknown contradiction type: {}", other);
+                        return None;
+                    }
+                };
+
+                Some(Contradiction {
+                    statement1: c.statement1_start..c.statement1_end,
+                    text1: c.text1,
+                    statement2: c.statement2_start..c.statement2_end,
+                    text2: c.text2,
+                    contradiction_type,
+                    explanation: c.explanation,
+                    confidence: c.confidence.clamp(0.0, 1.0),
+                })
+            })
+            .collect();
+
+        Ok(result)
     }
 
     /// Convert contradictions to highlight spans
