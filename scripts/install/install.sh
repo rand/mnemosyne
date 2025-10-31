@@ -272,7 +272,7 @@ build_binary() {
     # Pre-build messaging with expectations
     echo ""
     echo "This will compile ~150 Rust dependencies plus the main binary."
-    echo "Expected time: ${BOLD}2-3 minutes${NC} on most systems (longer on first build)"
+    echo -e "Expected time: ${BOLD}2-3 minutes${NC} on most systems (longer on first build)"
     echo ""
     echo "Build progress will stream below - this is normal!"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
