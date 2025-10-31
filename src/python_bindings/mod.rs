@@ -9,9 +9,13 @@
 mod coordination;
 mod evaluation;
 mod memory;
+mod reviewer;
 mod storage;
 
 use pyo3::prelude::*;
+
+// Re-export reviewer helpers for use in Rust code
+pub use reviewer::{collect_implementation_from_memories, execution_memories_to_python_format};
 
 /// PyO3 module initialization.
 ///
@@ -33,6 +37,9 @@ fn mnemosyne_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<evaluation::PyFeedbackCollector>()?;
     m.add_class::<evaluation::PyFeatureExtractor>()?;
     m.add_class::<evaluation::PyRelevanceScorer>()?;
+
+    // Reviewer with LLM validation
+    m.add_class::<reviewer::PyReviewer>()?;
 
     Ok(())
 }
