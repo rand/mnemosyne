@@ -18,6 +18,17 @@ pub enum AppState {
     Quitting,
 }
 
+/// Pending action after dialog closes
+#[derive(Debug, Clone)]
+pub enum PendingDialogAction {
+    /// No pending action
+    None,
+    /// Save file (filename comes from dialog result)
+    SaveFile,
+    /// Submit content to Claude Code
+    SubmitToClaude,
+}
+
 /// Main TUI application
 pub struct TuiApp {
     /// Terminal manager
@@ -38,6 +49,8 @@ pub struct TuiApp {
     layout: LayoutManager,
     /// Active dialog (modal)
     active_dialog: Option<Box<dyn Dialog>>,
+    /// Pending action after dialog closes
+    pending_dialog_action: PendingDialogAction,
     /// Claude Code wrapper
     wrapper: Option<ClaudeCodeWrapper>,
     /// Application state
@@ -133,6 +146,7 @@ impl TuiApp {
             help_overlay,
             layout,
             active_dialog: None,
+            pending_dialog_action: PendingDialogAction::None,
             wrapper: None,
             state: AppState::Running,
         })
@@ -193,7 +207,12 @@ impl TuiApp {
                 if let Some(dialog) = &mut self.active_dialog {
                     let should_close = dialog.handle_key(key);
                     if should_close {
+                        // Get dialog result before dropping it
+                        let result = dialog.result();
                         self.active_dialog = None;
+
+                        // Process pending action based on dialog result
+                        self.process_dialog_result(result).await?;
                     }
                     return Ok(());
                 }
@@ -296,40 +315,137 @@ impl TuiApp {
             }
             // ICS Commands
             "ics:submit-to-claude" => {
-                // TODO: Implement submit workflow with preview
-                // 1. Get current ICS content
-                // 2. Show preview dialog
-                // 3. On confirm, send to Claude Code via PTY wrapper
-                tracing::debug!("ICS: Submit to Claude requested");
+                // Get ICS content for preview
+                let content = self.ics_panel.get_content();
+
+                // Show confirm dialog with preview
+                let dialog = super::ConfirmDialog::new(
+                    "Submit to Claude Code",
+                    "Send this content as a prompt to Claude Code?",
+                )
+                .with_preview(content);
+
+                self.active_dialog = Some(Box::new(dialog));
+                self.pending_dialog_action = PendingDialogAction::SubmitToClaude;
+                tracing::debug!("ICS: Submit dialog shown");
             }
             "ics:save-file" => {
-                // TODO: Implement file save
-                // 1. Get current ICS content
-                // 2. Prompt for filename if needed
-                // 3. Write to disk
-                tracing::debug!("ICS: Save file requested");
+                // Show input dialog for filename
+                use chrono::Local;
+                let timestamp = Local::now().format("%Y%m%d_%H%M%S");
+                let default_filename = format!("ics-{}.md", timestamp);
+
+                let dialog = super::InputDialog::new(
+                    "Save File",
+                    "Enter filename (will be saved in current directory):",
+                )
+                .with_default(default_filename)
+                .with_validator(|s| {
+                    if s.is_empty() {
+                        Err("Filename cannot be empty".to_string())
+                    } else if s.contains('/') || s.contains('\\') {
+                        Err("Filename cannot contain path separators".to_string())
+                    } else {
+                        Ok(())
+                    }
+                });
+
+                self.active_dialog = Some(Box::new(dialog));
+                self.pending_dialog_action = PendingDialogAction::SaveFile;
+                tracing::debug!("ICS: Save file dialog shown");
             }
             "ics:export-context" => {
-                // TODO: Implement context export
-                // 1. Get current ICS content
-                // 2. Format as markdown
-                // 3. Save to timestamped file
-                tracing::debug!("ICS: Export context requested");
+                // Get ICS content
+                let content = self.ics_panel.get_content();
+
+                // Generate timestamped filename
+                use chrono::Local;
+                let timestamp = Local::now().format("%Y%m%d_%H%M%S");
+                let filename = format!("ics-export-{}.md", timestamp);
+
+                // Ensure exports directory exists
+                std::fs::create_dir_all("./exports").ok();
+                let filepath = format!("./exports/{}", filename);
+
+                // Write to file
+                match std::fs::write(&filepath, content) {
+                    Ok(_) => {
+                        tracing::info!("ICS: Exported to {}", filepath);
+                        // TODO: Show success notification when notification system is implemented
+                    }
+                    Err(e) => {
+                        tracing::error!("ICS: Export failed: {}", e);
+                        // TODO: Show error dialog when error notification system is implemented
+                    }
+                }
             }
             "ics:toggle-highlighting" => {
-                // TODO: Toggle highlighting in ICS panel
-                tracing::debug!("ICS: Toggle highlighting requested");
+                self.ics_panel.toggle_highlighting();
+                tracing::debug!("ICS: Highlighting toggled");
             }
             "ics:focus-editor" => {
                 // Ensure ICS panel is visible and focused
                 if !self.ics_panel.is_visible() {
                     self.ics_panel.toggle();
                 }
-                // TODO: Set focus state
-                tracing::debug!("ICS: Focus editor requested");
+                self.ics_panel.set_focused(true);
+                // TODO: Unfocus other panels when multi-panel focus is implemented
+                tracing::debug!("ICS: Editor focused");
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    /// Process dialog result and execute pending action
+    async fn process_dialog_result(&mut self, result: super::DialogResult) -> Result<()> {
+        use super::DialogResult;
+
+        match result {
+            DialogResult::Confirmed => {
+                // Handle confirm-only dialogs (submit)
+                match &self.pending_dialog_action {
+                    PendingDialogAction::SubmitToClaude => {
+                        let content = self.ics_panel.get_content();
+                        if let Some(wrapper) = &self.wrapper {
+                            wrapper.send_input(content.as_bytes()).await?;
+                            tracing::info!("ICS: Content submitted to Claude Code");
+                        } else {
+                            tracing::warn!("ICS: No PTY wrapper available for submit");
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            DialogResult::ConfirmedWithInput(input) => {
+                // Handle input dialogs (save file)
+                match &self.pending_dialog_action {
+                    PendingDialogAction::SaveFile => {
+                        let content = self.ics_panel.get_content();
+                        match std::fs::write(&input, &content) {
+                            Ok(_) => {
+                                tracing::info!("ICS: File saved to {}", input);
+                                // TODO: Show success notification
+                            }
+                            Err(e) => {
+                                tracing::error!("ICS: Failed to save file: {}", e);
+                                // TODO: Show error dialog
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            DialogResult::Cancelled => {
+                tracing::debug!("Dialog cancelled");
+            }
+            DialogResult::Pending => {
+                // Should not happen as dialog is already closed
+            }
+        }
+
+        // Reset pending action
+        self.pending_dialog_action = PendingDialogAction::None;
         Ok(())
     }
 
