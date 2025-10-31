@@ -42,6 +42,22 @@ pub enum AgentState {
     Error,
 }
 
+/// Requirement satisfaction status for traceability
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RequirementStatus {
+    /// Requirement not yet addressed
+    NotStarted,
+
+    /// Requirement partially implemented
+    InProgress,
+
+    /// Requirement fully implemented and verified
+    Satisfied,
+
+    /// Requirement explicitly not applicable or waived
+    NotApplicable,
+}
+
 /// Work Plan Protocol phases
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Phase {
@@ -175,6 +191,15 @@ pub struct WorkItem {
 
     /// Estimated context tokens (tracked by Optimizer)
     pub estimated_context_tokens: usize,
+
+    /// Explicit list of requirements extracted from intent
+    pub requirements: Vec<String>,
+
+    /// Track which requirements are satisfied
+    pub requirement_status: HashMap<String, RequirementStatus>,
+
+    /// Link requirements to implementation evidence (memory IDs)
+    pub implementation_evidence: HashMap<String, Vec<crate::types::MemoryId>>,
 }
 
 impl WorkItem {
@@ -204,6 +229,9 @@ impl WorkItem {
             consolidated_context_id: None,
             original_intent,
             estimated_context_tokens: 0,
+            requirements: Vec::new(),
+            requirement_status: HashMap::new(),
+            implementation_evidence: HashMap::new(),
         }
     }
 
@@ -212,6 +240,56 @@ impl WorkItem {
         if !self.dependencies.contains(&dep) {
             self.dependencies.push(dep);
         }
+    }
+
+    /// Add a requirement to track
+    pub fn add_requirement(&mut self, requirement: String) {
+        if !self.requirements.contains(&requirement) {
+            self.requirements.push(requirement.clone());
+            self.requirement_status.insert(requirement, RequirementStatus::NotStarted);
+        }
+    }
+
+    /// Update requirement status
+    pub fn update_requirement_status(&mut self, requirement: &str, status: RequirementStatus) {
+        self.requirement_status.insert(requirement.to_string(), status);
+    }
+
+    /// Add implementation evidence for a requirement
+    pub fn add_implementation_evidence(&mut self, requirement: &str, memory_id: crate::types::MemoryId) {
+        self.implementation_evidence
+            .entry(requirement.to_string())
+            .or_insert_with(Vec::new)
+            .push(memory_id);
+    }
+
+    /// Check if all requirements are satisfied
+    pub fn all_requirements_satisfied(&self) -> bool {
+        if self.requirements.is_empty() {
+            // No explicit requirements - fall back to basic validation
+            return true;
+        }
+
+        self.requirements.iter().all(|req| {
+            matches!(
+                self.requirement_status.get(req),
+                Some(RequirementStatus::Satisfied) | Some(RequirementStatus::NotApplicable)
+            )
+        })
+    }
+
+    /// Get unsatisfied requirements
+    pub fn unsatisfied_requirements(&self) -> Vec<String> {
+        self.requirements
+            .iter()
+            .filter(|req| {
+                !matches!(
+                    self.requirement_status.get(*req),
+                    Some(RequirementStatus::Satisfied) | Some(RequirementStatus::NotApplicable)
+                )
+            })
+            .cloned()
+            .collect()
     }
 
     /// Check if all dependencies are satisfied

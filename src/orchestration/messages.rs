@@ -132,6 +132,9 @@ pub struct ReviewFeedback {
 
     /// Execution context memory IDs
     pub execution_context: Vec<MemoryId>,
+
+    /// LLM-generated improvement guidance for retry (if review failed)
+    pub improvement_guidance: Option<String>,
 }
 
 /// Messages for the Reviewer agent

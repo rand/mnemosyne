@@ -2938,6 +2938,9 @@ impl StorageBackend for LibsqlStorage {
             execution_memory_ids,
             consolidated_context_id,
             estimated_context_tokens: estimated_context_tokens as usize,
+            requirements: Vec::new(), // Not persisted yet
+            requirement_status: std::collections::HashMap::new(), // Not persisted yet
+            implementation_evidence: std::collections::HashMap::new(), // Not persisted yet
         };
 
         debug!("Work item loaded successfully: {:?}", id);
@@ -3263,6 +3266,9 @@ impl StorageBackend for LibsqlStorage {
                 execution_memory_ids,
                 consolidated_context_id,
                 estimated_context_tokens: estimated_context_tokens as usize,
+                requirements: Vec::new(), // Not persisted yet
+                requirement_status: std::collections::HashMap::new(), // Not persisted yet
+                implementation_evidence: std::collections::HashMap::new(), // Not persisted yet
             };
 
             work_items.push(work_item);

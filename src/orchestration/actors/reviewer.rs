@@ -11,11 +11,18 @@ use crate::error::Result;
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{OrchestratorMessage, ReviewerMessage, WorkResult};
-use crate::orchestration::state::{Phase, WorkItemId};
+use crate::orchestration::state::{Phase, WorkItemId, WorkItem};
 use crate::storage::StorageBackend;
 use crate::types::Namespace;
 use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::sync::Arc;
+
+#[cfg(feature = "python")]
+use crate::python_bindings::collect_implementation_from_memories;
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+#[cfg(feature = "python")]
+use std::collections::HashMap;
 
 /// Quality gates that must pass (8 total: 5 existing + 3 pillars)
 #[derive(Debug, Clone)]
@@ -60,6 +67,9 @@ pub struct ReviewFeedback {
 
     /// Execution context memory IDs
     pub execution_context: Vec<crate::types::MemoryId>,
+
+    /// LLM-generated improvement guidance for retry (if review failed)
+    pub improvement_guidance: Option<String>,
 }
 
 
@@ -76,6 +86,14 @@ pub struct ReviewerState {
 
     /// Quality gate results per work item
     quality_results: std::collections::HashMap<WorkItemId, QualityGates>,
+
+    /// Optional Python ReviewerAgent for LLM-based semantic validation
+    #[cfg(feature = "python")]
+    py_reviewer: Option<PyObject>,
+
+    /// Flag to enable/disable LLM validation (false = fallback to pattern matching only)
+    #[cfg(feature = "python")]
+    llm_validation_enabled: bool,
 }
 
 impl ReviewerState {
@@ -85,11 +103,30 @@ impl ReviewerState {
             storage,
             orchestrator: None,
             quality_results: std::collections::HashMap::new(),
+            #[cfg(feature = "python")]
+            py_reviewer: None,
+            #[cfg(feature = "python")]
+            llm_validation_enabled: false,
         }
     }
 
     pub fn register_orchestrator(&mut self, orchestrator: ActorRef<OrchestratorMessage>) {
         self.orchestrator = Some(orchestrator);
+    }
+
+    /// Register Python ReviewerAgent for LLM-based validation
+    #[cfg(feature = "python")]
+    pub fn register_py_reviewer(&mut self, py_reviewer: PyObject) {
+        self.py_reviewer = Some(py_reviewer);
+        self.llm_validation_enabled = true;
+        tracing::info!("Python LLM reviewer registered, semantic validation enabled");
+    }
+
+    /// Disable LLM validation (fallback to pattern matching only)
+    #[cfg(feature = "python")]
+    pub fn disable_llm_validation(&mut self) {
+        self.llm_validation_enabled = false;
+        tracing::info!("LLM validation disabled, using pattern matching only");
     }
 }
 
@@ -106,11 +143,12 @@ impl ReviewerActor {
         Self { storage, namespace }
     }
 
-    /// Review work item results with three-pillar validation
+    /// Review work item results with three-pillar validation and LLM semantic analysis
     async fn review_work(
         state: &mut ReviewerState,
         item_id: WorkItemId,
         result: WorkResult,
+        work_item: WorkItem,
     ) -> Result<ReviewFeedback> {
         tracing::info!("Reviewing work: {:?}", item_id);
 
@@ -118,21 +156,25 @@ impl ReviewerActor {
         let mut gates = QualityGates::default();
         let mut all_issues = Vec::new();
 
-        // Existing gates
-        gates.intent_satisfied = result.success;
+        // Existing gates with LLM enhancement
+        let (intent_passed, intent_issues) =
+            Self::verify_intent_satisfaction(state, &result, &work_item).await?;
+        gates.intent_satisfied = intent_passed;
+        all_issues.extend(intent_issues);
+
         gates.documentation_complete = !result.memory_ids.is_empty();
         gates.tests_passing = Self::verify_tests(state, &result).await?;
         gates.no_anti_patterns = Self::check_anti_patterns(state, &result).await?;
         gates.constraints_maintained = Self::verify_constraints(state, &result).await?;
 
-        // Three-pillar validation
+        // Three-pillar validation with LLM enhancement
         let (completeness_passed, completeness_issues) =
-            Self::verify_completeness(state, &result).await?;
+            Self::verify_completeness(state, &result, &work_item).await?;
         gates.completeness = completeness_passed;
         all_issues.extend(completeness_issues);
 
         let (correctness_passed, correctness_issues) =
-            Self::verify_correctness(state, &result).await?;
+            Self::verify_correctness(state, &result, &work_item).await?;
         gates.correctness = correctness_passed;
         all_issues.extend(correctness_issues);
 
@@ -160,6 +202,28 @@ impl ReviewerActor {
             gates.principled_implementation
         );
 
+        // Generate improvement guidance if review failed
+        #[cfg(feature = "python")]
+        let improvement_guidance = if !passed && state.llm_validation_enabled && state.py_reviewer.is_some() {
+            tracing::info!("Generating LLM improvement guidance for failed review");
+
+            match Self::generate_improvement_guidance(state, &gates, &all_issues, &work_item, &result).await {
+                Ok(guidance) => {
+                    tracing::info!("Generated improvement guidance ({} chars)", guidance.len());
+                    Some(guidance)
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to generate improvement guidance: {:?}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        #[cfg(not(feature = "python"))]
+        let improvement_guidance: Option<String> = None;
+
         if !passed {
             tracing::warn!("Review failed with {} issues", all_issues.len());
         }
@@ -182,6 +246,7 @@ impl ReviewerActor {
             issues: all_issues,
             suggested_tests,
             execution_context: result.memory_ids.clone(),
+            improvement_guidance,
         })
     }
 
@@ -234,6 +299,109 @@ impl ReviewerActor {
 
         // If work succeeded and no test failures found, tests pass
         Ok(true)
+    }
+
+    /// Verify intent satisfaction: Does implementation match original requirements?
+    ///
+    /// Enhanced with LLM semantic validation when available.
+    /// Falls back to basic success check if LLM unavailable.
+    async fn verify_intent_satisfaction(
+        state: &ReviewerState,
+        result: &WorkResult,
+        #[allow(unused_variables)] work_item: &WorkItem,
+    ) -> Result<(bool, Vec<String>)> {
+        let mut issues = Vec::new();
+
+        // Basic check: if work failed, intent not satisfied
+        if !result.success {
+            issues.push("Work execution failed, intent not satisfied".to_string());
+            return Ok((false, issues));
+        }
+
+        // LLM semantic validation if enabled
+        #[cfg(feature = "python")]
+        if state.llm_validation_enabled && state.py_reviewer.is_some() {
+            tracing::debug!("Using LLM for semantic intent validation");
+
+            // Collect implementation content from execution memories
+            let implementation = collect_implementation_from_memories(
+                &state.storage,
+                &result.memory_ids
+            ).await?;
+
+            // Convert memory IDs to strings for Python
+            let memory_id_strings: Vec<String> = result.memory_ids
+                .iter()
+                .map(|id| id.to_string())
+                .collect();
+
+            // Call Python LLM validator
+            match Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
+                let py_reviewer = state.py_reviewer.as_ref().unwrap();
+
+                let result = py_reviewer.call_method1(
+                    py,
+                    "semantic_intent_check",
+                    (
+                        work_item.original_intent.clone(),
+                        implementation.clone(),
+                        memory_id_strings.clone(),
+                    ),
+                )?;
+
+                result.extract(py)
+            }) {
+                Ok((passed, llm_issues)) => {
+                    if !passed {
+                        tracing::warn!(
+                            "LLM semantic validation failed with {} issues",
+                            llm_issues.len()
+                        );
+                        issues.extend(llm_issues);
+                    } else {
+                        tracing::info!("LLM semantic validation: intent satisfied");
+                    }
+                    return Ok((passed && issues.is_empty(), issues));
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "LLM semantic validation error (falling back to pattern matching): {:?}",
+                        e
+                    );
+                    // Fall through to pattern matching
+                }
+            }
+        }
+
+        // Fallback: pattern matching validation
+        tracing::debug!("Using pattern matching for intent validation");
+
+        // Check for explicit "not satisfied" markers in memories
+        for memory_id in &result.memory_ids {
+            match state.storage.get_memory(*memory_id).await {
+                Ok(memory) => {
+                    let content_upper = memory.content.to_uppercase();
+
+                    if content_upper.contains("INTENT NOT SATISFIED")
+                        || content_upper.contains("REQUIREMENTS NOT MET")
+                        || content_upper.contains("PARTIALLY IMPLEMENTED") {
+                        issues.push(format!(
+                            "Intent satisfaction issue in memory {}: partial or incomplete",
+                            memory_id
+                        ));
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "Failed to retrieve memory {} for intent check: {:?}",
+                        memory_id,
+                        e
+                    );
+                }
+            }
+        }
+
+        Ok((issues.is_empty(), issues))
     }
 
     /// Check for anti-patterns in created memories
@@ -350,13 +518,16 @@ impl ReviewerActor {
     }
 
     /// Verify completeness: Check for partial implementations, TODOs, unfilled typed holes
+    ///
+    /// Enhanced with LLM semantic validation when available.
     async fn verify_completeness(
         state: &ReviewerState,
         result: &WorkResult,
+        #[allow(unused_variables)] work_item: &WorkItem,
     ) -> Result<(bool, Vec<String>)> {
         let mut issues = Vec::new();
 
-        // Check for incomplete markers
+        // Pattern matching check for incomplete markers
         let incomplete_markers = [
             "TODO:",
             "FIXME:",
@@ -400,6 +571,67 @@ impl ReviewerActor {
             }
         }
 
+        // LLM semantic validation if enabled
+        #[cfg(feature = "python")]
+        if state.llm_validation_enabled && state.py_reviewer.is_some() {
+            tracing::debug!("Using LLM for semantic completeness validation");
+
+            // Collect implementation content
+            let implementation = collect_implementation_from_memories(
+                &state.storage,
+                &result.memory_ids
+            ).await?;
+
+            // Use explicit requirements if available, otherwise use original intent
+            let requirements = if !work_item.requirements.is_empty() {
+                work_item.requirements.clone()
+            } else {
+                vec![work_item.original_intent.clone()]
+            };
+
+            // Convert memory IDs to strings
+            let memory_id_strings: Vec<String> = result.memory_ids
+                .iter()
+                .map(|id| id.to_string())
+                .collect();
+
+            // Call Python LLM validator
+            match Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
+                let py_reviewer = state.py_reviewer.as_ref().unwrap();
+
+                let result = py_reviewer.call_method1(
+                    py,
+                    "semantic_completeness_check",
+                    (
+                        requirements.clone(),
+                        implementation.clone(),
+                        memory_id_strings.clone(),
+                    ),
+                )?;
+
+                result.extract(py)
+            }) {
+                Ok((passed, llm_issues)) => {
+                    if !passed {
+                        tracing::warn!(
+                            "LLM completeness validation failed with {} issues",
+                            llm_issues.len()
+                        );
+                        issues.extend(llm_issues);
+                    } else {
+                        tracing::info!("LLM completeness validation passed");
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "LLM completeness validation error (continuing with pattern matching): {:?}",
+                        e
+                    );
+                    // Continue with pattern matching results
+                }
+            }
+        }
+
         let passed = issues.is_empty();
         if !passed {
             tracing::warn!("Completeness check failed: {} issues", issues.len());
@@ -409,9 +641,12 @@ impl ReviewerActor {
     }
 
     /// Verify correctness: Validate logic, check test results, verify error handling
+    ///
+    /// Enhanced with LLM semantic validation when available.
     async fn verify_correctness(
         state: &ReviewerState,
         result: &WorkResult,
+        #[allow(unused_variables)] work_item: &WorkItem,
     ) -> Result<(bool, Vec<String>)> {
         let mut issues = Vec::new();
 
@@ -424,7 +659,7 @@ impl ReviewerActor {
             return Ok((false, issues));
         }
 
-        // Check for error indicators in memories
+        // Pattern matching check for error indicators
         let error_indicators = [
             "ERROR:",
             "FAILED:",
@@ -464,6 +699,63 @@ impl ReviewerActor {
                         memory_id,
                         e
                     );
+                }
+            }
+        }
+
+        // LLM semantic validation if enabled
+        #[cfg(feature = "python")]
+        if state.llm_validation_enabled && state.py_reviewer.is_some() {
+            tracing::debug!("Using LLM for semantic correctness validation");
+
+            // Collect implementation content
+            let implementation = collect_implementation_from_memories(
+                &state.storage,
+                &result.memory_ids
+            ).await?;
+
+            // Build test results JSON (empty if no test info available)
+            let test_results_json = String::new(); // TODO: Extract test results from execution memories
+
+            // Convert memory IDs to strings
+            let memory_id_strings: Vec<String> = result.memory_ids
+                .iter()
+                .map(|id| id.to_string())
+                .collect();
+
+            // Call Python LLM validator
+            match Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
+                let py_reviewer = state.py_reviewer.as_ref().unwrap();
+
+                let result = py_reviewer.call_method1(
+                    py,
+                    "semantic_correctness_check",
+                    (
+                        implementation.clone(),
+                        test_results_json.clone(),
+                        memory_id_strings.clone(),
+                    ),
+                )?;
+
+                result.extract(py)
+            }) {
+                Ok((passed, llm_issues)) => {
+                    if !passed {
+                        tracing::warn!(
+                            "LLM correctness validation failed with {} issues",
+                            llm_issues.len()
+                        );
+                        issues.extend(llm_issues);
+                    } else {
+                        tracing::info!("LLM correctness validation passed");
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "LLM correctness validation error (continuing with pattern matching): {:?}",
+                        e
+                    );
+                    // Continue with pattern matching results
                 }
             }
         }
@@ -536,6 +828,55 @@ impl ReviewerActor {
         }
 
         Ok((passed, issues))
+    }
+
+    /// Generate LLM-powered improvement guidance for failed reviews
+    ///
+    /// Uses Claude to create detailed, actionable guidance for retry.
+    #[cfg(feature = "python")]
+    async fn generate_improvement_guidance(
+        state: &ReviewerState,
+        gates: &QualityGates,
+        issues: &[String],
+        work_item: &WorkItem,
+        result: &WorkResult,
+    ) -> Result<String> {
+        // Build failed gates map
+        let mut failed_gates = HashMap::new();
+        failed_gates.insert("intent_satisfied".to_string(), gates.intent_satisfied);
+        failed_gates.insert("tests_passing".to_string(), gates.tests_passing);
+        failed_gates.insert("documentation_complete".to_string(), gates.documentation_complete);
+        failed_gates.insert("no_anti_patterns".to_string(), gates.no_anti_patterns);
+        failed_gates.insert("constraints_maintained".to_string(), gates.constraints_maintained);
+        failed_gates.insert("completeness".to_string(), gates.completeness);
+        failed_gates.insert("correctness".to_string(), gates.correctness);
+        failed_gates.insert("principled_implementation".to_string(), gates.principled_implementation);
+
+        // Convert memory IDs to strings
+        let memory_id_strings: Vec<String> = result.memory_ids
+            .iter()
+            .map(|id| id.to_string())
+            .collect();
+
+        // Call Python LLM validator
+        let guidance = Python::with_gil(|py| -> PyResult<String> {
+            let py_reviewer = state.py_reviewer.as_ref().unwrap();
+
+            let result = py_reviewer.call_method1(
+                py,
+                "generate_improvement_guidance",
+                (
+                    failed_gates.clone(),
+                    issues.to_vec(),
+                    work_item.original_intent.clone(),
+                    memory_id_strings.clone(),
+                ),
+            )?;
+
+            result.extract(py)
+        })?;
+
+        Ok(guidance)
     }
 
     /// Suggest missing tests by analyzing work and identifying untested scenarios
@@ -704,7 +1045,7 @@ impl Actor for ReviewerActor {
                 result,
                 work_item,
             } => {
-                let feedback = Self::review_work(state, item_id.clone(), result)
+                let feedback = Self::review_work(state, item_id.clone(), result, work_item.clone())
                     .await
                     .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
 
@@ -720,6 +1061,7 @@ impl Actor for ReviewerActor {
                             issues: feedback.issues.clone(),
                             suggested_tests: feedback.suggested_tests.clone(),
                             execution_context: feedback.execution_context.clone(),
+                            improvement_guidance: feedback.improvement_guidance.clone(),
                         },
                     };
 
