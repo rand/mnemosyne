@@ -66,7 +66,7 @@ impl AgentEndpoint {
             .await
             .map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
 
-        tracing::info!("Agent endpoint created with node ID: {}", node_id);
+        tracing::debug!("Agent endpoint created with node ID: {}", node_id);
 
         Ok(Self {
             endpoint,

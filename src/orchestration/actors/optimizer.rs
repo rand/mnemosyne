@@ -619,7 +619,7 @@ impl Actor for OptimizerActor {
         _myself: ActorRef<Self::Msg>,
         args: Self::Arguments,
     ) -> std::result::Result<Self::State, ActorProcessingErr> {
-        tracing::info!("Optimizer actor starting");
+        tracing::debug!("Optimizer actor starting");
         let (storage, namespace) = args;
         Ok(OptimizerState::new(storage, namespace))
     }
@@ -629,7 +629,7 @@ impl Actor for OptimizerActor {
         myself: ActorRef<Self::Msg>,
         _state: &mut Self::State,
     ) -> std::result::Result<(), ActorProcessingErr> {
-        tracing::info!("Optimizer actor started: {:?}", myself.get_id());
+        tracing::debug!("Optimizer actor started: {:?}", myself.get_id());
 
         // Start periodic context monitoring
         let myself_clone = myself.clone();
@@ -652,10 +652,10 @@ impl Actor for OptimizerActor {
     ) -> std::result::Result<(), ActorProcessingErr> {
         match message {
             OptimizerMessage::Initialize => {
-                tracing::info!("Optimizer initialized");
+                tracing::debug!("Optimizer initialized");
             }
             OptimizerMessage::RegisterOrchestrator(orchestrator_ref) => {
-                tracing::info!("Registering orchestrator reference with Optimizer");
+                tracing::debug!("Registering orchestrator reference with Optimizer");
                 state.orchestrator = Some(orchestrator_ref);
             }
             OptimizerMessage::DiscoverSkills {

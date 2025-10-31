@@ -48,12 +48,12 @@ impl NetworkLayer {
             return Ok(());
         }
 
-        tracing::info!("Starting network layer");
+        tracing::debug!("Starting network layer");
 
         // Create agent endpoint
         let endpoint = AgentEndpoint::new().await?;
 
-        tracing::info!("Agent endpoint created: {}", endpoint.node_id());
+        tracing::debug!("Agent endpoint created: {}", endpoint.node_id());
 
         // Store endpoint
         {
@@ -63,7 +63,7 @@ impl NetworkLayer {
 
         *started = true;
 
-        tracing::info!("Network layer started");
+        tracing::debug!("Network layer started");
         Ok(())
     }
 

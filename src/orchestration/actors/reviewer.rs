@@ -671,7 +671,7 @@ impl Actor for ReviewerActor {
         _myself: ActorRef<Self::Msg>,
         args: Self::Arguments,
     ) -> std::result::Result<Self::State, ActorProcessingErr> {
-        tracing::info!("Reviewer actor starting");
+        tracing::debug!("Reviewer actor starting");
         let (storage, namespace) = args;
         Ok(ReviewerState::new(storage, namespace))
     }
@@ -681,7 +681,7 @@ impl Actor for ReviewerActor {
         myself: ActorRef<Self::Msg>,
         _state: &mut Self::State,
     ) -> std::result::Result<(), ActorProcessingErr> {
-        tracing::info!("Reviewer actor started: {:?}", myself.get_id());
+        tracing::debug!("Reviewer actor started: {:?}", myself.get_id());
         Ok(())
     }
 
@@ -693,10 +693,10 @@ impl Actor for ReviewerActor {
     ) -> std::result::Result<(), ActorProcessingErr> {
         match message {
             ReviewerMessage::Initialize => {
-                tracing::info!("Reviewer initialized");
+                tracing::debug!("Reviewer initialized");
             }
             ReviewerMessage::RegisterOrchestrator(orchestrator_ref) => {
-                tracing::info!("Registering orchestrator reference with Reviewer");
+                tracing::debug!("Registering orchestrator reference with Reviewer");
                 state.orchestrator = Some(orchestrator_ref);
             }
             ReviewerMessage::ReviewWork {

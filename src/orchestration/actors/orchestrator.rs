@@ -594,7 +594,7 @@ impl Actor for OrchestratorActor {
         _myself: ActorRef<Self::Msg>,
         args: Self::Arguments,
     ) -> std::result::Result<Self::State, ActorProcessingErr> {
-        tracing::info!("Orchestrator actor starting");
+        tracing::debug!("Orchestrator actor starting");
         let (storage, namespace) = args;
         Ok(OrchestratorState::new(storage, namespace))
     }
@@ -604,7 +604,7 @@ impl Actor for OrchestratorActor {
         myself: ActorRef<Self::Msg>,
         _state: &mut Self::State,
     ) -> std::result::Result<(), ActorProcessingErr> {
-        tracing::info!("Orchestrator actor started: {:?}", myself.get_id());
+        tracing::debug!("Orchestrator actor started: {:?}", myself.get_id());
 
         // Start periodic deadlock checker
         let myself_clone = myself.clone();
@@ -627,16 +627,16 @@ impl Actor for OrchestratorActor {
     ) -> std::result::Result<(), ActorProcessingErr> {
         match message {
             OrchestratorMessage::Initialize => {
-                tracing::info!("Orchestrator initialized");
+                tracing::debug!("Orchestrator initialized");
             }
             OrchestratorMessage::RegisterAgents {
                 optimizer,
                 reviewer,
                 executor,
             } => {
-                tracing::info!("Registering agent references with Orchestrator");
+                tracing::debug!("Registering agent references with Orchestrator");
                 state.register_agents(optimizer, reviewer, executor);
-                tracing::info!("Agents wired: Optimizer, Reviewer, Executor");
+                tracing::debug!("Agents wired: Optimizer, Reviewer, Executor");
             }
             OrchestratorMessage::SubmitWork(item) => {
                 Self::handle_submit_work(state, item)

@@ -16,7 +16,7 @@ use mnemosyne_core::services::embeddings::EmbeddingService;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::{debug, warn, Level};
-use tracing_subscriber;
+use tracing_subscriber::{self, EnvFilter};
 
 /// Get the default database path using XDG_DATA_HOME standard
 fn get_default_db_path() -> PathBuf {
@@ -255,6 +255,17 @@ enum Commands {
     Ics {
         /// File to open in ICS
         file: Option<String>,
+    },
+
+    /// Launch TUI wrapper mode (enhanced interface with command palette and ICS)
+    Tui {
+        /// Start with ICS panel visible
+        #[arg(long)]
+        with_ics: bool,
+
+        /// Disable dashboard
+        #[arg(long)]
+        no_dashboard: bool,
     },
 
     /// Configuration management
@@ -509,8 +520,14 @@ async fn main() -> Result<()> {
         _ => Level::INFO,
     };
 
+    // Build filter: use specified level for mnemosyne, but WARN for noisy external crates
+    let filter = EnvFilter::new(format!(
+        "mnemosyne={},iroh=warn,iroh_net=warn",
+        level.as_str().to_lowercase()
+    ));
+
     tracing_subscriber::fmt()
-        .with_max_level(level)
+        .with_env_filter(filter)
         .with_target(false)
         .with_writer(std::io::stderr) // Write logs to stderr, not stdout
         .init();
@@ -722,6 +739,61 @@ async fn main() -> Result<()> {
             }
 
             // Run the ICS application
+            app.run().await?;
+
+            Ok(())
+        }
+        Some(Commands::Tui { with_ics, no_dashboard }) => {
+            use mnemosyne_core::pty::{ClaudeCodeWrapper, PtyConfig};
+            use mnemosyne_core::tui::TuiApp;
+
+            debug!("Launching TUI wrapper mode...");
+
+            // Show TUI launch header
+            println!("\n🖥️  Mnemosyne TUI Mode");
+            println!("   Enhanced Claude Code interface\n");
+            println!("   Features:");
+            println!("   • Command Palette (Ctrl+P)");
+            println!("   • ICS Editor (Ctrl+E)");
+            if !no_dashboard {
+                println!("   • Agent Dashboard (Ctrl+D)");
+            }
+            println!();
+
+            // Initialize storage
+            let db_path = get_db_path(cli.db_path.clone());
+            debug!("Using database: {}", db_path);
+
+            // Ensure parent directory exists
+            if let Some(parent) = PathBuf::from(&db_path).parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+
+            let storage =
+                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true).await?;
+            let _storage_arc: Arc<dyn StorageBackend> = Arc::new(storage);
+
+            // Create PTY wrapper for Claude Code
+            let pty_config = PtyConfig::default();
+            let wrapper = ClaudeCodeWrapper::new(pty_config)?;
+
+            // Create TUI app
+            let app = TuiApp::new()?
+                .with_wrapper(wrapper);
+
+            // TODO: Add with_storage method to TuiApp when needed
+            // TODO: Add show_ics_on_start if with_ics flag is set
+            // TODO: Add hide_dashboard if no_dashboard flag is set
+
+            if with_ics {
+                debug!("Starting with ICS panel visible");
+            }
+
+            if no_dashboard {
+                debug!("Dashboard disabled");
+            }
+
+            // Run TUI
             app.run().await?;
 
             Ok(())

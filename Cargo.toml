@@ -51,6 +51,7 @@ config = "0.13"
 clap = { version = "4.4", features = ["derive"] }
 async-trait = "0.1"
 regex = "1.10"
+atty = "0.2"  # Terminal detection for ICS
 
 # CRDT for ICS collaborative editing
 automerge = "0.5"

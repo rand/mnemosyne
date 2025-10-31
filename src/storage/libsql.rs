@@ -207,7 +207,7 @@ impl LibsqlStorage {
         mode: ConnectionMode,
         create_if_missing: bool,
     ) -> Result<Self> {
-        info!(
+        debug!(
             "Connecting to LibSQL database: {:?} (create_if_missing: {})",
             mode, create_if_missing
         );
@@ -349,7 +349,7 @@ impl LibsqlStorage {
             }
         };
 
-        info!("LibSQL database connection established");
+        debug!("LibSQL database connection established");
 
         let storage = Self {
             db,
@@ -511,7 +511,7 @@ impl LibsqlStorage {
 
     /// Run database migrations
     pub async fn run_migrations(&self) -> Result<()> {
-        info!("Running database migrations...");
+        debug!("Running database migrations...");
 
         // Get a connection for migrations
         let conn = self.get_conn()?;
@@ -612,7 +612,7 @@ impl LibsqlStorage {
             info!("Executed migration: {}", migration_file);
         }
 
-        info!("Database migrations completed");
+        debug!("Database migrations completed");
         Ok(())
     }
 

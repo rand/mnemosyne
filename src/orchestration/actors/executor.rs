@@ -223,7 +223,7 @@ impl Actor for ExecutorActor {
         _myself: ActorRef<Self::Msg>,
         args: Self::Arguments,
     ) -> std::result::Result<Self::State, ActorProcessingErr> {
-        tracing::info!("Executor actor starting");
+        tracing::debug!("Executor actor starting");
         let (storage, namespace) = args;
         Ok(ExecutorState::new(storage, namespace))
     }
@@ -233,7 +233,7 @@ impl Actor for ExecutorActor {
         myself: ActorRef<Self::Msg>,
         _state: &mut Self::State,
     ) -> std::result::Result<(), ActorProcessingErr> {
-        tracing::info!("Executor actor started: {:?}", myself.get_id());
+        tracing::debug!("Executor actor started: {:?}", myself.get_id());
         Ok(())
     }
 
@@ -245,7 +245,7 @@ impl Actor for ExecutorActor {
     ) -> std::result::Result<(), ActorProcessingErr> {
         match message {
             ExecutorMessage::Initialize => {
-                tracing::info!("Executor initialized");
+                tracing::debug!("Executor initialized");
             }
             ExecutorMessage::ExecuteWork(item) => {
                 Self::execute_work(state, item)
