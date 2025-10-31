@@ -1,7 +1,7 @@
 //! Main TUI application integrating all components
 
 use super::{
-    ChatView, CommandPalette, Dashboard, EventLoop, HelpOverlay, IcsPanel, LayoutManager,
+    ChatView, CommandPalette, Dashboard, Dialog, EventLoop, HelpOverlay, IcsPanel, LayoutManager,
     TerminalConfig, TerminalManager, TuiEvent,
 };
 use crate::pty::ClaudeCodeWrapper;
@@ -36,6 +36,8 @@ pub struct TuiApp {
     help_overlay: HelpOverlay,
     /// Layout manager
     layout: LayoutManager,
+    /// Active dialog (modal)
+    active_dialog: Option<Box<dyn Dialog>>,
     /// Claude Code wrapper
     wrapper: Option<ClaudeCodeWrapper>,
     /// Application state
@@ -130,6 +132,7 @@ impl TuiApp {
             command_palette,
             help_overlay,
             layout,
+            active_dialog: None,
             wrapper: None,
             state: AppState::Running,
         })
@@ -186,6 +189,15 @@ impl TuiApp {
                 self.state = AppState::Quitting;
             }
             TuiEvent::Key(key) => {
+                // Handle active dialog first (highest priority)
+                if let Some(dialog) = &mut self.active_dialog {
+                    let should_close = dialog.handle_key(key);
+                    if should_close {
+                        self.active_dialog = None;
+                    }
+                    return Ok(());
+                }
+
                 // Handle help overlay toggle (? key)
                 if key.code == KeyCode::Char('?') {
                     let ics_visible = self.ics_panel.is_visible();
@@ -382,6 +394,11 @@ impl TuiApp {
             // Render help overlay if visible (renders on top of everything)
             if self.help_overlay.is_visible() {
                 frame.render_widget(&self.help_overlay, size);
+            }
+
+            // Render active dialog if present (highest priority, on top of everything)
+            if let Some(dialog) = &self.active_dialog {
+                dialog.render(frame, size);
             }
 
             // Build and render status bar with context-aware hints

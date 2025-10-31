@@ -1,5 +1,11 @@
 //! Shared widget components
 
+pub mod dialogs;
+
+pub use dialogs::{
+    ConfirmDialog, Dialog, DialogResult, InputDialog, PreviewDialog,
+};
+
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
