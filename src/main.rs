@@ -827,60 +827,41 @@ async fn main() -> Result<()> {
 
             Ok(())
         }
-        Some(Commands::Tui { with_ics, no_dashboard }) => {
-            use mnemosyne_core::pty::{ClaudeCodeWrapper, PtyConfig};
-            use mnemosyne_core::tui::TuiApp;
+        Some(Commands::Tui { with_ics: _, no_dashboard: _ }) => {
+            // TUI wrapper mode is deprecated due to TUI-in-TUI conflicts
+            eprintln!();
+            eprintln!("⚠️  DEPRECATED: 'mnemosyne tui' is no longer supported");
+            eprintln!();
+            eprintln!("   The PTY wrapper mode has been removed due to terminal conflicts");
+            eprintln!("   when wrapping Claude Code's TUI interface.");
+            eprintln!();
+            eprintln!("   📚 New Architecture: Composable Tools");
+            eprintln!();
+            eprintln!("   Instead of wrapping Claude Code, Mnemosyne now provides");
+            eprintln!("   standalone tools that work alongside it:");
+            eprintln!();
+            eprintln!("   1️⃣  Edit Context:");
+            eprintln!("      mnemosyne-ics context.md");
+            eprintln!("      (Full-featured context editor with semantic highlighting)");
+            eprintln!();
+            eprintln!("   2️⃣  Chat with Claude:");
+            eprintln!("      claude");
+            eprintln!("      (Memory integration happens automatically via MCP)");
+            eprintln!();
+            eprintln!("   3️⃣  Monitor Activity:");
+            eprintln!("      mnemosyne dash");
+            eprintln!("      (Real-time dashboard - coming soon)");
+            eprintln!();
+            eprintln!("   💡 Tip: Use tmux/screen to see all tools at once:");
+            eprintln!("      tmux split-window -h 'mnemosyne-ics context.md'");
+            eprintln!("      tmux split-window -v 'mnemosyne dash'");
+            eprintln!("      claude");
+            eprintln!();
+            eprintln!("   📖 Migration Guide:");
+            eprintln!("      https://github.com/rand/mnemosyne/blob/main/docs/MIGRATION.md");
+            eprintln!();
 
-            debug!("Launching TUI wrapper mode...");
-
-            // Show TUI launch header
-            println!("\n🖥️  Mnemosyne TUI Mode");
-            println!("   Enhanced Claude Code interface\n");
-            println!("   Features:");
-            println!("   • Command Palette (Ctrl+P)");
-            println!("   • ICS Editor (Ctrl+E)");
-            if !no_dashboard {
-                println!("   • Agent Dashboard (Ctrl+D)");
-            }
-            println!();
-
-            // Initialize storage
-            let db_path = get_db_path(cli.db_path.clone());
-            debug!("Using database: {}", db_path);
-
-            // Ensure parent directory exists
-            if let Some(parent) = PathBuf::from(&db_path).parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-
-            let storage =
-                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true).await?;
-            let _storage_arc: Arc<dyn StorageBackend> = Arc::new(storage);
-
-            // Create PTY wrapper for Claude Code
-            let pty_config = PtyConfig::default();
-            let wrapper = ClaudeCodeWrapper::new(pty_config)?;
-
-            // Create TUI app
-            let app = TuiApp::new()?
-                .with_wrapper(wrapper);
-
-            // TODO: Add with_storage method to TuiApp when needed
-            // TODO: Add show_ics_on_start if with_ics flag is set
-            // TODO: Add hide_dashboard if no_dashboard flag is set
-
-            if with_ics {
-                debug!("Starting with ICS panel visible");
-            }
-
-            if no_dashboard {
-                debug!("Dashboard disabled");
-            }
-
-            // Run TUI
-            app.run().await?;
-
-            Ok(())
+            std::process::exit(1);
         }
         Some(Commands::Config { action }) => {
             let config_manager = ConfigManager::new()?;
