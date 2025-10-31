@@ -1,7 +1,7 @@
 # Mnemosyne Architecture
 
 > **Note**: Mnemosyne has migrated from SQLite to LibSQL/Turso for native vector search support.
-> See [TURSO_MIGRATION.md](./TURSO_MIGRATION.md) for migration details, benefits, and deployment options.
+> See [TURSO_MIGRATION.md](docs/archive/TURSO_MIGRATION.md) for migration details, benefits, and deployment options.
 
 This document describes the system architecture, design decisions, and implementation details of Mnemosyne.
 

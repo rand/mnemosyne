@@ -269,5 +269,4 @@ Part of Mnemosyne - see LICENSE file in repository root.
 
 - [ICS Architecture](./ICS_ARCHITECTURE.md) - Technical deep-dive
 - [ICS Keyboard Shortcuts](./ICS_KEYBOARD_SHORTCUTS.md) - Complete shortcut reference
-- [ICS API Documentation](./ICS_API.md) - Integration guide
 - [Mnemosyne README](../README.md) - Main project documentation
