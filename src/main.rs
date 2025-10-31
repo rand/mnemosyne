@@ -15,7 +15,7 @@ use mnemosyne_core::{
 use mnemosyne_core::services::embeddings::EmbeddingService;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{debug, warn, Level};
+use tracing::{debug, info, warn, Level};
 use tracing_subscriber::{self, EnvFilter};
 
 /// Get the default database path using XDG_DATA_HOME standard
@@ -205,6 +205,86 @@ async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
     Ok(())
 }
 
+async fn start_mcp_server_with_api(
+    db_path_arg: Option<String>,
+    api_addr: String,
+    api_capacity: usize,
+) -> Result<()> {
+    use mnemosyne_core::api::{ApiServer, ApiServerConfig};
+    use std::net::SocketAddr;
+
+    debug!("Starting MCP server with API monitoring...");
+
+    // Initialize configuration
+    let _config_manager = ConfigManager::new()?;
+
+    // Initialize storage
+    let db_path = get_db_path(db_path_arg);
+    debug!("Using database: {}", db_path);
+
+    if let Some(parent) = PathBuf::from(&db_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?;
+
+    // Initialize LLM service
+    let llm = match LlmService::with_default() {
+        Ok(service) => Arc::new(service),
+        Err(_) => Arc::new(LlmService::new(LlmConfig {
+            api_key: String::new(),
+            model: "claude-3-5-haiku-20241022".to_string(),
+            max_tokens: 1024,
+            temperature: 0.7,
+        })?),
+    };
+
+    // Initialize embedding service
+    let embeddings = {
+        let config = LlmConfig::default();
+        Arc::new(EmbeddingService::new(config.api_key.clone(), config))
+    };
+
+    // Parse API server address
+    let socket_addr: SocketAddr = api_addr
+        .parse()
+        .map_err(|e| anyhow::anyhow!("Invalid API address '{}': {}", api_addr, e))?;
+
+    // Create API server
+    let api_config = ApiServerConfig {
+        addr: socket_addr,
+        event_capacity: api_capacity,
+    };
+    let api_server = ApiServer::new(api_config);
+    let event_broadcaster = api_server.broadcaster().clone();
+
+    info!("API server will be available at http://{}", socket_addr);
+    info!("Dashboard: mnemosyne-dash --api http://{}", socket_addr);
+
+    // Initialize tool handler with event broadcasting
+    let tool_handler = ToolHandler::new_with_events(
+        Arc::new(storage),
+        llm,
+        embeddings,
+        Some(event_broadcaster),
+    );
+
+    // Create MCP server
+    let mcp_server = McpServer::new(tool_handler);
+
+    // Run both servers concurrently
+    tokio::select! {
+        result = mcp_server.run() => {
+            result?;
+        }
+        result = api_server.serve() => {
+            result?;
+        }
+    }
+
+    Ok(())
+}
+
 #[derive(Parser)]
 #[command(name = "mnemosyne")]
 #[command(about = "Project-aware agentic memory system for Claude Code", long_about = None)]
@@ -229,7 +309,19 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Start MCP server (stdio mode)
-    Serve,
+    Serve {
+        /// Also start HTTP API server for monitoring
+        #[arg(long)]
+        with_api: bool,
+
+        /// API server address (when --with-api is enabled)
+        #[arg(long, default_value = "127.0.0.1:3000")]
+        api_addr: String,
+
+        /// API event channel capacity
+        #[arg(long, default_value = "1000")]
+        api_capacity: usize,
+    },
 
     /// Start HTTP API server for event streaming and state coordination
     ApiServer {
@@ -553,7 +645,19 @@ async fn main() -> Result<()> {
     }
 
     match cli.command {
-        Some(Commands::Serve) => start_mcp_server(cli.db_path).await,
+        Some(Commands::Serve {
+            with_api,
+            api_addr,
+            api_capacity,
+        }) => {
+            if with_api {
+                // Start both MCP server and API server
+                start_mcp_server_with_api(cli.db_path, api_addr, api_capacity).await
+            } else {
+                // Start MCP server only
+                start_mcp_server(cli.db_path).await
+            }
+        }
         Some(Commands::ApiServer { addr, capacity }) => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};
             use std::net::SocketAddr;

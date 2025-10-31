@@ -33,6 +33,7 @@ pub struct ToolHandler {
     storage: Arc<dyn StorageBackend>,
     llm: Arc<LlmService>,
     embeddings: Arc<EmbeddingService>,
+    event_broadcaster: Option<crate::api::EventBroadcaster>,
 }
 
 impl ToolHandler {
@@ -46,6 +47,22 @@ impl ToolHandler {
             storage,
             llm,
             embeddings,
+            event_broadcaster: None,
+        }
+    }
+
+    /// Create a new tool handler with event broadcasting
+    pub fn new_with_events(
+        storage: Arc<dyn StorageBackend>,
+        llm: Arc<LlmService>,
+        embeddings: Arc<EmbeddingService>,
+        event_broadcaster: Option<crate::api::EventBroadcaster>,
+    ) -> Self {
+        Self {
+            storage,
+            llm,
+            embeddings,
+            event_broadcaster,
         }
     }
 
@@ -423,6 +440,14 @@ impl ToolHandler {
             }
         }
 
+        // Emit event if broadcaster available
+        if let Some(broadcaster) = &self.event_broadcaster {
+            let event = crate::api::Event::memory_recalled(params.query.clone(), results.len());
+            if let Err(e) = broadcaster.broadcast(event) {
+                debug!("Failed to broadcast memory recalled event: {}", e);
+            }
+        }
+
         Ok(serde_json::json!({
             "results": results,
             "query": params.query,
@@ -619,6 +644,17 @@ impl ToolHandler {
 
         // Store memory (with embedding)
         self.storage.store_memory(&memory).await?;
+
+        // Emit event if broadcaster available
+        if let Some(broadcaster) = &self.event_broadcaster {
+            let event = crate::api::Event::memory_stored(
+                memory.id.to_string(),
+                memory.summary.clone(),
+            );
+            if let Err(e) = broadcaster.broadcast(event) {
+                debug!("Failed to broadcast memory stored event: {}", e);
+            }
+        }
 
         Ok(serde_json::json!({
             "memory_id": memory.id.to_string(),
