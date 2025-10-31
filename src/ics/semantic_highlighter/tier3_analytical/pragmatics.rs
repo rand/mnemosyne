@@ -12,7 +12,7 @@
 use crate::{
     ics::semantic_highlighter::{
         visualization::{HighlightSpan, HighlightSource, AnnotationType, Annotation},
-        Result,
+        Result, SemanticError,
     },
     LlmService,
 };
@@ -20,6 +20,7 @@ use ratatui::style::{Color, Modifier, Style};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use std::sync::Arc;
+use tracing::warn;
 
 /// Type of pragmatic element
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -95,6 +96,7 @@ pub struct PragmaticElement {
 }
 
 /// Pragmatics analyzer using Claude API
+#[derive(Clone)]
 pub struct PragmaticsAnalyzer {
     _llm_service: Arc<LlmService>,
     threshold: f32,
@@ -118,11 +120,96 @@ impl PragmaticsAnalyzer {
     pub async fn analyze(&self, text: &str) -> Result<Vec<PragmaticElement>> {
         let prompt = self.build_analysis_prompt(text);
 
-        // Placeholder - would call LLM service
-        // let response = self.llm_service.generate(&prompt).await?;
-        // Parse response into PragmaticElement objects
+        // Call LLM with timeout
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            self._llm_service.call_api(&prompt)
+        )
+        .await
+        .map_err(|_| SemanticError::AnalysisFailed("Timeout after 30s".to_string()))?
+        .map_err(|e| SemanticError::AnalysisFailed(format!("LLM API error: {}", e)))?;
 
-        Ok(Vec::new())
+        // Parse JSON response
+        let elements = self.parse_pragmatics_response(&response, text.len())?;
+
+        // Filter by threshold
+        let filtered = elements
+            .into_iter()
+            .filter(|e| e.confidence >= self.threshold)
+            .collect();
+
+        Ok(filtered)
+    }
+
+    /// Parse pragmatics response from LLM
+    fn parse_pragmatics_response(&self, json: &str, text_len: usize) -> Result<Vec<PragmaticElement>> {
+        #[derive(Deserialize)]
+        struct PragmaticJson {
+            start: usize,
+            end: usize,
+            text: String,
+            #[serde(rename = "type")]
+            pragmatic_type: String,
+            speech_act: Option<String>,
+            explanation: String,
+            implied_meaning: Option<String>,
+            confidence: f32,
+        }
+
+        let elements: Vec<PragmaticJson> = serde_json::from_str(json)
+            .map_err(|e| SemanticError::AnalysisFailed(
+                format!("JSON parse error: {}", e)
+            ))?;
+
+        // Convert and validate
+        let result = elements
+            .into_iter()
+            .filter_map(|e| {
+                // Validate range
+                if e.end > text_len || e.start >= e.end {
+                    warn!("Invalid pragmatic element range: {}..{} (text len: {})", e.start, e.end, text_len);
+                    return None;
+                }
+
+                // Parse pragmatic type
+                let pragmatic_type = match e.pragmatic_type.as_str() {
+                    "Presupposition" => PragmaticType::Presupposition,
+                    "Implicature" => PragmaticType::Implicature,
+                    "SpeechAct" => PragmaticType::SpeechAct,
+                    "IndirectSpeech" => PragmaticType::IndirectSpeech,
+                    other => {
+                        warn!("Unknown pragmatic type: {}", other);
+                        return None;
+                    }
+                };
+
+                // Parse speech act if present
+                let speech_act = e.speech_act.and_then(|sa| match sa.as_str() {
+                    "Assertion" => Some(SpeechActType::Assertion),
+                    "Question" => Some(SpeechActType::Question),
+                    "Command" => Some(SpeechActType::Command),
+                    "Promise" => Some(SpeechActType::Promise),
+                    "Request" => Some(SpeechActType::Request),
+                    "Wish" => Some(SpeechActType::Wish),
+                    other => {
+                        warn!("Unknown speech act type: {}", other);
+                        None
+                    }
+                });
+
+                Some(PragmaticElement {
+                    range: e.start..e.end,
+                    text: e.text,
+                    pragmatic_type,
+                    speech_act,
+                    explanation: e.explanation,
+                    implied_meaning: e.implied_meaning,
+                    confidence: e.confidence.clamp(0.0, 1.0),
+                })
+            })
+            .collect();
+
+        Ok(result)
     }
 
     /// Convert pragmatic elements to highlight spans
