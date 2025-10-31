@@ -3076,7 +3076,10 @@ impl StorageBackend for LibsqlStorage {
                 consolidated_context_id = ?,
                 estimated_context_tokens = ?,
                 assigned_branch = ?,
-                file_scope = ?
+                file_scope = ?,
+                requirements = ?,
+                requirement_status = ?,
+                implementation_evidence = ?
             WHERE id = ?
             "#,
             params![
@@ -3099,6 +3102,9 @@ impl StorageBackend for LibsqlStorage {
                 item.estimated_context_tokens as i64,
                 item.assigned_branch.clone(),
                 file_scope_json,
+                requirements_json,
+                requirement_status_json,
+                implementation_evidence_json,
                 item.id.to_string(),
             ],
         )
@@ -3126,7 +3132,7 @@ impl StorageBackend for LibsqlStorage {
                        dependencies, created_at, started_at, completed_at, error, timeout_secs,
                        review_feedback, suggested_tests, review_attempt,
                        execution_memory_ids, consolidated_context_id, estimated_context_tokens,
-                       assigned_branch, file_scope
+                       assigned_branch, file_scope, requirements, requirement_status, implementation_evidence
                 FROM work_items
                 WHERE state = ?
                 ORDER BY priority DESC, created_at ASC
@@ -3175,6 +3181,9 @@ impl StorageBackend for LibsqlStorage {
             let estimated_context_tokens: i64 = row.get(18).unwrap();
             let assigned_branch: Option<String> = row.get(19).unwrap();
             let file_scope_json: String = row.get(20).unwrap();
+            let requirements_json: String = row.get(21).unwrap();
+            let requirement_status_json: String = row.get(22).unwrap();
+            let implementation_evidence_json: String = row.get(23).unwrap();
 
             // Deserialize JSON fields
             let dependencies: Vec<crate::orchestration::state::WorkItemId> =
@@ -3209,6 +3218,25 @@ impl StorageBackend for LibsqlStorage {
             let file_scope: Option<Vec<std::path::PathBuf>> =
                 serde_json::from_str(&file_scope_json).map_err(|e| {
                     MnemosyneError::Database(format!("Failed to deserialize file_scope: {}", e))
+                })?;
+
+            let requirements: Vec<String> = serde_json::from_str(&requirements_json).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to deserialize requirements: {}", e))
+            })?;
+
+            let requirement_status: std::collections::HashMap<
+                String,
+                crate::orchestration::state::RequirementStatus,
+            > = serde_json::from_str(&requirement_status_json).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to deserialize requirement_status: {}", e))
+            })?;
+
+            let implementation_evidence: std::collections::HashMap<String, Vec<crate::types::MemoryId>> =
+                serde_json::from_str(&implementation_evidence_json).map_err(|e| {
+                    MnemosyneError::Database(format!(
+                        "Failed to deserialize implementation_evidence: {}",
+                        e
+                    ))
                 })?;
 
             // Parse ID (WorkItemId wraps a UUID)
@@ -3328,9 +3356,9 @@ impl StorageBackend for LibsqlStorage {
                 execution_memory_ids,
                 consolidated_context_id,
                 estimated_context_tokens: estimated_context_tokens as usize,
-                requirements: Vec::new(), // Not persisted yet
-                requirement_status: std::collections::HashMap::new(), // Not persisted yet
-                implementation_evidence: std::collections::HashMap::new(), // Not persisted yet
+                requirements,
+                requirement_status,
+                implementation_evidence,
             };
 
             work_items.push(work_item);
