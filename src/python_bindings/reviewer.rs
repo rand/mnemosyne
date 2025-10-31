@@ -231,6 +231,7 @@ impl PyReviewer {
     ///
     /// Returns:
     ///     Vec<String>: List of explicit requirements extracted from intent
+    #[pyo3(signature = (original_intent, context=None))]
     fn extract_requirements_from_intent(
         &self,
         original_intent: String,
