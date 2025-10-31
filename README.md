@@ -235,7 +235,7 @@ mnemosyne orchestrate [OPTIONS]
   --work-items <FILE>   Work items JSON file
 ```
 
-### ICS (Interactive Collaborative Space)
+### ICS (Integrated Context Studio)
 ```bash
 # Open ICS editor
 mnemosyne ics [OPTIONS] [FILE]
@@ -304,7 +304,7 @@ ConnectionMode::EmbeddedReplica { ... }  // Local replica with sync
 - [docs/EVOLUTION.md](docs/EVOLUTION.md) - Memory evolution system
 - [docs/VECTOR_SEARCH.md](docs/VECTOR_SEARCH.md) - Semantic search implementation
 - [docs/PRIVACY.md](docs/PRIVACY.md) - Privacy-preserving evaluation
-- [docs/ICS_README.md](docs/ICS_README.md) - Interactive Collaborative Space
+- [docs/ICS_README.md](docs/ICS_README.md) - Integrated Context Studio
 
 ### Development
 - [CHANGELOG.md](CHANGELOG.md) - Version history
@@ -406,7 +406,7 @@ See LICENSE file for details.
 - ✅ Multi-agent orchestration (Ractor-based 4-agent system)
 - ✅ Evolution system (consolidation, importance, archival)
 - ✅ Evaluation system (privacy-preserving online learning)
-- ✅ ICS (Interactive Collaborative Space with CRDT, syntax highlighting, vim mode)
+- ✅ ICS (Integrated Context Studio with CRDT, syntax highlighting, vim mode)
 - ✅ CLI commands (remember, recall, evolve, orchestrate, ics)
 - ✅ Installation/uninstallation scripts
 - ✅ Read-only database support
