@@ -88,37 +88,49 @@ pub enum HighlightSource {
 /// Metadata associated with a highlight span
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpanMetadata {
-    /// Type of semantic element
-    pub element_type: String,
+    /// Unique entity identifier (for coreference chains)
+    pub entity_id: Option<String>,
 
-    /// Description for tooltips
-    pub description: Option<String>,
+    /// Type of semantic element (entity type, role, etc.)
+    pub entity_type: Option<String>,
 
-    /// Related spans (for navigation)
-    pub related_spans: Vec<usize>,
+    /// Semantic relations to other spans
+    pub relations: Vec<String>,
 
     /// Additional properties
+    #[serde(default)]
     pub properties: std::collections::HashMap<String, String>,
 }
 
 impl SpanMetadata {
-    pub fn new(element_type: impl Into<String>) -> Self {
+    pub fn new() -> Self {
         Self {
-            element_type: element_type.into(),
-            description: None,
-            related_spans: Vec::new(),
+            entity_id: None,
+            entity_type: None,
+            relations: Vec::new(),
             properties: std::collections::HashMap::new(),
         }
     }
 
-    pub fn with_description(mut self, description: impl Into<String>) -> Self {
-        self.description = Some(description.into());
+    pub fn with_entity_id(mut self, id: impl Into<String>) -> Self {
+        self.entity_id = Some(id.into());
         self
     }
 
-    pub fn with_related(mut self, related: Vec<usize>) -> Self {
-        self.related_spans = related;
+    pub fn with_entity_type(mut self, entity_type: impl Into<String>) -> Self {
+        self.entity_type = Some(entity_type.into());
         self
+    }
+
+    pub fn with_relations(mut self, relations: Vec<String>) -> Self {
+        self.relations = relations;
+        self
+    }
+}
+
+impl Default for SpanMetadata {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
