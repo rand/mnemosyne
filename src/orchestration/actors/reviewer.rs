@@ -1515,6 +1515,7 @@ mod tests {
     use super::*;
     use crate::LibsqlStorage;
     use crate::orchestration::state::RequirementStatus;
+    use crate::storage::test_utils::create_test_storage;
     use std::time::Duration;
     use tempfile::TempDir;
 
@@ -1954,10 +1955,13 @@ mod tests {
         use crate::python_bindings::execution_memories_to_python_format;
 
         // Setup storage
-        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        let db_path = temp_dir.path().join("test.db");
-        let storage = create_test_storage(&db_path).await;
-        let namespace = Namespace("test-namespace".to_string());
+        let storage = create_test_storage()
+            .await
+            .expect("Failed to create test storage");
+        let namespace = Namespace::Session {
+            project: "test-reviewer".to_string(),
+            session_id: "test-memory-format".to_string(),
+        };
 
         // Create test memories with actual content
         let memory1 = crate::types::MemoryNote {
