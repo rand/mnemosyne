@@ -67,6 +67,8 @@ async-trait = "0.1"
 regex = "1.10"
 atty = "0.2"  # Terminal detection for ICS
 rustc_version_runtime = "0.3"  # Runtime Rust version for status command
+lru = "0.12"  # LRU cache for semantic highlighting
+once_cell = "1.19"  # Lazy static initialization for regex patterns
 
 # CRDT for ICS collaborative editing
 automerge = "0.5"
