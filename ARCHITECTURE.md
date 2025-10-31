@@ -1023,6 +1023,155 @@ Output: Preserved context snapshot
 
 ---
 
+## Composable Tools Architecture (Phase 2)
+
+**Goal**: Replace TUI-in-TUI wrapper with composable Unix-philosophy tools
+
+### The Problem
+
+Original design wrapped Claude Code terminal in Mnemosyne TUI:
+- Both processes fighting for terminal control (raw mode, alternate screen)
+- Broken rendering, unresponsive input
+- Fundamental architectural conflict
+
+### The Solution
+
+Three standalone tools working together via files and HTTP:
+
+```
+┌─────────────────┐     ┌──────────────────┐
+│  mnemosyne-ics  │────▶│  context files   │
+│  (edit context) │     │  (.claude/*.md)  │
+└─────────────────┘     └──────────────────┘
+                               │
+                               ▼
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│     claude      │◀───▶│ mnemosyne serve  │────▶│ mnemosyne-dash  │
+│  (chat + MCP)   │     │  (MCP + API)     │ SSE │  (monitoring)   │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+```
+
+### Components
+
+#### 1. mnemosyne-ics (Standalone Context Editor)
+
+**Purpose**: Edit .claude context files with storage integration
+
+**Usage**:
+```bash
+mnemosyne-ics context.md                    # Edit file
+mnemosyne-ics --template api                # Create from template
+mnemosyne-ics --readonly memory-dump.md     # View-only mode
+```
+
+**Features**:
+- Full terminal ownership (no conflicts)
+- Template system (api, architecture, bugfix, feature, refactor)
+- Storage backend for context persistence
+- Clean terminal lifecycle
+
+**File**: `src/bin/ics.rs` (300 lines)
+
+#### 2. mnemosyne serve --with-api
+
+**Purpose**: MCP server with optional HTTP API for monitoring
+
+**Usage**:
+```bash
+# Auto-launched by Claude Code (99% of users)
+mnemosyne serve
+
+# Manual launch with monitoring API
+mnemosyne serve --with-api
+```
+
+**Features**:
+- JSON-RPC stdio protocol for Claude Code MCP
+- Optional HTTP API server on :3000
+- Real-time event broadcasting via SSE
+- Concurrent operation (tokio::select!)
+
+**Files**:
+- `src/mcp/tools.rs`: Event emission from recall/remember
+- `src/api/`: HTTP server, SSE, state management
+
+#### 3. mnemosyne-dash (Real-time Monitoring)
+
+**Purpose**: TUI dashboard showing live agent activity
+
+**Usage**:
+```bash
+mnemosyne-dash                              # Connect to localhost:3000
+mnemosyne-dash --api http://host:3000      # Custom API URL
+```
+
+**Features**:
+- SSE client for real-time events
+- Agent status display
+- System statistics
+- Event log with scrollback
+- Auto-reconnect on disconnect
+
+**File**: `src/bin/dash.rs` (400+ lines)
+
+### Event Streaming Architecture
+
+```rust
+// MCP tools emit events
+if let Some(broadcaster) = &self.event_broadcaster {
+    let event = Event::memory_recalled(query, count);
+    broadcaster.broadcast(event)?;
+}
+
+// API server streams via SSE
+async fn events_handler(state: State<AppState>) -> Sse<...> {
+    let rx = state.events.subscribe();
+    Sse::new(stream)
+}
+
+// Dashboard consumes via SSE client
+spawn_sse_client(api_url, event_tx);
+app.process_events();  // Display in TUI
+```
+
+### Key Design Decisions
+
+1. **Terminal Ownership**: Each tool owns its terminal completely
+2. **File-Based Context**: .claude/*.md files as handoff mechanism
+3. **Event Streaming**: HTTP SSE for real-time coordination
+4. **Unix Philosophy**: Do one thing well, compose via pipes/files
+5. **Optional Monitoring**: MCP works standalone, API is additive
+
+### Migration Path
+
+**Before**:
+```bash
+mnemosyne tui  # Broken TUI wrapper
+```
+
+**After**:
+```bash
+# 99% use case (automatic)
+claude
+
+# Context editing (manual)
+mnemosyne-ics context.md
+
+# Monitoring (manual, optional)
+mnemosyne serve --with-api  # Terminal 1
+mnemosyne-dash              # Terminal 2
+```
+
+### Benefits
+
+- ✅ Zero terminal conflicts
+- ✅ Clean separation of concerns
+- ✅ Each tool independently useful
+- ✅ Real-time monitoring without blocking MCP
+- ✅ MCP auto-launch by Claude Code works seamlessly
+
+---
+
 ## Multi-Agent Orchestration (PyO3)
 
 **Goal**: Low-latency Rust↔Python integration for agent coordination
@@ -1274,6 +1423,9 @@ mnemosyne/
 ├── src/
 │   ├── lib.rs               # Public API
 │   ├── main.rs              # CLI entry point
+│   ├── bin/
+│   │   ├── ics.rs           # Standalone context editor (mnemosyne-ics)
+│   │   └── dash.rs          # Real-time monitoring dashboard (mnemosyne-dash)
 │   ├── types.rs             # Core types
 │   ├── error.rs             # Error types
 │   ├── config.rs            # Credential management
@@ -1285,11 +1437,16 @@ mnemosyne/
 │   │   ├── mod.rs
 │   │   ├── llm.rs           # LLM integration
 │   │   └── namespace.rs     # Context detection
+│   ├── api/
+│   │   ├── mod.rs
+│   │   ├── events.rs        # SSE event types and broadcasting
+│   │   ├── state.rs         # Agent and context state management
+│   │   └── server.rs        # HTTP API server with SSE
 │   └── mcp/
 │       ├── mod.rs
 │       ├── protocol.rs      # JSON-RPC types
 │       ├── server.rs        # MCP server
-│       └── tools.rs         # Tool implementations
+│       └── tools.rs         # Tool implementations (with event emitting)
 ├── tests/
 │   └── integration/
 └── benches/
@@ -1298,6 +1455,6 @@ mnemosyne/
 
 ---
 
-**Version**: 0.1.0
-**Last Updated**: 2025-10-26
-**Status**: 5 of 10 phases complete
+**Version**: 2.0.0
+**Last Updated**: 2025-10-31
+**Status**: Phase 2 Complete - Composable Tools Architecture
