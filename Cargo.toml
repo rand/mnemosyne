@@ -48,7 +48,7 @@ toml = "0.8"
 bincode = "1.3"
 
 # LLM Integration
-reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream"] }
 dspy-rs = "0.7.1"  # DSPy framework for systematic prompt optimization
 
 # Local embeddings with ONNX Runtime (auto-downloads binaries)

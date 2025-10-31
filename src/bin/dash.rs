@@ -32,7 +32,13 @@ use ratatui::{
 use reqwest::Client;
 use serde::Deserialize;
 use std::{io, time::Duration};
-use tokio::time::interval;
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    sync::mpsc,
+    time::interval,
+};
+use tokio_stream::StreamExt;
+use tokio_util::io::StreamReader;
 use tracing::{debug, error, Level};
 use tracing_subscriber::EnvFilter;
 
@@ -84,11 +90,9 @@ struct SystemStats {
 
 /// Application state
 struct App {
-    /// Recent events (for future SSE integration)
-    #[allow(dead_code)]
+    /// Recent events from SSE stream
     events: Vec<String>,
     /// Max events to keep
-    #[allow(dead_code)]
     max_events: usize,
     /// Agents list
     agents: Vec<AgentInfo>,
@@ -98,10 +102,12 @@ struct App {
     connected: bool,
     /// API base URL
     api_url: String,
+    /// Event receiver from SSE stream
+    event_rx: mpsc::UnboundedReceiver<String>,
 }
 
 impl App {
-    fn new(api_url: String) -> Self {
+    fn new(api_url: String, event_rx: mpsc::UnboundedReceiver<String>) -> Self {
         Self {
             events: Vec::new(),
             max_events: 100,
@@ -109,14 +115,21 @@ impl App {
             stats: None,
             connected: false,
             api_url,
+            event_rx,
         }
     }
 
-    #[allow(dead_code)]
     fn add_event(&mut self, event: String) {
         self.events.push(event);
         if self.events.len() > self.max_events {
             self.events.remove(0);
+        }
+    }
+
+    fn process_events(&mut self) {
+        // Drain all available events from channel
+        while let Ok(event) = self.event_rx.try_recv() {
+            self.add_event(event);
         }
     }
 
@@ -161,6 +174,70 @@ impl App {
     }
 }
 
+/// Spawn SSE client to stream events from API server
+fn spawn_sse_client(api_url: String, event_tx: mpsc::UnboundedSender<String>) {
+    tokio::spawn(async move {
+        loop {
+            debug!("Connecting to SSE endpoint: {}/events", api_url);
+
+            let client = Client::new();
+            let response = match client.get(format!("{}/events", api_url)).send().await {
+                Ok(resp) => resp,
+                Err(e) => {
+                    debug!("Failed to connect to SSE endpoint: {}", e);
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    continue;
+                }
+            };
+
+            if !response.status().is_success() {
+                debug!("SSE endpoint returned error: {}", response.status());
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                continue;
+            }
+
+            debug!("Connected to SSE stream");
+
+            // Convert response body to async reader
+            let stream = response
+                .bytes_stream()
+                .map(|result| result.map_err(|e| io::Error::new(io::ErrorKind::Other, e)));
+            let reader = StreamReader::new(stream);
+            let mut lines = BufReader::new(reader).lines();
+
+            let mut current_data = String::new();
+
+            // Read SSE format line by line
+            while let Ok(Some(line)) = lines.next_line().await {
+                if line.is_empty() {
+                    // Empty line marks end of event - process accumulated data
+                    if !current_data.is_empty() {
+                        if let Ok(event) = serde_json::from_str::<EventDisplay>(&current_data) {
+                            let formatted = format!(
+                                "[{}] {}",
+                                event.event_type,
+                                serde_json::to_string(&event.data).unwrap_or_default()
+                            );
+                            if event_tx.send(formatted).is_err() {
+                                error!("Event channel closed, stopping SSE client");
+                                return;
+                            }
+                        }
+                        current_data.clear();
+                    }
+                } else if let Some(data) = line.strip_prefix("data: ") {
+                    // Accumulate data lines
+                    current_data.push_str(data);
+                }
+                // Ignore other SSE fields (id:, event:, retry:)
+            }
+
+            debug!("SSE stream disconnected, reconnecting in 5s...");
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+    });
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
@@ -198,8 +275,14 @@ async fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    // Create event channel for SSE stream
+    let (event_tx, event_rx) = mpsc::unbounded_channel();
+
+    // Spawn SSE client
+    spawn_sse_client(args.api.clone(), event_tx);
+
     // Create app state
-    let mut app = App::new(args.api.clone());
+    let mut app = App::new(args.api.clone(), event_rx);
     let client = Client::new();
 
     // Refresh interval
@@ -324,7 +407,9 @@ async fn run_app<B: ratatui::backend::Backend>(
             }
         }
 
-        // Update state on tick
+        // Process incoming events and update state on tick
+        app.process_events();
+
         tokio::select! {
             _ = tick.tick() => {
                 app.update_state(client).await?;
