@@ -222,10 +222,18 @@ impl Dashboard {
 
 /// ICS panel (embedded)
 pub struct IcsPanel {
-    /// Content to display
-    content: String,
+    /// Lines of content
+    lines: Vec<String>,
+    /// Cursor position (line, column)
+    cursor: (usize, usize),
+    /// Scroll offset (vertical)
+    scroll_offset: usize,
     /// Whether panel is visible
     visible: bool,
+    /// Whether panel is focused
+    focused: bool,
+    /// Markdown highlighter
+    highlighter: crate::ics::markdown_highlight::MarkdownHighlighter,
 }
 
 impl Default for IcsPanel {
@@ -237,9 +245,25 @@ impl Default for IcsPanel {
 impl IcsPanel {
     /// Create new ICS panel
     pub fn new() -> Self {
+        let initial_lines = vec![
+            "# ICS - Integrated Context Studio".to_string(),
+            String::new(),
+            "Press Ctrl+E to toggle | Ctrl+Enter to submit".to_string(),
+            String::new(),
+            "## Pattern Syntax".to_string(),
+            "- #file.rs - File reference (blue)".to_string(),
+            "- @symbol - Symbol reference (green)".to_string(),
+            "- ?interface - Typed hole (yellow)".to_string(),
+        ];
+
         Self {
-            content: String::from("ICS - Integrated Context Studio\n\nPress Ctrl+E to toggle"),
+            lines: initial_lines,
+            cursor: (0, 0),
+            scroll_offset: 0,
             visible: false,
+            focused: false,
+            highlighter: crate::ics::markdown_highlight::MarkdownHighlighter::new()
+                .expect("Failed to initialize markdown highlighter"),
         }
     }
 
@@ -248,29 +272,220 @@ impl IcsPanel {
         self.visible = !self.visible;
     }
 
-    /// Set content
-    pub fn set_content(&mut self, content: String) {
-        self.content = content;
-    }
-
     /// Check if visible
     pub fn is_visible(&self) -> bool {
         self.visible
     }
 
+    /// Set focused state
+    pub fn set_focused(&mut self, focused: bool) {
+        self.focused = focused;
+    }
+
+    /// Check if focused
+    pub fn is_focused(&self) -> bool {
+        self.focused
+    }
+
+    /// Get content as string
+    pub fn get_content(&self) -> String {
+        self.lines.join("\n")
+    }
+
+    /// Set content from string
+    pub fn set_content(&mut self, content: String) {
+        self.lines = content.lines().map(|s| s.to_string()).collect();
+        // Reset cursor if out of bounds
+        if self.cursor.0 >= self.lines.len() {
+            self.cursor.0 = self.lines.len().saturating_sub(1);
+        }
+        if let Some(line) = self.lines.get(self.cursor.0) {
+            if self.cursor.1 > line.len() {
+                self.cursor.1 = line.len();
+            }
+        }
+    }
+
+    /// Toggle semantic highlighting
+    pub fn toggle_highlighting(&mut self) {
+        let currently_enabled = self.highlighter.is_semantic_enabled();
+        self.highlighter.set_semantic_enabled(!currently_enabled);
+    }
+
+    /// Check if highlighting is enabled
+    pub fn is_highlighting_enabled(&self) -> bool {
+        self.highlighter.is_semantic_enabled()
+    }
+
+    /// Insert character at cursor
+    pub fn insert_char(&mut self, c: char) {
+        if self.lines.is_empty() {
+            self.lines.push(String::new());
+        }
+
+        let (line_idx, col_idx) = self.cursor;
+        if line_idx < self.lines.len() {
+            self.lines[line_idx].insert(col_idx, c);
+            self.cursor.1 += 1;
+        }
+    }
+
+    /// Insert newline at cursor
+    pub fn insert_newline(&mut self) {
+        if self.lines.is_empty() {
+            self.lines.push(String::new());
+            self.lines.push(String::new());
+            self.cursor = (1, 0);
+            return;
+        }
+
+        let (line_idx, col_idx) = self.cursor;
+        if line_idx < self.lines.len() {
+            let current_line = self.lines[line_idx].clone();
+            let (before, after) = current_line.split_at(col_idx);
+            self.lines[line_idx] = before.to_string();
+            self.lines.insert(line_idx + 1, after.to_string());
+            self.cursor = (line_idx + 1, 0);
+        }
+    }
+
+    /// Delete character before cursor (backspace)
+    pub fn backspace(&mut self) {
+        let (line_idx, col_idx) = self.cursor;
+
+        if col_idx > 0 {
+            // Delete char in current line
+            if line_idx < self.lines.len() {
+                self.lines[line_idx].remove(col_idx - 1);
+                self.cursor.1 -= 1;
+            }
+        } else if line_idx > 0 {
+            // Merge with previous line
+            let current_line = self.lines.remove(line_idx);
+            let prev_len = self.lines[line_idx - 1].len();
+            self.lines[line_idx - 1].push_str(&current_line);
+            self.cursor = (line_idx - 1, prev_len);
+        }
+    }
+
+    /// Delete character at cursor (delete key)
+    pub fn delete(&mut self) {
+        let (line_idx, col_idx) = self.cursor;
+
+        if line_idx < self.lines.len() {
+            if col_idx < self.lines[line_idx].len() {
+                // Delete char at cursor
+                self.lines[line_idx].remove(col_idx);
+            } else if line_idx + 1 < self.lines.len() {
+                // Merge with next line
+                let next_line = self.lines.remove(line_idx + 1);
+                self.lines[line_idx].push_str(&next_line);
+            }
+        }
+    }
+
+    /// Move cursor left
+    pub fn move_cursor_left(&mut self) {
+        if self.cursor.1 > 0 {
+            self.cursor.1 -= 1;
+        } else if self.cursor.0 > 0 {
+            self.cursor.0 -= 1;
+            if let Some(line) = self.lines.get(self.cursor.0) {
+                self.cursor.1 = line.len();
+            }
+        }
+    }
+
+    /// Move cursor right
+    pub fn move_cursor_right(&mut self) {
+        if let Some(line) = self.lines.get(self.cursor.0) {
+            if self.cursor.1 < line.len() {
+                self.cursor.1 += 1;
+            } else if self.cursor.0 + 1 < self.lines.len() {
+                self.cursor.0 += 1;
+                self.cursor.1 = 0;
+            }
+        }
+    }
+
+    /// Move cursor up
+    pub fn move_cursor_up(&mut self) {
+        if self.cursor.0 > 0 {
+            self.cursor.0 -= 1;
+            // Clamp column to line length
+            if let Some(line) = self.lines.get(self.cursor.0) {
+                self.cursor.1 = self.cursor.1.min(line.len());
+            }
+        }
+    }
+
+    /// Move cursor down
+    pub fn move_cursor_down(&mut self) {
+        if self.cursor.0 + 1 < self.lines.len() {
+            self.cursor.0 += 1;
+            // Clamp column to line length
+            if let Some(line) = self.lines.get(self.cursor.0) {
+                self.cursor.1 = self.cursor.1.min(line.len());
+            }
+        }
+    }
+
     /// Render ICS panel
-    pub fn render(&self, frame: &mut Frame, area: Rect) {
+    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
         if !self.visible {
             return;
         }
 
-        let block = Block::default()
-            .title("ICS - Context Studio")
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::Cyan));
+        // Border style changes based on focus
+        let border_style = if self.focused {
+            Style::default().fg(Color::Green)
+        } else {
+            Style::default().fg(Color::Cyan)
+        };
 
-        let paragraph = Paragraph::new(self.content.as_str()).block(block);
-        frame.render_widget(paragraph, area);
+        let block = Block::default()
+            .title(if self.focused { "ICS - Context Studio [FOCUSED]" } else { "ICS - Context Studio" })
+            .borders(Borders::ALL)
+            .border_style(border_style);
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        // Calculate visible range
+        let visible_height = inner.height as usize;
+        let visible_lines = self.lines
+            .iter()
+            .skip(self.scroll_offset)
+            .take(visible_height)
+            .enumerate();
+
+        // Render lines with highlighting
+        let mut y_offset = 0;
+        for (_idx, line) in visible_lines {
+            if y_offset >= inner.height {
+                break;
+            }
+
+            let highlighted_line = self.highlighter.highlight_line(line);
+            let line_area = Rect {
+                x: inner.x,
+                y: inner.y + y_offset as u16,
+                width: inner.width,
+                height: 1,
+            };
+            frame.render_widget(highlighted_line, line_area);
+            y_offset += 1;
+        }
+
+        // Render cursor if focused
+        if self.focused && self.cursor.0 >= self.scroll_offset {
+            let cursor_y = self.cursor.0 - self.scroll_offset;
+            if cursor_y < visible_height {
+                let cursor_x = inner.x + self.cursor.1.min(inner.width as usize - 1) as u16;
+                let cursor_y = inner.y + cursor_y as u16;
+                frame.set_cursor_position((cursor_x, cursor_y));
+            }
+        }
     }
 }
 

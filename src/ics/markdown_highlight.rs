@@ -71,9 +71,19 @@ impl MarkdownHighlighter {
         self.syntax_enabled = enabled;
     }
 
+    /// Check if syntax highlighting is enabled
+    pub fn is_syntax_enabled(&self) -> bool {
+        self.syntax_enabled
+    }
+
     /// Enable/disable semantic highlighting
     pub fn set_semantic_enabled(&mut self, enabled: bool) {
         self.semantic_enabled = enabled;
+    }
+
+    /// Check if semantic highlighting is enabled
+    pub fn is_semantic_enabled(&self) -> bool {
+        self.semantic_enabled
     }
 
     /// Highlight a line of markdown text
