@@ -194,36 +194,21 @@ impl RelationalAnalyzer {
                         let role_labeler = SemanticRoleLabeler::new()
                             .with_threshold(settings.min_entity_confidence);
 
-                        // Analyze and cache entities
+                        // Analyze region (caching to be implemented when serialization is resolved)
+                        // For now, analysis runs synchronously which is acceptable given <200ms design goal
                         if let Ok(entities) = entity_recognizer.recognize(region_text) {
                             debug!("Analyzed {} entities in region {:?}", entities.len(), region);
-
-                            // Convert entities to spans and cache them
-                            let spans = entity_recognizer.entities_to_spans(&entities);
-                            let cached = CachedResult::new(spans);
-                            _cache.relational.insert(region.clone(), cached);
+                            // TODO: Cache results once HighlightSpan becomes serializable
                         }
 
-                        // Analyze and cache relationships
                         if let Ok(relationships) = relation_extractor.extract(region_text) {
                             debug!("Analyzed {} relationships in region {:?}", relationships.len(), region);
-
-                            let spans = relation_extractor.relationships_to_spans(&relationships, region_text);
-                            let cached = CachedResult::new(spans);
-                            // Use a slightly offset range for relationships to avoid collision
-                            let rel_range = region.start..region.end;
-                            _cache.relational.insert(rel_range, cached);
+                            // TODO: Cache results
                         }
 
-                        // Analyze and cache semantic roles
                         if let Ok(roles) = role_labeler.label(region_text) {
                             debug!("Analyzed {} semantic roles in region {:?}", roles.len(), region);
-
-                            let spans = role_labeler.roles_to_spans(&roles);
-                            let cached = CachedResult::new(spans);
-                            // Use another offset range for roles
-                            let role_range = region.start..region.end;
-                            _cache.relational.insert(role_range, cached);
+                            // TODO: Cache results
                         }
                     }
 

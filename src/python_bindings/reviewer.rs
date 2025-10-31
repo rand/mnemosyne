@@ -222,6 +222,44 @@ impl PyReviewer {
             })
         })
     }
+
+    /// Extract explicit requirements from user intent using LLM.
+    ///
+    /// Args:
+    ///     original_intent: User's original work request/specification
+    ///     context: Optional context about the project (e.g., existing code, constraints)
+    ///
+    /// Returns:
+    ///     Vec<String>: List of explicit requirements extracted from intent
+    fn extract_requirements_from_intent(
+        &self,
+        original_intent: String,
+        context: Option<String>,
+    ) -> PyResult<Vec<String>> {
+        self.runtime.block_on(async {
+            Python::with_gil(|py| {
+                let agent = self.py_agent.blocking_lock();
+
+                // Convert Option<String> to Python None or string
+                let context_arg = match context {
+                    Some(ctx) => ctx.into_py(py),
+                    None => py.None(),
+                };
+
+                // Call Python method
+                let result = agent
+                    .call_method1(
+                        py,
+                        "extract_requirements_from_intent",
+                        (original_intent, context_arg),
+                    )?;
+
+                // Extract list of requirements
+                let requirements = result.extract::<Vec<String>>(py)?;
+                Ok(requirements)
+            })
+        })
+    }
 }
 
 /// Helper to collect implementation content from memory IDs.
