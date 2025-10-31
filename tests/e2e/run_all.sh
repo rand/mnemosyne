@@ -22,6 +22,7 @@ NC='\033[0m' # No Color
 PARALLEL_MODE=false
 QUICK_MODE=false
 CATEGORY=""
+MODE=""
 OUTPUT_DIR="/tmp/e2e_test_results"
 
 # Parse arguments
@@ -39,6 +40,10 @@ while [[ $# -gt 0 ]]; do
             CATEGORY="$2"
             shift 2
             ;;
+        --mode)
+            MODE="$2"
+            shift 2
+            ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -46,6 +51,10 @@ while [[ $# -gt 0 ]]; do
             echo "  --parallel         Run tests in parallel"
             echo "  --quick            Skip long-running stress tests"
             echo "  --category NAME    Run specific category (human|agentic|failure|recovery|integration|performance)"
+            echo "  --mode MODE        Run test suite mode (baseline|regression|all)"
+            echo "                       baseline:   Real LLM API calls with quality validation (~\$2-5 per run)"
+            echo "                       regression: Mocked responses, fast and free (\$0 per run)"
+            echo "                       all:        Run both suites sequentially"
             echo "  --help             Show this help message"
             exit 0
             ;;
@@ -55,6 +64,70 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Handle mode selection (delegate to specialized runners)
+if [ -n "$MODE" ]; then
+    case "$MODE" in
+        baseline)
+            echo "Delegating to baseline test suite runner..."
+            echo ""
+            exec "$SCRIPT_DIR/run_baseline.sh"
+            ;;
+        regression)
+            echo "Delegating to regression test suite runner..."
+            echo ""
+            # Pass through relevant flags
+            REGRESSION_ARGS=()
+            [ "$PARALLEL_MODE" = true ] && REGRESSION_ARGS+=(--parallel)
+            [ -n "$CATEGORY" ] && REGRESSION_ARGS+=(--category "$CATEGORY")
+            exec "$SCRIPT_DIR/run_regression.sh" "${REGRESSION_ARGS[@]}"
+            ;;
+        all)
+            echo "Running both baseline and regression test suites..."
+            echo ""
+
+            echo "========================================="
+            echo "  Phase 1: Baseline Suite (Real LLM)"
+            echo "========================================="
+            echo ""
+            "$SCRIPT_DIR/run_baseline.sh"
+            baseline_exit=$?
+
+            echo ""
+            echo "========================================="
+            echo "  Phase 2: Regression Suite (Mocked)"
+            echo "========================================="
+            echo ""
+            REGRESSION_ARGS=()
+            [ "$PARALLEL_MODE" = true ] && REGRESSION_ARGS+=(--parallel)
+            [ -n "$CATEGORY" ] && REGRESSION_ARGS+=(--category "$CATEGORY")
+            "$SCRIPT_DIR/run_regression.sh" "${REGRESSION_ARGS[@]}"
+            regression_exit=$?
+
+            echo ""
+            echo "========================================="
+            echo "  Combined Results"
+            echo "========================================="
+            echo ""
+            echo "Baseline suite:   $([ $baseline_exit -eq 0 ] && echo "PASS" || echo "FAIL")"
+            echo "Regression suite: $([ $regression_exit -eq 0 ] && echo "PASS" || echo "FAIL")"
+            echo ""
+
+            # Exit with failure if either suite failed
+            if [ $baseline_exit -ne 0 ] || [ $regression_exit -ne 0 ]; then
+                exit 1
+            fi
+            exit 0
+            ;;
+        *)
+            echo "Error: Invalid mode '$MODE'"
+            echo "Valid modes: baseline, regression, all"
+            echo ""
+            echo "Run '$0 --help' for more information"
+            exit 1
+            ;;
+    esac
+fi
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
