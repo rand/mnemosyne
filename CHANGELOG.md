@@ -5,6 +5,60 @@ All notable changes to Mnemosyne will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-10-31
+
+### Added
+
+**TUI Wrapper Mode**
+- New `mnemosyne tui` command for enhanced terminal interface
+- Helix-style command palette with fuzzy search and type-ahead filtering
+- Context-aware help overlay (? key) with mode-specific shortcuts
+- Dynamic status bar showing relevant actions for current mode
+- Split-view layout: chat + ICS editor + agent dashboard
+- Terminal detection with comprehensive error messages for edge cases (SSH, tmux, piped I/O)
+- Keyboard-first navigation with discoverable shortcuts (Ctrl+P, Ctrl+E, Ctrl+D, Ctrl+Q)
+
+**ICS Enhancements**
+- Hybrid markdown highlighting system with 3-layer priority:
+  - Layer 1: Semantic patterns (#file, @symbol, ?hole) - highest priority
+  - Layer 2: Tree-sitter syntax (headings, code blocks, emphasis, lists, links)
+  - Layer 3: Plain text fallback
+- Pattern-specific color coding (files: blue, symbols: green, holes: yellow)
+- Real-time highlighting with markdown-first optimization
+- Toggle-able syntax and semantic layers (both enabled by default)
+- 5 new ICS commands: submit-to-claude, save-file, export-context, toggle-highlighting, focus-editor
+
+**Command Palette**
+- Simplified Helix-style rendering: `> command-name  Description`
+- Removed category badges and fuzzy match scores from display
+- Clean selection indicator with cyan arrow
+- Type-ahead filtering working in real-time
+- Added CommandCategory::Ics for ICS-specific commands
+
+### Changed
+
+**ICS User Experience**
+- Standalone ICS mode now has comprehensive terminal detection
+- Help system is context-aware (different content for ICS vs Chat mode)
+- Status bar shows mode-specific action hints
+- All keyboard shortcuts documented in help overlay
+
+**Documentation**
+- README updated with TUI wrapper mode section
+- Complete keyboard shortcuts reference
+- Pattern syntax documentation (#file, @symbol, ?hole)
+- Quick Start section includes TUI examples
+- Features section updated with TUI and hybrid highlighting
+
+### Testing
+
+- 13 TUI widget tests (all passing)
+- 8 markdown highlighting tests (all passing)
+- Clean builds on all configurations
+- No regressions in existing functionality
+
+---
+
 ## [1.0.0] - 2025-10-27
 
 ### Added
