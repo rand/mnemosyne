@@ -581,19 +581,19 @@ print_next_steps() {
     echo ""
     echo "Next steps:"
     echo ""
-    echo "1. ${BOLD}Test the installation:${NC}"
+    echo -e "1. ${BOLD}Test the installation:${NC}"
     echo "   mnemosyne status"
     echo ""
-    echo "2. ${BOLD}Start using Mnemosyne in Claude Code:${NC}"
+    echo -e "2. ${BOLD}Start using Mnemosyne in Claude Code:${NC}"
     echo "   The MCP server will start automatically."
     echo "   Use tools like: mnemosyne.remember, mnemosyne.recall, etc."
     echo ""
-    echo "3. ${BOLD}Manual testing (optional):${NC}"
+    echo -e "3. ${BOLD}Manual testing (optional):${NC}"
     echo "   echo '{\"jsonrpc\":\"2.0\",\"method\":\"initialize\",\"id\":1}' | mnemosyne serve"
     echo ""
 
     if [ "$SKIP_API_KEY" = true ] || ! "${BIN_DIR}/mnemosyne" config show-key &> /dev/null; then
-        echo "4. ${BOLD}Configure API key:${NC}"
+        echo -e "4. ${BOLD}Configure API key:${NC}"
         echo "   mnemosyne config set-key"
         echo ""
     fi
