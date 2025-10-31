@@ -10,6 +10,14 @@ license = "MIT"
 name = "mnemosyne"
 path = "src/main.rs"
 
+[[bin]]
+name = "mnemosyne-ics"
+path = "src/bin/ics.rs"
+
+[[bin]]
+name = "mnemosyne-dash"
+path = "src/bin/dash.rs"
+
 [lib]
 name = "mnemosyne_core"
 crate-type = ["cdylib", "rlib"]  # cdylib for Python, rlib for Rust binary
@@ -18,6 +26,12 @@ crate-type = ["cdylib", "rlib"]  # cdylib for Python, rlib for Rust binary
 # Async runtime
 tokio = { version = "1.35", features = ["full", "tracing"] }
 tokio-util = { version = "0.7", features = ["codec"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+
+# HTTP server for event streaming API
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
 
 # Database
 libsql = { version = "0.9", features = ["core", "replication", "sync"] }
@@ -34,7 +48,7 @@ toml = "0.8"
 bincode = "1.3"
 
 # LLM Integration
-reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream"] }
 dspy-rs = "0.7.1"  # DSPy framework for systematic prompt optimization
 
 # Local embeddings with ONNX Runtime (auto-downloads binaries)
@@ -53,6 +67,8 @@ async-trait = "0.1"
 regex = "1.10"
 atty = "0.2"  # Terminal detection for ICS
 rustc_version_runtime = "0.3"  # Runtime Rust version for status command
+lru = "0.12"  # LRU cache for semantic highlighting
+once_cell = "1.19"  # Lazy static initialization for regex patterns
 
 # CRDT for ICS collaborative editing
 automerge = "0.5"

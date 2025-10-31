@@ -36,6 +36,15 @@ enum AppState {
     Quitting,
 }
 
+/// Panel types for programmatic opening (--panel flag)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PanelType {
+    Memory,
+    Diagnostics,
+    Proposals,
+    Holes,
+}
+
 /// Main ICS application
 pub struct IcsApp {
     /// Configuration
@@ -100,6 +109,10 @@ pub struct IcsApp {
     // Phase 8: Typed Holes Navigation
     /// Hole navigator for jumping between typed holes
     hole_navigator: super::HoleNavigator,
+
+    // Phase 2.1: Event Broadcasting
+    /// Optional event broadcaster for real-time API updates
+    event_broadcaster: Option<crate::api::EventBroadcaster>,
 }
 
 impl IcsApp {
@@ -115,6 +128,24 @@ impl IcsApp {
         storage: Arc<dyn StorageBackend>,
         agent_registry: Option<AgentRegistry>,
         proposal_queue: Option<ProposalQueue>,
+    ) -> Self {
+        Self::new_with_broadcaster(config, storage, agent_registry, proposal_queue, None)
+    }
+
+    /// Create new ICS application with event broadcasting
+    ///
+    /// # Arguments
+    /// * `config` - ICS configuration
+    /// * `storage` - Storage backend for memory retrieval
+    /// * `agent_registry` - Optional agent registry for orchestration mode
+    /// * `proposal_queue` - Optional proposal queue for orchestration mode
+    /// * `event_broadcaster` - Optional event broadcaster for real-time API updates
+    pub fn new_with_broadcaster(
+        config: IcsConfig,
+        storage: Arc<dyn StorageBackend>,
+        agent_registry: Option<AgentRegistry>,
+        proposal_queue: Option<ProposalQueue>,
+        event_broadcaster: Option<crate::api::EventBroadcaster>,
     ) -> Self {
         Self {
             config,
@@ -159,6 +190,9 @@ impl IcsApp {
 
             // Phase 8: Typed Holes Navigation
             hole_navigator: super::HoleNavigator::new(),
+
+            // Phase 2.1: Event Broadcasting
+            event_broadcaster,
         }
     }
 
@@ -172,17 +206,62 @@ impl IcsApp {
 
     /// Save current buffer
     pub fn save_file(&mut self) -> Result<()> {
+        // Check read-only mode
+        if self.config.read_only {
+            self.status = "Cannot save: Read-only mode".to_string();
+            return Err(anyhow::anyhow!("Cannot save in read-only mode"));
+        }
+
         let buffer = self.editor.active_buffer_mut();
+        let file_path = buffer
+            .path
+            .as_ref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| "untitled".to_string());
+
         buffer.save_file()?;
-        self.status = format!(
-            "Saved: {}",
-            buffer
-                .path
-                .as_ref()
-                .map(|p| p.display().to_string())
-                .unwrap_or_else(|| "untitled".to_string())
-        );
+        self.status = format!("Saved: {}", file_path);
+
+        // Emit context_modified event if broadcaster available
+        if let Some(broadcaster) = &self.event_broadcaster {
+            let event = crate::api::Event::context_modified(file_path.clone());
+            if let Err(e) = broadcaster.broadcast(event) {
+                tracing::debug!("Failed to broadcast context_modified event: {}", e);
+                // Don't fail save if broadcasting fails
+            }
+        }
+
         Ok(())
+    }
+
+    /// Show a specific panel (for --panel CLI flag)
+    pub fn show_panel(&mut self, panel: PanelType) {
+        match panel {
+            PanelType::Memory => {
+                if !self.memory_panel.is_visible() {
+                    self.memory_panel.toggle();
+                }
+            }
+            PanelType::Diagnostics => {
+                if !self.diagnostics_panel.is_visible() {
+                    self.diagnostics_panel.toggle();
+                }
+            }
+            PanelType::Proposals => {
+                if !self.proposals_panel.is_visible() {
+                    self.proposals_panel.toggle();
+                }
+            }
+            PanelType::Holes => {
+                // Show holes count in status (no actual panel for holes)
+                let hole_count = self.hole_navigator.hole_count();
+                let unresolved = self.hole_navigator.unresolved_holes().len();
+                self.status = format!(
+                    "Holes: {} total, {} unresolved | Use Ctrl+N/Ctrl+Shift+N to navigate",
+                    hole_count, unresolved
+                );
+            }
+        }
     }
 
     /// Trigger semantic analysis on current buffer

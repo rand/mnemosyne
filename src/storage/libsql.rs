@@ -543,6 +543,7 @@ impl LibsqlStorage {
             "002_add_indexes.sql",
             "003_audit_trail.sql",
             "011_work_items.sql",
+            "012_requirement_tracking.sql",
             // Note: Vector search uses native embedding column in memories table (F32_BLOB)
             // No need for separate memory_vectors table or vec0 extension
         ];
@@ -2652,6 +2653,19 @@ impl StorageBackend for LibsqlStorage {
             MnemosyneError::Database(format!("Failed to serialize file_scope: {}", e))
         })?;
 
+        // Serialize requirement tracking fields
+        let requirements_json = serde_json::to_string(&item.requirements).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize requirements: {}", e))
+        })?;
+
+        let requirement_status_json = serde_json::to_string(&item.requirement_status).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize requirement_status: {}", e))
+        })?;
+
+        let implementation_evidence_json = serde_json::to_string(&item.implementation_evidence).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize implementation_evidence: {}", e))
+        })?;
+
         // Convert timestamps to Unix epoch milliseconds
         let created_at = item.created_at.timestamp_millis();
         let started_at = item.started_at.map(|t| t.timestamp_millis());
@@ -2675,8 +2689,8 @@ impl StorageBackend for LibsqlStorage {
                 dependencies, created_at, started_at, completed_at, error, timeout_secs,
                 review_feedback, suggested_tests, review_attempt,
                 execution_memory_ids, consolidated_context_id, estimated_context_tokens,
-                assigned_branch, file_scope
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                assigned_branch, file_scope, requirements, requirement_status, implementation_evidence
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             params![
                 item.id.to_string(),
@@ -2700,6 +2714,9 @@ impl StorageBackend for LibsqlStorage {
                 item.estimated_context_tokens as i64,
                 item.assigned_branch.clone(),
                 file_scope_json,
+                requirements_json,
+                requirement_status_json,
+                implementation_evidence_json,
             ],
         )
         .await
@@ -2726,7 +2743,7 @@ impl StorageBackend for LibsqlStorage {
                        dependencies, created_at, started_at, completed_at, error, timeout_secs,
                        review_feedback, suggested_tests, review_attempt,
                        execution_memory_ids, consolidated_context_id, estimated_context_tokens,
-                       assigned_branch, file_scope
+                       assigned_branch, file_scope, requirements, requirement_status, implementation_evidence
                 FROM work_items
                 WHERE id = ?
                 "#,
@@ -2802,6 +2819,15 @@ impl StorageBackend for LibsqlStorage {
         let file_scope_json: String = row.get(20).map_err(|e| {
             MnemosyneError::Database(format!("Failed to get file_scope from row: {}", e))
         })?;
+        let requirements_json: String = row.get(21).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get requirements from row: {}", e))
+        })?;
+        let requirement_status_json: String = row.get(22).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get requirement_status from row: {}", e))
+        })?;
+        let implementation_evidence_json: String = row.get(23).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get implementation_evidence from row: {}", e))
+        })?;
 
         // Deserialize JSON fields
         let dependencies: Vec<crate::orchestration::state::WorkItemId> =
@@ -2830,6 +2856,25 @@ impl StorageBackend for LibsqlStorage {
         let file_scope: Option<Vec<std::path::PathBuf>> =
             serde_json::from_str(&file_scope_json).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to deserialize file_scope: {}", e))
+            })?;
+
+        let requirements: Vec<String> = serde_json::from_str(&requirements_json).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to deserialize requirements: {}", e))
+        })?;
+
+        let requirement_status: std::collections::HashMap<
+            String,
+            crate::orchestration::state::RequirementStatus,
+        > = serde_json::from_str(&requirement_status_json).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to deserialize requirement_status: {}", e))
+        })?;
+
+        let implementation_evidence: std::collections::HashMap<String, Vec<crate::types::MemoryId>> =
+            serde_json::from_str(&implementation_evidence_json).map_err(|e| {
+                MnemosyneError::Database(format!(
+                    "Failed to deserialize implementation_evidence: {}",
+                    e
+                ))
             })?;
 
         // Parse enums using string matching
@@ -2938,6 +2983,9 @@ impl StorageBackend for LibsqlStorage {
             execution_memory_ids,
             consolidated_context_id,
             estimated_context_tokens: estimated_context_tokens as usize,
+            requirements,
+            requirement_status,
+            implementation_evidence,
         };
 
         debug!("Work item loaded successfully: {:?}", id);
@@ -2975,6 +3023,23 @@ impl StorageBackend for LibsqlStorage {
             MnemosyneError::Database(format!("Failed to serialize file_scope: {}", e))
         })?;
 
+        let requirements_json = serde_json::to_string(&item.requirements).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize requirements: {}", e))
+        })?;
+
+        let requirement_status_json =
+            serde_json::to_string(&item.requirement_status).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to serialize requirement_status: {}", e))
+            })?;
+
+        let implementation_evidence_json =
+            serde_json::to_string(&item.implementation_evidence).map_err(|e| {
+                MnemosyneError::Database(format!(
+                    "Failed to serialize implementation_evidence: {}",
+                    e
+                ))
+            })?;
+
         // Convert timestamps to Unix epoch milliseconds
         let started_at = item.started_at.map(|t| t.timestamp_millis());
         let completed_at = item.completed_at.map(|t| t.timestamp_millis());
@@ -3011,7 +3076,10 @@ impl StorageBackend for LibsqlStorage {
                 consolidated_context_id = ?,
                 estimated_context_tokens = ?,
                 assigned_branch = ?,
-                file_scope = ?
+                file_scope = ?,
+                requirements = ?,
+                requirement_status = ?,
+                implementation_evidence = ?
             WHERE id = ?
             "#,
             params![
@@ -3034,6 +3102,9 @@ impl StorageBackend for LibsqlStorage {
                 item.estimated_context_tokens as i64,
                 item.assigned_branch.clone(),
                 file_scope_json,
+                requirements_json,
+                requirement_status_json,
+                implementation_evidence_json,
                 item.id.to_string(),
             ],
         )
@@ -3061,7 +3132,7 @@ impl StorageBackend for LibsqlStorage {
                        dependencies, created_at, started_at, completed_at, error, timeout_secs,
                        review_feedback, suggested_tests, review_attempt,
                        execution_memory_ids, consolidated_context_id, estimated_context_tokens,
-                       assigned_branch, file_scope
+                       assigned_branch, file_scope, requirements, requirement_status, implementation_evidence
                 FROM work_items
                 WHERE state = ?
                 ORDER BY priority DESC, created_at ASC
@@ -3110,6 +3181,9 @@ impl StorageBackend for LibsqlStorage {
             let estimated_context_tokens: i64 = row.get(18).unwrap();
             let assigned_branch: Option<String> = row.get(19).unwrap();
             let file_scope_json: String = row.get(20).unwrap();
+            let requirements_json: String = row.get(21).unwrap();
+            let requirement_status_json: String = row.get(22).unwrap();
+            let implementation_evidence_json: String = row.get(23).unwrap();
 
             // Deserialize JSON fields
             let dependencies: Vec<crate::orchestration::state::WorkItemId> =
@@ -3144,6 +3218,25 @@ impl StorageBackend for LibsqlStorage {
             let file_scope: Option<Vec<std::path::PathBuf>> =
                 serde_json::from_str(&file_scope_json).map_err(|e| {
                     MnemosyneError::Database(format!("Failed to deserialize file_scope: {}", e))
+                })?;
+
+            let requirements: Vec<String> = serde_json::from_str(&requirements_json).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to deserialize requirements: {}", e))
+            })?;
+
+            let requirement_status: std::collections::HashMap<
+                String,
+                crate::orchestration::state::RequirementStatus,
+            > = serde_json::from_str(&requirement_status_json).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to deserialize requirement_status: {}", e))
+            })?;
+
+            let implementation_evidence: std::collections::HashMap<String, Vec<crate::types::MemoryId>> =
+                serde_json::from_str(&implementation_evidence_json).map_err(|e| {
+                    MnemosyneError::Database(format!(
+                        "Failed to deserialize implementation_evidence: {}",
+                        e
+                    ))
                 })?;
 
             // Parse ID (WorkItemId wraps a UUID)
@@ -3263,6 +3356,9 @@ impl StorageBackend for LibsqlStorage {
                 execution_memory_ids,
                 consolidated_context_id,
                 estimated_context_tokens: estimated_context_tokens as usize,
+                requirements,
+                requirement_status,
+                implementation_evidence,
             };
 
             work_items.push(work_item);

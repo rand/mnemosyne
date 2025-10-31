@@ -379,9 +379,7 @@ impl TextBuffer {
         let mut col = self.cursor.position.column.min(chars.len());
 
         // Skip current position if at word boundary
-        if col > 0 {
-            col -= 1;
-        }
+        col = col.saturating_sub(1);
 
         // Skip whitespace
         while col > 0 && chars[col].is_whitespace() {

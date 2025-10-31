@@ -251,12 +251,47 @@ impl AgentEvent {
 pub struct EventPersistence {
     storage: Arc<dyn StorageBackend>,
     pub(crate) namespace: Namespace,
+    /// Optional event broadcaster for real-time API updates
+    event_broadcaster: Option<crate::api::EventBroadcaster>,
 }
 
 impl EventPersistence {
     /// Create a new event persistence layer
     pub fn new(storage: Arc<dyn StorageBackend>, namespace: Namespace) -> Self {
-        Self { storage, namespace }
+        Self::new_with_broadcaster(storage, namespace, None)
+    }
+
+    /// Create a new event persistence layer with event broadcasting
+    pub fn new_with_broadcaster(
+        storage: Arc<dyn StorageBackend>,
+        namespace: Namespace,
+        event_broadcaster: Option<crate::api::EventBroadcaster>,
+    ) -> Self {
+        Self {
+            storage,
+            namespace,
+            event_broadcaster,
+        }
+    }
+
+    /// Convert orchestration event to API event for real-time broadcasting
+    fn to_api_event(&self, event: &AgentEvent) -> Option<crate::api::Event> {
+        use crate::api::Event;
+
+        match event {
+            AgentEvent::WorkItemStarted { agent, .. } => {
+                Some(Event::agent_started(format!("{:?}", agent)))
+            }
+            AgentEvent::WorkItemCompleted { agent, .. } => {
+                Some(Event::agent_completed(format!("{:?}", agent), event.summary()))
+            }
+            AgentEvent::WorkItemFailed { agent, error, .. } => {
+                Some(Event::agent_failed(format!("{:?}", agent), error.clone()))
+            }
+            // Only broadcast high-priority events to API (work item lifecycle)
+            // Other events are persisted but not broadcast
+            _ => None,
+        }
     }
 
     /// Persist an event to Mnemosyne
@@ -296,6 +331,16 @@ impl EventPersistence {
         self.storage.store_memory(&memory).await?;
 
         tracing::debug!("Persisted event: {}", event.summary());
+
+        // Broadcast to API if broadcaster is available
+        if let Some(broadcaster) = &self.event_broadcaster {
+            if let Some(api_event) = self.to_api_event(&event) {
+                if let Err(e) = broadcaster.broadcast(api_event) {
+                    tracing::debug!("Failed to broadcast event to API: {}", e);
+                    // Don't fail persistence if broadcasting fails
+                }
+            }
+        }
 
         Ok(memory.id)
     }
@@ -501,5 +546,117 @@ mod tests {
 
         assert_eq!(state.completed_items.len(), 1);
         assert_eq!(state.completed_items[0], item_id);
+    }
+
+    #[tokio::test]
+    async fn test_event_to_api_event_mapping() {
+        // Create a broadcaster for testing
+        let broadcaster = crate::api::EventBroadcaster::new(10);
+
+        let storage = Arc::new(
+            LibsqlStorage::new(crate::ConnectionMode::InMemory)
+                .await
+                .expect("Failed to create in-memory storage")
+        );
+
+        let persistence = EventPersistence::new_with_broadcaster(
+            storage,
+            Namespace::Session {
+                project: "test".to_string(),
+                session_id: "test-mapping".to_string(),
+            },
+            Some(broadcaster.clone()),
+        );
+
+        // Test WorkItemStarted mapping
+        let event = AgentEvent::WorkItemStarted {
+            agent: AgentRole::Executor,
+            item_id: WorkItemId::new(),
+        };
+        let api_event = persistence.to_api_event(&event);
+        assert!(api_event.is_some());
+        if let Some(api_event) = api_event {
+            assert!(matches!(api_event.event_type, crate::api::EventType::AgentStarted { .. }));
+        }
+
+        // Test WorkItemCompleted mapping
+        let event = AgentEvent::WorkItemCompleted {
+            agent: AgentRole::Reviewer,
+            item_id: WorkItemId::new(),
+            duration_ms: 1000,
+            memory_ids: vec![],
+        };
+        let api_event = persistence.to_api_event(&event);
+        assert!(api_event.is_some());
+        if let Some(api_event) = api_event {
+            assert!(matches!(api_event.event_type, crate::api::EventType::AgentCompleted { .. }));
+        }
+
+        // Test WorkItemFailed mapping
+        let event = AgentEvent::WorkItemFailed {
+            agent: AgentRole::Optimizer,
+            item_id: WorkItemId::new(),
+            error: "Test error".to_string(),
+        };
+        let api_event = persistence.to_api_event(&event);
+        assert!(api_event.is_some());
+        if let Some(api_event) = api_event {
+            assert!(matches!(api_event.event_type, crate::api::EventType::AgentFailed { .. }));
+        }
+
+        // Test that other events are not mapped
+        let event = AgentEvent::PhaseTransition {
+            from: Phase::PromptToSpec,
+            to: Phase::SpecToFullSpec,
+            approved_by: AgentRole::Orchestrator,
+        };
+        let api_event = persistence.to_api_event(&event);
+        assert!(api_event.is_none()); // Phase transitions are not broadcast
+    }
+
+    #[tokio::test]
+    async fn test_event_broadcasting() {
+        // Create a broadcaster
+        let broadcaster = crate::api::EventBroadcaster::new(10);
+        let mut subscriber = broadcaster.subscribe();
+
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+
+        let storage = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true,
+            )
+            .await
+            .expect("Failed to create test storage"),
+        );
+
+        let persistence = EventPersistence::new_with_broadcaster(
+            storage.clone(),
+            Namespace::Session {
+                project: "test".to_string(),
+                session_id: "test-broadcast".to_string(),
+            },
+            Some(broadcaster.clone()),
+        );
+
+        // Persist an event that should be broadcast
+        let event = AgentEvent::WorkItemStarted {
+            agent: AgentRole::Executor,
+            item_id: WorkItemId::new(),
+        };
+
+        persistence.persist(event).await.unwrap();
+
+        // Check that the event was broadcast
+        let api_event = tokio::time::timeout(
+            tokio::time::Duration::from_millis(100),
+            subscriber.recv()
+        ).await;
+
+        assert!(api_event.is_ok(), "Event should have been broadcast");
+        let api_event = api_event.unwrap().unwrap();
+        assert!(matches!(api_event.event_type, crate::api::EventType::AgentStarted { .. }));
     }
 }

@@ -6,11 +6,13 @@ use anyhow::{Context as AnyhowContext, Result};
 use automerge::{transaction::Transactable, AutoCommit, ObjType, ReadDoc};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fs;
 use std::path::PathBuf;
 
 use super::{CursorState, Language, Movement};
+use crate::ics::semantic_highlighter::SemanticHighlightEngine;
 
 /// Buffer identifier
 pub type BufferId = usize;
@@ -103,6 +105,10 @@ pub struct CrdtBuffer {
     /// Limited to 100 snapshots to manage memory usage
     undo_stack: VecDeque<Vec<u8>>,
     redo_stack: VecDeque<Vec<u8>>,
+
+    /// Semantic highlighting engine (optional, enabled per buffer)
+    /// Wrapped in RefCell to allow interior mutability for highlight_line calls
+    pub semantic_engine: Option<RefCell<SemanticHighlightEngine>>,
 }
 
 impl CrdtBuffer {
@@ -121,6 +127,9 @@ impl CrdtBuffer {
             .and_then(|p| Language::from_path(p))
             .unwrap_or(Language::PlainText);
 
+        // Initialize semantic engine (Tier 1 and Tier 2 enabled by default, no LLM)
+        let semantic_engine = Some(RefCell::new(SemanticHighlightEngine::new(None)));
+
         Ok(Self {
             id,
             doc,
@@ -133,6 +142,7 @@ impl CrdtBuffer {
             attributions: Vec::new(),
             undo_stack: VecDeque::new(),
             redo_stack: VecDeque::new(),
+            semantic_engine,
         })
     }
 
@@ -182,6 +192,15 @@ impl CrdtBuffer {
             range: (pos, pos + text.len()),
         });
 
+        // Schedule semantic analysis for changed region
+        if self.semantic_engine.is_some() {
+            let full_text = self.text()?;
+            let range = pos..pos + text.len();
+            if let Some(ref engine_cell) = self.semantic_engine {
+                engine_cell.borrow_mut().schedule_analysis(&full_text, range);
+            }
+        }
+
         Ok(())
     }
 
@@ -221,6 +240,17 @@ impl CrdtBuffer {
             if start > pos {
                 attr.range.0 = start.saturating_sub(delete_len);
                 attr.range.1 = end.saturating_sub(delete_len);
+            }
+        }
+
+        // Schedule semantic analysis for affected region
+        if self.semantic_engine.is_some() {
+            let full_text = self.text()?;
+            // Expand range slightly to catch context changes
+            let context_start = pos.saturating_sub(50);
+            let context_end = (pos + 50).min(full_text.len());
+            if let Some(ref engine_cell) = self.semantic_engine {
+                engine_cell.borrow_mut().schedule_analysis(&full_text, context_start..context_end);
             }
         }
 

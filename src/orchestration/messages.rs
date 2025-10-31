@@ -16,6 +16,12 @@ use std::time::Duration;
 #[cfg(feature = "distributed")]
 use ractor_cluster::RactorMessage;
 
+#[cfg(feature = "python")]
+use pyo3::PyObject;
+
+#[cfg(feature = "python")]
+use std::sync::Arc as StdArc;
+
 /// Messages for the Orchestrator agent
 #[cfg_attr(feature = "distributed", derive(RactorMessage))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,6 +138,18 @@ pub struct ReviewFeedback {
 
     /// Execution context memory IDs
     pub execution_context: Vec<MemoryId>,
+
+    /// LLM-generated improvement guidance for retry (if review failed)
+    pub improvement_guidance: Option<String>,
+
+    /// Extracted requirements (if not already present in work item)
+    pub extracted_requirements: Vec<String>,
+
+    /// Requirements identified as unsatisfied during review
+    pub unsatisfied_requirements: Vec<String>,
+
+    /// Requirements identified as satisfied with evidence
+    pub satisfied_requirements: std::collections::HashMap<String, Vec<MemoryId>>,
 }
 
 /// Messages for the Reviewer agent
@@ -144,6 +162,13 @@ pub enum ReviewerMessage {
     /// Register orchestrator reference for communication
     #[serde(skip)]
     RegisterOrchestrator(ractor::ActorRef<OrchestratorMessage>),
+
+    /// Register Python reviewer for LLM validation (feature-gated)
+    #[cfg(feature = "python")]
+    #[serde(skip)]
+    RegisterPythonReviewer {
+        py_reviewer: StdArc<PyObject>,
+    },
 
     /// Review work item results (with full work item for context)
     ReviewWork {

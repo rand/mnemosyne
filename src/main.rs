@@ -15,7 +15,7 @@ use mnemosyne_core::{
 use mnemosyne_core::services::embeddings::EmbeddingService;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{debug, warn, Level};
+use tracing::{debug, info, warn, Level};
 use tracing_subscriber::{self, EnvFilter};
 
 /// Get the default database path using XDG_DATA_HOME standard
@@ -205,6 +205,86 @@ async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
     Ok(())
 }
 
+async fn start_mcp_server_with_api(
+    db_path_arg: Option<String>,
+    api_addr: String,
+    api_capacity: usize,
+) -> Result<()> {
+    use mnemosyne_core::api::{ApiServer, ApiServerConfig};
+    use std::net::SocketAddr;
+
+    debug!("Starting MCP server with API monitoring...");
+
+    // Initialize configuration
+    let _config_manager = ConfigManager::new()?;
+
+    // Initialize storage
+    let db_path = get_db_path(db_path_arg);
+    debug!("Using database: {}", db_path);
+
+    if let Some(parent) = PathBuf::from(&db_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?;
+
+    // Initialize LLM service
+    let llm = match LlmService::with_default() {
+        Ok(service) => Arc::new(service),
+        Err(_) => Arc::new(LlmService::new(LlmConfig {
+            api_key: String::new(),
+            model: "claude-3-5-haiku-20241022".to_string(),
+            max_tokens: 1024,
+            temperature: 0.7,
+        })?),
+    };
+
+    // Initialize embedding service
+    let embeddings = {
+        let config = LlmConfig::default();
+        Arc::new(EmbeddingService::new(config.api_key.clone(), config))
+    };
+
+    // Parse API server address
+    let socket_addr: SocketAddr = api_addr
+        .parse()
+        .map_err(|e| anyhow::anyhow!("Invalid API address '{}': {}", api_addr, e))?;
+
+    // Create API server
+    let api_config = ApiServerConfig {
+        addr: socket_addr,
+        event_capacity: api_capacity,
+    };
+    let api_server = ApiServer::new(api_config);
+    let event_broadcaster = api_server.broadcaster().clone();
+
+    info!("API server will be available at http://{}", socket_addr);
+    info!("Dashboard: mnemosyne-dash --api http://{}", socket_addr);
+
+    // Initialize tool handler with event broadcasting
+    let tool_handler = ToolHandler::new_with_events(
+        Arc::new(storage),
+        llm,
+        embeddings,
+        Some(event_broadcaster),
+    );
+
+    // Create MCP server
+    let mcp_server = McpServer::new(tool_handler);
+
+    // Run both servers concurrently
+    tokio::select! {
+        result = mcp_server.run() => {
+            result?;
+        }
+        result = api_server.serve() => {
+            result?;
+        }
+    }
+
+    Ok(())
+}
+
 #[derive(Parser)]
 #[command(name = "mnemosyne")]
 #[command(about = "Project-aware agentic memory system for Claude Code", long_about = None)]
@@ -229,7 +309,30 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Start MCP server (stdio mode)
-    Serve,
+    Serve {
+        /// Also start HTTP API server for monitoring
+        #[arg(long)]
+        with_api: bool,
+
+        /// API server address (when --with-api is enabled)
+        #[arg(long, default_value = "127.0.0.1:3000")]
+        api_addr: String,
+
+        /// API event channel capacity
+        #[arg(long, default_value = "1000")]
+        api_capacity: usize,
+    },
+
+    /// Start HTTP API server for event streaming and state coordination
+    ApiServer {
+        /// Server address
+        #[arg(long, default_value = "127.0.0.1:3000")]
+        addr: String,
+
+        /// Event channel capacity
+        #[arg(long, default_value = "1000")]
+        capacity: usize,
+    },
 
     /// Initialize database
     Init {
@@ -542,7 +645,58 @@ async fn main() -> Result<()> {
     }
 
     match cli.command {
-        Some(Commands::Serve) => start_mcp_server(cli.db_path).await,
+        Some(Commands::Serve {
+            with_api,
+            api_addr,
+            api_capacity,
+        }) => {
+            if with_api {
+                // Start both MCP server and API server
+                start_mcp_server_with_api(cli.db_path, api_addr, api_capacity).await
+            } else {
+                // Start MCP server only
+                start_mcp_server(cli.db_path).await
+            }
+        }
+        Some(Commands::ApiServer { addr, capacity }) => {
+            use mnemosyne_core::api::{ApiServer, ApiServerConfig};
+            use std::net::SocketAddr;
+
+            debug!("Starting HTTP API server...");
+
+            let socket_addr: SocketAddr = addr
+                .parse()
+                .map_err(|e| anyhow::anyhow!("Invalid address '{}': {}", addr, e))?;
+            let config = ApiServerConfig {
+                addr: socket_addr,
+                event_capacity: capacity,
+            };
+
+            println!();
+            println!("🌐 Mnemosyne API Server");
+            println!("   Real-time event streaming and state coordination");
+            println!();
+            println!("   Address: http://{}", socket_addr);
+            println!("   Event capacity: {}", capacity);
+            println!();
+            println!("   Endpoints:");
+            println!("   • GET  /events - Server-Sent Events stream");
+            println!("   • GET  /state/agents - List active agents");
+            println!("   • POST /state/agents - Update agent state");
+            println!("   • GET  /state/context-files - List context files");
+            println!("   • POST /state/context-files - Update context file");
+            println!("   • GET  /state/stats - System statistics");
+            println!("   • GET  /health - Health check");
+            println!();
+            println!("   Dashboard:");
+            println!("   mnemosyne-dash --api http://{}", socket_addr);
+            println!();
+
+            let server = ApiServer::new(config);
+            server.serve().await?;
+
+            Ok(())
+        }
         Some(Commands::Init { database }) => {
             debug!("Initializing database...");
 
@@ -827,60 +981,41 @@ async fn main() -> Result<()> {
 
             Ok(())
         }
-        Some(Commands::Tui { with_ics, no_dashboard }) => {
-            use mnemosyne_core::pty::{ClaudeCodeWrapper, PtyConfig};
-            use mnemosyne_core::tui::TuiApp;
+        Some(Commands::Tui { with_ics: _, no_dashboard: _ }) => {
+            // TUI wrapper mode is deprecated due to TUI-in-TUI conflicts
+            eprintln!();
+            eprintln!("⚠️  DEPRECATED: 'mnemosyne tui' is no longer supported");
+            eprintln!();
+            eprintln!("   The PTY wrapper mode has been removed due to terminal conflicts");
+            eprintln!("   when wrapping Claude Code's TUI interface.");
+            eprintln!();
+            eprintln!("   📚 New Architecture: Composable Tools");
+            eprintln!();
+            eprintln!("   Instead of wrapping Claude Code, Mnemosyne now provides");
+            eprintln!("   standalone tools that work alongside it:");
+            eprintln!();
+            eprintln!("   1️⃣  Edit Context:");
+            eprintln!("      mnemosyne-ics context.md");
+            eprintln!("      (Full-featured context editor with semantic highlighting)");
+            eprintln!();
+            eprintln!("   2️⃣  Chat with Claude:");
+            eprintln!("      claude");
+            eprintln!("      (Memory integration happens automatically via MCP)");
+            eprintln!();
+            eprintln!("   3️⃣  Monitor Activity:");
+            eprintln!("      mnemosyne dash");
+            eprintln!("      (Real-time dashboard - coming soon)");
+            eprintln!();
+            eprintln!("   💡 Tip: Use tmux/screen to see all tools at once:");
+            eprintln!("      tmux split-window -h 'mnemosyne-ics context.md'");
+            eprintln!("      tmux split-window -v 'mnemosyne dash'");
+            eprintln!("      claude");
+            eprintln!();
+            eprintln!("   📖 Migration Guide:");
+            eprintln!("      https://github.com/rand/mnemosyne/blob/main/docs/MIGRATION.md");
+            eprintln!();
 
-            debug!("Launching TUI wrapper mode...");
-
-            // Show TUI launch header
-            println!("\n🖥️  Mnemosyne TUI Mode");
-            println!("   Enhanced Claude Code interface\n");
-            println!("   Features:");
-            println!("   • Command Palette (Ctrl+P)");
-            println!("   • ICS Editor (Ctrl+E)");
-            if !no_dashboard {
-                println!("   • Agent Dashboard (Ctrl+D)");
-            }
-            println!();
-
-            // Initialize storage
-            let db_path = get_db_path(cli.db_path.clone());
-            debug!("Using database: {}", db_path);
-
-            // Ensure parent directory exists
-            if let Some(parent) = PathBuf::from(&db_path).parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-
-            let storage =
-                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true).await?;
-            let _storage_arc: Arc<dyn StorageBackend> = Arc::new(storage);
-
-            // Create PTY wrapper for Claude Code
-            let pty_config = PtyConfig::default();
-            let wrapper = ClaudeCodeWrapper::new(pty_config)?;
-
-            // Create TUI app
-            let app = TuiApp::new()?
-                .with_wrapper(wrapper);
-
-            // TODO: Add with_storage method to TuiApp when needed
-            // TODO: Add show_ics_on_start if with_ics flag is set
-            // TODO: Add hide_dashboard if no_dashboard flag is set
-
-            if with_ics {
-                debug!("Starting with ICS panel visible");
-            }
-
-            if no_dashboard {
-                debug!("Dashboard disabled");
-            }
-
-            // Run TUI
-            app.run().await?;
-
-            Ok(())
+            std::process::exit(1);
         }
         Some(Commands::Config { action }) => {
             let config_manager = ConfigManager::new()?;
@@ -1133,7 +1268,7 @@ async fn main() -> Result<()> {
             println!("🚀 Starting orchestration engine...");
             println!();
 
-            launcher::launch_orchestrated_session(Some(db_path), Some(plan)).await?;
+            launcher::launch_orchestrated_session(Some(db_path), Some(plan), None).await?;
 
             println!();
             println!("✨ Orchestration session complete");
@@ -1901,7 +2036,7 @@ async fn main() -> Result<()> {
             progress.show_loading_message();
 
             // Launch orchestrated session
-            let result = launcher::launch_orchestrated_session(Some(db_path), None).await;
+            let result = launcher::launch_orchestrated_session(Some(db_path), None, None).await;
 
             // Show completion or error
             if result.is_ok() {

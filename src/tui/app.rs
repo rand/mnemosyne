@@ -404,36 +404,30 @@ impl TuiApp {
         match result {
             DialogResult::Confirmed => {
                 // Handle confirm-only dialogs (submit)
-                match &self.pending_dialog_action {
-                    PendingDialogAction::SubmitToClaude => {
-                        let content = self.ics_panel.get_content();
-                        if let Some(wrapper) = &self.wrapper {
-                            wrapper.send_input(content.as_bytes()).await?;
-                            tracing::info!("ICS: Content submitted to Claude Code");
-                        } else {
-                            tracing::warn!("ICS: No PTY wrapper available for submit");
-                        }
+                if let PendingDialogAction::SubmitToClaude = &self.pending_dialog_action {
+                    let content = self.ics_panel.get_content();
+                    if let Some(wrapper) = &self.wrapper {
+                        wrapper.send_input(content.as_bytes()).await?;
+                        tracing::info!("ICS: Content submitted to Claude Code");
+                    } else {
+                        tracing::warn!("ICS: No PTY wrapper available for submit");
                     }
-                    _ => {}
                 }
             }
             DialogResult::ConfirmedWithInput(input) => {
                 // Handle input dialogs (save file)
-                match &self.pending_dialog_action {
-                    PendingDialogAction::SaveFile => {
-                        let content = self.ics_panel.get_content();
-                        match std::fs::write(&input, &content) {
-                            Ok(_) => {
-                                tracing::info!("ICS: File saved to {}", input);
-                                // TODO: Show success notification
-                            }
-                            Err(e) => {
-                                tracing::error!("ICS: Failed to save file: {}", e);
-                                // TODO: Show error dialog
-                            }
+                if let PendingDialogAction::SaveFile = &self.pending_dialog_action {
+                    let content = self.ics_panel.get_content();
+                    match std::fs::write(&input, &content) {
+                        Ok(_) => {
+                            tracing::info!("ICS: File saved to {}", input);
+                            // TODO: Show success notification
+                        }
+                        Err(e) => {
+                            tracing::error!("ICS: Failed to save file: {}", e);
+                            // TODO: Show error dialog
                         }
                     }
-                    _ => {}
                 }
             }
             DialogResult::Cancelled => {

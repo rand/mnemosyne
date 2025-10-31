@@ -488,3 +488,471 @@ Be thorough but constructive. Focus on real issues.""")
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.stop_session()
+
+    # ============================================================================
+    # LLM-Based Semantic Validation Methods
+    # ============================================================================
+
+    async def semantic_intent_check(
+        self,
+        original_intent: str,
+        implementation_content: str,
+        execution_memories: List[Dict[str, Any]]
+    ) -> tuple[bool, List[str]]:
+        """
+        Use Claude to deeply compare implementation against original intent.
+
+        Args:
+            original_intent: Original work requirement/specification
+            implementation_content: Code/documentation that was produced
+            execution_memories: Memories from execution for context
+
+        Returns:
+            Tuple of (passed, issues) where issues lists missing requirements
+        """
+        if not self._session_active:
+            await self.start_session()
+
+        # Build semantic validation prompt
+        memories_summary = "\n".join([
+            f"- {m.get('summary', m.get('content', '')[:100])}"
+            for m in execution_memories[:10]  # Limit to 10 for context
+        ])
+
+        prompt = f"""# Semantic Intent Validation
+
+**Original Intent/Requirements:**
+{original_intent}
+
+**Implementation Summary:**
+{implementation_content[:2000]}  # Limit for context
+
+**Execution Context (Recent Memories):**
+{memories_summary}
+
+## Task
+Perform deep semantic analysis to determine if the implementation FULLY satisfies the original intent.
+
+## Analysis Required
+1. **Requirement Extraction**: List ALL requirements from the original intent
+2. **Implementation Coverage**: For each requirement, determine if it's implemented
+3. **Gap Analysis**: Identify any requirements that are missing or partially implemented
+4. **Evidence**: For missing/partial requirements, explain what's missing
+
+## Output Format
+Provide your analysis in this format:
+
+REQUIREMENTS ANALYSIS:
+- [Requirement 1]: SATISFIED / PARTIAL / MISSING - [evidence/explanation]
+- [Requirement 2]: SATISFIED / PARTIAL / MISSING - [evidence/explanation]
+...
+
+VERDICT: PASS / FAIL
+
+ISSUES (if FAIL):
+- [Specific issue 1]
+- [Specific issue 2]
+...
+
+Be strict: FAIL if ANY requirement is MISSING or PARTIAL."""
+
+        # Query Claude
+        await self.claude_client.query(prompt)
+
+        # Collect response
+        responses = []
+        async for message in self.claude_client.receive_response():
+            responses.append(str(message))
+
+        full_response = " ".join(responses)
+
+        # Parse verdict and issues
+        passed = "VERDICT: PASS" in full_response
+        issues = []
+
+        if not passed:
+            # Extract issues section
+            if "ISSUES" in full_response:
+                issues_section = full_response.split("ISSUES")[1].split("\n\n")[0]
+                issues = [
+                    line.strip("- ").strip()
+                    for line in issues_section.split("\n")
+                    if line.strip().startswith("-")
+                ]
+
+        return (passed, issues)
+
+    async def semantic_completeness_check(
+        self,
+        requirements: List[str],
+        implementation_content: str,
+        execution_memories: List[Dict[str, Any]]
+    ) -> tuple[bool, List[str]]:
+        """
+        Use Claude to validate all requirements are fully implemented (not stubbed/partial).
+
+        Args:
+            requirements: List of explicit requirements to validate
+            implementation_content: Implementation to check
+            execution_memories: Context from execution
+
+        Returns:
+            Tuple of (passed, missing_requirements)
+        """
+        if not self._session_active:
+            await self.start_session()
+
+        reqs_list = "\n".join([f"{i+1}. {req}" for i, req in enumerate(requirements)])
+        memories_summary = "\n".join([
+            f"- {m.get('summary', m.get('content', '')[:100])}"
+            for m in execution_memories[:10]
+        ])
+
+        prompt = f"""# Semantic Completeness Validation
+
+**Requirements to Validate:**
+{reqs_list}
+
+**Implementation:**
+{implementation_content[:2000]}
+
+**Execution Context:**
+{memories_summary}
+
+## Task
+Determine if EVERY requirement is FULLY implemented with substantive code/content.
+
+## What Constitutes "Complete"
+- ✅ Real implementation with logic and functionality
+- ✅ Tests present and passing
+- ✅ Documentation explaining the implementation
+- ✅ Edge cases handled
+- ❌ TODO/FIXME markers
+- ❌ Stub/mock/placeholder functions
+- ❌ Empty implementations
+- ❌ Comments saying "implement this later"
+- ❌ Partial implementations
+
+## Output Format
+For each requirement, assess completeness:
+
+REQUIREMENT 1: [requirement text]
+STATUS: COMPLETE / INCOMPLETE / PARTIAL
+EVIDENCE: [what was found or what's missing]
+
+...
+
+VERDICT: PASS / FAIL
+
+MISSING/PARTIAL REQUIREMENTS:
+- [Requirement X]: [what's missing/partial]
+...
+
+Be strict: FAIL if ANY requirement is not COMPLETE."""
+
+        await self.claude_client.query(prompt)
+
+        responses = []
+        async for message in self.claude_client.receive_response():
+            responses.append(str(message))
+
+        full_response = " ".join(responses)
+
+        passed = "VERDICT: PASS" in full_response
+        missing = []
+
+        if not passed and "MISSING/PARTIAL REQUIREMENTS" in full_response:
+            missing_section = full_response.split("MISSING/PARTIAL REQUIREMENTS")[1].split("\n\n")[0]
+            missing = [
+                line.strip("- ").strip()
+                for line in missing_section.split("\n")
+                if line.strip().startswith("-")
+            ]
+
+        return (passed, missing)
+
+    async def semantic_correctness_check(
+        self,
+        implementation_content: str,
+        test_results: Dict[str, Any],
+        execution_memories: List[Dict[str, Any]]
+    ) -> tuple[bool, List[str]]:
+        """
+        Use Claude to analyze logic correctness, edge case handling, and error handling.
+
+        Args:
+            implementation_content: Code/implementation to validate
+            test_results: Test execution results (if available)
+            execution_memories: Execution context
+
+        Returns:
+            Tuple of (passed, logic_issues)
+        """
+        if not self._session_active:
+            await self.start_session()
+
+        test_summary = "No test results available"
+        if test_results:
+            passed_tests = test_results.get("passed", 0)
+            failed_tests = test_results.get("failed", 0)
+            test_summary = f"Tests: {passed_tests} passed, {failed_tests} failed"
+
+        memories_summary = "\n".join([
+            f"- {m.get('summary', m.get('content', '')[:100])}"
+            for m in execution_memories[:10]
+        ])
+
+        prompt = f"""# Semantic Correctness Validation
+
+**Implementation:**
+{implementation_content[:2000]}
+
+**Test Results:**
+{test_summary}
+
+**Execution Context:**
+{memories_summary}
+
+## Task
+Analyze the implementation for correctness, focusing on:
+1. **Logic Correctness**: Is the logic sound and bug-free?
+2. **Edge Case Handling**: Are edge cases properly handled?
+3. **Error Handling**: Are errors handled appropriately?
+4. **Type Safety**: Are types used correctly (if applicable)?
+5. **Race Conditions**: Are there potential concurrency issues?
+6. **Resource Management**: Are resources properly managed (memory, files, connections)?
+
+## What Constitutes "Correct"
+- ✅ Logic matches expected behavior
+- ✅ Edge cases (null, empty, boundary values) handled
+- ✅ Errors handled with appropriate recovery
+- ✅ No obvious bugs or logic errors
+- ✅ Tests validate critical paths
+- ❌ Logic bugs or incorrect behavior
+- ❌ Unhandled edge cases
+- ❌ Missing error handling
+- ❌ Potential crashes or panics
+- ❌ Data corruption risks
+
+## Output Format
+LOGIC ANALYSIS:
+- [Finding 1]: OK / ISSUE - [explanation]
+- [Finding 2]: OK / ISSUE - [explanation]
+...
+
+EDGE CASE ANALYSIS:
+- [Case 1]: HANDLED / MISSING - [explanation]
+...
+
+ERROR HANDLING ANALYSIS:
+- [Scenario 1]: HANDLED / MISSING - [explanation]
+...
+
+VERDICT: PASS / FAIL
+
+ISSUES (if FAIL):
+- [Specific issue 1]
+- [Specific issue 2]
+...
+
+Be thorough: FAIL if logic issues, unhandled edges, or missing error handling."""
+
+        await self.claude_client.query(prompt)
+
+        responses = []
+        async for message in self.claude_client.receive_response():
+            responses.append(str(message))
+
+        full_response = " ".join(responses)
+
+        passed = "VERDICT: PASS" in full_response
+        issues = []
+
+        if not passed and "ISSUES" in full_response:
+            issues_section = full_response.split("ISSUES")[1].split("\n\n")[0]
+            issues = [
+                line.strip("- ").strip()
+                for line in issues_section.split("\n")
+                if line.strip().startswith("-")
+            ]
+
+        return (passed, issues)
+
+    async def generate_improvement_guidance(
+        self,
+        failed_gates: Dict[str, bool],
+        issues: List[str],
+        original_intent: str,
+        execution_memories: List[Dict[str, Any]]
+    ) -> str:
+        """
+        Use Claude to generate detailed, actionable guidance for retry after review failure.
+
+        Args:
+            failed_gates: Dict of gate names to pass/fail status
+            issues: List of all issues identified
+            original_intent: Original work requirements
+            execution_memories: Previous execution context
+
+        Returns:
+            Consolidated improvement plan with step-by-step guidance
+        """
+        if not self._session_active:
+            await self.start_session()
+
+        failed_gate_names = [name for name, passed in failed_gates.items() if not passed]
+        issues_list = "\n".join([f"- {issue}" for issue in issues])
+        memories_summary = "\n".join([
+            f"- {m.get('summary', m.get('content', '')[:100])}"
+            for m in execution_memories[:10]
+        ])
+
+        prompt = f"""# Generate Improvement Guidance for Review Failure
+
+**Original Intent:**
+{original_intent}
+
+**Failed Quality Gates:**
+{', '.join(failed_gate_names)}
+
+**Issues Identified:**
+{issues_list}
+
+**Previous Attempt Context:**
+{memories_summary}
+
+## Task
+Generate a detailed, actionable improvement plan to fix ALL issues and pass review on next attempt.
+
+## Guidance Should Include
+1. **Root Cause Analysis**: Why did the work fail review?
+2. **Specific Fixes**: For each issue, what needs to be done?
+3. **Step-by-Step Plan**: Ordered steps to implement fixes
+4. **Validation Criteria**: How to verify each fix works
+5. **Testing Guidance**: What tests to add/update
+6. **Documentation Needs**: What docs to add/improve
+
+## Output Format
+# Improvement Plan
+
+## Root Cause
+[Analysis of why review failed]
+
+## Required Fixes
+
+### Fix 1: [Issue summary]
+**Problem:** [What's wrong]
+**Solution:** [What to do]
+**Validation:** [How to verify it's fixed]
+
+### Fix 2: [Issue summary]
+...
+
+## Implementation Steps
+1. [First step - most critical]
+2. [Second step]
+...
+
+## Testing Checklist
+- [ ] [Test to add/verify]
+- [ ] [Another test]
+...
+
+## Documentation Updates
+- [What documentation to add/update]
+
+## Success Criteria
+When you've completed these fixes:
+- [Criterion 1]
+- [Criterion 2]
+...
+
+Be specific and actionable. Focus on WHAT to fix and HOW to fix it."""
+
+        await self.claude_client.query(prompt)
+
+        responses = []
+        async for message in self.claude_client.receive_response():
+            responses.append(str(message))
+
+        return " ".join(responses)
+
+    async def extract_requirements_from_intent(
+        self,
+        original_intent: str,
+        context: Optional[str] = None
+    ) -> List[str]:
+        """
+        Extract explicit, testable requirements from user intent using Claude.
+
+        This method analyzes the original intent string and extracts a list of
+        concrete, actionable requirements that can be individually tracked and validated.
+
+        Args:
+            original_intent: The original user request/intent
+            context: Optional additional context (e.g., project background)
+
+        Returns:
+            List of requirement strings, each being specific and testable
+
+        Example:
+            intent = "Add JWT authentication with refresh tokens"
+            requirements = await extract_requirements_from_intent(intent)
+            # Returns: [
+            #   "Implement JWT token generation",
+            #   "Implement refresh token rotation",
+            #   "Add token validation middleware",
+            #   "Handle token expiration errors"
+            # ]
+        """
+        prompt = f"""Analyze the following user intent and extract explicit, testable requirements.
+
+# User Intent
+{original_intent}
+
+{f"# Additional Context\\n{context}\\n" if context else ""}
+
+# Task
+Extract a list of concrete, actionable requirements from this intent. Each requirement should be:
+1. **Specific**: Clearly define what needs to be done
+2. **Testable**: Can be verified through testing or inspection
+3. **Atomic**: Represents a single, focused piece of work
+4. **Implementation-oriented**: Focuses on what to build, not how
+
+# Requirements Format
+Return ONLY a JSON array of requirement strings, with no additional commentary.
+
+Example format:
+["Requirement 1", "Requirement 2", "Requirement 3"]
+
+# Guidelines
+- Break down high-level goals into concrete implementation tasks
+- Include both functional requirements (features) and non-functional requirements (error handling, edge cases)
+- Focus on observable, verifiable outcomes
+- Keep each requirement concise (1-2 sentences max)
+- Aim for 3-8 requirements for typical tasks
+
+Extract the requirements now, returning ONLY the JSON array:"""
+
+        await self.claude_client.query(prompt)
+
+        responses = []
+        async for message in self.claude_client.receive_response():
+            responses.append(str(message))
+
+        response_text = " ".join(responses)
+
+        # Parse JSON response
+        try:
+            # Extract JSON array from response (handle potential markdown formatting)
+            import re
+            json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
+            if json_match:
+                requirements = json.loads(json_match.group())
+                return requirements
+            else:
+                # Fallback: return empty list if no valid JSON found
+                return []
+        except json.JSONDecodeError:
+            # Fallback: return empty list if JSON parsing fails
+            return []

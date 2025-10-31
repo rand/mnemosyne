@@ -48,6 +48,7 @@ impl PyFeedbackCollector {
     ///
     /// Returns:
     ///     Evaluation ID for tracking
+    #[pyo3(signature = (session_id, agent_role, namespace, context_type, context_id, task_hash, task_keywords=None, task_type=None, work_phase=None, file_types=None, error_context=None, related_technologies=None))]
     fn record_context_provided(
         &self,
         session_id: String,
@@ -226,6 +227,7 @@ impl PyRelevanceScorer {
     ///
     /// Returns:
     ///     Dictionary of feature weights
+    #[pyo3(signature = (scope, _scope_id, _context_type, _agent_role, _work_phase=None, _task_type=None, _error_context=None))]
     fn get_weights(
         &self,
         scope: String,
