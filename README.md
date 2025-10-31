@@ -39,11 +39,19 @@ Mnemosyne provides persistent semantic memory with sub-millisecond retrieval, bu
 ### Interactive Collaborative Space (ICS)
 - **CRDT Editing**: Automerge-based collaborative text editor
 - **Syntax Highlighting**: Tree-sitter 0.23 based highlighting for 13 languages (Rust, Python, Go, TypeScript, JavaScript, JSON, TOML, YAML, Markdown, Bash, C, C++, Zig)
-- **Semantic Highlighting**: Type information, scopes, error overlays
+- **Semantic Highlighting**: Type information, scopes, error overlays with ICS patterns (`#file`, `@symbol`, `?hole`)
+- **Hybrid Highlighting**: Combines tree-sitter syntax with semantic pattern detection (3-layer priority system)
 - **Vim Mode**: Complete vi/vim keybindings with modal editing (14 movement commands: w/b/e, f/F/t/T, PageUp/Down, gg/G)
 - **Panels**: Memory browser, agent status, attribution, diagnostics
 - **Semantic Analysis**: Real-time triple extraction, typed hole detection, dependency graphs
 - **Undo/Redo**: Transaction-based history with Automerge
+
+### TUI Wrapper Mode (Enhanced Interface)
+- **Command Palette**: Helix-style fuzzy command selector with type-ahead filtering
+- **Context-Aware Help**: Modal help overlay (?) with mode-specific shortcuts
+- **Status Bar**: Dynamic action hints based on current mode (ICS/Chat)
+- **Layout**: Split view with chat, ICS editor, and agent dashboard
+- **Keyboard-First**: Complete keyboard navigation with discoverable shortcuts
 
 ---
 
@@ -137,6 +145,22 @@ mnemosyne ics path/to/file.rs
 
 # Collaborative editing with CRDT sync
 mnemosyne ics --collaborate path/to/shared/document.md
+```
+
+**TUI Wrapper Mode** (Enhanced Interface):
+```bash
+# Launch TUI with command palette, ICS editor, and agent dashboard
+mnemosyne tui
+
+# Start with ICS panel visible
+mnemosyne tui --with-ics
+
+# Features:
+# - Helix-style command palette (Ctrl+P)
+# - ICS editor with markdown highlighting (Ctrl+E)
+# - Real-time agent dashboard (Ctrl+D)
+# - Context-aware help overlay (?)
+# - Pattern highlighting: #file.rs @symbol ?hole
 ```
 
 **Orchestration** (Python agents):
@@ -242,6 +266,37 @@ mnemosyne ics [OPTIONS] [FILE]
   --collaborate         Enable CRDT collaborative mode
   --vim-mode            Enable vim keybindings (default: on)
   --theme <THEME>       Color theme (dark|light)
+```
+
+### TUI (Terminal User Interface)
+```bash
+# Launch enhanced TUI wrapper mode
+mnemosyne tui [OPTIONS]
+  --with-ics            Start with ICS panel visible
+  --no-dashboard        Disable agent dashboard
+
+# TUI Features:
+# • Command Palette (Ctrl+P): Helix-style fuzzy command selector
+# • ICS Editor (Ctrl+E): Integrated Context Studio with highlighting
+# • Agent Dashboard (Ctrl+D): Real-time agent status and work queue
+# • Help Overlay (?): Context-aware keyboard shortcuts
+# • Status Bar: Dynamic action hints based on current mode
+
+# Keyboard Shortcuts:
+# General Navigation:
+#   Ctrl+P          Open command palette
+#   Ctrl+E          Toggle ICS panel
+#   Ctrl+D          Toggle dashboard
+#   Ctrl+Q          Quit application
+#   ?               Show help overlay
+
+# ICS Mode:
+#   Ctrl+Enter      Submit refined context to Claude
+#   Ctrl+S          Save edited document
+#   Pattern syntax:
+#     #file.rs      File reference (blue, bold)
+#     @symbol       Symbol reference (green, bold)
+#     ?interface    Typed hole (yellow, bold)
 ```
 
 ### Configuration
@@ -407,7 +462,8 @@ See LICENSE file for details.
 - ✅ Evolution system (consolidation, importance, archival)
 - ✅ Evaluation system (privacy-preserving online learning)
 - ✅ ICS (Integrated Context Studio with CRDT, syntax highlighting, vim mode)
-- ✅ CLI commands (remember, recall, evolve, orchestrate, ics)
+- ✅ TUI wrapper mode (command palette, help overlay, status bar, hybrid highlighting)
+- ✅ CLI commands (remember, recall, evolve, orchestrate, ics, tui)
 - ✅ Installation/uninstallation scripts
 - ✅ Read-only database support
 - ✅ E2E test suite (17 scenarios covering human/agentic workflows)
