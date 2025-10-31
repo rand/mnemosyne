@@ -1,11 +1,97 @@
 //! Reviewer Actor
 //!
-//! Responsibilities:
-//! - Quality assurance with blocking quality gates
-//! - Phase transition validation
-//! - Work result review
-//! - Test coverage verification
-//! - Documentation completeness checks
+//! The Reviewer agent provides quality assurance and semantic validation for work items
+//! in the multi-agent orchestration system. It implements both pattern-based and LLM-based
+//! validation strategies with automatic fallback.
+//!
+//! ## Core Responsibilities
+//!
+//! - **Quality Gates**: Enforce 8 quality gates before work completion
+//! - **Semantic Validation**: LLM-based deep semantic analysis (3 pillars)
+//! - **Requirement Tracking**: Extract, track, and validate requirement satisfaction
+//! - **Improvement Guidance**: Generate actionable feedback for failed reviews
+//! - **Phase Transition Validation**: Ensure prerequisites met before phase changes
+//!
+//! ## Three-Pillar Validation
+//!
+//! 1. **Intent Satisfaction**: Does implementation match original intent?
+//! 2. **Completeness**: Are all explicit requirements fully implemented?
+//! 3. **Correctness**: Is the logic sound and bug-free?
+//!
+//! ## Quality Gates (8 total)
+//!
+//! All gates must pass for work completion:
+//! - Intent satisfied
+//! - Tests passing
+//! - Documentation complete
+//! - No anti-patterns
+//! - Constraints maintained
+//! - Completeness (semantic)
+//! - Correctness (semantic)
+//! - Principled implementation
+//!
+//! ## LLM Integration
+//!
+//! When Python reviewer is registered, the agent uses Claude API for:
+//! - Automatic requirement extraction from user intent
+//! - Semantic intent validation (beyond pattern matching)
+//! - Completeness checking against explicit requirements
+//! - Logical correctness validation
+//! - Improvement guidance generation
+//!
+//! ## Error Handling
+//!
+//! LLM operations include automatic retry with exponential backoff:
+//! - Configurable retry limit (default: 3 attempts)
+//! - Configurable timeout (default: 60s)
+//! - Exponential backoff: 1s → 2s → 4s → ...
+//! - Graceful degradation on failure
+//!
+//! ## Configuration
+//!
+//! Reviewer behavior is configurable via [`ReviewerConfig`]:
+//! ```rust
+//! let config = ReviewerConfig {
+//!     max_llm_retries: 5,
+//!     llm_timeout_secs: 120,
+//!     enable_llm_validation: true,
+//!     llm_model: "claude-3-5-sonnet-20241022".to_string(),
+//!     max_context_tokens: 4096,
+//!     llm_temperature: 0.0,
+//! };
+//! state.update_config(config);
+//! ```
+//!
+//! ## Requirement Tracking
+//!
+//! Requirements progress through states:
+//! - `NotStarted` → Identified but not implemented
+//! - `InProgress` → Partial implementation or validation failed
+//! - `Satisfied` → Fully implemented with evidence
+//!
+//! Evidence is tracked as memory IDs linking to implementation artifacts.
+//!
+//! ## Usage Example
+//!
+//! ```rust,no_run
+//! use mnemosyne::orchestration::actors::reviewer::{ReviewerActor, ReviewerState};
+//! use mnemosyne::orchestration::messages::ReviewerMessage;
+//!
+//! // Create and configure reviewer
+//! let mut state = ReviewerState::new(storage, namespace);
+//! state.register_py_reviewer(py_reviewer); // Enables LLM validation
+//!
+//! // Work item automatically gets requirements extracted
+//! // Review automatically validates against requirements
+//! // Failed reviews include improvement guidance
+//! ```
+//!
+//! ## See Also
+//!
+//! - [`ReviewerConfig`]: Configuration options
+//! - [`ReviewFeedback`]: Review results structure
+//! - [`QualityGates`]: Individual gate definitions
+//! - User guide: `docs/guides/llm-reviewer.md`
 
 use crate::error::Result;
 #[cfg(feature = "python")]
