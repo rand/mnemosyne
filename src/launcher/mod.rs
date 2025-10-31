@@ -24,11 +24,12 @@
 pub mod agents;
 pub mod context;
 pub mod mcp;
+pub mod ui;
 
 use crate::error::{MnemosyneError, Result};
 use std::path::PathBuf;
 use std::process::Command;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 /// Configuration for launching Claude Code sessions
 #[derive(Debug, Clone)]
@@ -109,7 +110,7 @@ impl ClaudeCodeLauncher {
 
     /// Launch an orchestrated Claude Code session
     pub async fn launch(&self) -> Result<()> {
-        info!("Launching orchestrated Claude Code session");
+        debug!("Launching orchestrated Claude Code session");
         debug!("Configuration: {:?}", self.config);
 
         // STEP 1: Initialize storage backend FIRST (eager initialization)
@@ -125,7 +126,7 @@ impl ClaudeCodeLauncher {
         .await
         {
             Ok(s) => {
-                info!("Storage initialized: {}", db_path);
+                debug!("Storage initialized: {}", db_path);
                 std::sync::Arc::new(s)
             }
             Err(e) => {
@@ -156,7 +157,7 @@ impl ClaudeCodeLauncher {
                     warn!("Continuing without orchestration");
                     None
                 } else {
-                    info!("Orchestration engine started with all 4 agents");
+                    debug!("Orchestration engine started with all 4 agents");
                     Some(engine)
                 }
             }
@@ -176,7 +177,7 @@ impl ClaudeCodeLauncher {
             .await
             {
                 Ok(Ok(context)) => {
-                    info!("Loaded startup context ({} bytes)", context.len());
+                    debug!("Loaded startup context ({} bytes)", context.len());
                     debug!(
                         "Context preview: {}...",
                         &context.chars().take(100).collect::<String>()
@@ -217,7 +218,7 @@ impl ClaudeCodeLauncher {
 
         // STEP 6: Graceful shutdown of orchestration engine
         if let Some(mut engine) = orchestration_engine {
-            info!("Shutting down orchestration engine");
+            debug!("Shutting down orchestration engine");
             if let Err(e) = engine.stop().await {
                 warn!("Error during orchestration shutdown: {}", e);
             }
@@ -235,7 +236,7 @@ impl ClaudeCodeLauncher {
 
     /// Launch without context (fallback for storage errors)
     async fn launch_without_context(&self) -> Result<()> {
-        info!("Launching without startup context");
+        debug!("Launching without startup context");
 
         let agent_config = self.generate_agent_config()?;
         let mcp_config = self.generate_mcp_config()?;

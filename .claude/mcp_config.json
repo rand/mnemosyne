@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "mnemosyne": {
+      "command": "mnemosyne",
+      "args": ["serve"],
+      "env": {
+        "RUST_LOG": "info"
+      },
+      "description": "Mnemosyne - Project-aware agentic memory system"
+    }
+  }
+}

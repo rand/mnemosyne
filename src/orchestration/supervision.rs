@@ -138,7 +138,7 @@ impl SupervisionTree {
 
     /// Start all agents in the supervision tree
     pub async fn start(&mut self) -> Result<()> {
-        tracing::info!("Starting supervision tree");
+        tracing::debug!("Starting supervision tree");
 
         // Use unique names based on namespace to avoid registry conflicts in tests
         // In production, this creates names like "optimizer-session:project:session-123"
@@ -273,17 +273,17 @@ impl SupervisionTree {
                 ))
                 .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
 
-            tracing::info!("Agents wired: Full mesh topology established");
+            tracing::debug!("Agents wired: Full mesh topology established");
         }
 
-        tracing::info!("Supervision tree started with {} agents", 4);
+        tracing::debug!("Supervision tree started with {} agents", 4);
 
         Ok(())
     }
 
     /// Stop all agents gracefully
     pub async fn stop(&mut self) -> Result<()> {
-        tracing::info!("Stopping supervision tree");
+        tracing::debug!("Stopping supervision tree");
 
         // Stop in reverse order (children first, then supervisor)
         if let Some(executor) = self.executor.take() {
@@ -305,7 +305,7 @@ impl SupervisionTree {
         // Wait for actors to stop
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-        tracing::info!("Supervision tree stopped");
+        tracing::debug!("Supervision tree stopped");
 
         Ok(())
     }

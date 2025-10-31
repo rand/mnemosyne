@@ -15,7 +15,7 @@ use mnemosyne_core::{
 use mnemosyne_core::services::embeddings::EmbeddingService;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{debug, info, warn, Level};
+use tracing::{debug, warn, Level};
 use tracing_subscriber;
 
 /// Get the default database path using XDG_DATA_HOME standard
@@ -150,14 +150,14 @@ fn extract_task_description(task: &serde_json::Value) -> Option<String> {
 
 /// Start MCP server in stdio mode
 async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
-    info!("Starting MCP server...");
+    debug!("Starting MCP server...");
 
     // Initialize configuration
     let _config_manager = ConfigManager::new()?;
 
     // Initialize storage with configured database path
     let db_path = get_db_path(db_path_arg);
-    info!("Using database: {}", db_path);
+    debug!("Using database: {}", db_path);
 
     // Ensure parent directory exists
     if let Some(parent) = PathBuf::from(&db_path).parent() {
@@ -170,13 +170,13 @@ async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
     // Initialize LLM service (will error on first use if no API key)
     let llm = match LlmService::with_default() {
         Ok(service) => {
-            info!("LLM service initialized successfully");
+            debug!("LLM service initialized successfully");
             Arc::new(service)
         }
         Err(_) => {
-            info!("LLM service not configured (ANTHROPIC_API_KEY not set)");
-            info!("Tools requiring LLM will return errors until configured");
-            info!("Configure with: mnemosyne config set-key");
+            debug!("LLM service not configured (ANTHROPIC_API_KEY not set)");
+            debug!("Tools requiring LLM will return errors until configured");
+            debug!("Configure with: mnemosyne config set-key");
 
             // Create a dummy service - it will error on use
             // This allows the server to start for basic operations
@@ -515,30 +515,30 @@ async fn main() -> Result<()> {
         .with_writer(std::io::stderr) // Write logs to stderr, not stdout
         .init();
 
-    info!("Mnemosyne v{} starting...", env!("CARGO_PKG_VERSION"));
+    debug!("Mnemosyne v{} starting...", env!("CARGO_PKG_VERSION"));
 
     // Handle --serve flag (start MCP server without Claude Code)
     if cli.serve && cli.command.is_none() {
-        info!("Starting MCP server (--serve mode)...");
+        debug!("Starting MCP server (--serve mode)...");
         return start_mcp_server(cli.db_path).await;
     }
 
     match cli.command {
         Some(Commands::Serve) => start_mcp_server(cli.db_path).await,
         Some(Commands::Init { database }) => {
-            info!("Initializing database...");
+            debug!("Initializing database...");
 
             // Use provided database path or fall back to global/default
             let db_path = database
                 .or_else(|| cli.db_path.clone())
                 .unwrap_or_else(|| get_default_db_path().to_string_lossy().to_string());
 
-            info!("Database path: {}", db_path);
+            debug!("Database path: {}", db_path);
 
             // Create parent directory if it doesn't exist
             if let Some(parent) = PathBuf::from(&db_path).parent() {
                 std::fs::create_dir_all(parent)?;
-                info!("Created directory: {}", parent.display());
+                debug!("Created directory: {}", parent.display());
             }
 
             // Initialize storage (this will create the database and run migrations)
@@ -552,7 +552,7 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Export { output, namespace }) => {
             if let Some(ref out_path) = output {
-                info!("Exporting memories to {}...", out_path);
+                debug!("Exporting memories to {}...", out_path);
             } else {
                 debug!("Exporting memories to stdout...");
             }
@@ -696,11 +696,11 @@ async fn main() -> Result<()> {
         Some(Commands::Ics { file }) => {
             use mnemosyne_core::ics::{IcsApp, IcsConfig};
 
-            info!("Launching Integrated Context Studio (ICS)...");
+            debug!("Launching Integrated Context Studio (ICS)...");
 
             // Initialize storage backend
             let db_path = get_db_path(None);
-            info!("Using database: {}", db_path);
+            debug!("Using database: {}", db_path);
 
             // Ensure parent directory exists
             if let Some(parent) = PathBuf::from(&db_path).parent() {
@@ -931,7 +931,7 @@ async fn main() -> Result<()> {
             polling_interval: _,
             max_concurrent,
         }) => {
-            info!("Launching multi-agent orchestration system...");
+            debug!("Launching multi-agent orchestration system...");
 
             let db_path = get_db_path(database);
 
@@ -958,7 +958,7 @@ async fn main() -> Result<()> {
 
             // Parse plan as JSON or treat as prompt
             if let Ok(plan_json) = serde_json::from_str::<serde_json::Value>(&plan) {
-                info!("Parsed work plan as JSON");
+                debug!("Parsed work plan as JSON");
                 debug!("Plan: {:?}", plan_json);
 
                 // Process structured work plan
@@ -967,7 +967,7 @@ async fn main() -> Result<()> {
                 process_structured_plan(&plan_json);
                 println!();
             } else {
-                info!("Treating plan as plain text prompt");
+                debug!("Treating plan as plain text prompt");
                 println!("📝 Prompt-based orchestration:");
                 println!("   {}", plan);
                 println!();
@@ -1728,13 +1728,33 @@ async fn main() -> Result<()> {
         }
         None => {
             // Default: launch orchestrated Claude Code session
-            info!("Launching orchestrated Claude Code session...");
+            debug!("Launching orchestrated Claude Code session...");
 
             // Get database path
             let db_path = get_db_path(cli.db_path);
 
+            // Show clean launch UI
+            launcher::ui::show_launch_header(
+                env!("CARGO_PKG_VERSION"),
+                &db_path,
+                4, // 4 agents: Orchestrator, Optimizer, Reviewer, Executor
+            );
+
+            // Show playful loading message
+            let progress = launcher::ui::LaunchProgress::new();
+            progress.show_loading_message();
+
             // Launch orchestrated session
-            launcher::launch_orchestrated_session(Some(db_path), None).await
+            let result = launcher::launch_orchestrated_session(Some(db_path), None).await;
+
+            // Show completion or error
+            if result.is_ok() {
+                progress.show_step_complete("Orchestration ready");
+            } else if let Err(ref e) = result {
+                progress.show_error(&format!("{}", e));
+            }
+
+            result
         }
     }
 }

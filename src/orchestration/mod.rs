@@ -156,7 +156,7 @@ impl OrchestrationEngine {
 
     /// Start the orchestration engine
     pub async fn start(&mut self) -> Result<()> {
-        tracing::info!("Starting orchestration engine");
+        tracing::debug!("Starting orchestration engine");
 
         // Start network layer
         self.network.start().await?;
@@ -164,13 +164,13 @@ impl OrchestrationEngine {
         // Start supervision tree (spawns all agents)
         self.supervision.start().await?;
 
-        tracing::info!("Orchestration engine started");
+        tracing::debug!("Orchestration engine started");
         Ok(())
     }
 
     /// Stop the orchestration engine gracefully
     pub async fn stop(&mut self) -> Result<()> {
-        tracing::info!("Stopping orchestration engine");
+        tracing::debug!("Stopping orchestration engine");
 
         // Stop supervision tree (graceful agent shutdown)
         self.supervision.stop().await?;
@@ -178,7 +178,7 @@ impl OrchestrationEngine {
         // Stop network layer
         self.network.stop().await?;
 
-        tracing::info!("Orchestration engine stopped");
+        tracing::debug!("Orchestration engine stopped");
         Ok(())
     }
 
