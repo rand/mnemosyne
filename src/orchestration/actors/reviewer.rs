@@ -7,7 +7,7 @@
 //! - Test coverage verification
 //! - Documentation completeness checks
 
-use crate::error::Result;
+use crate::error::{MnemosyneError, Result};
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{OrchestratorMessage, ReviewerMessage, WorkResult};
@@ -89,7 +89,7 @@ pub struct ReviewerState {
 
     /// Optional Python ReviewerAgent for LLM-based semantic validation
     #[cfg(feature = "python")]
-    py_reviewer: Option<PyObject>,
+    py_reviewer: Option<std::sync::Arc<PyObject>>,
 
     /// Flag to enable/disable LLM validation (false = fallback to pattern matching only)
     #[cfg(feature = "python")]
@@ -116,7 +116,7 @@ impl ReviewerState {
 
     /// Register Python ReviewerAgent for LLM-based validation
     #[cfg(feature = "python")]
-    pub fn register_py_reviewer(&mut self, py_reviewer: PyObject) {
+    pub fn register_py_reviewer(&mut self, py_reviewer: std::sync::Arc<PyObject>) {
         self.py_reviewer = Some(py_reviewer);
         self.llm_validation_enabled = true;
         tracing::info!("Python LLM reviewer registered, semantic validation enabled");
@@ -874,6 +874,12 @@ impl ReviewerActor {
             )?;
 
             result.extract(py)
+        })
+        .map_err(|e| {
+            MnemosyneError::ValidationError(format!(
+                "Failed to generate improvement guidance via LLM: {}",
+                e
+            ))
         })?;
 
         Ok(guidance)
@@ -1039,6 +1045,13 @@ impl Actor for ReviewerActor {
             ReviewerMessage::RegisterOrchestrator(orchestrator_ref) => {
                 tracing::debug!("Registering orchestrator reference with Reviewer");
                 state.orchestrator = Some(orchestrator_ref);
+            }
+            #[cfg(feature = "python")]
+            ReviewerMessage::RegisterPythonReviewer { py_reviewer } => {
+                tracing::info!("Registering Python reviewer for LLM validation");
+                state.register_py_reviewer(py_reviewer);
+                state.llm_validation_enabled = true;
+                tracing::info!("LLM validation enabled");
             }
             ReviewerMessage::ReviewWork {
                 item_id,

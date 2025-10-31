@@ -26,6 +26,9 @@ use ractor::{Actor, ActorRef};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+
 /// Supervision configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SupervisionConfig {
@@ -192,7 +195,25 @@ impl SupervisionTree {
             )
             .await;
 
-        self.reviewer = Some(reviewer_ref);
+        self.reviewer = Some(reviewer_ref.clone());
+
+        // Initialize Python reviewer for LLM validation (feature-gated)
+        #[cfg(feature = "python")]
+        {
+            tracing::info!("Initializing Python reviewer for LLM validation");
+            match Self::initialize_python_reviewer() {
+                Ok(py_reviewer) => {
+                    reviewer_ref
+                        .cast(ReviewerMessage::RegisterPythonReviewer { py_reviewer })
+                        .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
+                    tracing::info!("Python reviewer registered successfully");
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to initialize Python reviewer, continuing without LLM validation: {}", e);
+                    tracing::warn!("Reviewer will fall back to pattern-matching validation");
+                }
+            }
+        }
 
         // Spawn Executor
         let executor_id = format!("{}-executor", name_prefix);
@@ -279,6 +300,51 @@ impl SupervisionTree {
         tracing::debug!("Supervision tree started with {} agents", 4);
 
         Ok(())
+    }
+
+    /// Initialize Python reviewer instance
+    ///
+    /// This creates a Python reviewer instance using PyO3 and returns
+    /// it as a PyObject that can be registered with the Rust reviewer.
+    ///
+    /// Returns Err if Python initialization fails (e.g., module not found,
+    /// import error, API key missing).
+    #[cfg(feature = "python")]
+    fn initialize_python_reviewer() -> Result<Arc<PyObject>> {
+        use crate::error::MnemosyneError;
+
+        Python::with_gil(|py| {
+            // Add src directory to Python path so we can import from orchestration.agents
+            let sys = py.import_bound("sys")?;
+            let py_path = sys.getattr("path")?;
+
+            // Get the project src directory
+            let manifest_dir = env!("CARGO_MANIFEST_DIR");
+            let src_path = std::path::PathBuf::from(manifest_dir).join("src");
+            py_path.call_method1("insert", (0, src_path.to_str().unwrap()))?;
+
+            // Import the ReviewerAgent class from Python
+            let reviewer_module = py.import_bound("orchestration.agents.reviewer")?;
+            let reviewer_class = reviewer_module.getattr("ReviewerAgent")?;
+
+            // Create an instance with default config
+            let config = py.eval_bound(
+                "{'agent_id': 'reviewer-llm', 'strict_mode': True, 'max_retries': 3}",
+                None,
+                None,
+            )?;
+
+            let reviewer_instance = reviewer_class.call1((config,))?;
+
+            Ok(Arc::new(reviewer_instance.unbind()))
+        })
+        .map_err(|e: PyErr| {
+            MnemosyneError::ActorError(format!(
+                "Failed to initialize Python reviewer: {}. \
+                 Ensure Python dependencies are installed and ANTHROPIC_API_KEY is set.",
+                e
+            ))
+        })
     }
 
     /// Stop all agents gracefully

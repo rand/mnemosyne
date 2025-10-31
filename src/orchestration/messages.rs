@@ -16,6 +16,12 @@ use std::time::Duration;
 #[cfg(feature = "distributed")]
 use ractor_cluster::RactorMessage;
 
+#[cfg(feature = "python")]
+use pyo3::PyObject;
+
+#[cfg(feature = "python")]
+use std::sync::Arc as StdArc;
+
 /// Messages for the Orchestrator agent
 #[cfg_attr(feature = "distributed", derive(RactorMessage))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,6 +153,13 @@ pub enum ReviewerMessage {
     /// Register orchestrator reference for communication
     #[serde(skip)]
     RegisterOrchestrator(ractor::ActorRef<OrchestratorMessage>),
+
+    /// Register Python reviewer for LLM validation (feature-gated)
+    #[cfg(feature = "python")]
+    #[serde(skip)]
+    RegisterPythonReviewer {
+        py_reviewer: StdArc<PyObject>,
+    },
 
     /// Review work item results (with full work item for context)
     ReviewWork {

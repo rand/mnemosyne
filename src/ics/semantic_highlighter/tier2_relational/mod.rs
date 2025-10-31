@@ -62,14 +62,17 @@ impl RelationalAnalyzer {
         // Create background analysis channel
         let (tx, rx) = mpsc::channel(32);
 
-        // Spawn background analysis task
-        let cache_clone = Arc::clone(&cache);
-        let dirty_clone = Arc::clone(&dirty_regions);
-        let settings_clone = settings.clone();
+        // Spawn background analysis task only if tokio runtime is available
+        // This allows tests to run without a runtime
+        if tokio::runtime::Handle::try_current().is_ok() {
+            let cache_clone = Arc::clone(&cache);
+            let dirty_clone = Arc::clone(&dirty_regions);
+            let settings_clone = settings.clone();
 
-        tokio::spawn(async move {
-            Self::analysis_loop(rx, cache_clone, dirty_clone, settings_clone).await
-        });
+            tokio::spawn(async move {
+                Self::analysis_loop(rx, cache_clone, dirty_clone, settings_clone).await
+            });
+        }
 
         Self {
             settings: settings.clone(),
@@ -127,19 +130,21 @@ impl RelationalAnalyzer {
         // Invalidate cache for overlapping entries
         self.cache.relational.invalidate_range(&range);
 
-        // Send debounced analysis request
+        // Send debounced analysis request only if tokio runtime is available
         if let Some(ref tx) = self.analysis_tx {
-            let tx_clone = tx.clone();
-            let text_owned = text.to_string();
-            let debounce_delay = self.settings.debounce_ms;
+            if tokio::runtime::Handle::try_current().is_ok() {
+                let tx_clone = tx.clone();
+                let text_owned = text.to_string();
+                let debounce_delay = self.settings.debounce_ms;
 
-            tokio::spawn(async move {
-                // Wait for debounce delay
-                tokio::time::sleep(std::time::Duration::from_millis(debounce_delay)).await;
+                tokio::spawn(async move {
+                    // Wait for debounce delay
+                    tokio::time::sleep(std::time::Duration::from_millis(debounce_delay)).await;
 
-                // Trigger analysis
-                let _ = tx_clone.send(AnalysisRequest::Incremental(text_owned)).await;
-            });
+                    // Trigger analysis
+                    let _ = tx_clone.send(AnalysisRequest::Incremental(text_owned)).await;
+                });
+            }
         }
     }
 
@@ -184,14 +189,41 @@ impl RelationalAnalyzer {
                         // Create temporary analyzers with configured thresholds
                         let entity_recognizer = EntityRecognizer::new()
                             .with_threshold(settings.min_entity_confidence);
-                        let _relation_extractor = RelationshipExtractor::new()
+                        let relation_extractor = RelationshipExtractor::new()
+                            .with_threshold(settings.min_entity_confidence);
+                        let role_labeler = SemanticRoleLabeler::new()
                             .with_threshold(settings.min_entity_confidence);
 
-                        // Analyze entities in region
-                        if let Ok(_entities) = entity_recognizer.recognize(region_text) {
-                            // Results would be cached here in production
-                            // For now, analysis happens but results aren't stored
-                            debug!("Analyzed region {:?}", region);
+                        // Analyze and cache entities
+                        if let Ok(entities) = entity_recognizer.recognize(region_text) {
+                            debug!("Analyzed {} entities in region {:?}", entities.len(), region);
+
+                            // Convert entities to spans and cache them
+                            let spans = entity_recognizer.entities_to_spans(&entities);
+                            let cached = CachedResult::new(spans);
+                            _cache.relational.insert(region.clone(), cached);
+                        }
+
+                        // Analyze and cache relationships
+                        if let Ok(relationships) = relation_extractor.extract(region_text) {
+                            debug!("Analyzed {} relationships in region {:?}", relationships.len(), region);
+
+                            let spans = relation_extractor.relationships_to_spans(&relationships, region_text);
+                            let cached = CachedResult::new(spans);
+                            // Use a slightly offset range for relationships to avoid collision
+                            let rel_range = region.start..region.end;
+                            _cache.relational.insert(rel_range, cached);
+                        }
+
+                        // Analyze and cache semantic roles
+                        if let Ok(roles) = role_labeler.label(region_text) {
+                            debug!("Analyzed {} semantic roles in region {:?}", roles.len(), region);
+
+                            let spans = role_labeler.roles_to_spans(&roles);
+                            let cached = CachedResult::new(spans);
+                            // Use another offset range for roles
+                            let role_range = region.start..region.end;
+                            _cache.relational.insert(role_range, cached);
                         }
                     }
 
