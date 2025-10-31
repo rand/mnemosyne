@@ -1947,4 +1947,110 @@ mod tests {
         assert!(result.success);
         assert_eq!(result.duration, Duration::from_secs(5));
     }
+
+    #[cfg(feature = "python")]
+    #[tokio::test]
+    async fn test_python_memory_format_conversion() {
+        use crate::python_bindings::execution_memories_to_python_format;
+
+        // Setup storage
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        let db_path = temp_dir.path().join("test.db");
+        let storage = create_test_storage(&db_path).await;
+        let namespace = Namespace("test-namespace".to_string());
+
+        // Create test memories with actual content
+        let memory1 = crate::types::MemoryNote {
+            id: crate::types::MemoryId(uuid::Uuid::new_v4()),
+            namespace: namespace.clone(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            content: "Implementation of authentication system using JWT tokens".to_string(),
+            summary: "JWT authentication".to_string(),
+            keywords: vec!["jwt".to_string(), "auth".to_string()],
+            tags: vec!["implementation".to_string()],
+            context: "Security context".to_string(),
+            memory_type: crate::types::MemoryType::CodePattern,
+            importance: 8,
+            confidence: 0.9,
+            links: vec![],
+            related_files: vec![],
+            related_entities: vec![],
+            access_count: 0,
+            last_accessed_at: chrono::Utc::now(),
+            expires_at: None,
+            is_archived: false,
+            superseded_by: None,
+            embedding: None,
+            embedding_model: "test".to_string(),
+        };
+
+        let memory2 = crate::types::MemoryNote {
+            id: crate::types::MemoryId(uuid::Uuid::new_v4()),
+            namespace: namespace.clone(),
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+            content: "Added comprehensive unit tests for token validation, covering edge cases like expired tokens and invalid signatures".to_string(),
+            summary: "Token validation tests".to_string(),
+            keywords: vec!["tests".to_string(), "validation".to_string()],
+            tags: vec!["testing".to_string()],
+            context: "Test coverage".to_string(),
+            memory_type: crate::types::MemoryType::CodePattern,
+            importance: 7,
+            confidence: 0.85,
+            links: vec![],
+            related_files: vec![],
+            related_entities: vec![],
+            access_count: 0,
+            last_accessed_at: chrono::Utc::now(),
+            expires_at: None,
+            is_archived: false,
+            superseded_by: None,
+            embedding: None,
+            embedding_model: "test".to_string(),
+        };
+
+        // Store memories
+        storage.store_memory(&memory1).await.expect("Failed to store memory1");
+        storage.store_memory(&memory2).await.expect("Failed to store memory2");
+
+        // Convert to Python format
+        let memory_ids = vec![memory1.id, memory2.id];
+        let python_format = execution_memories_to_python_format(&storage, &memory_ids)
+            .await
+            .expect("Failed to convert memories to Python format");
+
+        // Validate format
+        assert_eq!(python_format.len(), 2, "Should return 2 memory objects");
+
+        // Validate first memory
+        let mem1_dict = &python_format[0];
+        assert!(mem1_dict.contains_key("id"), "Memory should have 'id' field");
+        assert!(mem1_dict.contains_key("summary"), "Memory should have 'summary' field");
+        assert!(mem1_dict.contains_key("content"), "Memory should have 'content' field");
+
+        assert_eq!(mem1_dict.get("id").unwrap(), &memory1.id.to_string());
+        assert_eq!(mem1_dict.get("summary").unwrap(), "JWT authentication");
+        assert!(
+            mem1_dict.get("content").unwrap().contains("authentication"),
+            "Content should contain 'authentication'"
+        );
+
+        // Validate content truncation (limited to 200 chars)
+        let content_len = mem1_dict.get("content").unwrap().len();
+        assert!(
+            content_len <= 200,
+            "Content should be truncated to 200 chars, got {}",
+            content_len
+        );
+
+        // Validate second memory
+        let mem2_dict = &python_format[1];
+        assert_eq!(mem2_dict.get("id").unwrap(), &memory2.id.to_string());
+        assert_eq!(mem2_dict.get("summary").unwrap(), "Token validation tests");
+        assert!(
+            mem2_dict.get("content").unwrap().contains("tests"),
+            "Content should contain 'tests'"
+        );
+    }
 }
