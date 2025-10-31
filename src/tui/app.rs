@@ -75,6 +75,47 @@ impl TuiApp {
             shortcut: None,
         });
 
+        // ICS Commands
+        command_palette.add_command(super::Command {
+            id: "ics:submit-to-claude".to_string(),
+            name: "Submit to Claude".to_string(),
+            description: "Send refined context as prompt to Claude Code".to_string(),
+            category: super::CommandCategory::Ics,
+            shortcut: Some("Ctrl+Enter".to_string()),
+        });
+
+        command_palette.add_command(super::Command {
+            id: "ics:save-file".to_string(),
+            name: "Save File".to_string(),
+            description: "Save edited document to disk".to_string(),
+            category: super::CommandCategory::Ics,
+            shortcut: Some("Ctrl+S".to_string()),
+        });
+
+        command_palette.add_command(super::Command {
+            id: "ics:export-context".to_string(),
+            name: "Export Context".to_string(),
+            description: "Export ICS content to markdown".to_string(),
+            category: super::CommandCategory::Ics,
+            shortcut: None,
+        });
+
+        command_palette.add_command(super::Command {
+            id: "ics:toggle-highlighting".to_string(),
+            name: "Toggle Highlighting".to_string(),
+            description: "Toggle syntax/semantic highlighting".to_string(),
+            category: super::CommandCategory::Ics,
+            shortcut: None,
+        });
+
+        command_palette.add_command(super::Command {
+            id: "ics:focus-editor".to_string(),
+            name: "Focus ICS Editor".to_string(),
+            description: "Focus the ICS editor panel".to_string(),
+            category: super::CommandCategory::Ics,
+            shortcut: Some("Ctrl+E".to_string()),
+        });
+
         let layout = LayoutManager::new(ratatui::layout::Rect::default());
 
         Ok(Self {
@@ -218,6 +259,40 @@ impl TuiApp {
             }
             "clear_chat" => {
                 self.chat_view.clear();
+            }
+            // ICS Commands
+            "ics:submit-to-claude" => {
+                // TODO: Implement submit workflow with preview
+                // 1. Get current ICS content
+                // 2. Show preview dialog
+                // 3. On confirm, send to Claude Code via PTY wrapper
+                tracing::debug!("ICS: Submit to Claude requested");
+            }
+            "ics:save-file" => {
+                // TODO: Implement file save
+                // 1. Get current ICS content
+                // 2. Prompt for filename if needed
+                // 3. Write to disk
+                tracing::debug!("ICS: Save file requested");
+            }
+            "ics:export-context" => {
+                // TODO: Implement context export
+                // 1. Get current ICS content
+                // 2. Format as markdown
+                // 3. Save to timestamped file
+                tracing::debug!("ICS: Export context requested");
+            }
+            "ics:toggle-highlighting" => {
+                // TODO: Toggle highlighting in ICS panel
+                tracing::debug!("ICS: Toggle highlighting requested");
+            }
+            "ics:focus-editor" => {
+                // Ensure ICS panel is visible and focused
+                if !self.ics_panel.is_visible() {
+                    self.ics_panel.toggle();
+                }
+                // TODO: Set focus state
+                tracing::debug!("ICS: Focus editor requested");
             }
             _ => {}
         }

@@ -164,6 +164,8 @@ pub enum CommandCategory {
     Tools,
     /// System operations
     System,
+    /// ICS (Integrated Context Studio) operations
+    Ics,
 }
 
 impl CommandCategory {
@@ -176,6 +178,7 @@ impl CommandCategory {
             CommandCategory::View => "View",
             CommandCategory::Tools => "Tools",
             CommandCategory::System => "System",
+            CommandCategory::Ics => "ICS",
         }
     }
 
@@ -188,6 +191,7 @@ impl CommandCategory {
             CommandCategory::View => Color::Magenta,
             CommandCategory::Tools => Color::Yellow,
             CommandCategory::System => Color::Red,
+            CommandCategory::Ics => Color::LightCyan,
         }
     }
 }
@@ -430,7 +434,7 @@ impl Widget for &CommandPalette {
             return;
         }
 
-        // Build list items
+        // Build list items (Helix-style: simple and clean)
         let items: Vec<ListItem> = self
             .filtered
             .iter()
@@ -448,15 +452,20 @@ impl Widget for &CommandPalette {
                     Style::default()
                 };
 
-                // Build line with category, name, shortcut, and description
+                // Helix-style format: > command-name  Description
                 let mut spans = Vec::new();
 
-                // Category badge
-                spans.push(Span::styled(
-                    format!("[{}]", cmd.category.name()),
-                    Style::default().fg(cmd.category.color()),
-                ));
-                spans.push(Span::raw(" "));
+                // Selection indicator
+                if is_selected {
+                    spans.push(Span::styled(
+                        "> ",
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ));
+                } else {
+                    spans.push(Span::raw("  "));
+                }
 
                 // Command name
                 spans.push(Span::styled(
@@ -464,18 +473,9 @@ impl Widget for &CommandPalette {
                     Style::default().add_modifier(Modifier::BOLD),
                 ));
 
-                // Shortcut (if available)
-                if let Some(ref shortcut) = cmd.shortcut {
-                    spans.push(Span::raw(" "));
-                    spans.push(Span::styled(
-                        format!("({})", shortcut),
-                        Style::default().fg(Color::DarkGray),
-                    ));
-                }
-
-                // Description
+                // Description (separated by two spaces for visual clarity)
                 if !cmd.description.is_empty() {
-                    spans.push(Span::raw(" - "));
+                    spans.push(Span::raw("  "));
                     spans.push(Span::styled(
                         &cmd.description,
                         Style::default().fg(Color::Gray),
