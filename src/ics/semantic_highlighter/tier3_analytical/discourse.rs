@@ -11,7 +11,7 @@
 use crate::{
     ics::semantic_highlighter::{
         visualization::{HighlightSpan, HighlightSource, Connection, ConnectionType},
-        Result,
+        Result, SemanticError,
     },
     LlmService,
 };
@@ -19,6 +19,7 @@ use ratatui::style::{Color, Modifier, Style};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use std::sync::Arc;
+use tracing::warn;
 
 /// Discourse relation type (RST-based)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -93,6 +94,7 @@ pub struct CoherenceScore {
 }
 
 /// Discourse analyzer using Claude API
+#[derive(Clone)]
 pub struct DiscourseAnalyzer {
     _llm_service: Arc<LlmService>,
 }
@@ -104,9 +106,174 @@ impl DiscourseAnalyzer {
 
     /// Analyze discourse structure in text
     pub async fn analyze(&self, text: &str) -> Result<Vec<DiscourseSegment>> {
-        // For now, return empty - full implementation would call Claude API
-        // This is a placeholder for the batching system to call
-        Ok(Vec::new())
+        let prompt = self.build_discourse_prompt(text);
+
+        // Call LLM with timeout
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            self._llm_service.call_api(&prompt)
+        )
+        .await
+        .map_err(|_| SemanticError::AnalysisFailed("Timeout after 30s".to_string()))?
+        .map_err(|e| SemanticError::AnalysisFailed(format!("LLM API error: {}", e)))?;
+
+        // Parse JSON response
+        let segments = self.parse_discourse_response(&response, text.len())?;
+
+        // Validate segments
+        self.validate_segments(&segments, text.len())?;
+
+        Ok(segments)
+    }
+
+    /// Parse discourse response from LLM
+    fn parse_discourse_response(&self, json: &str, text_len: usize) -> Result<Vec<DiscourseSegment>> {
+        #[derive(Deserialize)]
+        struct SegmentJson {
+            start: usize,
+            end: usize,
+            text: String,
+            relation: Option<String>,
+            related_to_start: Option<usize>,
+            related_to_end: Option<usize>,
+            confidence: f32,
+        }
+
+        let segments: Vec<SegmentJson> = serde_json::from_str(json)
+            .map_err(|e| crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(
+                format!("JSON parse error: {}", e)
+            ))?;
+
+        // Convert to DiscourseSegment, filtering invalid entries
+        let result = segments
+            .into_iter()
+            .filter_map(|s| {
+                // Validate ranges
+                if s.end > text_len || s.start >= s.end {
+                    warn!("Invalid discourse segment range: {}..{} (text len: {})", s.start, s.end, text_len);
+                    return None;
+                }
+
+                // Parse relation
+                let relation = s.relation.and_then(|r| match r.as_str() {
+                    "Elaboration" => Some(DiscourseRelation::Elaboration),
+                    "Contrast" => Some(DiscourseRelation::Contrast),
+                    "Cause" => Some(DiscourseRelation::Cause),
+                    "Sequence" => Some(DiscourseRelation::Sequence),
+                    "Condition" => Some(DiscourseRelation::Condition),
+                    "Background" => Some(DiscourseRelation::Background),
+                    "Summary" => Some(DiscourseRelation::Summary),
+                    "Evaluation" => Some(DiscourseRelation::Evaluation),
+                    other => {
+                        warn!("Unknown discourse relation: {}", other);
+                        None
+                    }
+                });
+
+                // Parse related_to range
+                let related_to = if let (Some(start), Some(end)) = (s.related_to_start, s.related_to_end) {
+                    if end <= text_len && start < end {
+                        Some(start..end)
+                    } else {
+                        warn!("Invalid related_to range: {}..{} (text len: {})", start, end, text_len);
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                Some(DiscourseSegment {
+                    range: s.start..s.end,
+                    text: s.text,
+                    relation,
+                    related_to,
+                    confidence: s.confidence.clamp(0.0, 1.0),
+                })
+            })
+            .collect();
+
+        Ok(result)
+    }
+
+    /// Validate discourse segments
+    fn validate_segments(&self, segments: &[DiscourseSegment], text_len: usize) -> Result<()> {
+        for (i, seg) in segments.iter().enumerate() {
+            // Check range validity
+            if seg.range.end > text_len {
+                return Err(crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(
+                    format!("Segment {} range exceeds text length: {:?} > {}", i, seg.range, text_len)
+                ));
+            }
+
+            if seg.range.start >= seg.range.end {
+                return Err(crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(
+                    format!("Segment {} has invalid range: {:?}", i, seg.range)
+                ));
+            }
+
+            // Check confidence
+            if seg.confidence < 0.0 || seg.confidence > 1.0 {
+                return Err(crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(
+                    format!("Segment {} has invalid confidence: {}", i, seg.confidence)
+                ));
+            }
+
+            // Check related_to validity if present
+            if let Some(ref related) = seg.related_to {
+                if related.end > text_len || related.start >= related.end {
+                    return Err(crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(
+                        format!("Segment {} has invalid related_to range: {:?}", i, related)
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Build prompt for discourse relation analysis
+    fn build_discourse_prompt(&self, text: &str) -> String {
+        format!(
+            r#"Analyze the discourse structure of the following text using Rhetorical Structure Theory (RST).
+
+Identify discourse relations between segments:
+- Elaboration: One segment elaborates on another
+- Contrast: Segments present contrasting information
+- Cause: Causal relationship
+- Sequence: Temporal ordering
+- Condition: Conditional relationship
+- Background: Background information
+- Summary: Summary or conclusion
+- Evaluation: Evaluation or assessment
+
+Text:
+{}
+
+For each discourse relation found, provide:
+1. start: starting character position
+2. end: ending character position
+3. text: the segment text
+4. relation: one of the relation types above
+5. related_to_start: start position of related segment (optional)
+6. related_to_end: end position of related segment (optional)
+7. confidence: confidence score between 0.0 and 1.0
+
+Respond ONLY with a JSON array of segments, no additional text.
+
+Example format:
+[
+  {{
+    "start": 0,
+    "end": 25,
+    "text": "First segment text",
+    "relation": "Elaboration",
+    "related_to_start": 26,
+    "related_to_end": 50,
+    "confidence": 0.85
+  }}
+]"#,
+            text
+        )
     }
 
     /// Assess coherence of text
@@ -184,35 +351,6 @@ Respond in JSON format:
   "logical_flow": 0.75,
   "issues": ["list of issues"]
 }}"#,
-            text
-        )
-    }
-
-    /// Build prompt for discourse relation analysis
-    fn _build_discourse_prompt(&self, text: &str) -> String {
-        format!(
-            r#"Analyze the discourse structure of the following text using Rhetorical Structure Theory (RST).
-
-Identify discourse relations between segments:
-- Elaboration: One segment elaborates on another
-- Contrast: Segments present contrasting information
-- Cause: Causal relationship
-- Sequence: Temporal ordering
-- Condition: Conditional relationship
-- Background: Background information
-- Summary: Summary or conclusion
-- Evaluation: Evaluation or assessment
-
-Text:
-{}
-
-For each discourse relation found, provide:
-1. The text segment
-2. The relation type
-3. What it relates to
-4. Confidence (0.0-1.0)
-
-Respond in JSON format as an array of segments."#,
             text
         )
     }
