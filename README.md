@@ -17,11 +17,12 @@ Mnemosyne provides persistent semantic memory with sub-millisecond retrieval, bu
 
 ### Multi-Agent Orchestration
 - **Ractor Actors**: 4 specialized agents (Orchestrator, Optimizer, Reviewer, Executor)
+- **LLM-Enhanced Reviewer**: Automatic requirement extraction, semantic validation, intent verification with Claude API
 - **Work Queue**: Dependency-aware scheduling with priority management
-- **Quality Gates**: Automated test verification, anti-pattern detection, constraint validation
+- **Quality Gates**: Automated test verification, anti-pattern detection, constraint validation, requirement traceability
 - **Deadlock Resolution**: Priority-based preemption (60s timeout)
 - **Sub-Agent Spawning**: Parallel work execution across child actors
-- **Event Persistence**: Complete audit trail of orchestration events
+- **Event Persistence**: Complete audit trail of orchestration events with SSE broadcasting
 
 ### Evolution System
 - **Consolidation**: Detect and merge duplicate/similar memories with LLM-assisted analysis
@@ -39,14 +40,28 @@ Mnemosyne provides persistent semantic memory with sub-millisecond retrieval, bu
 ### Interactive Collaborative Space (ICS)
 - **CRDT Editing**: Automerge-based collaborative text editor
 - **Syntax Highlighting**: Tree-sitter 0.23 based highlighting for 13 languages (Rust, Python, Go, TypeScript, JavaScript, JSON, TOML, YAML, Markdown, Bash, C, C++, Zig)
-- **Semantic Highlighting**: Type information, scopes, error overlays with ICS patterns (`#file`, `@symbol`, `?hole`)
+- **Semantic Highlighting (3-Tier System)**:
+  - **Tier 1: Structural** (<5ms real-time) - XML tags, RFC 2119 constraints, modality/hedging, ambiguity detection, domain patterns
+  - **Tier 2: Relational** (<200ms incremental) - Named entities, relationships, semantic roles, coreference resolution, anaphora
+  - **Tier 3: Analytical** (2s+ background, optional) - Discourse analysis, contradiction detection, pragmatics, LLM-powered
+- **ICS Patterns**: `#file`, `@symbol`, `?hole` with color-coded highlighting
 - **Hybrid Highlighting**: Combines tree-sitter syntax with semantic pattern detection (3-layer priority system)
 - **Vim Mode**: Complete vi/vim keybindings with modal editing (14 movement commands: w/b/e, f/F/t/T, PageUp/Down, gg/G)
 - **Panels**: Memory browser, agent status, attribution, diagnostics
 - **Semantic Analysis**: Real-time triple extraction, typed hole detection, dependency graphs
 - **Undo/Redo**: Transaction-based history with Automerge
 
-### TUI Wrapper Mode (Enhanced Interface)
+### Composable Tools Architecture
+- **mnemosyne-ics**: Standalone context editor binary with full terminal ownership (no conflicts)
+- **mnemosyne-dash**: Real-time monitoring dashboard with SSE event streaming
+- **HTTP API Server** (`:3000`): Optional REST API with `mnemosyne serve --with-api`
+- **Unix Philosophy**: Each tool owns its terminal completely, zero conflicts
+- **File-Based Handoff**: Context exchange via `.claude/*.md` files
+- **Event Streaming**: Real-time coordination via SSE for monitoring
+
+### TUI Wrapper Mode (Deprecated in v2.1.0)
+⚠️ **Deprecated**: Use `mnemosyne-ics` + `mnemosyne-dash` instead. See [docs/MIGRATION.md](docs/MIGRATION.md).
+
 - **Command Palette**: Helix-style fuzzy command selector with type-ahead filtering
 - **Context-Aware Help**: Modal help overlay (?) with mode-specific shortcuts
 - **Status Bar**: Dynamic action hints based on current mode (ICS/Chat)
@@ -138,17 +153,49 @@ mnemosyne evolve importance
 mnemosyne evolve archive
 ```
 
-**Interactive Collaborative Space**:
+**Interactive Collaborative Space (Standalone)**:
 ```bash
-# Open file in ICS with syntax highlighting and vim mode
-mnemosyne ics path/to/file.rs
+# Launch standalone ICS context editor
+mnemosyne-ics
 
-# Collaborative editing with CRDT sync
-mnemosyne ics --collaborate path/to/shared/document.md
+# Create from template
+mnemosyne-ics --template feature
+
+# Open existing file
+mnemosyne-ics path/to/context.md
+
+# Read-only mode (view memory dumps)
+mnemosyne-ics --read-only path/to/dump.md
+
+# Features:
+# - Full terminal ownership (no conflicts)
+# - Template system (api, architecture, bugfix, feature, refactor)
+# - Storage backend integration
+# - Semantic highlighting (3-tier system)
+# - Vim mode with modal editing
 ```
 
-**TUI Wrapper Mode** (Enhanced Interface):
+**Real-time Monitoring Dashboard**:
 ```bash
+# Start API server with SSE event streaming
+mnemosyne serve --with-api
+
+# In another terminal, launch monitoring dashboard
+mnemosyne-dash
+
+# Features:
+# - Live agent activity display
+# - Color-coded agent states
+# - System statistics (memory, CPU, context usage)
+# - Event log with scrollback and filtering
+# - Auto-reconnect on disconnect
+```
+
+**TUI Wrapper Mode** (Deprecated in v2.1.0):
+```bash
+⚠️ Deprecated: Use mnemosyne-ics + mnemosyne-dash instead
+See docs/MIGRATION.md for migration guide
+
 # Launch TUI with command palette, ICS editor, and agent dashboard
 mnemosyne tui
 
@@ -259,17 +306,66 @@ mnemosyne orchestrate [OPTIONS]
   --work-items <FILE>   Work items JSON file
 ```
 
-### ICS (Integrated Context Studio)
+### ICS (Integrated Context Studio) - Standalone Binary
 ```bash
-# Open ICS editor
-mnemosyne ics [OPTIONS] [FILE]
-  --collaborate         Enable CRDT collaborative mode
-  --vim-mode            Enable vim keybindings (default: on)
-  --theme <THEME>       Color theme (dark|light)
+# Launch standalone ICS context editor
+mnemosyne-ics [OPTIONS] [FILE]
+  --template <TEMPLATE>  Use template (api|architecture|bugfix|feature|refactor)
+  --read-only            Open in read-only mode
+  --vim-mode             Enable vim keybindings (default: on)
+  --theme <THEME>        Color theme (dark|light)
+
+# Features:
+# • Full terminal ownership (no conflicts with Claude Code)
+# • Template system for common contexts
+# • 3-tier semantic highlighting (<5ms→<200ms→2s+)
+# • Storage backend integration
+# • Vim modal editing
+# • Pattern syntax: #file.rs @symbol ?hole
 ```
 
-### TUI (Terminal User Interface)
+### Monitoring Dashboard - Standalone Binary
 ```bash
+# Launch real-time monitoring dashboard
+mnemosyne-dash [OPTIONS]
+  --api-url <URL>       API server URL (default: http://localhost:3000)
+  --refresh-rate <MS>   Update interval (default: 100ms)
+
+# Prerequisites:
+# Start API server first: mnemosyne serve --with-api
+
+# Features:
+# • Live agent activity via SSE
+# • Color-coded agent states
+# • System statistics (memory, CPU, context)
+# • Event log with scrollback
+# • Auto-reconnect on disconnect
+```
+
+### API Server
+```bash
+# Start MCP server with HTTP API
+mnemosyne serve --with-api [OPTIONS]
+  --api-port <PORT>     API server port (default: 3000)
+  --cors-origins <URL>  CORS allowed origins
+
+# Endpoints:
+# GET  /api/agents          List agent states
+# GET  /api/context         Current context state
+# GET  /api/events/stream   SSE event stream (real-time)
+
+# Features:
+# • REST API with Axum
+# • Server-Sent Events (SSE) for real-time updates
+# • CORS support for web clients
+# • Concurrent with MCP server (tokio::select!)
+```
+
+### TUI (Terminal User Interface) - Deprecated
+```bash
+⚠️ Deprecated in v2.1.0: Use mnemosyne-ics + mnemosyne-dash instead
+See docs/MIGRATION.md for migration guide
+
 # Launch enhanced TUI wrapper mode
 mnemosyne tui [OPTIONS]
   --with-ics            Start with ICS panel visible
@@ -360,6 +456,21 @@ ConnectionMode::EmbeddedReplica { ... }  // Local replica with sync
 - [docs/VECTOR_SEARCH.md](docs/VECTOR_SEARCH.md) - Semantic search implementation
 - [docs/PRIVACY.md](docs/PRIVACY.md) - Privacy-preserving evaluation
 - [docs/ICS_README.md](docs/ICS_README.md) - Integrated Context Studio
+
+### v2.1.0 Features
+- [docs/MIGRATION.md](docs/MIGRATION.md) - Migration from TUI to composable tools (475 lines)
+- [docs/guides/llm-reviewer.md](docs/guides/llm-reviewer.md) - LLM reviewer system (533 lines)
+- [docs/guides/llm-reviewer-setup.md](docs/guides/llm-reviewer-setup.md) - Setup and troubleshooting (448 lines)
+- [SEMANTIC_HIGHLIGHTING.md](SEMANTIC_HIGHLIGHTING.md) - System overview and API reference (423 lines)
+- [SEMANTIC_HIGHLIGHTING_INTEGRATION.md](SEMANTIC_HIGHLIGHTING_INTEGRATION.md) - Integration guide (514 lines)
+- [SEMANTIC_HIGHLIGHTING_STATUS.md](SEMANTIC_HIGHLIGHTING_STATUS.md) - Implementation status (169 lines)
+
+### Specifications (v2.1.0)
+- [docs/background-processing-spec.md](docs/background-processing-spec.md) - Tier 3 background processing (580 lines)
+- [docs/ics-integration-spec.md](docs/ics-integration-spec.md) - ICS integration specification (557 lines)
+- [docs/incremental-analysis-spec.md](docs/incremental-analysis-spec.md) - Incremental semantic analysis (533 lines)
+- [docs/semantic-highlighter-test-plan.md](docs/semantic-highlighter-test-plan.md) - Testing strategy (716 lines)
+- [docs/tier3-llm-integration-spec.md](docs/tier3-llm-integration-spec.md) - LLM integration architecture (421 lines)
 
 ### Development
 - [CHANGELOG.md](CHANGELOG.md) - Version history
@@ -454,31 +565,43 @@ See LICENSE file for details.
 
 ## Status
 
-**Current Version**: 2.0.0
+**Current Version**: 2.1.0
 
-**Completed**:
+**Completed (v2.1.0)**:
 - ✅ Core storage and memory system with LibSQL vector search
 - ✅ Multi-agent orchestration (Ractor-based 4-agent system)
+- ✅ **LLM-Enhanced Reviewer** with requirement extraction and semantic validation
 - ✅ Evolution system (consolidation, importance, archival)
 - ✅ Evaluation system (privacy-preserving online learning)
-- ✅ ICS (Integrated Context Studio with CRDT, syntax highlighting, vim mode)
-- ✅ TUI wrapper mode (command palette, help overlay, status bar, hybrid highlighting)
+- ✅ **ICS Standalone Binary** (`mnemosyne-ics`) with template system
+- ✅ **3-Tier Semantic Highlighting** (Structural/Relational/Analytical, 7,500+ lines)
+- ✅ **HTTP API Server** (`:3000`) with SSE event streaming
+- ✅ **Real-time Monitoring Dashboard** (`mnemosyne-dash`)
+- ✅ **Composable Tools Architecture** (Unix philosophy, zero conflicts)
+- ✅ **Event Bridging** (orchestration events → SSE → dashboard)
+- ✅ TUI wrapper mode (deprecated, use composable tools)
 - ✅ CLI commands (remember, recall, evolve, orchestrate, ics, tui)
 - ✅ Installation/uninstallation scripts
 - ✅ Read-only database support
-- ✅ E2E test suite (17 scenarios covering human/agentic workflows)
+- ✅ **627 tests passing** (up from 474, +153 new tests)
 - ✅ PyO3 bindings for Python orchestration agents
 - ✅ MCP server integration
+- ✅ **11 new documentation files** (5,000+ lines)
 
-**In Progress** (v2.0 production readiness):
-- 🔄 ICS syntax highlighting expansion (8+ languages)
-- 🔄 ICS vim mode completion (advanced text objects, motions)
-- 🔄 Evaluation system completion (database integration for all features)
-- 🔄 Evolution link tracking completion
-- 🔄 Test coverage expansion (target: 70%+)
-- 🔄 E2E test expansion (30+ scenarios)
+**Known Issues (v2.1.0)**:
+- ⚠️ PyO3 0.22.6 doesn't support Python 3.14+ (use Python 3.9-3.13)
+- ⚠️ 27 clippy warnings remaining (style/quality, not functional bugs)
+- ⚠️ Tier 3 LLM integration is scaffolding only (not fully functional)
 
-**Roadmap** (post-v2.0):
+**In Progress** (v2.2):
+- 🔄 Tier 3 LLM integration completion
+- 🔄 Incremental semantic analysis scheduling
+- 🔄 ICS-semantic highlighter integration
+- 🔄 Clippy warning cleanup
+- 🔄 Test coverage expansion (target: 80%+)
+
+**Roadmap** (post-v2.1):
+- ⏳ Performance benchmarks for semantic highlighting
 - ⏳ Advanced observability and metrics
 - ⏳ Dynamic agent scaling
 - ⏳ Distributed orchestration
