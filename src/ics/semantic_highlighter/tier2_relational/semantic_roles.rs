@@ -17,10 +17,11 @@ use crate::ics::semantic_highlighter::{
 use ratatui::style::{Color, Modifier, Style};
 use regex::Regex;
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
 /// Semantic role type
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SemanticRole {
     /// Performer of action
     Agent,
@@ -61,7 +62,7 @@ impl SemanticRole {
 }
 
 /// Role assignment
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RoleAssignment {
     pub role: SemanticRole,
     pub range: Range<usize>,

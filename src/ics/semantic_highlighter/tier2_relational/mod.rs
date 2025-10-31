@@ -4,12 +4,13 @@
 //! No external API calls - all processing is local.
 
 use crate::ics::semantic_highlighter::{
-    cache::SemanticCache,
+    cache::{SemanticCache, CachedResult},
     incremental::{DirtyRegions, Debouncer},
     settings::RelationalSettings,
     visualization::HighlightSpan,
     Result,
 };
+use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
@@ -32,6 +33,46 @@ pub use anaphora::{AnaphoraResolver, AnaphoraResolution, Anaphor};
 enum AnalysisRequest {
     /// Incremental analysis of dirty regions
     Incremental(String),
+}
+
+/// Analysis result wrapper for caching (similar to Tier 3)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Tier2AnalysisResult {
+    Entities(Vec<Entity>),
+    Relationships(Vec<Relationship>),
+    Roles(Vec<RoleAssignment>),
+    Combined {
+        entities: Vec<Entity>,
+        relationships: Vec<Relationship>,
+        roles: Vec<RoleAssignment>,
+    },
+}
+
+impl Tier2AnalysisResult {
+    /// Convert cached analysis results to highlight spans
+    pub fn to_spans(
+        &self,
+        entity_recognizer: &EntityRecognizer,
+        relation_extractor: &RelationshipExtractor,
+        role_labeler: &SemanticRoleLabeler,
+        text: &str,
+    ) -> Vec<HighlightSpan> {
+        match self {
+            Tier2AnalysisResult::Entities(entities) =>
+                entity_recognizer.entities_to_spans(entities),
+            Tier2AnalysisResult::Relationships(relationships) =>
+                relation_extractor.relationships_to_spans(relationships, text),
+            Tier2AnalysisResult::Roles(roles) =>
+                role_labeler.roles_to_spans(roles),
+            Tier2AnalysisResult::Combined { entities, relationships, roles } => {
+                let mut spans = Vec::new();
+                spans.extend(entity_recognizer.entities_to_spans(entities));
+                spans.extend(relation_extractor.relationships_to_spans(relationships, text));
+                spans.extend(role_labeler.roles_to_spans(roles));
+                spans
+            }
+        }
+    }
 }
 
 /// Relational analyzer
@@ -95,9 +136,43 @@ impl RelationalAnalyzer {
         }
     }
 
+    /// Get cached highlights for range (non-blocking)
+    pub fn get_cached_highlights(&self, range: &Range<usize>, text: &str) -> Result<Vec<HighlightSpan>> {
+        if let Some(cached) = self.cache.relational.get(range) {
+            // Deserialize cached result
+            if let Ok(result) = serde_json::from_value::<Tier2AnalysisResult>(cached.data) {
+                debug!("Cache hit for range {:?}", range);
+                return Ok(result.to_spans(
+                    &self.entity_recognizer,
+                    &self.relation_extractor,
+                    &self.role_labeler,
+                    text,
+                ));
+            }
+        }
+        Ok(Vec::new())
+    }
+
     /// Get cached highlights for text
     pub fn highlight_cached(&self, text: &str) -> Result<Vec<HighlightSpan>> {
         let mut spans = Vec::new();
+
+        // Try cache for full text range first
+        let full_range = 0..text.len();
+        if let Some(cached) = self.cache.relational.get(&full_range) {
+            if let Ok(result) = serde_json::from_value::<Tier2AnalysisResult>(cached.data) {
+                debug!("Cache hit for full text");
+                return Ok(result.to_spans(
+                    &self.entity_recognizer,
+                    &self.relation_extractor,
+                    &self.role_labeler,
+                    text,
+                ));
+            }
+        }
+
+        // Cache miss - run analysis synchronously (still fast <200ms)
+        debug!("Cache miss - running synchronous analysis");
 
         // Run all analyzers
         if let Ok(entities) = self.entity_recognizer.recognize(text) {
@@ -194,21 +269,35 @@ impl RelationalAnalyzer {
                         let role_labeler = SemanticRoleLabeler::new()
                             .with_threshold(settings.min_entity_confidence);
 
-                        // Analyze region (caching to be implemented when serialization is resolved)
-                        // For now, analysis runs synchronously which is acceptable given <200ms design goal
-                        if let Ok(entities) = entity_recognizer.recognize(region_text) {
-                            debug!("Analyzed {} entities in region {:?}", entities.len(), region);
-                            // TODO: Cache results once HighlightSpan becomes serializable
-                        }
+                        // Analyze all components
+                        let entities = entity_recognizer.recognize(region_text).unwrap_or_default();
+                        let relationships = relation_extractor.extract(region_text).unwrap_or_default();
+                        let roles = role_labeler.label(region_text).unwrap_or_default();
 
-                        if let Ok(relationships) = relation_extractor.extract(region_text) {
-                            debug!("Analyzed {} relationships in region {:?}", relationships.len(), region);
-                            // TODO: Cache results
-                        }
+                        debug!(
+                            "Analyzed region {:?}: {} entities, {} relationships, {} roles",
+                            region,
+                            entities.len(),
+                            relationships.len(),
+                            roles.len()
+                        );
 
-                        if let Ok(roles) = role_labeler.label(region_text) {
-                            debug!("Analyzed {} semantic roles in region {:?}", roles.len(), region);
-                            // TODO: Cache results
+                        // Cache combined results
+                        if !entities.is_empty() || !relationships.is_empty() || !roles.is_empty() {
+                            let result = Tier2AnalysisResult::Combined {
+                                entities,
+                                relationships,
+                                roles,
+                            };
+
+                            if let Ok(json_value) = serde_json::to_value(&result) {
+                                let cached = CachedResult::new(json_value)
+                                    .with_confidence(settings.min_entity_confidence);
+                                _cache.relational.insert(region.clone(), cached);
+                                debug!("Cached Tier 2 results for region {:?}", region);
+                            } else {
+                                debug!("Failed to serialize Tier 2 results for region {:?}", region);
+                            }
                         }
                     }
 

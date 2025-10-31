@@ -16,9 +16,10 @@ use crate::ics::semantic_highlighter::{
 };
 use ratatui::style::{Color, Modifier, Style};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 /// Entity type classification
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EntityType {
     Person,
     Organization,
@@ -52,7 +53,7 @@ impl EntityType {
 }
 
 /// Recognized entity with metadata
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entity {
     pub entity_type: EntityType,
     pub text: String,

@@ -13,10 +13,11 @@ use crate::ics::semantic_highlighter::{
     Result,
 };
 use ratatui::style::{Color, Modifier, Style};
+use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
 /// Relationship triple (Subject, Predicate, Object)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Relationship {
     pub subject: Range<usize>,
     pub predicate: Range<usize>,
@@ -26,7 +27,7 @@ pub struct Relationship {
 }
 
 /// Type of semantic relationship
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RelationType {
     /// Action relationship (X does Y)
     Action,

@@ -61,16 +61,14 @@ cargo test --lib
    - 125 semantic highlighter tests ✅
    - 425 other system tests ✅
 
-### 📋 Known Status
+### ✅ All Tiers Complete
 
-**Tier 2 Caching**: Marked as TODO
-- Background analysis runs but doesn't persist results to cache
-- This is **acceptable** because:
-  - Tier 2 is designed for <200ms synchronous performance
-  - Analysis is local (no API calls)
-  - Current synchronous approach works fine
-- Caching can be optimized in future if needed
-- See `tier2_relational/mod.rs:197-212` for TODO markers
+**Tier 2 (Relational)**: Fully implemented with caching ✅
+- Background analysis runs and caches results to LRU cache
+- Serialization/deserialization using JSON
+- Cache invalidation on text changes
+- 11 comprehensive caching tests passing
+- See `tier2_relational/mod.rs` for implementation
 
 **Tier 3 (Analytical)**: Fully implemented with caching ✅
 - LLM-powered discourse, contradiction, pragmatics analysis
