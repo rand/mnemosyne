@@ -83,6 +83,42 @@ pub struct ReviewFeedback {
     pub satisfied_requirements: std::collections::HashMap<String, Vec<crate::types::MemoryId>>,
 }
 
+/// Configuration for LLM-based reviewer validation
+#[cfg(feature = "python")]
+#[derive(Debug, Clone)]
+pub struct ReviewerConfig {
+    /// Maximum number of retry attempts for LLM calls
+    pub max_llm_retries: u32,
+
+    /// Timeout for LLM calls in seconds
+    pub llm_timeout_secs: u64,
+
+    /// Enable/disable LLM validation (false = fallback to pattern matching)
+    pub enable_llm_validation: bool,
+
+    /// LLM model name (e.g., "claude-3-opus-20240229")
+    pub llm_model: String,
+
+    /// Maximum tokens for LLM context
+    pub max_context_tokens: usize,
+
+    /// Temperature for LLM generation (0.0-1.0)
+    pub llm_temperature: f32,
+}
+
+#[cfg(feature = "python")]
+impl Default for ReviewerConfig {
+    fn default() -> Self {
+        Self {
+            max_llm_retries: 3,
+            llm_timeout_secs: 60,
+            enable_llm_validation: true,
+            llm_model: "claude-3-5-sonnet-20241022".to_string(),
+            max_context_tokens: 4096,
+            llm_temperature: 0.0,
+        }
+    }
+}
 
 /// Reviewer actor state
 pub struct ReviewerState {
@@ -102,9 +138,9 @@ pub struct ReviewerState {
     #[cfg(feature = "python")]
     py_reviewer: Option<std::sync::Arc<PyObject>>,
 
-    /// Flag to enable/disable LLM validation (false = fallback to pattern matching only)
+    /// Configuration for LLM-based validation
     #[cfg(feature = "python")]
-    llm_validation_enabled: bool,
+    config: ReviewerConfig,
 }
 
 impl ReviewerState {
@@ -117,7 +153,7 @@ impl ReviewerState {
             #[cfg(feature = "python")]
             py_reviewer: None,
             #[cfg(feature = "python")]
-            llm_validation_enabled: false,
+            config: ReviewerConfig::default(),
         }
     }
 
@@ -125,18 +161,30 @@ impl ReviewerState {
         self.orchestrator = Some(orchestrator);
     }
 
-    /// Register Python ReviewerAgent for LLM-based validation
+    /// Register Python ReviewerAgent for LLM-based validation with optional custom configuration
     #[cfg(feature = "python")]
     pub fn register_py_reviewer(&mut self, py_reviewer: std::sync::Arc<PyObject>) {
         self.py_reviewer = Some(py_reviewer);
-        self.llm_validation_enabled = true;
-        tracing::info!("Python LLM reviewer registered, semantic validation enabled");
+        self.config.enable_llm_validation = true;
+        tracing::info!(
+            "Python LLM reviewer registered with model {} (timeout: {}s, max retries: {})",
+            self.config.llm_model,
+            self.config.llm_timeout_secs,
+            self.config.max_llm_retries
+        );
+    }
+
+    /// Update reviewer configuration
+    #[cfg(feature = "python")]
+    pub fn update_config(&mut self, config: ReviewerConfig) {
+        self.config = config;
+        tracing::info!("Reviewer configuration updated: {:?}", self.config);
     }
 
     /// Disable LLM validation (fallback to pattern matching only)
     #[cfg(feature = "python")]
     pub fn disable_llm_validation(&mut self) {
-        self.llm_validation_enabled = false;
+        self.config.enable_llm_validation = false;
         tracing::info!("LLM validation disabled, using pattern matching only");
     }
 
@@ -151,7 +199,7 @@ impl ReviewerState {
         &self,
         work_item: &WorkItem,
     ) -> Result<Vec<String>> {
-        if !self.llm_validation_enabled || self.py_reviewer.is_none() {
+        if !self.config.enable_llm_validation || self.py_reviewer.is_none() {
             tracing::debug!("LLM validation not enabled, skipping requirement extraction");
             return Ok(Vec::new());
         }
@@ -273,7 +321,7 @@ impl ReviewerActor {
 
         // Generate improvement guidance if review failed
         #[cfg(feature = "python")]
-        let improvement_guidance = if !passed && state.llm_validation_enabled && state.py_reviewer.is_some() {
+        let improvement_guidance = if !passed && state.config.enable_llm_validation && state.py_reviewer.is_some() {
             tracing::info!("Generating LLM improvement guidance for failed review");
 
             match Self::generate_improvement_guidance(state, &gates, &all_issues, &work_item, &result).await {
@@ -410,7 +458,7 @@ impl ReviewerActor {
 
         // LLM semantic validation if enabled
         #[cfg(feature = "python")]
-        if state.llm_validation_enabled && state.py_reviewer.is_some() {
+        if state.config.enable_llm_validation && state.py_reviewer.is_some() {
             tracing::debug!("Using LLM for semantic intent validation");
 
             // Collect implementation content from execution memories
@@ -663,7 +711,7 @@ impl ReviewerActor {
 
         // LLM semantic validation if enabled
         #[cfg(feature = "python")]
-        if state.llm_validation_enabled && state.py_reviewer.is_some() {
+        if state.config.enable_llm_validation && state.py_reviewer.is_some() {
             tracing::debug!("Using LLM for semantic completeness validation");
 
             // Collect implementation content
@@ -795,7 +843,7 @@ impl ReviewerActor {
 
         // LLM semantic validation if enabled
         #[cfg(feature = "python")]
-        if state.llm_validation_enabled && state.py_reviewer.is_some() {
+        if state.config.enable_llm_validation && state.py_reviewer.is_some() {
             tracing::debug!("Using LLM for semantic correctness validation");
 
             // Collect implementation content
@@ -1140,8 +1188,6 @@ impl Actor for ReviewerActor {
             ReviewerMessage::RegisterPythonReviewer { py_reviewer } => {
                 tracing::info!("Registering Python reviewer for LLM validation");
                 state.register_py_reviewer(py_reviewer);
-                state.llm_validation_enabled = true;
-                tracing::info!("LLM validation enabled");
             }
             ReviewerMessage::ReviewWork {
                 item_id,
