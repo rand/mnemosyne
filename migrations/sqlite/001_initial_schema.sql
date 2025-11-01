@@ -34,7 +34,9 @@ CREATE TABLE IF NOT EXISTS memories (
         'entity',
         'insight',
         'reference',
-        'preference'
+        'preference',
+        'task',
+        'agent_event'
     )),
     importance INTEGER NOT NULL CHECK(importance BETWEEN 1 AND 10),
     confidence REAL NOT NULL CHECK(confidence BETWEEN 0.0 AND 1.0),
@@ -147,7 +149,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
         'consolidate'
     )),
     memory_id TEXT,
-    details TEXT NOT NULL,  -- JSON object with operation-specific data
+    metadata TEXT NOT NULL,  -- JSON object with operation-specific data (renamed from 'details' to avoid reserved keyword)
 
     FOREIGN KEY (memory_id) REFERENCES memories(id)
 );

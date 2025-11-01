@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS memories (
         'insight',
         'reference',
         'preference',
+        'task',
         'agent_event'
     )),
     importance INTEGER NOT NULL CHECK(importance BETWEEN 1 AND 10),

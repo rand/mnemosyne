@@ -58,11 +58,21 @@ fn parse_sql_statements(sql: &str) -> Vec<String> {
     statements
 }
 
+/// Database schema type
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SchemaType {
+    /// Standard SQLite (embeddings in separate table)
+    StandardSQLite,
+    /// LibSQL/Turso (embeddings as F32_BLOB in memories table)
+    LibSQL,
+}
+
 /// LibSQL storage backend
 pub struct LibsqlStorage {
     db: Database,
     embedding_service: Option<Arc<LocalEmbeddingService>>,
     search_config: crate::config::SearchConfig,
+    schema_type: SchemaType,
 }
 
 /// Database connection mode
@@ -351,10 +361,23 @@ impl LibsqlStorage {
 
         debug!("LibSQL database connection established");
 
+        // Determine schema type based on connection mode
+        // Remote and EmbeddedReplica use LibSQL schema (F32_BLOB embedding column)
+        // Local, LocalReadOnly, and InMemory use standard SQLite schema (separate embeddings table)
+        let schema_type = match mode {
+            ConnectionMode::Remote { .. } | ConnectionMode::EmbeddedReplica { .. } => {
+                SchemaType::LibSQL
+            }
+            ConnectionMode::Local(_) | ConnectionMode::LocalReadOnly(_) | ConnectionMode::InMemory => {
+                SchemaType::StandardSQLite
+            }
+        };
+
         let storage = Self {
             db,
             embedding_service: None,
             search_config: crate::config::SearchConfig::default(),
+            schema_type,
         };
 
         // Verify database health and run migrations (skip for read-only databases)
@@ -463,6 +486,7 @@ impl LibsqlStorage {
             db,
             embedding_service: None,
             search_config: crate::config::SearchConfig::default(),
+            schema_type: SchemaType::StandardSQLite, // Default for tests
         }
     }
 
@@ -531,22 +555,34 @@ impl LibsqlStorage {
 
         // Manually run migrations for better control
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let migration_folder = match self.schema_type {
+            SchemaType::LibSQL => "libsql",
+            SchemaType::StandardSQLite => "sqlite",
+        };
         let migrations_path = std::path::PathBuf::from(manifest_dir)
             .join("migrations")
-            .join("libsql");
+            .join(migration_folder);
 
-        debug!("Migrations path: {:?}", migrations_path);
+        debug!("Migrations path: {:?} (schema type: {:?})", migrations_path, self.schema_type);
 
-        // Read and execute migration files in order
-        let migration_files = vec![
-            "001_initial_schema.sql",
-            "002_add_indexes.sql",
-            "003_audit_trail.sql",
-            "011_work_items.sql",
-            "012_requirement_tracking.sql",
-            // Note: Vector search uses native embedding column in memories table (F32_BLOB)
-            // No need for separate memory_vectors table or vec0 extension
-        ];
+        // Read and execute migration files in order - different files for each schema type
+        let migration_files: Vec<&str> = match self.schema_type {
+            SchemaType::LibSQL => vec![
+                "001_initial_schema.sql",
+                "002_add_indexes.sql",
+                "003_audit_trail.sql",
+                "011_work_items.sql",
+                "012_requirement_tracking.sql",
+                // Note: LibSQL schema uses native embedding column in memories table (F32_BLOB)
+            ],
+            SchemaType::StandardSQLite => vec![
+                "001_initial_schema.sql",
+                "002_add_indexes.sql",
+                // Note: SQLite schema uses separate memory_embeddings table
+                // 003_add_vector_search.sql is disabled (requires sqlite-vec extension)
+                // 007_evolution.sql is obsolete (columns already in 001_initial_schema.sql)
+            ],
+        };
 
         for migration_file in migration_files {
             // Check if migration already applied
@@ -1552,30 +1588,51 @@ impl StorageBackend for LibsqlStorage {
         })?;
         let tx = conn.transaction().await?;
 
-        // Insert memory metadata including embedding column
-        // Note: For F32_BLOB vectors, we use vector32(?) to convert JSON array to binary
-        let sql = if memory.embedding.is_some() {
-            r#"
-            INSERT INTO memories (
-                id, namespace, created_at, updated_at,
-                content, summary, keywords, tags, context,
-                memory_type, importance, confidence,
-                related_files, related_entities,
-                access_count, last_accessed_at, expires_at,
-                is_archived, superseded_by, embedding_model, embedding
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, vector32(?))
-            "#
-        } else {
-            r#"
-            INSERT INTO memories (
-                id, namespace, created_at, updated_at,
-                content, summary, keywords, tags, context,
-                memory_type, importance, confidence,
-                related_files, related_entities,
-                access_count, last_accessed_at, expires_at,
-                is_archived, superseded_by, embedding_model, embedding
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
-            "#
+        // Insert memory metadata - schema varies by database type
+        // LibSQL: embedding column with F32_BLOB type
+        // StandardSQLite: embeddings stored separately in memory_embeddings table
+        let (sql, include_embedding_param) = match self.schema_type {
+            SchemaType::LibSQL => {
+                // LibSQL schema: embedding column in memories table
+                let sql = if memory.embedding.is_some() {
+                    r#"
+                    INSERT INTO memories (
+                        id, namespace, created_at, updated_at,
+                        content, summary, keywords, tags, context,
+                        memory_type, importance, confidence,
+                        related_files, related_entities,
+                        access_count, last_accessed_at, expires_at,
+                        is_archived, superseded_by, embedding_model, embedding
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, vector32(?))
+                    "#
+                } else {
+                    r#"
+                    INSERT INTO memories (
+                        id, namespace, created_at, updated_at,
+                        content, summary, keywords, tags, context,
+                        memory_type, importance, confidence,
+                        related_files, related_entities,
+                        access_count, last_accessed_at, expires_at,
+                        is_archived, superseded_by, embedding_model, embedding
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                    "#
+                };
+                (sql, true)
+            }
+            SchemaType::StandardSQLite => {
+                // Standard SQLite schema: no embedding column in memories table
+                let sql = r#"
+                    INSERT INTO memories (
+                        id, namespace, created_at, updated_at,
+                        content, summary, keywords, tags, context,
+                        memory_type, importance, confidence,
+                        related_files, related_entities,
+                        access_count, last_accessed_at, expires_at,
+                        is_archived, superseded_by, embedding_model
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    "#;
+                (sql, false)
+            }
         };
 
         // Serialize embedding outside params! macro to handle errors properly
@@ -1586,37 +1643,73 @@ impl StorageBackend for LibsqlStorage {
             None => None,
         };
 
-        tx.execute(
-            sql,
-            params![
-                memory.id.to_string(),
-                serde_json::to_string(&memory.namespace)?,
-                memory.created_at.to_rfc3339(),
-                memory.updated_at.to_rfc3339(),
-                memory.content.clone(),
-                memory.summary.clone(),
-                serde_json::to_string(&memory.keywords)?,
-                serde_json::to_string(&memory.tags)?,
-                memory.context.clone(),
-                serde_json::to_value(memory.memory_type)?
-                    .as_str()
-                    .ok_or_else(|| MnemosyneError::Database(
-                        "Failed to serialize memory_type as string".to_string()
-                    ))?,
-                memory.importance as i64,
-                memory.confidence as f64,
-                serde_json::to_string(&memory.related_files)?,
-                serde_json::to_string(&memory.related_entities)?,
-                memory.access_count as i64,
-                memory.last_accessed_at.to_rfc3339(),
-                memory.expires_at.map(|dt| dt.to_rfc3339()),
-                if memory.is_archived { 1i64 } else { 0i64 },
-                memory.superseded_by.map(|id| id.to_string()),
-                memory.embedding_model.clone(),
-                embedding_json
-            ],
-        )
-        .await?;
+        // Execute with schema-appropriate parameters
+        if include_embedding_param {
+            // LibSQL schema: include embedding parameter
+            tx.execute(
+                sql,
+                params![
+                    memory.id.to_string(),
+                    serde_json::to_string(&memory.namespace)?,
+                    memory.created_at.to_rfc3339(),
+                    memory.updated_at.to_rfc3339(),
+                    memory.content.clone(),
+                    memory.summary.clone(),
+                    serde_json::to_string(&memory.keywords)?,
+                    serde_json::to_string(&memory.tags)?,
+                    memory.context.clone(),
+                    serde_json::to_value(memory.memory_type)?
+                        .as_str()
+                        .ok_or_else(|| MnemosyneError::Database(
+                            "Failed to serialize memory_type as string".to_string()
+                        ))?,
+                    memory.importance as i64,
+                    memory.confidence as f64,
+                    serde_json::to_string(&memory.related_files)?,
+                    serde_json::to_string(&memory.related_entities)?,
+                    memory.access_count as i64,
+                    memory.last_accessed_at.to_rfc3339(),
+                    memory.expires_at.map(|dt| dt.to_rfc3339()),
+                    if memory.is_archived { 1i64 } else { 0i64 },
+                    memory.superseded_by.map(|id| id.to_string()),
+                    memory.embedding_model.clone(),
+                    embedding_json
+                ],
+            )
+            .await?;
+        } else {
+            // StandardSQLite schema: no embedding parameter
+            tx.execute(
+                sql,
+                params![
+                    memory.id.to_string(),
+                    serde_json::to_string(&memory.namespace)?,
+                    memory.created_at.to_rfc3339(),
+                    memory.updated_at.to_rfc3339(),
+                    memory.content.clone(),
+                    memory.summary.clone(),
+                    serde_json::to_string(&memory.keywords)?,
+                    serde_json::to_string(&memory.tags)?,
+                    memory.context.clone(),
+                    serde_json::to_value(memory.memory_type)?
+                        .as_str()
+                        .ok_or_else(|| MnemosyneError::Database(
+                            "Failed to serialize memory_type as string".to_string()
+                        ))?,
+                    memory.importance as i64,
+                    memory.confidence as f64,
+                    serde_json::to_string(&memory.related_files)?,
+                    serde_json::to_string(&memory.related_entities)?,
+                    memory.access_count as i64,
+                    memory.last_accessed_at.to_rfc3339(),
+                    memory.expires_at.map(|dt| dt.to_rfc3339()),
+                    if memory.is_archived { 1i64 } else { 0i64 },
+                    memory.superseded_by.map(|id| id.to_string()),
+                    memory.embedding_model.clone(),
+                ],
+            )
+            .await?;
+        }
 
         // Store links
         for link in &memory.links {
