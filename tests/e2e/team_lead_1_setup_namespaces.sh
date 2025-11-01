@@ -67,7 +67,7 @@ MEM_STRUCTURE=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 10 \
     --type architecture 2>&1) || fail "Failed to store team structure"
 
-STRUCTURE_ID=$(echo "$MEM_STRUCTURE" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+STRUCTURE_ID=$(echo "$MEM_STRUCTURE" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Team structure documented: $STRUCTURE_ID"
 
 # ===================================================================
@@ -99,7 +99,7 @@ MEM_CONVENTIONS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type reference 2>&1) || fail "Failed to store conventions"
 
-CONVENTIONS_ID=$(echo "$MEM_CONVENTIONS" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+CONVENTIONS_ID=$(echo "$MEM_CONVENTIONS" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Conventions documented: $CONVENTIONS_ID"
 
 # ===================================================================
@@ -126,7 +126,7 @@ MEM_AUTH=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type architecture 2>&1) || fail "Failed to store auth project"
 
-AUTH_ID=$(echo "$MEM_AUTH" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+AUTH_ID=$(echo "$MEM_AUTH" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Auth service project created: $AUTH_ID"
 
 # API gateway project
@@ -145,7 +145,7 @@ MEM_API=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type architecture 2>&1) || fail "Failed to store API project"
 
-API_ID=$(echo "$MEM_API" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+API_ID=$(echo "$MEM_API" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ API gateway project created: $API_ID"
 
 # Frontend project
@@ -164,7 +164,7 @@ MEM_FRONTEND=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type architecture 2>&1) || fail "Failed to store frontend project"
 
-FRONTEND_ID=$(echo "$MEM_FRONTEND" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+FRONTEND_ID=$(echo "$MEM_FRONTEND" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Frontend project created: $FRONTEND_ID"
 
 # ===================================================================
@@ -220,7 +220,7 @@ MEM_SPRINT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 8 \
     --type task 2>&1) || fail "Failed to store sprint"
 
-SPRINT_ID=$(echo "$MEM_SPRINT" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+SPRINT_ID=$(echo "$MEM_SPRINT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Sprint namespace created: $SPRINT_ID"
 
 # ===================================================================
@@ -248,7 +248,7 @@ MEM_PRACTICES=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 10 \
     --type reference 2>&1) || fail "Failed to store best practices"
 
-PRACTICES_ID=$(echo "$MEM_PRACTICES" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+PRACTICES_ID=$(echo "$MEM_PRACTICES" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Best practices documented: $PRACTICES_ID"
 
 # ===================================================================

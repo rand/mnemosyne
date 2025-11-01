@@ -70,7 +70,7 @@ MEM1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type decision 2>&1) || fail "Failed to store decision 1"
 
-MEM1_ID=$(echo "$MEM1" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM1_ID=$(echo "$MEM1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ TypeScript decision: $MEM1_ID"
 
 # Decision 2: Process
@@ -100,7 +100,7 @@ MEM2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 10 \
     --type decision 2>&1) || fail "Failed to store decision 2"
 
-MEM2_ID=$(echo "$MEM2" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM2_ID=$(echo "$MEM2" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Code review decision: $MEM2_ID"
 
 # Decision 3: Infrastructure
@@ -134,7 +134,7 @@ MEM3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type decision 2>&1) || fail "Failed to store decision 3"
 
-MEM3_ID=$(echo "$MEM3" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM3_ID=$(echo "$MEM3" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Infrastructure decision: $MEM3_ID"
 
 # ===================================================================

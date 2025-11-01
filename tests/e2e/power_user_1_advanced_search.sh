@@ -69,7 +69,7 @@ MEM1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type architecture \
     --verbose 2>&1) || fail "Failed to store auth memory"
 
-MEM1_ID=$(echo "$MEM1" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM1_ID=$(echo "$MEM1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Authentication memory: $MEM1_ID"
 
 sleep 2  # Wait for enrichment
@@ -93,7 +93,7 @@ MEM2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type architecture \
     --verbose 2>&1) || fail "Failed to store cache memory"
 
-MEM2_ID=$(echo "$MEM2" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM2_ID=$(echo "$MEM2" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Caching memory: $MEM2_ID"
 
 sleep 2
@@ -117,7 +117,7 @@ MEM3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type insight \
     --verbose 2>&1) || fail "Failed to store database memory"
 
-MEM3_ID=$(echo "$MEM3" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM3_ID=$(echo "$MEM3" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Database memory: $MEM3_ID"
 
 sleep 2
@@ -141,7 +141,7 @@ MEM4=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type architecture \
     --verbose 2>&1) || fail "Failed to store monitoring memory"
 
-MEM4_ID=$(echo "$MEM4" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM4_ID=$(echo "$MEM4" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Monitoring memory: $MEM4_ID"
 
 sleep 2
@@ -165,7 +165,7 @@ MEM5=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type architecture \
     --verbose 2>&1) || fail "Failed to store rate limit memory"
 
-MEM5_ID=$(echo "$MEM5" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM5_ID=$(echo "$MEM5" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Rate limiting memory: $MEM5_ID"
 
 sleep 2

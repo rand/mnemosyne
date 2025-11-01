@@ -83,7 +83,7 @@ MEM_PLANNING=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type task \
     --verbose 2>&1) || fail "Failed to store sprint planning"
 
-PLANNING_ID=$(echo "$MEM_PLANNING" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+PLANNING_ID=$(echo "$MEM_PLANNING" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Sprint planning stored: $PLANNING_ID"
 
 # Wait for enrichment
@@ -177,7 +177,7 @@ MEM_DEPS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type decision \
     --verbose 2>&1) || fail "Failed to store dependencies"
 
-DEPS_ID=$(echo "$MEM_DEPS" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+DEPS_ID=$(echo "$MEM_DEPS" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Dependencies documented: $DEPS_ID"
 
 # Wait for enrichment
@@ -216,7 +216,7 @@ MEM_ALICE=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type task \
     --verbose 2>&1) || fail "Failed to store Alice's assignment"
 
-ALICE_ID=$(echo "$MEM_ALICE" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+ALICE_ID=$(echo "$MEM_ALICE" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Alice's assignment: $ALICE_ID"
 
 # Dave's assignment
@@ -244,7 +244,7 @@ MEM_DAVE=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type task \
     --verbose 2>&1) || fail "Failed to store Dave's assignment"
 
-DAVE_ID=$(echo "$MEM_DAVE" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+DAVE_ID=$(echo "$MEM_DAVE" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Dave's assignment: $DAVE_ID"
 
 # Wait for enrichment
@@ -333,7 +333,7 @@ MEM_COORD=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type reference \
     --verbose 2>&1) || fail "Failed to store coordination plan"
 
-COORD_ID=$(echo "$MEM_COORD" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+COORD_ID=$(echo "$MEM_COORD" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Coordination plan stored: $COORD_ID"
 
 sleep 2

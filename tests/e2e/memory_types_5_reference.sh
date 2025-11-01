@@ -83,7 +83,7 @@ MEM1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 8 \
     --type reference 2>&1) || fail "Failed to store reference 1"
 
-MEM1_ID=$(echo "$MEM1" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM1_ID=$(echo "$MEM1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ PostgreSQL reference: $MEM1_ID"
 
 # Reference 2: Best practices
@@ -125,7 +125,7 @@ MEM2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type reference 2>&1) || fail "Failed to store reference 2"
 
-MEM2_ID=$(echo "$MEM2" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM2_ID=$(echo "$MEM2" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Rust guidelines reference: $MEM2_ID"
 
 # Reference 3: Tool documentation
@@ -171,7 +171,7 @@ MEM3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 7 \
     --type reference 2>&1) || fail "Failed to store reference 3"
 
-MEM3_ID=$(echo "$MEM3" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM3_ID=$(echo "$MEM3" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Docker reference: $MEM3_ID"
 
 # ===================================================================

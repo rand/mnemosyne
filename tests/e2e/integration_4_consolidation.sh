@@ -112,7 +112,7 @@ MEM_CONSOLIDATED=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type insight 2>&1) || fail "Consolidation failed"
 
-CONSOL_ID=$(echo "$MEM_CONSOLIDATED" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+CONSOL_ID=$(echo "$MEM_CONSOLIDATED" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 
 print_green "  ✓ Consolidated memory created: $CONSOL_ID"
 

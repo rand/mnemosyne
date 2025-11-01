@@ -63,7 +63,7 @@ MEM1_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 7 \
     --type insight 2>&1) || fail "Failed to store morning insight"
 
-MEM1_ID=$(echo "$MEM1_OUTPUT" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM1_ID=$(echo "$MEM1_OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Morning insight stored: $MEM1_ID"
 
 # ===================================================================
@@ -88,7 +88,7 @@ MEM2_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 8 \
     --type task 2>&1) || fail "Failed to store task"
 
-MEM2_ID=$(echo "$MEM2_OUTPUT" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM2_ID=$(echo "$MEM2_OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Task stored: $MEM2_ID"
 
 # Decision memory
@@ -105,7 +105,7 @@ MEM3_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type decision 2>&1) || fail "Failed to store decision"
 
-MEM3_ID=$(echo "$MEM3_OUTPUT" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM3_ID=$(echo "$MEM3_OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Decision stored: $MEM3_ID"
 
 # ===================================================================
@@ -129,7 +129,7 @@ MEM4_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 6 \
     --type insight 2>&1) || fail "Failed to store review insight"
 
-MEM4_ID=$(echo "$MEM4_OUTPUT" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM4_ID=$(echo "$MEM4_OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Review insight stored: $MEM4_ID"
 
 # ===================================================================

@@ -66,7 +66,7 @@ MEM_GLOBAL=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 7 \
     --type insight 2>&1) || fail "Failed to store global preference"
 
-GLOBAL_ID=$(echo "$MEM_GLOBAL" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+GLOBAL_ID=$(echo "$MEM_GLOBAL" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Global preference stored: $GLOBAL_ID"
 
 # ===================================================================
@@ -93,7 +93,7 @@ MEM_A1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type architecture 2>&1) || fail "Failed to store project A architecture"
 
-A1_ID=$(echo "$MEM_A1" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+A1_ID=$(echo "$MEM_A1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Project A architecture: $A1_ID"
 
 # Project A task
@@ -110,7 +110,7 @@ MEM_A2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 8 \
     --type task 2>&1) || fail "Failed to store project A task"
 
-A2_ID=$(echo "$MEM_A2" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+A2_ID=$(echo "$MEM_A2" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Project A task: $A2_ID"
 
 # ===================================================================
@@ -137,7 +137,7 @@ MEM_B1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type architecture 2>&1) || fail "Failed to store project B architecture"
 
-B1_ID=$(echo "$MEM_B1" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+B1_ID=$(echo "$MEM_B1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Project B architecture: $B1_ID"
 
 # Project B decision
@@ -154,7 +154,7 @@ MEM_B2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 8 \
     --type decision 2>&1) || fail "Failed to store project B decision"
 
-B2_ID=$(echo "$MEM_B2" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+B2_ID=$(echo "$MEM_B2" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Project B decision: $B2_ID"
 
 # ===================================================================
@@ -270,7 +270,7 @@ MEM_FRONTEND=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 7 \
     --type architecture 2>&1) || fail "Failed to store frontend memory"
 
-FRONTEND_ID=$(echo "$MEM_FRONTEND" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+FRONTEND_ID=$(echo "$MEM_FRONTEND" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Hierarchical namespace created: project:ecommerce:frontend"
 
 # Backend API in e-commerce
@@ -288,7 +288,7 @@ MEM_BACKEND=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 7 \
     --type architecture 2>&1) || fail "Failed to store backend memory"
 
-BACKEND_ID=$(echo "$MEM_BACKEND" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+BACKEND_ID=$(echo "$MEM_BACKEND" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Hierarchical namespace created: project:ecommerce:backend"
 
 # ===================================================================
@@ -347,7 +347,7 @@ MEM_SESSION=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 6 \
     --type insight 2>&1) || fail "Failed to store session memory"
 
-SESSION_ID=$(echo "$MEM_SESSION" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+SESSION_ID=$(echo "$MEM_SESSION" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Session memory stored: $SESSION_ID"
 
 # Verify session namespace exists

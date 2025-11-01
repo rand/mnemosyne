@@ -69,7 +69,7 @@ REMEMBER_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
 print_green "  ✓ Memory stored successfully"
 
 # Extract memory ID from output
-MEMORY_ID=$(echo "$REMEMBER_OUTPUT" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEMORY_ID=$(echo "$REMEMBER_OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 
 if [ -z "$MEMORY_ID" ]; then
     fail "Failed to extract memory ID from output"

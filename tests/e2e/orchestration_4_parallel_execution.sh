@@ -86,21 +86,21 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$PARALLEL_NS" \
     --importance 8 \
     --type task \
-    --verbose 2>&1 | grep -o 'mem-[a-zA-Z0-9-]*' | head -1 > /tmp/task_a_id.txt &
+    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 > /tmp/task_a_id.txt &
 
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$TASK_B" \
     --namespace "$PARALLEL_NS" \
     --importance 8 \
     --type task \
-    --verbose 2>&1 | grep -o 'mem-[a-zA-Z0-9-]*' | head -1 > /tmp/task_b_id.txt &
+    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 > /tmp/task_b_id.txt &
 
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$TASK_C" \
     --namespace "$PARALLEL_NS" \
     --importance 7 \
     --type task \
-    --verbose 2>&1 | grep -o 'mem-[a-zA-Z0-9-]*' | head -1 > /tmp/task_c_id.txt &
+    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 > /tmp/task_c_id.txt &
 
 # Wait for all to complete
 wait

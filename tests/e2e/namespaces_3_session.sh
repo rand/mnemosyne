@@ -80,7 +80,7 @@ MEM1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type insight \
     --verbose 2>&1) || fail "Failed to store debug observation"
 
-MEM1_ID=$(echo "$MEM1" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM1_ID=$(echo "$MEM1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Debug observation 1: $MEM1_ID"
 
 sleep 2
@@ -117,7 +117,7 @@ MEM2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type insight \
     --verbose 2>&1) || fail "Failed to store debug confirmation"
 
-MEM2_ID=$(echo "$MEM2" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM2_ID=$(echo "$MEM2" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Debug observation 2: $MEM2_ID"
 
 sleep 2
@@ -151,7 +151,7 @@ MEM3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type insight \
     --verbose 2>&1) || fail "Failed to store debug resolution"
 
-MEM3_ID=$(echo "$MEM3" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM3_ID=$(echo "$MEM3" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Debug resolution: $MEM3_ID"
 
 sleep 2
@@ -255,7 +255,7 @@ MEM_PROJECT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 8 \
     --type reference 2>&1) || fail "Failed to store project memory"
 
-MEM_PROJECT_ID=$(echo "$MEM_PROJECT" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM_PROJECT_ID=$(echo "$MEM_PROJECT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 
 # Search project namespace - should not find session memories
 PROJECT_SEARCH=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
@@ -308,7 +308,7 @@ MEM_PROMOTED=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type insight \
     --verbose 2>&1) || fail "Failed to promote session insight"
 
-MEM_PROMOTED_ID=$(echo "$MEM_PROMOTED" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM_PROMOTED_ID=$(echo "$MEM_PROMOTED" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Session insight promoted: $MEM_PROMOTED_ID"
 
 sleep 2

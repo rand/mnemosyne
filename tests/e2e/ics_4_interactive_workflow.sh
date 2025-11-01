@@ -72,7 +72,7 @@ MEM_ID=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "practices:development" \
     --importance 9 \
     --type insight \
-    --verbose 2>&1 | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 
 print_green "  ✓ Memory created: $MEM_ID"
 sleep 2
@@ -157,7 +157,7 @@ MEM2_ID=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "practices:development" \
     --importance 8 \
     --type reference \
-    --verbose 2>&1 | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 
 print_green "  ✓ Related memory created: $MEM2_ID"
 sleep 2

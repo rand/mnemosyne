@@ -55,7 +55,7 @@ M1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "knowledge:process" \
     --importance 6 \
     --type insight \
-    --verbose 2>&1 | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Initial observation: $M1"
 sleep 2
 
@@ -76,7 +76,7 @@ M2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "knowledge:process" \
     --importance 8 \
     --type insight \
-    --verbose 2>&1 | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Refined analysis: $M2"
 sleep 2
 
@@ -106,7 +106,7 @@ M3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "knowledge:process" \
     --importance 10 \
     --type reference \
-    --verbose 2>&1 | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Validated solution: $M3"
 sleep 2
 

@@ -55,7 +55,7 @@ section() {
 pass() {
     local test_name=$1
     print_green "[PASS] $test_name"
-    ((PASSED++))
+    : $((PASSED=${PASSED:-0}+1))
 }
 
 # Mark test as failed with optional message
@@ -66,7 +66,7 @@ fail() {
     if [ $# -gt 0 ]; then
         echo "  $*"
     fi
-    ((FAILED++))
+    : $((FAILED=${FAILED:-0}+1))
 }
 
 # Mark test as skipped

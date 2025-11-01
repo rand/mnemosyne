@@ -64,7 +64,7 @@ MEM_ALICE=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 8 \
     --type insight 2>&1) || fail "Failed to store Alice's insight"
 
-ALICE_ID=$(echo "$MEM_ALICE" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+ALICE_ID=$(echo "$MEM_ALICE" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Alice's insight: $ALICE_ID"
 
 # Bob's similar insight (same issue, slightly different wording)
@@ -81,7 +81,7 @@ MEM_BOB=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 7 \
     --type insight 2>&1) || fail "Failed to store Bob's insight"
 
-BOB_ID=$(echo "$MEM_BOB" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+BOB_ID=$(echo "$MEM_BOB" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Bob's insight: $BOB_ID"
 
 # Carol's similar insight (same root cause, different focus)
@@ -98,7 +98,7 @@ MEM_CAROL=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 8 \
     --type insight 2>&1) || fail "Failed to store Carol's insight"
 
-CAROL_ID=$(echo "$MEM_CAROL" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+CAROL_ID=$(echo "$MEM_CAROL" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Carol's insight: $CAROL_ID"
 
 # ===================================================================
@@ -123,7 +123,7 @@ MEM_AUTH_ARCH=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type architecture 2>&1) || fail "Failed to store auth architecture"
 
-AUTH_ARCH_ID=$(echo "$MEM_AUTH_ARCH" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+AUTH_ARCH_ID=$(echo "$MEM_AUTH_ARCH" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Auth service architecture: $AUTH_ARCH_ID"
 
 # API gateway architecture (similar choice)
@@ -140,7 +140,7 @@ MEM_API_ARCH=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type architecture 2>&1) || fail "Failed to store API architecture"
 
-API_ARCH_ID=$(echo "$MEM_API_ARCH" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+API_ARCH_ID=$(echo "$MEM_API_ARCH" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ API gateway architecture: $API_ARCH_ID"
 
 # ===================================================================
@@ -232,7 +232,7 @@ MEM_CONSOLIDATED=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 10 \
     --type decision 2>&1) || fail "Failed to store consolidated insight"
 
-CONSOLIDATED_ID=$(echo "$MEM_CONSOLIDATED" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+CONSOLIDATED_ID=$(echo "$MEM_CONSOLIDATED" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Consolidated insight created: $CONSOLIDATED_ID"
 
 # ===================================================================

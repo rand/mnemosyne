@@ -63,7 +63,7 @@ MEM1_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 9 \
     --type architecture 2>&1) || fail "Failed to store architecture v1"
 
-MEM1_ID=$(echo "$MEM1_OUTPUT" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM1_ID=$(echo "$MEM1_OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Initial architecture stored: $MEM1_ID"
 
 # ===================================================================
@@ -88,7 +88,7 @@ MEM2_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 8 \
     --type insight 2>&1) || fail "Failed to store scaling insight"
 
-MEM2_ID=$(echo "$MEM2_OUTPUT" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM2_ID=$(echo "$MEM2_OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Scaling insight stored: $MEM2_ID"
 
 # New architecture decision (supersedes v1)
@@ -106,7 +106,7 @@ MEM3_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 10 \
     --type architecture 2>&1) || fail "Failed to store architecture v2"
 
-MEM3_ID=$(echo "$MEM3_OUTPUT" | grep -o 'mem-[a-zA-Z0-9-]*' | head -1)
+MEM3_ID=$(echo "$MEM3_OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ New architecture decision stored: $MEM3_ID"
 
 # ===================================================================
