@@ -13,6 +13,8 @@ incremental = true
 incremental = true
 # Fast compilation, minimal optimization
 opt-level = 0
+# Disable debug info for faster builds (use "line-tables-only" if needed)
+debug = false
 
 [profile.dev.build-override]
 # Optimize build scripts even in dev mode
