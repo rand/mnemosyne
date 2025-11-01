@@ -629,15 +629,19 @@ delete_by_namespace() {
 
     # Get IDs to delete
     local ids=$(DATABASE_URL="sqlite://$db_path" sqlite3 "$db_path" \
-        "SELECT id FROM memories WHERE $where_clause" 2>/dev/null)
+        "SELECT id FROM memories WHERE $where_clause" 2>/dev/null) || true
 
-    # Delete each ID
-    echo "$ids" | while read -r id; do
-        if [ -n "$id" ]; then
-            DATABASE_URL="sqlite://$db_path" sqlite3 "$db_path" \
-                "DELETE FROM memories WHERE id='$id'" 2>/dev/null
-        fi
-    done
+    # Delete each ID (if any)
+    if [ -n "$ids" ]; then
+        while IFS= read -r id; do
+            if [ -n "$id" ]; then
+                DATABASE_URL="sqlite://$db_path" sqlite3 "$db_path" \
+                    "DELETE FROM memories WHERE id='$id'" 2>/dev/null || true
+            fi
+        done <<< "$ids"
+    fi
+
+    return 0
 }
 
 # ============================================================================
