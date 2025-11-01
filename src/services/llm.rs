@@ -11,6 +11,7 @@ use crate::error::{MnemosyneError, Result};
 use crate::types::{ConsolidationDecision, LinkType, MemoryLink, MemoryNote, MemoryType};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use tracing::{debug, info, warn};
 
 /// Structured JSON response for memory enrichment
@@ -118,10 +119,12 @@ impl LlmService {
     /// Note: Empty API keys are allowed during initialization to support
     /// server startup, but API calls will fail until a valid key is provided.
     pub fn new(config: LlmConfig) -> Result<Self> {
-        Ok(Self {
-            config,
-            client: reqwest::Client::new(),
-        })
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(10))        // Total request timeout
+            .connect_timeout(Duration::from_secs(5)) // Connection timeout
+            .build()?; // Automatically converts reqwest::Error to MnemosyneError::Http
+
+        Ok(Self { config, client })
     }
 
     /// Create with default config

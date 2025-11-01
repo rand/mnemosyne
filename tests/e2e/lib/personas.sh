@@ -30,7 +30,7 @@ setup_solo_developer() {
     local test_name="$1"
     local test_db="/tmp/mnemosyne_solo_${test_name}_$(date +%s).db"
 
-    print_cyan "[PERSONA] Setting up Solo Developer environment..."
+    print_cyan "[PERSONA] Setting up Solo Developer environment..." >&2
 
     # Create isolated database
     export DATABASE_URL="sqlite://$test_db"
@@ -43,7 +43,7 @@ setup_solo_developer() {
     "$BIN" remember --content "Use TypeScript for new projects, Rust for performance-critical code" \
         --namespace "global" --importance 8 >/dev/null 2>&1 || true
 
-    print_green "  ✓ Solo developer environment ready"
+    print_green "  ✓ Solo developer environment ready" >&2
     echo "$test_db"
 }
 
@@ -63,7 +63,7 @@ setup_team_lead() {
     local test_name="$1"
     local test_db="/tmp/mnemosyne_team_${test_name}_$(date +%s).db"
 
-    print_cyan "[PERSONA] Setting up Team Lead environment..."
+    print_cyan "[PERSONA] Setting up Team Lead environment..." >&2
 
     export DATABASE_URL="sqlite://$test_db"
 
@@ -88,7 +88,7 @@ setup_team_lead() {
     "$BIN" remember --content "All PRs require 2 approvals and passing CI" \
         --namespace "team:engineering" --importance 9 >/dev/null 2>&1 || true
 
-    print_green "  ✓ Team lead environment ready (5 namespaces)"
+    print_green "  ✓ Team lead environment ready (5 namespaces)" >&2
     echo "$test_db"
 }
 
@@ -108,7 +108,7 @@ setup_power_user() {
     local test_name="$1"
     local test_db="/tmp/mnemosyne_power_${test_name}_$(date +%s).db"
 
-    print_cyan "[PERSONA] Setting up Power User environment..."
+    print_cyan "[PERSONA] Setting up Power User environment..." >&2
 
     export DATABASE_URL="sqlite://$test_db"
     export MNEMOSYNE_NAMESPACE="advanced:workflows"
@@ -120,7 +120,7 @@ setup_power_user() {
     "$BIN" remember --content "Enable all LLM features: enrichment, consolidation, discovery" \
         --namespace "global" --importance 9 >/dev/null 2>&1 || true
 
-    print_green "  ✓ Power user environment ready"
+    print_green "  ✓ Power user environment ready" >&2
     echo "$test_db"
 }
 
@@ -140,7 +140,7 @@ setup_ai_agent() {
     local test_name="$1"
     local test_db="/tmp/mnemosyne_agent_${test_name}_$(date +%s).db"
 
-    print_cyan "[PERSONA] Setting up AI Agent environment..."
+    print_cyan "[PERSONA] Setting up AI Agent environment..." >&2
 
     export DATABASE_URL="sqlite://$test_db"
     export MNEMOSYNE_SESSION_ID="session_$(date +%s)"
@@ -153,7 +153,7 @@ setup_ai_agent() {
     "$BIN" remember --content "Typed hole: Implement JWT token generation and validation" \
         --namespace "$MNEMOSYNE_NAMESPACE" --importance 8 >/dev/null 2>&1 || true
 
-    print_green "  ✓ AI agent environment ready (session namespace)"
+    print_green "  ✓ AI agent environment ready (session namespace)" >&2
     echo "$test_db"
 }
 
@@ -173,7 +173,7 @@ setup_multi_agent() {
     local test_name="$1"
     local test_db="/tmp/mnemosyne_multiagent_${test_name}_$(date +%s).db"
 
-    print_cyan "[PERSONA] Setting up Multi-Agent System environment..."
+    print_cyan "[PERSONA] Setting up Multi-Agent System environment..." >&2
 
     export DATABASE_URL="sqlite://$test_db"
 
@@ -189,7 +189,7 @@ setup_multi_agent() {
     "$BIN" remember --content "Work plan: Implement user authentication (3 tasks)" \
         --namespace "project:myproject" --importance 9 >/dev/null 2>&1 || true
 
-    print_green "  ✓ Multi-agent environment ready (4 agents + shared context)"
+    print_green "  ✓ Multi-agent environment ready (4 agents + shared context)" >&2
     echo "$test_db"
 }
 
@@ -209,7 +209,7 @@ setup_python_developer() {
     local test_name="$1"
     local test_db="/tmp/mnemosyne_python_${test_name}_$(date +%s).db"
 
-    print_cyan "[PERSONA] Setting up Python Developer environment..."
+    print_cyan "[PERSONA] Setting up Python Developer environment..." >&2
 
     export DATABASE_URL="sqlite://$test_db"
     export MNEMOSYNE_PYTHON_BINDINGS="1"
@@ -221,7 +221,7 @@ setup_python_developer() {
     "$BIN" remember --content "Prefer pytest over unittest for new tests" \
         --namespace "global" --importance 7 >/dev/null 2>&1 || true
 
-    print_green "  ✓ Python developer environment ready"
+    print_green "  ✓ Python developer environment ready" >&2
     echo "$test_db"
 }
 
@@ -242,7 +242,7 @@ setup_api_consumer() {
     local test_db="/tmp/mnemosyne_api_${test_name}_$(date +%s).db"
     local api_port="${MNEMOSYNE_API_PORT:-3000}"
 
-    print_cyan "[PERSONA] Setting up API Consumer environment..."
+    print_cyan "[PERSONA] Setting up API Consumer environment..." >&2
 
     export DATABASE_URL="sqlite://$test_db"
     export MNEMOSYNE_API_URL="http://localhost:$api_port"
@@ -263,7 +263,7 @@ setup_api_consumer() {
         done
     fi
 
-    print_green "  ✓ API consumer environment ready"
+    print_green "  ✓ API consumer environment ready" >&2
     echo "$test_db"
 }
 
@@ -290,7 +290,7 @@ setup_ics_user() {
     local test_name="$1"
     local test_db="/tmp/mnemosyne_ics_${test_name}_$(date +%s).db"
 
-    print_cyan "[PERSONA] Setting up ICS Power User environment..."
+    print_cyan "[PERSONA] Setting up ICS Power User environment..." >&2
 
     export DATABASE_URL="sqlite://$test_db"
 
@@ -319,7 +319,7 @@ EOF
 
     export MNEMOSYNE_ICS_CONTEXT_DIR="$context_dir"
 
-    print_green "  ✓ ICS power user environment ready"
+    print_green "  ✓ ICS power user environment ready" >&2
     echo "$test_db:$context_dir"
 }
 
@@ -343,7 +343,7 @@ setup_dashboard_observer() {
     local test_name="$1"
     local test_db="/tmp/mnemosyne_dash_${test_name}_$(date +%s).db"
 
-    print_cyan "[PERSONA] Setting up Dashboard Observer environment..."
+    print_cyan "[PERSONA] Setting up Dashboard Observer environment..." >&2
 
     export DATABASE_URL="sqlite://$test_db"
 
@@ -353,7 +353,7 @@ setup_dashboard_observer() {
             --namespace "agent:activity" --importance 5 >/dev/null 2>&1 || true
     done
 
-    print_green "  ✓ Dashboard observer environment ready"
+    print_green "  ✓ Dashboard observer environment ready" >&2
     echo "$test_db"
 }
 
