@@ -13,6 +13,8 @@ incremental = true
 incremental = true
 # Fast compilation, minimal optimization
 opt-level = 0
+# Disable debug info for faster builds (use "line-tables-only" if needed)
+debug = false
 
 [profile.dev.build-override]
 # Optimize build scripts even in dev mode
@@ -35,6 +37,9 @@ opt-level = 2          # Good optimization, faster than opt-level = 3
 
 # Environment variable hints for faster builds
 [env]
+# Enable sccache for compilation caching across builds
+RUSTC_WRAPPER = "sccache"
+
 # Use system LLVM linker if available (faster than default)
 # Uncomment based on your system:
 # RUSTFLAGS = "-C link-arg=-fuse-ld=lld"  # Linux with lld
