@@ -149,7 +149,7 @@ fi
 
 section "Test Summary: ICS - Rendering [REGRESSION]"
 
-echo "✓ Terminal capabilities: $([ "$COLORS" -ge 8 ] && echo "COLOR ($COLORS colors)" || echo "BASIC")"
+echo "✓ Terminal capabilities: $([ "${COLORS:-0}" -ge 8 ] && echo "COLOR (${COLORS:-0} colors)" || echo "BASIC")"
 echo "✓ Terminal size: ${COLS:-80}x${LINES:-24}"
 echo "✓ ICS binary: $([ "$ICS_FOUND" = true ] && echo "FOUND" || echo "PENDING")"
 echo "✓ Output format: VALID"
