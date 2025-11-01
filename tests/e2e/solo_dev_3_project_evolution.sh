@@ -50,12 +50,9 @@ section "Scenario: Early Project - Initial Architecture Decision"
 
 print_cyan "Step 1: Developer stores initial architecture decision..."
 
-ARCH_V1=$(cat <<EOF
-Architecture Decision v1: Using monolithic architecture for simplicity.
+ARCH_V1="Architecture Decision v1: Using monolithic architecture for simplicity.
 We're a small team and want to move fast.
-Microservices would add unnecessary complexity at this stage.
-EOF
-)
+Microservices would add unnecessary complexity at this stage."
 
 MEM1_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$ARCH_V1" \
@@ -75,12 +72,9 @@ section "Scenario: Mid Project - Architecture Evolves"
 print_cyan "Step 2: Several months later, architecture needs change..."
 
 # Store related insight
-ARCH_INSIGHT=$(cat <<EOF
-Performance bottleneck identified: Monolithic architecture can't scale horizontally.
+ARCH_INSIGHT="Performance bottleneck identified: Monolithic architecture can't scale horizontally.
 Database becoming overloaded with increased user traffic.
-Need to consider breaking out authentication service.
-EOF
-)
+Need to consider breaking out authentication service."
 
 MEM2_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$ARCH_INSIGHT" \
@@ -92,13 +86,10 @@ MEM2_ID=$(echo "$MEM2_OUTPUT" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 print_green "  ✓ Scaling insight stored: $MEM2_ID"
 
 # New architecture decision (supersedes v1)
-ARCH_V2=$(cat <<EOF
-Architecture Decision v2: Migrating to microservices architecture.
+ARCH_V2="Architecture Decision v2: Migrating to microservices architecture.
 Breaking out authentication, user management, and payment services.
 Monolithic approach (v1) no longer sustainable at our scale.
-This supersedes our earlier decision to stay monolithic.
-EOF
-)
+This supersedes our earlier decision to stay monolithic."
 
 MEM3_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$ARCH_V2" \
