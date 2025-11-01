@@ -159,8 +159,8 @@ print_cyan "Testing batch operation scalability..."
 START=$(date +%s)
 DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "UPDATE memories SET importance = importance + 1
-     WHERE json_extract(namespace, '$.type') = 'project'
-     AND json_extract(namespace, '$.name') LIKE 'stress:%'
+     WHERE json_extract(namespace, '\$.type') = 'project'
+     AND json_extract(namespace, '\$.name') LIKE 'stress:%'
      AND importance < 10" >/dev/null 2>&1
 END=$(date +%s)
 BATCH_UPDATE_TIME=$((END - START))
