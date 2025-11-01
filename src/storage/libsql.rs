@@ -817,6 +817,7 @@ impl LibsqlStorage {
             "insight" => crate::types::MemoryType::Insight,
             "reference" => crate::types::MemoryType::Reference,
             "preference" => crate::types::MemoryType::Preference,
+            "task" => crate::types::MemoryType::Task,
             "agent_event" => crate::types::MemoryType::AgentEvent,
             _ => {
                 return Err(MnemosyneError::Other(format!(

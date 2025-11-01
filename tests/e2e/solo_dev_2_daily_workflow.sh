@@ -277,7 +277,7 @@ print_cyan "Step 7: Developer reviews day's memories by importance..."
 
 # List high-importance memories
 HIGH_IMP_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:myproject' AND importance >= 8" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $NS_WHERE AND importance >= 8" 2>/dev/null)
 
 print_cyan "  High importance memories (≥8): $HIGH_IMP_COUNT"
 
@@ -290,7 +290,7 @@ fi
 # Show memory distribution
 for level in {5..10}; do
     count=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-        "SELECT COUNT(*) FROM memories WHERE namespace='project:myproject' AND importance = $level" 2>/dev/null)
+        "SELECT COUNT(*) FROM memories WHERE $NS_WHERE AND importance = $level" 2>/dev/null)
     if [ "$count" -gt 0 ]; then
         print_cyan "  Importance $level: $count memories"
     fi
@@ -308,7 +308,7 @@ print_cyan "Testing temporal queries (today's memories)..."
 TODAY=$(date +%Y-%m-%d)
 TODAY_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='project:myproject'
+     WHERE $NS_WHERE
      AND DATE(created_at) = '$TODAY'" 2>/dev/null)
 
 print_cyan "  Memories created today: $TODAY_COUNT"
@@ -325,7 +325,7 @@ fi
 
 section "Cleanup"
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================
