@@ -143,6 +143,9 @@ pub enum MemoryType {
     /// User preferences and settings
     Preference,
 
+    /// Task or action item
+    Task,
+
     /// Agent coordination events for orchestration
     AgentEvent,
 }
@@ -158,6 +161,7 @@ impl MemoryType {
             MemoryType::CodePattern => 1.0,
             MemoryType::BugFix => 0.9,
             MemoryType::Insight => 0.9,
+            MemoryType::Task => 0.9,
             _ => 0.8,
         }
     }

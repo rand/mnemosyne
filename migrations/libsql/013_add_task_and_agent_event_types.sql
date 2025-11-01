@@ -1,0 +1,22 @@
+-- Add task and agent_event to memory_type constraint
+-- Migration: 013
+-- Date: 2025-11-01
+--
+-- This migration documents the addition of two new memory types:
+-- - task: Task or action items
+-- - agent_event: Agent coordination events (for orchestration)
+--
+-- Note: LibSQL/Turso does not support ALTER TABLE ... MODIFY COLUMN for CHECK constraints.
+-- The constraint modification was made directly to 001_initial_schema.sql since
+-- this change is being made before initial production deployment.
+--
+-- For existing production databases (if any), manual migration would require:
+-- 1. Create new table with updated constraint
+-- 2. Copy all data from old table
+-- 3. Drop old table
+-- 4. Rename new table
+--
+-- Since we modified the initial schema before production deployment,
+-- this migration serves as documentation only.
+
+SELECT 'Migration 013: task and agent_event types added to schema' AS note;

@@ -307,6 +307,7 @@ impl<'a> MemoryPanel<'a> {
                         crate::types::MemoryType::Insight => "Insight",
                         crate::types::MemoryType::Reference => "Reference",
                         crate::types::MemoryType::Preference => "Preference",
+                        crate::types::MemoryType::Task => "Task",
                         crate::types::MemoryType::AgentEvent => "AgentEvent",
                     }
                 });
@@ -360,6 +361,7 @@ impl<'a> MemoryPanel<'a> {
                     crate::types::MemoryType::Insight => "Insight",
                     crate::types::MemoryType::Reference => "Reference",
                     crate::types::MemoryType::Preference => "Preference",
+                    crate::types::MemoryType::Task => "Task",
                     crate::types::MemoryType::AgentEvent => "AgentEvent",
                 });
 
