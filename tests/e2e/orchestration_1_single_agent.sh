@@ -30,7 +30,7 @@ TEST_DB=$(setup_solo_developer "$TEST_NAME")
 print_green "  ✓ Test database: $TEST_DB"
 
 # Create agent session namespace
-AGENT_SESSION="session:agents/$(date +%Y%m%d-%H%M%S)"
+AGENT_SESSION="session:agents:$(date +%Y%m%d-%H%M%S)"
 AGENT_NS_WHERE=$(namespace_where_clause "$AGENT_SESSION")
 print_cyan "  Agent session: $AGENT_SESSION"
 
@@ -170,7 +170,7 @@ section "Test 3: Session Isolation"
 print_cyan "Testing session isolation..."
 
 # Create a different agent session
-OTHER_SESSION="session:agents/other-$(date +%s)"
+OTHER_SESSION="session:agents:other-$(date +%s)"
 OTHER_NS_WHERE=$(namespace_where_clause "$OTHER_SESSION")
 
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \

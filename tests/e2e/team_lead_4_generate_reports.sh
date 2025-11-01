@@ -193,9 +193,10 @@ echo "Project Activity:"
 echo "================="
 
 for project in "auth-service" "api-gateway" "frontend"; do
+    PROJECT_WHERE=$(namespace_where_clause "project:$project")
     proj_count=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
         "SELECT COUNT(*) FROM memories
-         WHERE namespace='project:$project'" 2>/dev/null || echo "0")
+         WHERE $PROJECT_WHERE" 2>/dev/null || echo "0")
 
     if [ "$proj_count" -gt 0 ]; then
         # Get breakdown by type
@@ -204,7 +205,7 @@ for project in "auth-service" "api-gateway" "frontend"; do
         # Recent activity (last N memories)
         recent=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
             "SELECT COUNT(*) FROM memories
-             WHERE namespace='project:$project'
+             WHERE $PROJECT_WHERE
              AND DATE(created_at) = DATE('now')" 2>/dev/null || echo "0")
 
         print_cyan "    - Recent activity (today): $recent"
@@ -212,7 +213,7 @@ for project in "auth-service" "api-gateway" "frontend"; do
         # Average importance
         avg_imp=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
             "SELECT ROUND(AVG(importance), 1) FROM memories
-             WHERE namespace='project:$project'" 2>/dev/null || echo "0")
+             WHERE $PROJECT_WHERE" 2>/dev/null || echo "0")
 
         print_cyan "    - Average importance: $avg_imp"
     fi
@@ -372,8 +373,9 @@ cat >> "$REPORT_FILE" <<EOF
 EOF
 
 for project in "auth-service" "api-gateway" "frontend"; do
+    PROJECT_WHERE=$(namespace_where_clause "project:$project")
     count=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-        "SELECT COUNT(*) FROM memories WHERE namespace='project:$project'" 2>/dev/null || echo "0")
+        "SELECT COUNT(*) FROM memories WHERE $PROJECT_WHERE" 2>/dev/null || echo "0")
     echo "  $project: $count memories" >> "$REPORT_FILE"
 done
 

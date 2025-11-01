@@ -178,8 +178,9 @@ fi
 
 # Filtered query
 FILTER_START=$(date +%s%3N)
+PERF_WHERE=$(namespace_where_clause "project:perf")
 FILTER_RESULT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT * FROM memories WHERE importance >= 8 AND namespace='project:perf'" 2>/dev/null)
+    "SELECT * FROM memories WHERE importance >= 8 AND $PERF_WHERE" 2>/dev/null)
 FILTER_END=$(date +%s%3N)
 FILTER_TIME=$((FILTER_END - FILTER_START))
 

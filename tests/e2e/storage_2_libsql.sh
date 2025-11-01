@@ -286,11 +286,12 @@ section "Validation 3: Multi-Memory Quality [BASELINE]"
 print_cyan "Validating enrichment quality across multiple memories..."
 
 # Check both memories have enrichment
+PROJECT_WHERE=$(namespace_where_clause "project:myproject")
 TOTAL_ENRICHED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
      WHERE summary IS NOT NULL
      AND summary != ''
-     AND namespace='project:myproject'" 2>/dev/null)
+     AND $PROJECT_WHERE" 2>/dev/null)
 
 print_cyan "  Enriched memories: $TOTAL_ENRICHED / 2"
 
@@ -304,7 +305,7 @@ fi
 TOTAL_EMBEDDED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
      WHERE embedding IS NOT NULL
-     AND namespace='project:myproject'" 2>/dev/null)
+     AND $PROJECT_WHERE" 2>/dev/null)
 
 print_cyan "  Embedded memories: $TOTAL_EMBEDDED / 2"
 

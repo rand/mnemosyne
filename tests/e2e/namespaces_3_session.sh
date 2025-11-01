@@ -334,7 +334,7 @@ print_cyan "Testing session cleanup..."
 
 # Count before cleanup
 BEFORE_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace LIKE 'session:%'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '\$.type') = 'session'" 2>/dev/null)
 
 print_cyan "  Session memories before cleanup: $BEFORE_COUNT"
 

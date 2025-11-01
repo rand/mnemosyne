@@ -32,9 +32,12 @@ print_green "  ✓ Test database: $TEST_DB"
 # Shared project context namespace
 SHARED_NS="project:shared-context"
 SHARED_NS_WHERE=$(namespace_where_clause "$SHARED_NS")
-AGENT_1_NS="agent:frontend-dev"
-AGENT_2_NS="agent:backend-dev"
-AGENT_3_NS="agent:devops"
+AGENT_1_NS="project:agent-frontend-dev"
+AGENT_2_NS="project:agent-backend-dev"
+AGENT_3_NS="project:agent-devops"
+AGENT_1_WHERE=$(namespace_where_clause "$AGENT_1_NS")
+AGENT_2_WHERE=$(namespace_where_clause "$AGENT_2_NS")
+AGENT_3_WHERE=$(namespace_where_clause "$AGENT_3_NS")
 
 # ===================================================================
 # SCENARIO: Multi-Agent Shared Context Workflow
@@ -137,8 +140,9 @@ fi
 
 # Verify each agent can query shared context
 for agent_ns in "$AGENT_1_NS" "$AGENT_2_NS" "$AGENT_3_NS"; do
+    AGENT_WHERE=$(namespace_where_clause "$agent_ns")
     AGENT_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-        "SELECT COUNT(*) FROM memories WHERE namespace='$agent_ns'" 2>/dev/null)
+        "SELECT COUNT(*) FROM memories WHERE $AGENT_WHERE" 2>/dev/null)
 
     if [ "$AGENT_MEMORIES" -ge 2 ]; then
         print_cyan "  ✓ Agent $agent_ns has private context ($AGENT_MEMORIES memories)"
@@ -180,10 +184,10 @@ for agent_ns in "$AGENT_2_NS" "$AGENT_3_NS"; do
 done
 
 AGENT2_UPDATED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_2_NS' AND content LIKE '%CORS%'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_2_WHERE AND content LIKE '%CORS%'" 2>/dev/null)
 
 AGENT3_UPDATED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_3_NS' AND content LIKE '%CORS%'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_3_WHERE AND content LIKE '%CORS%'" 2>/dev/null)
 
 if [ "$AGENT2_UPDATED" -ge 1 ] && [ "$AGENT3_UPDATED" -ge 1 ]; then
     print_green "  ✓ Context updates visible to all agents"
@@ -295,11 +299,11 @@ print_cyan "Testing cross-namespace context access patterns..."
 
 # Verify agents only write to their own namespace or shared
 AGENT1_WRITES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_1_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_1_WHERE" 2>/dev/null)
 
 # Check agent doesn't pollute other agent namespaces
 AGENT1_IN_AGENT2=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_2_NS' AND content LIKE '%Frontend%'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_2_WHERE AND content LIKE '%Frontend%'" 2>/dev/null)
 
 if [ "$AGENT1_WRITES" -ge 2 ] && [ "$AGENT1_IN_AGENT2" -eq 0 ]; then
     print_green "  ✓ Agents respect namespace boundaries"

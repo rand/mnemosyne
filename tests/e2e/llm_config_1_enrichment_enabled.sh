@@ -379,7 +379,7 @@ FULLY_ENRICHED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
      AND keywords IS NOT NULL
      AND embedding IS NOT NULL
      AND confidence IS NOT NULL
-     AND namespace='project:production'" 2>/dev/null)
+     AND json_extract(namespace, '\$.type') = 'project' AND json_extract(namespace, '\$.name') = 'production'" 2>/dev/null)
 
 print_cyan "  Fully enriched memories: $FULLY_ENRICHED / 2"
 

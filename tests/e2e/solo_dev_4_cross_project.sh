@@ -353,7 +353,7 @@ print_green "  ✓ Session memory stored: $SESSION_ID"
 # Verify session namespace exists
 SESSION_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace LIKE 'session:%'" 2>/dev/null)
+     WHERE json_extract(namespace, '\$.type') = 'session'" 2>/dev/null)
 
 if [ "$SESSION_COUNT" -ge 1 ]; then
     print_green "  ✓ Session namespace working correctly"

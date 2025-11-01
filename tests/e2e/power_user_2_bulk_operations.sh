@@ -194,11 +194,12 @@ MIGRATE_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" bulk-migrate \
     --from "project:backend" \
     --to "project:api:backend" 2>&1) || {
     warn "Bulk migrate command not yet implemented"
-    # Fallback: SQL update
+    # Fallback: SQL update with JSON namespace format
     DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
         "UPDATE memories
-         SET namespace = 'project:api:backend'
-         WHERE namespace = 'project:backend'" 2>/dev/null && \
+         SET namespace = '{\"type\":\"project\",\"name\":\"api:backend\"}'
+         WHERE json_extract(namespace, '\$.type') = 'project'
+         AND json_extract(namespace, '\$.name') = 'backend'" 2>/dev/null && \
         print_green "  ✓ Migrated via SQL" || \
         warn "Could not migrate namespace"
     SKIP_MIGRATE=1
