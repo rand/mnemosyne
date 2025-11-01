@@ -61,18 +61,18 @@ print_green "  ✓ CREATE operation successful"
 
 print_cyan "Testing READ..."
 
-# Read memory
+# Read memory from test namespace
 MEMORY_CONTENT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT content FROM memories LIMIT 1" 2>/dev/null)
+    "SELECT content FROM memories WHERE $NS_WHERE LIMIT 1" 2>/dev/null)
 
 assert_contains "$MEMORY_CONTENT" "CRUD operations" "Memory content"
 print_green "  ✓ READ operation successful"
 
 print_cyan "Testing UPDATE..."
 
-# Update memory (via SQL for direct testing)
+# Update memory from test namespace (via SQL for direct testing)
 MEMORY_ID=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT id FROM memories LIMIT 1" 2>/dev/null)
+    "SELECT id FROM memories WHERE $NS_WHERE LIMIT 1" 2>/dev/null)
 
 DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "UPDATE memories SET importance=9 WHERE id='$MEMORY_ID'" 2>/dev/null
