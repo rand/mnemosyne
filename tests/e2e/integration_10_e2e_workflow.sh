@@ -57,7 +57,7 @@ M1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:security" \
     --importance 9 \
     --type insight \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Stored insight 1: $M1"
 sleep 2
 
@@ -73,7 +73,7 @@ M2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:security" \
     --importance 8 \
     --type reference \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Stored insight 2: $M2"
 sleep 2
 
@@ -131,7 +131,7 @@ M3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:security" \
     --importance 10 \
     --type insight \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Consolidated memory: $M3"
 sleep 2
 

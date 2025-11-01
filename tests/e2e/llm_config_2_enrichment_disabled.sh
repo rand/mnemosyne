@@ -43,7 +43,7 @@ print_cyan "Storing memory with enrichment disabled..."
 
 CONTENT_1="Architecture decision: We will use PostgreSQL as our primary database due to ACID compliance requirements and robust query capabilities."
 
-# Store without --verbose (no enrichment expected)
+# Store without (no enrichment expected)
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$CONTENT_1" \
     --namespace "project:myproject" \

@@ -81,7 +81,7 @@ MEM_STORE=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "incidents:production" \
     --importance 10 \
     --type insight \
-    --verbose 2>&1) || fail "Memory storage failed"
+    2>&1) || fail "Memory storage failed"
 
 MEM_ID=$(echo "$MEM_STORE" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Memory stored: $MEM_ID"

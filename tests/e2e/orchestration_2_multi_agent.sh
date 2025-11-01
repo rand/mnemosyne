@@ -98,7 +98,7 @@ MEM_TASK=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$SHARED_NS" \
     --importance 10 \
     --type task \
-    --verbose 2>&1) || fail "Failed to store task"
+    2>&1) || fail "Failed to store task"
 
 TASK_ID=$(echo "$MEM_TASK" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Task stored: $TASK_ID"
@@ -153,7 +153,7 @@ MEM_BREAKDOWN=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$ORCHESTRATOR_NS" \
     --importance 10 \
     --type architecture \
-    --verbose 2>&1) || fail "Failed to store work breakdown"
+    2>&1) || fail "Failed to store work breakdown"
 
 BREAKDOWN_ID=$(echo "$MEM_BREAKDOWN" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Orchestrator: Work breakdown created: $BREAKDOWN_ID"
@@ -196,7 +196,7 @@ MEM_OPTIMIZER=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$OPTIMIZER_NS" \
     --importance 9 \
     --type insight \
-    --verbose 2>&1) || fail "Failed to store optimizer analysis"
+    2>&1) || fail "Failed to store optimizer analysis"
 
 OPT_ID=$(echo "$MEM_OPTIMIZER" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Optimizer: Context strategy created: $OPT_ID"
@@ -244,7 +244,7 @@ MEM_EXEC_WP1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$EXECUTOR_NS" \
     --importance 9 \
     --type reference \
-    --verbose 2>&1) || fail "Failed to store executor WP1"
+    2>&1) || fail "Failed to store executor WP1"
 
 EXEC_WP1_ID=$(echo "$MEM_EXEC_WP1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Executor: WP1 complete: $EXEC_WP1_ID"
@@ -297,7 +297,7 @@ MEM_REVIEWER=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$REVIEWER_NS" \
     --importance 10 \
     --type insight \
-    --verbose 2>&1) || fail "Failed to store reviewer analysis"
+    2>&1) || fail "Failed to store reviewer analysis"
 
 REVIEWER_ID=$(echo "$MEM_REVIEWER" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Reviewer: Security review complete: $REVIEWER_ID"

@@ -55,7 +55,7 @@ M1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "insights:performance" \
     --importance 8 \
     --type insight \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Memory 1: $M1"
 sleep 2
 
@@ -71,7 +71,7 @@ M2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "insights:performance" \
     --importance 8 \
     --type insight \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Memory 2: $M2"
 sleep 2
 
@@ -87,7 +87,7 @@ M3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "insights:performance" \
     --importance 8 \
     --type insight \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Memory 3: $M3"
 sleep 2
 
@@ -170,7 +170,7 @@ MC=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "insights:performance" \
     --importance 10 \
     --type insight \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Consolidated memory: $MC"
 sleep 2
 

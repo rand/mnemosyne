@@ -69,7 +69,7 @@ MEM1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:backend" \
     --importance 8 \
     --type insight \
-    --verbose 2>&1) || fail "Failed to store technical insight"
+    2>&1) || fail "Failed to store technical insight"
 
 MEM1_ID=$(echo "$MEM1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Technical insight stored: $MEM1_ID"
@@ -158,7 +158,7 @@ MEM2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:backend" \
     --importance 9 \
     --type insight \
-    --verbose 2>&1) || fail "Failed to store performance insight"
+    2>&1) || fail "Failed to store performance insight"
 
 MEM2_ID=$(echo "$MEM2" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Performance insight stored: $MEM2_ID"
@@ -232,7 +232,7 @@ MEM3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:frontend" \
     --importance 7 \
     --type insight \
-    --verbose 2>&1) || fail "Failed to store UX insight"
+    2>&1) || fail "Failed to store UX insight"
 
 MEM3_ID=$(echo "$MEM3" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ UX insight stored: $MEM3_ID"

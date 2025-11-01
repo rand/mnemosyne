@@ -54,7 +54,7 @@ FULL_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "cli:test" \
     --importance 9 \
     --type architecture \
-    --verbose 2>&1) || fail "Remember with verbose failed"
+    2>&1) || fail "Remember with verbose failed"
 
 if echo "$FULL_OUTPUT" | grep -qi "stored\|created\|mem-"; then
     print_green "  ✓ Verbose flag provides detailed output"

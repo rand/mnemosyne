@@ -770,7 +770,7 @@ async fn main() -> Result<()> {
                     let parts: Vec<&str> = ns_str
                         .strip_prefix("session:")
                         .unwrap()
-                        .split('/')
+                        .split(':')
                         .collect();
                     if parts.len() == 2 {
                         mnemosyne_core::Namespace::Session {
@@ -1329,7 +1329,7 @@ async fn main() -> Result<()> {
                 let parts: Vec<&str> = namespace
                     .strip_prefix("session:")
                     .unwrap()
-                    .split('/')
+                    .split(':')
                     .collect();
                 if parts.len() == 2 {
                     mnemosyne_core::Namespace::Session {
@@ -1527,7 +1527,7 @@ async fn main() -> Result<()> {
                     let parts: Vec<&str> = ns_str
                         .strip_prefix("session:")
                         .unwrap()
-                        .split('/')
+                        .split(':')
                         .collect();
                     if parts.len() == 2 {
                         mnemosyne_core::Namespace::Session {

@@ -81,7 +81,7 @@ MEM_PLANNING=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "team:engineering:sprint:43" \
     --importance 10 \
     --type task \
-    --verbose 2>&1) || fail "Failed to store sprint planning"
+    2>&1) || fail "Failed to store sprint planning"
 
 PLANNING_ID=$(echo "$MEM_PLANNING" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Sprint planning stored: $PLANNING_ID"
@@ -175,7 +175,7 @@ MEM_DEPS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "team:engineering:sprint:43" \
     --importance 9 \
     --type decision \
-    --verbose 2>&1) || fail "Failed to store dependencies"
+    2>&1) || fail "Failed to store dependencies"
 
 DEPS_ID=$(echo "$MEM_DEPS" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Dependencies documented: $DEPS_ID"
@@ -214,7 +214,7 @@ MEM_ALICE=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "team:engineering:member:alice" \
     --importance 9 \
     --type task \
-    --verbose 2>&1) || fail "Failed to store Alice's assignment"
+    2>&1) || fail "Failed to store Alice's assignment"
 
 ALICE_ID=$(echo "$MEM_ALICE" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Alice's assignment: $ALICE_ID"
@@ -242,7 +242,7 @@ MEM_DAVE=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "team:engineering:member:dave" \
     --importance 8 \
     --type task \
-    --verbose 2>&1) || fail "Failed to store Dave's assignment"
+    2>&1) || fail "Failed to store Dave's assignment"
 
 DAVE_ID=$(echo "$MEM_DAVE" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Dave's assignment: $DAVE_ID"
@@ -331,7 +331,7 @@ MEM_COORD=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "team:engineering:sprint:43" \
     --importance 8 \
     --type reference \
-    --verbose 2>&1) || fail "Failed to store coordination plan"
+    2>&1) || fail "Failed to store coordination plan"
 
 COORD_ID=$(echo "$MEM_COORD" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Coordination plan stored: $COORD_ID"

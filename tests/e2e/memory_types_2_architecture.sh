@@ -92,7 +92,7 @@ MEM1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:architecture" \
     --importance 10 \
     --type architecture \
-    --verbose 2>&1) || fail "Failed to store database architecture"
+    2>&1) || fail "Failed to store database architecture"
 
 MEM1_ID=$(echo "$MEM1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Database architecture stored: $MEM1_ID"
@@ -213,7 +213,7 @@ MEM2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:architecture" \
     --importance 10 \
     --type architecture \
-    --verbose 2>&1) || fail "Failed to store microservices architecture"
+    2>&1) || fail "Failed to store microservices architecture"
 
 MEM2_ID=$(echo "$MEM2" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Microservices architecture stored: $MEM2_ID"
@@ -312,7 +312,7 @@ MEM3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:architecture" \
     --importance 9 \
     --type architecture \
-    --verbose 2>&1) || fail "Failed to store API architecture"
+    2>&1) || fail "Failed to store API architecture"
 
 MEM3_ID=$(echo "$MEM3" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ API architecture stored: $MEM3_ID"

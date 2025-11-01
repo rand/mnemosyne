@@ -88,21 +88,21 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$PARALLEL_NS" \
     --importance 8 \
     --type task \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 > /tmp/task_a_id.txt &
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 > /tmp/task_a_id.txt &
 
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$TASK_B" \
     --namespace "$PARALLEL_NS" \
     --importance 8 \
     --type task \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 > /tmp/task_b_id.txt &
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 > /tmp/task_b_id.txt &
 
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$TASK_C" \
     --namespace "$PARALLEL_NS" \
     --importance 7 \
     --type task \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 > /tmp/task_c_id.txt &
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1 > /tmp/task_c_id.txt &
 
 # Wait for all to complete
 wait
@@ -215,7 +215,7 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$AGENT_NS" \
     --importance 8 \
     --type reference \
-    --verbose 2>&1 >/dev/null || warn "Could not store results"
+    2>&1 >/dev/null || warn "Could not store results"
 
 AGENT_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories WHERE $AGENT_NS_WHERE " 2>/dev/null)

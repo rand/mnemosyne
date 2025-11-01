@@ -64,7 +64,7 @@ MEM1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$QUEUE_NS" \
     --importance 10 \
     --type task \
-    --verbose 2>&1) || fail "Failed to store task 1"
+    2>&1) || fail "Failed to store task 1"
 
 M1_ID=$(echo "$MEM1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Task 1 queued: $M1_ID (critical)"
@@ -86,7 +86,7 @@ MEM2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$QUEUE_NS" \
     --importance 7 \
     --type task \
-    --verbose 2>&1) || fail "Failed to store task 2"
+    2>&1) || fail "Failed to store task 2"
 
 M2_ID=$(echo "$MEM2" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Task 2 queued: $M2_ID (medium-high)"
@@ -108,7 +108,7 @@ MEM3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$QUEUE_NS" \
     --importance 5 \
     --type task \
-    --verbose 2>&1) || fail "Failed to store task 3"
+    2>&1) || fail "Failed to store task 3"
 
 M3_ID=$(echo "$MEM3" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Task 3 queued: $M3_ID (medium)"
@@ -189,14 +189,14 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$AGENT_NS" \
     --importance 9 \
     --type decision \
-    --verbose 2>&1 >/dev/null
+    2>&1 >/dev/null
 
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Dispatcher: Assigned task $M2_ID (export feature) to Agent-Frontend-02. Start after capacity available." \
     --namespace "$AGENT_NS" \
     --importance 7 \
     --type decision \
-    --verbose 2>&1 >/dev/null
+    2>&1 >/dev/null
 
 ASSIGNMENTS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories WHERE $AGENT_NS_WHERE AND content LIKE '%Assigned%'" 2>/dev/null)

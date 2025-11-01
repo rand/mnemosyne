@@ -618,9 +618,9 @@ namespace_where_clause() {
     elif echo "$namespace_str" | grep -q '^project:'; then
         local project_name=$(echo "$namespace_str" | sed 's/^project://')
         echo "json_extract(namespace, '\$.type') = 'project' AND json_extract(namespace, '\$.name') = '$project_name'"
-    elif echo "$namespace_str" | grep -q '^session:.*\/'; then
-        local project_name=$(echo "$namespace_str" | sed 's/^session:\([^/]*\)\/.*$/\1/')
-        local session_id=$(echo "$namespace_str" | sed 's/^session:[^/]*\/\(.*\)$/\1/')
+    elif echo "$namespace_str" | grep -q '^session:'; then
+        local project_name=$(echo "$namespace_str" | sed 's/^session:\([^:]*\):.*$/\1/')
+        local session_id=$(echo "$namespace_str" | sed 's/^session:[^:]*:\(.*\)$/\1/')
         echo "json_extract(namespace, '\$.type') = 'session' AND json_extract(namespace, '\$.project') = '$project_name' AND json_extract(namespace, '\$.session_id') = '$session_id'"
     else
         # Unknown format - fall back to Global

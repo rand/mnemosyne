@@ -64,7 +64,7 @@ REMEMBER_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:myproject" \
     --importance 9 \
     --type architecture \
-    --verbose 2>&1) || fail "Failed to store memory"
+    2>&1) || fail "Failed to store memory"
 
 print_green "  ✓ Memory stored successfully"
 

@@ -64,7 +64,7 @@ M1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "component:frontend" \
     --importance 9 \
     --type architecture \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Frontend component: $M1"
 sleep 2
 
@@ -86,7 +86,7 @@ M2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "component:backend" \
     --importance 9 \
     --type architecture \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Backend component: $M2"
 sleep 2
 
@@ -106,7 +106,7 @@ M3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "shared:architecture" \
     --importance 8 \
     --type reference \
-    --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Shared component: $M3"
 sleep 2
 

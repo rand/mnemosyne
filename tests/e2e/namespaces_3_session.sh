@@ -49,7 +49,7 @@ section "Scenario 1: Debugging Session"
 print_cyan "Starting debugging session..."
 
 SESSION_ID="debug-$(date +%Y%m%d-%H%M%S)"
-SESSION_NS="session:$SESSION_ID"
+SESSION_NS="session:myproject:$SESSION_ID"
 SESSION_NS_WHERE=$(namespace_where_clause "$SESSION_NS")
 
 print_cyan "  Session namespace: $SESSION_NS"
@@ -79,7 +79,7 @@ MEM1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$SESSION_NS" \
     --importance 7 \
     --type insight \
-    --verbose 2>&1) || fail "Failed to store debug observation"
+    2>&1) || fail "Failed to store debug observation"
 
 MEM1_ID=$(echo "$MEM1" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Debug observation 1: $MEM1_ID"
@@ -116,7 +116,7 @@ MEM2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$SESSION_NS" \
     --importance 8 \
     --type insight \
-    --verbose 2>&1) || fail "Failed to store debug confirmation"
+    2>&1) || fail "Failed to store debug confirmation"
 
 MEM2_ID=$(echo "$MEM2" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Debug observation 2: $MEM2_ID"
@@ -150,7 +150,7 @@ MEM3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "$SESSION_NS" \
     --importance 9 \
     --type insight \
-    --verbose 2>&1) || fail "Failed to store debug resolution"
+    2>&1) || fail "Failed to store debug resolution"
 
 MEM3_ID=$(echo "$MEM3" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Debug resolution: $MEM3_ID"
@@ -307,7 +307,7 @@ MEM_PROMOTED=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --namespace "project:api" \
     --importance 9 \
     --type insight \
-    --verbose 2>&1) || fail "Failed to promote session insight"
+    2>&1) || fail "Failed to promote session insight"
 
 MEM_PROMOTED_ID=$(echo "$MEM_PROMOTED" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
 print_green "  ✓ Session insight promoted: $MEM_PROMOTED_ID"
@@ -315,10 +315,11 @@ print_green "  ✓ Session insight promoted: $MEM_PROMOTED_ID"
 sleep 2
 
 # Verify promoted memory exists
+PROJECT_API_WHERE=$(namespace_where_clause "project:api")
 PROMOTED_EXISTS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
      WHERE id='$MEM_PROMOTED_ID'
-     AND namespace='project:api'" 2>/dev/null)
+     AND $PROJECT_API_WHERE" 2>/dev/null)
 
 assert_equals "$PROMOTED_EXISTS" "1" "Promoted memory count"
 print_green "  ✓ Promoted insight in project namespace"
