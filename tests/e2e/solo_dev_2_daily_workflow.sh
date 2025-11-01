@@ -140,18 +140,21 @@ section "Validation: Memory Storage"
 
 print_cyan "Verifying all memories stored..."
 
+NS_WHERE=$(namespace_where_clause "project:myproject")
 MEMORY_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:myproject'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $NS_WHERE" 2>/dev/null)
 
 # Expect 5 total (1 from persona setup + 4 from this test)
 assert_greater_than "$MEMORY_COUNT" 3 "Memory count"
 print_green "  ✓ Found $MEMORY_COUNT memories in namespace"
 
 # Verify each memory type
-for mem_type in insight task decision; do
+# Note: Database stores enum variant names, not CLI aliases
+for mem_type_display in "insight:insight" "task:task" "decision:architecture_decision"; do
+    IFS=: read display_name db_name <<< "$mem_type_display"
     TYPE_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-        "SELECT COUNT(*) FROM memories WHERE namespace='project:myproject' AND memory_type='$mem_type'" 2>/dev/null)
-    print_cyan "  - $mem_type: $TYPE_COUNT memories"
+        "SELECT COUNT(*) FROM memories WHERE $NS_WHERE AND memory_type='$db_name'" 2>/dev/null)
+    print_cyan "  - $display_name: $TYPE_COUNT memories"
 done
 
 # ===================================================================

@@ -594,6 +594,32 @@ teardown_test_env() {
 }
 
 # ============================================================================
+# Namespace Query Helpers
+# ============================================================================
+
+# Generate SQL WHERE clause for namespace matching
+# Handles JSON-serialized namespace format in database
+# Usage: namespace_where_clause "project:myproject"
+# Returns: SQL WHERE clause fragment
+namespace_where_clause() {
+    local namespace_str="$1"
+
+    if [ "$namespace_str" = "global" ]; then
+        echo "json_extract(namespace, '\$.type') = 'global'"
+    elif [[ "$namespace_str" =~ ^project:(.+)$ ]]; then
+        local project_name="${BASH_REMATCH[1]}"
+        echo "json_extract(namespace, '\$.type') = 'project' AND json_extract(namespace, '\$.name') = '$project_name'"
+    elif [[ "$namespace_str" =~ ^session:(.+)/(.+)$ ]]; then
+        local project_name="${BASH_REMATCH[1]}"
+        local session_id="${BASH_REMATCH[2]}"
+        echo "json_extract(namespace, '\$.type') = 'session' AND json_extract(namespace, '\$.project') = '$project_name' AND json_extract(namespace, '\$.session_id') = '$session_id'"
+    else
+        # Unknown format - fall back to Global
+        echo "json_extract(namespace, '\$.type') = 'global'"
+    fi
+}
+
+# ============================================================================
 # Exports
 # ============================================================================
 
@@ -611,3 +637,4 @@ export -f measure_time measure_and_print measure_average
 export -f generate_uuid create_memory create_sample_memories create_tiered_memories create_keyword_memories
 export -f wait_for retry
 export -f setup_test_env teardown_test_env
+export -f namespace_where_clause
