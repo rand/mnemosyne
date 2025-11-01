@@ -24,14 +24,16 @@ Comprehensive infrastructure fixes applied to address namespace query mismatch b
 - `solo_dev_2_daily_workflow.sh` - Complete pattern demonstration
 - `orchestration_1_single_agent.sh` - All fixes applied, fully passing
 
-### ✅ Validated Passing Tests (7/15 = 47%)
+### ✅ Validated Passing Tests (9/15 = 60%)
 1. `namespaces_1_global.sh` - Namespace isolation working
 2. `namespaces_2_project.sh` - Project namespace queries fixed
 3. `integration_1_cli.sh` - CLI integration validated
 4. `evolution_1_superseding.sh` - Memory evolution working
 5. `power_user_2_bulk_operations.sh` - Bulk operations validated
-6. `solo_dev_3_project_evolution.sh` - Fixed heredoc syntax errors ✓ NEW
-7. `team_lead_1_setup_namespaces.sh` - Fixed JSON namespace queries ✓ NEW
+6. `solo_dev_3_project_evolution.sh` - Fixed heredoc syntax errors ✓ SESSION 2
+7. `team_lead_1_setup_namespaces.sh` - Fixed JSON namespace queries ✓ SESSION 2
+8. `storage_1_local_sqlite.sh` - Fixed namespace filtering for CRUD ✓ SESSION 2
+9. `evolution_2_importance_decay.sh` - Fixed namespace and memory_type queries ✓ SESSION 2
 
 ### 📊 Overall Coverage
 - **38 total test files**
@@ -100,14 +102,12 @@ cleanup_solo_developer "$TEST_DB"  # Correct function
 - `solo_dev_1_onboarding.sh`
 - `team_lead_2_coordinate_work.sh`
 
-### Category 2: Test Expectations (2 tests)
-**Issue**: Memory counts don't account for persona setup side effects
-**Status**: Test-specific, requires understanding test intent
-**Action**: Adjust expectations or modify persona setup
+### Category 2: Test Expectations (0 tests) - ✅ ALL FIXED
+**Status**: All tests in this category have been fixed
 
 **Tests**:
-- `storage_1_local_sqlite.sh` - Expects 1, finds 3 (2 from persona + 1 from test)
-- `evolution_2_importance_decay.sh` - Expects 8, finds 7 (timing/order issue)
+- ~~`storage_1_local_sqlite.sh`~~ - **FIXED** ✓ (Query by namespace)
+- ~~`evolution_2_importance_decay.sh`~~ - **FIXED** ✓ (Valid namespace + memory_type filter)
 - ~~`team_lead_1_setup_namespaces.sh`~~ - **FIXED** ✓ (JSON namespace queries)
 
 ### Category 3: Syntax/Runtime Errors (1 test)
@@ -137,11 +137,14 @@ cleanup_solo_developer "$TEST_DB"  # Correct function
 
 ## Recent Progress
 
-**Session 2 Fixes** (commits 941db35, 02db826, a125c9e):
-- Fixed solo_dev_3: Replaced heredocs with multi-line strings to avoid bash syntax errors
-- Fixed team_lead_1: Updated all namespace queries to use JSON extraction, fixed member namespace format
-- Partially fixed power_user_4: Fixed date arithmetic for macOS, fixed batch UPDATE and index queries
-- **New pass rate: 7/15 = 47%** (up from 33%)
+**Session 2 Fixes** (commits 941db35, 02db826, a125c9e, 954d907, 85cf4f8, 0085c20):
+- Fixed solo_dev_3: Replaced heredocs with multi-line strings to avoid bash syntax errors ✓
+- Fixed team_lead_1: Updated all namespace queries to use JSON extraction, fixed member namespace format ✓
+- Fixed storage_1: Query by namespace to exclude persona setup memories ✓
+- Fixed evolution_2: Use valid global namespace and filter by memory_type ✓
+- Fixed WARN spam: Suppressed tokio broadcast channel warnings in logging ✓
+- Partially fixed power_user_4: Fixed date arithmetic, batch UPDATE, index queries (still hangs)
+- **New pass rate: 9/15 = 60%** (up from 47%)
 
 ## Remaining Work
 
@@ -158,10 +161,13 @@ cleanup_solo_developer "$TEST_DB"  # Correct function
 - `9f142ac` - orchestration_1 reference
 - `41f8459` - Comprehensive fixes (36 files)
 
-**Session 2** (Category 2 & 3 Fixes):
+**Session 2** (Category 2 & 3 Fixes + Logging):
 - `941db35` - Fix Category 2 and 3 test failures (power_user_4 date arithmetic, solo_dev_3 SQL syntax, team_lead_1 JSON queries)
 - `02db826` - Fix solo_dev_3 heredoc syntax errors
 - `a125c9e` - Fix power_user_4 batch update and index queries
+- `954d907` - Suppress tokio broadcast recv error warnings
+- `85cf4f8` - Fix Category 2 test expectations (storage_1, evolution_2)
+- `0085c20` - Fix storage_1 READ and UPDATE to filter by test namespace
 
 ## Maintainability
 
