@@ -411,10 +411,16 @@ setup_persona() {
 }
 
 # Cleanup any persona by name
-# Args: persona_name, test_data
+# Args: persona_name, test_data (optional)
 cleanup_persona() {
     local persona="$1"
-    local test_data="$2"
+    local test_data="${2:-}"
+
+    # Skip cleanup if no test data provided
+    if [ -z "$test_data" ]; then
+        warn "No test data provided for cleanup of $persona"
+        return 0
+    fi
 
     case "$persona" in
         solo_developer|solo)

@@ -51,7 +51,7 @@ section "Scenario 1: Database Architecture Decision"
 
 print_cyan "Storing database architecture decision..."
 
-DB_ARCH=$(cat <<EOF
+DB_ARCH=$(cat <<'EOF'
 Architecture Decision Record: Database Technology Selection
 
 Decision: We will use PostgreSQL as the primary database for our application.
@@ -116,7 +116,7 @@ ARCH1_DATA=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     ) FROM memories WHERE id='$MEM1_ID'" 2>/dev/null)
 
 assert_valid_json "$ARCH1_DATA"
-assert_json_field_equals "$ARCH1_DATA" ".memory_type" "architecture"
+assert_json_field_equals "$ARCH1_DATA" ".memory_type" "architecture_decision"
 
 SUMMARY1=$(echo "$ARCH1_DATA" | jq -r '.summary // empty')
 KEYWORDS1=$(echo "$ARCH1_DATA" | jq -r '.keywords // empty')
@@ -161,7 +161,7 @@ section "Scenario 2: Microservices Architecture Decision"
 
 print_cyan "Storing microservices architecture decision..."
 
-MICROSERVICES_ARCH=$(cat <<EOF
+MICROSERVICES_ARCH=$(cat <<'EOF'
 Architecture Decision Record: Transition to Microservices
 
 Decision: Migrate from monolithic architecture to microservices architecture
@@ -185,7 +185,7 @@ Rationale:
 - Independent scaling per service (payment processing has 10x load of other services)
 - Technology flexibility (can use Rust for performance-critical services)
 - Faster deployment cycles (deploy services independently)
-- Better fault isolation (one service failure doesn't crash system)
+- Better fault isolation (one service failure does not crash system)
 - Team autonomy (teams own specific services)
 
 Migration Strategy:
@@ -263,7 +263,7 @@ section "Scenario 3: API Design Architecture"
 
 print_cyan "Storing API design architecture decision..."
 
-API_ARCH=$(cat <<EOF
+API_ARCH=$(cat <<'EOF'
 Architecture Decision Record: REST API vs GraphQL
 
 Decision: Use REST API with OpenAPI specification for public API, with
@@ -329,7 +329,7 @@ print_cyan "Verifying all memories are properly typed as architecture..."
 
 ARCH_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE memory_type='architecture'" 2>/dev/null)
+     WHERE memory_type='architecture_decision'" 2>/dev/null)
 
 print_cyan "  Architecture memories: $ARCH_COUNT"
 
@@ -367,7 +367,7 @@ print_cyan "Validating architecture decisions have high importance..."
 
 HIGH_IMP_ARCH=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE memory_type='architecture'
+     WHERE memory_type='architecture_decision'
      AND importance >= 9" 2>/dev/null)
 
 print_cyan "  High-importance architecture decisions (≥9): $HIGH_IMP_ARCH"

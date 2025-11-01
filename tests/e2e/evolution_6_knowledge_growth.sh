@@ -178,15 +178,16 @@ section "Test 3: Knowledge Base Growth Metrics"
 print_cyan "Analyzing knowledge base metrics..."
 
 TOTAL_MEMORIES=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'knowledge-process' " 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'knowledge-process'" 2>/dev/null || echo "0")
 
 AVG_IMPORTANCE=$(sqlite3 "$TEST_DB" \
-    "SELECT AVG(importance) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'knowledge-process' " 2>/dev/null)
+    "SELECT AVG(importance) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'knowledge-process'" 2>/dev/null || echo "0")
 
 ENRICHED=$(sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'knowledge-process'  summary IS NOT NULL
-     AND summary != ''" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'knowledge-process'
+     AND summary IS NOT NULL
+     AND summary != ''" 2>/dev/null || echo "0")
 
 print_cyan "  Total memories: $TOTAL_MEMORIES"
 print_cyan "  Average importance: $AVG_IMPORTANCE"
