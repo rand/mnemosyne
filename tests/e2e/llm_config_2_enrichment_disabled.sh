@@ -249,7 +249,7 @@ fi
 
 # Query by type
 ARCH_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE type='architecture'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE memory_type ='architecture'" 2>/dev/null)
 
 print_cyan "  Architecture memories: $ARCH_MEMORIES"
 
@@ -259,7 +259,7 @@ fi
 
 # Query by namespace
 NAMESPACE_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:myproject'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'myproject' " 2>/dev/null)
 
 print_cyan "  Project namespace memories: $NAMESPACE_COUNT"
 
@@ -309,7 +309,7 @@ fi
 section "Cleanup"
 
 unset MNEMOSYNE_DISABLE_ENRICHMENT
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

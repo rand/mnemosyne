@@ -31,6 +31,7 @@ print_green "  ✓ Test database: $TEST_DB"
 
 # Shared project context namespace
 SHARED_NS="project:shared-context"
+SHARED_NS_WHERE=$(namespace_where_clause "$SHARED_NS")
 AGENT_1_NS="agent:frontend-dev"
 AGENT_2_NS="agent:backend-dev"
 AGENT_3_NS="agent:devops"
@@ -126,7 +127,7 @@ section "Test 1: Shared Context Accessibility"
 print_cyan "Verifying shared context accessible to all agents..."
 
 SHARED_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$SHARED_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $SHARED_NS_WHERE " 2>/dev/null)
 
 print_cyan "  Shared context memories: $SHARED_MEMORIES"
 
@@ -163,7 +164,7 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
 
 # All agents should see this update
 UPDATED_SHARED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$SHARED_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $SHARED_NS_WHERE " 2>/dev/null)
 
 if [ "$UPDATED_SHARED" -eq 4 ]; then
     print_green "  ✓ Shared context updated (new: $UPDATED_SHARED total)"
@@ -200,7 +201,7 @@ print_cyan "Verifying no duplicate memories in shared context..."
 DUPLICATE_CHECK=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT content, COUNT(*) as count
      FROM memories
-     WHERE namespace='$SHARED_NS'
+     WHERE $SHARED_NS_WHERE 
      GROUP BY content
      HAVING count > 1" 2>/dev/null)
 
@@ -222,7 +223,7 @@ print_cyan "Testing efficient context queries..."
 # Query shared context only
 SHARED_QUERY_TIME_START=$(date +%s%3N)
 SHARED_RESULTS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT * FROM memories WHERE namespace='$SHARED_NS'" 2>/dev/null)
+    "SELECT * FROM memories WHERE $SHARED_NS_WHERE " 2>/dev/null)
 SHARED_QUERY_TIME_END=$(date +%s%3N)
 SHARED_QUERY_TIME=$((SHARED_QUERY_TIME_END - SHARED_QUERY_TIME_START))
 
@@ -235,7 +236,7 @@ fi
 # Query by importance
 HIGH_IMPORTANCE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$SHARED_NS' AND importance >= 9" 2>/dev/null)
+     WHERE $SHARED_NS_WHERE AND importance >= 9" 2>/dev/null)
 
 print_cyan "  High importance shared context: $HIGH_IMPORTANCE"
 
@@ -261,11 +262,11 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
 # Check that both versions exist
 V1_EXISTS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$SHARED_NS' AND content LIKE '%/api/v1%'" 2>/dev/null)
+     WHERE $SHARED_NS_WHERE AND content LIKE '%/api/v1%'" 2>/dev/null)
 
 V2_EXISTS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$SHARED_NS' AND content LIKE '%/api/v2%'" 2>/dev/null)
+     WHERE $SHARED_NS_WHERE AND content LIKE '%/api/v2%'" 2>/dev/null)
 
 print_cyan "  v1 references: $V1_EXISTS"
 print_cyan "  v2 references: $V2_EXISTS"
@@ -277,7 +278,7 @@ fi
 # Latest should be v2
 LATEST_ARCH=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT content FROM memories
-     WHERE namespace='$SHARED_NS' AND type='architecture'
+     WHERE $SHARED_NS_WHERE AND memory_type ='architecture'
      ORDER BY created_at DESC LIMIT 1" 2>/dev/null)
 
 if echo "$LATEST_ARCH" | grep -q "v2"; then
@@ -312,7 +313,7 @@ TOTAL_AGENTS_CONTRIBUTED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
             WHEN content LIKE '%Backend%' THEN 'agent2'
             WHEN content LIKE '%DevOps%' OR content LIKE '%Nginx%' THEN 'agent3'
         END
-    ) FROM memories WHERE namespace='$SHARED_NS'" 2>/dev/null)
+    ) FROM memories WHERE $SHARED_NS_WHERE " 2>/dev/null)
 
 print_cyan "  Agents contributing to shared context: $TOTAL_AGENTS_CONTRIBUTED"
 
@@ -324,7 +325,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_power_user "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

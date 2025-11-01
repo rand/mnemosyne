@@ -31,9 +31,13 @@ print_green "  ✓ Test database: $TEST_DB"
 
 # Create shared project namespace and agent-specific namespaces
 PROJECT_NS="project:coordination-test"
-AGENT_A_NS="agent:executor"
-AGENT_B_NS="agent:reviewer"
-AGENT_C_NS="agent:optimizer"
+PROJECT_NS_WHERE=$(namespace_where_clause "$PROJECT_NS")
+AGENT_A_NS="project:agent-executor"
+AGENT_A_NS_WHERE=$(namespace_where_clause "$AGENT_A_NS")
+AGENT_B_NS="project:agent-reviewer"
+AGENT_B_NS_WHERE=$(namespace_where_clause "$AGENT_B_NS")
+AGENT_C_NS="project:agent-optimizer"
+AGENT_C_NS_WHERE=$(namespace_where_clause "$AGENT_C_NS")
 
 print_cyan "  Namespaces:"
 print_cyan "    Shared: $PROJECT_NS"
@@ -212,7 +216,7 @@ section "Test 1: Shared Context Validation"
 print_cyan "Verifying shared project context..."
 
 SHARED_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$PROJECT_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $PROJECT_NS_WHERE " 2>/dev/null)
 
 print_cyan "  Shared project memories: $SHARED_MEMORIES"
 
@@ -223,7 +227,7 @@ fi
 # Count handoffs
 HANDOFF_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$PROJECT_NS' AND content LIKE '%HANDOFF%'" 2>/dev/null)
+     WHERE $PROJECT_NS_WHERE AND content LIKE '%HANDOFF%'" 2>/dev/null)
 
 print_cyan "  Handoff events: $HANDOFF_COUNT"
 
@@ -240,13 +244,13 @@ section "Test 2: Agent-Specific Context Isolation"
 print_cyan "Verifying agent-specific context isolation..."
 
 AGENT_A_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_A_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_A_NS_WHERE " 2>/dev/null)
 
 AGENT_B_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_B_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_B_NS_WHERE " 2>/dev/null)
 
 AGENT_C_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_C_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_C_NS_WHERE " 2>/dev/null)
 
 print_cyan "  Agent A (Executor) private memories: $AGENT_A_MEMORIES"
 print_cyan "  Agent B (Reviewer) private memories: $AGENT_B_MEMORIES"
@@ -267,7 +271,7 @@ print_cyan "Analyzing coordination patterns..."
 # Find review cycles
 REVIEW_REQUESTS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$PROJECT_NS' AND content LIKE '%IN_REVIEW%'" 2>/dev/null)
+     WHERE $PROJECT_NS_WHERE AND content LIKE '%IN_REVIEW%'" 2>/dev/null)
 
 print_cyan "  Review cycles: $REVIEW_REQUESTS"
 
@@ -278,7 +282,7 @@ fi
 # Find status transitions
 STATUS_CHANGES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT content FROM memories
-     WHERE namespace='$PROJECT_NS' AND content LIKE '%status changed%'
+     WHERE $PROJECT_NS_WHERE AND content LIKE '%status changed%'
      ORDER BY created_at" 2>/dev/null)
 
 print_cyan "  Status transitions recorded:"
@@ -301,13 +305,13 @@ print_cyan "Verifying agent decision tracking..."
 
 # Count decisions per agent
 A_DECISIONS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_A_NS' AND type='decision'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_A_NS_WHERE AND memory_type='architecture_decision'" 2>/dev/null)
 
 B_DECISIONS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_B_NS' AND type='decision'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_B_NS_WHERE AND memory_type='architecture_decision'" 2>/dev/null)
 
 C_DECISIONS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_C_NS' AND type='decision'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_C_NS_WHERE AND memory_type='architecture_decision'" 2>/dev/null)
 
 print_cyan "  Agent A decisions: $A_DECISIONS"
 print_cyan "  Agent B decisions: $B_DECISIONS"
@@ -331,7 +335,7 @@ print_cyan "Analyzing workflow temporal ordering..."
 TIMELINE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT substr(content, 1, 50)
      FROM memories
-     WHERE namespace='$PROJECT_NS'
+     WHERE $PROJECT_NS_WHERE 
      ORDER BY created_at" 2>/dev/null)
 
 print_cyan "  Workflow timeline (first 50 chars):"
@@ -341,14 +345,14 @@ done
 
 # Verify task → review → fixes → approval flow
 FIRST_MEMORY=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT content FROM memories WHERE namespace='$PROJECT_NS' ORDER BY created_at LIMIT 1" 2>/dev/null)
+    "SELECT content FROM memories WHERE $PROJECT_NS_WHERE  ORDER BY created_at LIMIT 1" 2>/dev/null)
 
 if echo "$FIRST_MEMORY" | grep -q "Task:.*ASSIGNED"; then
     print_green "  ✓ Workflow starts with task assignment"
 fi
 
 LAST_MEMORY=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT content FROM memories WHERE namespace='$PROJECT_NS' ORDER BY created_at DESC LIMIT 1" 2>/dev/null)
+    "SELECT content FROM memories WHERE $PROJECT_NS_WHERE  ORDER BY created_at DESC LIMIT 1" 2>/dev/null)
 
 if echo "$LAST_MEMORY" | grep -q "completed.*DONE"; then
     print_green "  ✓ Workflow ends with task completion"
@@ -364,14 +368,14 @@ print_cyan "Testing cross-agent context accessibility..."
 
 # Each agent should be able to see shared context
 SHARED_ACCESSIBLE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$PROJECT_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $PROJECT_NS_WHERE " 2>/dev/null)
 
 # But not other agents' private context
 A_ISOLATED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_A_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_A_NS_WHERE " 2>/dev/null)
 
 B_ISOLATED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_B_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_B_NS_WHERE " 2>/dev/null)
 
 if [ "$SHARED_ACCESSIBLE" -ge 10 ] && [ "$A_ISOLATED" -ge 1 ] && [ "$B_ISOLATED" -ge 1 ]; then
     print_green "  ✓ Shared context accessible, private context isolated"
@@ -381,7 +385,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_team_lead "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

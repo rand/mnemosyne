@@ -167,13 +167,13 @@ print_cyan "Verifying namespace isolation..."
 
 # Count memories per namespace
 GLOBAL_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='global'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'global' " 2>/dev/null)
 
 ECOMMERCE_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:ecommerce'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'ecommerce' " 2>/dev/null)
 
 ANALYTICS_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:analytics'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'analytics' " 2>/dev/null)
 
 print_cyan "  Namespace counts:"
 print_cyan "    global:             $GLOBAL_COUNT"
@@ -315,12 +315,12 @@ fi
 # Count just frontend
 FRONTEND_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='project:ecommerce:frontend'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'ecommerce:frontend' " 2>/dev/null)
 
 # Count just backend
 BACKEND_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='project:ecommerce:backend'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'ecommerce:backend' " 2>/dev/null)
 
 print_cyan "  Frontend memories: $FRONTEND_COUNT"
 print_cyan "  Backend memories: $BACKEND_COUNT"
@@ -373,7 +373,7 @@ print_cyan "Verifying global memories accessible from all projects..."
 # They should appear in searches regardless of project context
 
 GLOBAL_MEMS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT id, SUBSTR(content, 1, 50) FROM memories WHERE namespace='global'" 2>/dev/null)
+    "SELECT id, SUBSTR(content, 1, 50) FROM memories WHERE json_extract(namespace, '$.type') = 'global' " 2>/dev/null)
 
 if [ -n "$GLOBAL_MEMS" ]; then
     print_green "  ✓ Global memories retrievable"
@@ -416,7 +416,7 @@ fi
 
 section "Cleanup"
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

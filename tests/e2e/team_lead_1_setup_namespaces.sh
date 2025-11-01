@@ -63,7 +63,7 @@ EOF
 
 MEM_STRUCTURE=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$TEAM_STRUCTURE" \
-    --namespace "team:engineering" \
+    --namespace "project:team-engineering" \
     --importance 10 \
     --type architecture 2>&1) || fail "Failed to store team structure"
 
@@ -95,7 +95,7 @@ EOF
 
 MEM_CONVENTIONS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$CONVENTIONS" \
-    --namespace "team:engineering" \
+    --namespace "project:team-engineering" \
     --importance 9 \
     --type reference 2>&1) || fail "Failed to store conventions"
 
@@ -244,7 +244,7 @@ EOF
 
 MEM_PRACTICES=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$BEST_PRACTICES" \
-    --namespace "team:engineering" \
+    --namespace "project:team-engineering" \
     --importance 10 \
     --type reference 2>&1) || fail "Failed to store best practices"
 
@@ -315,7 +315,7 @@ print_cyan "Verifying team memories are accessible..."
 
 # List team namespace
 TEAM_MEMS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
-    --namespace "team:engineering" 2>&1) || fail "Failed to list team memories"
+    --namespace "project:team-engineering" 2>&1) || fail "Failed to list team memories"
 
 if echo "$TEAM_MEMS" | grep -q "engineering\|conventions\|practices"; then
     print_green "  ✓ Team memories accessible and correct"
@@ -326,7 +326,7 @@ fi
 # Count high-importance team memories
 TEAM_HIGH_IMP=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='team:engineering' AND importance >= 9" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'team-engineering' AND importance >= 9" 2>/dev/null)
 
 print_cyan "  High-importance team memories: $TEAM_HIGH_IMP"
 
@@ -392,7 +392,7 @@ fi
 
 section "Cleanup"
 
-teardown_persona "$TEST_DB"
+cleanup_team_lead "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

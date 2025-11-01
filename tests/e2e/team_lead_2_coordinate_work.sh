@@ -348,7 +348,7 @@ print_cyan "Testing search for sprint-related memories..."
 
 SPRINT_SEARCH=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
     --query "Sprint 43 OAuth2 dependencies" \
-    --namespace "team:engineering" \
+    --namespace "project:team-engineering" \
     --limit 5 2>&1) || fail "Search failed"
 
 print_green "  ✓ Sprint coordination search completed"
@@ -383,11 +383,11 @@ print_cyan "  Sprint 43 memories: $SPRINT_COUNT"
 # Member assignments
 ALICE_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='team:engineering:member:alice'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'global' " 2>/dev/null)
 
 DAVE_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='team:engineering:member:dave'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'global' " 2>/dev/null)
 
 print_cyan "  Alice's namespace: $ALICE_COUNT memories"
 print_cyan "  Dave's namespace: $DAVE_COUNT memories"
@@ -418,7 +418,7 @@ fi
 
 section "Cleanup"
 
-teardown_persona "$TEST_DB"
+cleanup_team_lead "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

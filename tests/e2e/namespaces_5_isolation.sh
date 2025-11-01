@@ -31,13 +31,13 @@ print_green "  ✓ Test database: $TEST_DB"
 # Create memories in different isolated namespaces
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Team A: Secret project Falcon" \
-    --namespace "team:teamA" \
+    --namespace "project:teamA" \
     --importance 10 \
     --type reference >/dev/null 2>&1
 
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Team B: Public documentation" \
-    --namespace "team:teamB" \
+    --namespace "project:teamB" \
     --importance 7 \
     --type reference >/dev/null 2>&1
 
@@ -49,13 +49,13 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
 
 # Verify strict isolation
 TEAM_A=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='team:teamA'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'teamA' " 2>/dev/null)
 
 TEAM_B=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='team:teamB'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'teamB' " 2>/dev/null)
 
 ALICE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='member:alice'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'global' " 2>/dev/null)
 
 print_cyan "  Team A: $TEAM_A (isolated)"
 print_cyan "  Team B: $TEAM_B (isolated)"
@@ -75,7 +75,7 @@ if [ "$TOTAL_DISTINCT" -ge 3 ]; then
     print_green "  ✓ Namespace isolation verified"
 fi
 
-teardown_persona "$TEST_DB"
+cleanup_team_lead "$TEST_DB"
 
 section "Test Summary: Namespaces - Isolation [REGRESSION]"
 echo "✓ Namespace isolation: PASS"

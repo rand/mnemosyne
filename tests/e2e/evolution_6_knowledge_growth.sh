@@ -52,7 +52,7 @@ EOF
 
 M1=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$OBS1" \
-    --namespace "knowledge:process" \
+    --namespace "project:knowledge-process" \
     --importance 6 \
     --type insight \
     --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
@@ -73,7 +73,7 @@ EOF
 
 M2=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$OBS2" \
-    --namespace "knowledge:process" \
+    --namespace "project:knowledge-process" \
     --importance 8 \
     --type insight \
     --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
@@ -103,7 +103,7 @@ EOF
 
 M3=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$SOLUTION" \
-    --namespace "knowledge:process" \
+    --namespace "project:knowledge-process" \
     --importance 10 \
     --type reference \
     --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
@@ -155,7 +155,7 @@ print_cyan "Testing semantic clustering of related knowledge..."
 
 CLUSTER_SEARCH=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
     --query "code review process improvement" \
-    --namespace "knowledge:process" \
+    --namespace "project:knowledge-process" \
     --limit 5 2>&1) || warn "Search unavailable"
 
 if echo "$CLUSTER_SEARCH" | grep -q "mem-"; then
@@ -178,15 +178,14 @@ section "Test 3: Knowledge Base Growth Metrics"
 print_cyan "Analyzing knowledge base metrics..."
 
 TOTAL_MEMORIES=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='knowledge:process'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'knowledge-process' " 2>/dev/null)
 
 AVG_IMPORTANCE=$(sqlite3 "$TEST_DB" \
-    "SELECT AVG(importance) FROM memories WHERE namespace='knowledge:process'" 2>/dev/null)
+    "SELECT AVG(importance) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'knowledge-process' " 2>/dev/null)
 
 ENRICHED=$(sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='knowledge:process'
-     AND summary IS NOT NULL
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'knowledge-process'  summary IS NOT NULL
      AND summary != ''" 2>/dev/null)
 
 print_cyan "  Total memories: $TOTAL_MEMORIES"
@@ -221,7 +220,7 @@ fi
 # Timeline preserved in database
 TIMELINE=$(sqlite3 "$TEST_DB" \
     "SELECT id FROM memories
-     WHERE namespace='knowledge:process'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'knowledge-process' 
      ORDER BY created_at ASC" 2>/dev/null)
 
 TIMELINE_COUNT=$(echo "$TIMELINE" | wc -l)
@@ -234,7 +233,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

@@ -69,7 +69,7 @@ EOF
 
 MEM_ID=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$INTERACTIVE_CONTENT" \
-    --namespace "practices:development" \
+    --namespace "project:practices-development" \
     --importance 9 \
     --type insight \
     --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
@@ -123,7 +123,7 @@ SEARCH_QUERY="pair programming collaboration best practices"
 
 SEARCH_RESULTS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
     --query "$SEARCH_QUERY" \
-    --namespace "practices:development" \
+    --namespace "project:practices-development" \
     --limit 5 2>&1) || warn "Search unavailable"
 
 if echo "$SEARCH_RESULTS" | grep -q "$MEM_ID"; then
@@ -154,7 +154,7 @@ EOF
 
 MEM2_ID=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$RELATED_CONTENT" \
-    --namespace "practices:development" \
+    --namespace "project:practices-development" \
     --importance 8 \
     --type reference \
     --verbose 2>&1 | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
@@ -172,7 +172,7 @@ print_cyan "Verifying complete interactive workflow..."
 
 # Both memories should exist
 MEMORY_COUNT=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='practices:development'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'practices-development' " 2>/dev/null)
 
 if [ "$MEMORY_COUNT" -eq 2 ]; then
     print_green "  ✓ All workflow memories created"
@@ -181,8 +181,7 @@ fi
 # Both should be enriched
 ENRICHED_COUNT=$(sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='practices:development'
-     AND summary IS NOT NULL
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'practices-development'  summary IS NOT NULL
      AND summary != ''" 2>/dev/null)
 
 if [ "$ENRICHED_COUNT" -eq 2 ]; then
@@ -198,7 +197,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

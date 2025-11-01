@@ -29,8 +29,10 @@ print_cyan "Setting up test environment..."
 TEST_DB=$(setup_solo_developer "$TEST_NAME")
 print_green "  ✓ Test database: $TEST_DB"
 
-AGENT_NS="agent:deploy-bot"
+AGENT_NS="project:agent-deploy-bot"
+AGENT_NS_WHERE=$(namespace_where_clause "$AGENT_NS")
 PROJECT_NS="project:deployment"
+PROJECT_NS_WHERE=$(namespace_where_clause "$PROJECT_NS")
 
 # ===================================================================
 # SCENARIO: Deployment Failure and Recovery
@@ -137,7 +139,7 @@ print_cyan "Verifying failure recording..."
 
 FAILURE_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$PROJECT_NS' AND content LIKE '%FAILED%'" 2>/dev/null)
+     WHERE $PROJECT_NS_WHERE AND content LIKE '%FAILED%'" 2>/dev/null)
 
 print_cyan "  Recorded failures: $FAILURE_COUNT"
 
@@ -148,8 +150,7 @@ fi
 # Check for error details
 ERROR_DETAILS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$PROJECT_NS'
-     AND (content LIKE '%Error:%' OR content LIKE '%Root cause:%')" 2>/dev/null)
+     WHERE $PROJECT_NS_WHERE  (content LIKE '%Error:%' OR content LIKE '%Root cause:%')" 2>/dev/null)
 
 print_cyan "  Failures with error details: $ERROR_DETAILS"
 
@@ -167,7 +168,7 @@ print_cyan "Verifying retry attempts..."
 
 ATTEMPT_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$PROJECT_NS' AND content LIKE '%attempt%'" 2>/dev/null)
+     WHERE $PROJECT_NS_WHERE AND content LIKE '%attempt%'" 2>/dev/null)
 
 print_cyan "  Deployment attempts: $ATTEMPT_COUNT"
 
@@ -178,7 +179,7 @@ fi
 # Check for success after retries
 SUCCESS_AFTER_RETRY=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$PROJECT_NS' AND content LIKE '%attempt 3%' AND content LIKE '%SUCCEEDED%'" 2>/dev/null)
+     WHERE $PROJECT_NS_WHERE AND content LIKE '%attempt 3%' AND content LIKE '%SUCCEEDED%'" 2>/dev/null)
 
 if [ "$SUCCESS_AFTER_RETRY" -ge 1 ]; then
     print_green "  ✓ Final success recorded after retries"
@@ -194,7 +195,7 @@ print_cyan "Verifying recovery strategies..."
 
 RECOVERY_STRATEGIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$AGENT_NS' AND content LIKE '%Recovery strategy%'" 2>/dev/null)
+     WHERE $AGENT_NS_WHERE AND content LIKE '%Recovery strategy%'" 2>/dev/null)
 
 print_cyan "  Recovery strategies documented: $RECOVERY_STRATEGIES"
 
@@ -205,7 +206,7 @@ fi
 # Verify strategies are decisions
 RECOVERY_DECISIONS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$AGENT_NS' AND type='decision' AND content LIKE '%Recovery%'" 2>/dev/null)
+     WHERE $AGENT_NS_WHERE AND memory_type='architecture_decision' AND content LIKE '%Recovery%'" 2>/dev/null)
 
 if [ "$RECOVERY_DECISIONS" -ge 2 ]; then
     print_green "  ✓ Recovery strategies marked as decisions"
@@ -221,7 +222,7 @@ print_cyan "Verifying failure analysis..."
 
 FAILURE_ANALYSIS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$AGENT_NS' AND content LIKE '%Failure analysis%'" 2>/dev/null)
+     WHERE $AGENT_NS_WHERE AND content LIKE '%Failure analysis%'" 2>/dev/null)
 
 print_cyan "  Failure analyses: $FAILURE_ANALYSIS"
 
@@ -232,7 +233,7 @@ fi
 # Check for different root causes
 ROOT_CAUSES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT content FROM memories
-     WHERE namespace='$AGENT_NS' AND content LIKE '%Failure analysis%'" 2>/dev/null)
+     WHERE $AGENT_NS_WHERE AND content LIKE '%Failure analysis%'" 2>/dev/null)
 
 if echo "$ROOT_CAUSES" | grep -q "Network partition" && echo "$ROOT_CAUSES" | grep -q "disk"; then
     print_green "  ✓ Different failure modes identified"
@@ -266,7 +267,7 @@ print_cyan "Verifying partial failure tracking..."
 
 PARTIAL_FAILURES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$PROJECT_NS' AND content LIKE '%PARTIAL_FAILURE%'" 2>/dev/null)
+     WHERE $PROJECT_NS_WHERE AND content LIKE '%PARTIAL_FAILURE%'" 2>/dev/null)
 
 print_cyan "  Partial failure states: $PARTIAL_FAILURES"
 
@@ -277,7 +278,7 @@ fi
 # Check for progress tracking (14/20, 19/20, 20/20)
 PROGRESS_TRACKED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT content FROM memories
-     WHERE namespace='$PROJECT_NS' AND content LIKE '%/%'" 2>/dev/null)
+     WHERE $PROJECT_NS_WHERE AND content LIKE '%/%'" 2>/dev/null)
 
 if echo "$PROGRESS_TRACKED" | grep -q "14/20" && echo "$PROGRESS_TRACKED" | grep -q "19/20" && echo "$PROGRESS_TRACKED" | grep -q "20/20"; then
     print_green "  ✓ Incremental progress tracked"
@@ -303,7 +304,7 @@ fi
 # Check that deployment summary mentions failures overcome
 SUMMARY_MENTIONS_FAILURES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$AGENT_NS' AND content LIKE '%Failures overcome%'" 2>/dev/null)
+     WHERE $AGENT_NS_WHERE AND content LIKE '%Failures overcome%'" 2>/dev/null)
 
 if [ "$SUMMARY_MENTIONS_FAILURES" -ge 1 ]; then
     print_green "  ✓ Summary includes failures overcome"
@@ -313,7 +314,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

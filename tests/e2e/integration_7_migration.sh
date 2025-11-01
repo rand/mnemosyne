@@ -39,7 +39,7 @@ print_cyan "Checking schema version tracking..."
 
 # Check for version/migration table
 VERSION_TABLE=$(sqlite3 "$TEST_DB" \
-    "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%version%' OR name LIKE '%migration%'" 2>/dev/null || echo "")
+    "SELECT name FROM sqlite_master WHERE memory_type ='table' AND name LIKE '%version%' OR name LIKE '%migration%'" 2>/dev/null || echo "")
 
 if [ -n "$VERSION_TABLE" ]; then
     print_green "  ✓ Schema version table exists: $VERSION_TABLE"
@@ -65,7 +65,7 @@ print_cyan "Validating core database schema..."
 
 # Check memories table exists
 MEMORIES_TABLE=$(sqlite3 "$TEST_DB" \
-    "SELECT name FROM sqlite_master WHERE type='table' AND name='memories'" 2>/dev/null)
+    "SELECT name FROM sqlite_master WHERE memory_type ='table' AND name='memories'" 2>/dev/null)
 
 if [ "$MEMORIES_TABLE" = "memories" ]; then
     print_green "  ✓ Core 'memories' table exists"
@@ -100,12 +100,12 @@ print_cyan "Testing data preservation..."
 # Create test data
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Migration test: This data should survive schema changes" \
-    --namespace "migration:test" \
+    --namespace "project:migration" \
     --importance 8 \
     --type reference >/dev/null 2>&1
 
 BEFORE_COUNT=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='migration:test'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'migration' " 2>/dev/null)
 
 print_cyan "  Memories before migration: $BEFORE_COUNT"
 
@@ -117,10 +117,10 @@ sqlite3 "$TEST_DB" \
 
 # Verify data still intact
 AFTER_COUNT=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='migration:test'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'migration' " 2>/dev/null)
 
 CONTENT_PRESERVED=$(sqlite3 "$TEST_DB" \
-    "SELECT content FROM memories WHERE namespace='migration:test' LIMIT 1" 2>/dev/null)
+    "SELECT content FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'migration'  LIMIT 1" 2>/dev/null)
 
 print_cyan "  Memories after migration: $AFTER_COUNT"
 
@@ -142,7 +142,7 @@ print_cyan "Checking database indexes..."
 
 # List indexes
 INDEXES=$(sqlite3 "$TEST_DB" \
-    "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='memories'" 2>/dev/null)
+    "SELECT name FROM sqlite_master WHERE memory_type ='index' AND tbl_name='memories'" 2>/dev/null)
 
 if [ -n "$INDEXES" ]; then
     print_cyan "  Indexes found:"
@@ -190,7 +190,7 @@ sqlite3 "$TEST_DB" \
 
 # Verify data still intact after failed migration
 FINAL_COUNT=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='migration:test'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'migration' " 2>/dev/null)
 
 if [ "$FINAL_COUNT" -eq "$BEFORE_COUNT" ]; then
     print_green "  ✓ Failed migration didn't corrupt data"
@@ -234,7 +234,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

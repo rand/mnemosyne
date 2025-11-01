@@ -39,12 +39,12 @@ print_cyan "Creating memories with initial importance..."
 # High importance task (temporary)
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Urgent: Deploy hotfix for production bug by EOD" \
-    --namespace "tasks:urgent" \
+    --namespace "project:tasks-urgent" \
     --importance 10 \
     --type task >/dev/null 2>&1
 
 URGENT_ID=$(sqlite3 "$TEST_DB" \
-    "SELECT id FROM memories WHERE namespace='tasks:urgent' LIMIT 1" 2>/dev/null)
+    "SELECT id FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'tasks-urgent'  LIMIT 1" 2>/dev/null)
 
 # Medium importance insight (enduring)
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
@@ -54,7 +54,7 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --type architecture >/dev/null 2>&1
 
 PRINCIPLE_ID=$(sqlite3 "$TEST_DB" \
-    "SELECT id FROM memories WHERE namespace='principles:architecture' LIMIT 1" 2>/dev/null)
+    "SELECT id FROM memories WHERE json_extract(namespace, '$.type') = 'global'  LIMIT 1" 2>/dev/null)
 
 print_green "  ✓ Created 2 memories (1 temporary, 1 enduring)"
 
@@ -153,7 +153,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

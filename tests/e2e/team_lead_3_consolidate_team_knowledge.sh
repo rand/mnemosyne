@@ -153,7 +153,7 @@ print_cyan "Detecting similar memories across namespaces..."
 
 # Check for consolidation candidates (if command exists)
 CONSOLIDATE_CMD=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" consolidate \
-    --namespace "team:engineering" \
+    --namespace "project:team-engineering" \
     --threshold 0.7 \
     --dry-run 2>&1) || {
     warn "Consolidate command not yet implemented"
@@ -228,7 +228,7 @@ EOF
 
 MEM_CONSOLIDATED=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "$CONSOLIDATED" \
-    --namespace "team:engineering" \
+    --namespace "project:team-engineering" \
     --importance 10 \
     --type decision 2>&1) || fail "Failed to store consolidated insight"
 
@@ -302,7 +302,7 @@ print_cyan "Step 5: Searching should prefer consolidated memory..."
 
 SEARCH_RESULT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
     --query "token validation caching Redis" \
-    --namespace "team:engineering" \
+    --namespace "project:team-engineering" \
     --limit 5 2>&1) || fail "Search failed"
 
 print_green "  ✓ Search completed"
@@ -328,8 +328,7 @@ print_cyan "Analyzing consolidation benefits..."
 # Count team namespace memories
 TEAM_MEMS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='team:engineering'
-     AND memory_type='decision'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'team-engineering'  memory_type='architecture_decision'" 2>/dev/null)
 
 print_cyan "  Team decision memories: $TEAM_MEMS"
 
@@ -363,7 +362,7 @@ section "Scenario: List Consolidated Team Knowledge"
 print_cyan "Step 6: List high-value team decisions..."
 
 TEAM_DECISIONS=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
-    --namespace "team:engineering" \
+    --namespace "project:team-engineering" \
     --type decision 2>&1) || fail "Failed to list team decisions"
 
 print_green "  ✓ Team decisions listed"
@@ -380,7 +379,7 @@ fi
 
 section "Cleanup"
 
-teardown_persona "$TEST_DB"
+cleanup_team_lead "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

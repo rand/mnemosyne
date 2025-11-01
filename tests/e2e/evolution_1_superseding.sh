@@ -39,12 +39,12 @@ print_cyan "Creating initial memory..."
 
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Decision v1: We will use MongoDB for our database needs due to flexibility." \
-    --namespace "decisions:database" \
+    --namespace "project:decisions-database" \
     --importance 8 \
     --type decision >/dev/null 2>&1
 
 OLD_ID=$(sqlite3 "$TEST_DB" \
-    "SELECT id FROM memories WHERE namespace='decisions:database' ORDER BY created_at LIMIT 1" 2>/dev/null)
+    "SELECT id FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'decisions-database'  ORDER BY created_at LIMIT 1" 2>/dev/null)
 
 print_green "  ✓ Initial decision: $OLD_ID"
 
@@ -54,12 +54,12 @@ print_cyan "Creating superseding memory..."
 
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Decision v2: Changed to PostgreSQL for ACID guarantees and better tooling. Supersedes MongoDB decision after performance testing revealed limitations." \
-    --namespace "decisions:database" \
+    --namespace "project:decisions-database" \
     --importance 9 \
     --type decision >/dev/null 2>&1
 
 NEW_ID=$(sqlite3 "$TEST_DB" \
-    "SELECT id FROM memories WHERE namespace='decisions:database' ORDER BY created_at DESC LIMIT 1" 2>/dev/null)
+    "SELECT id FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'decisions-database'  ORDER BY created_at DESC LIMIT 1" 2>/dev/null)
 
 print_green "  ✓ Superseding decision: $NEW_ID"
 
@@ -94,7 +94,7 @@ section "Test 2: Both Versions Preserved"
 print_cyan "Verifying both versions exist..."
 
 MEMORY_COUNT=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='decisions:database'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'decisions-database' " 2>/dev/null)
 
 assert_equals "$MEMORY_COUNT" "2" "Memory versions"
 print_green "  ✓ Both versions preserved (v1 + v2)"
@@ -109,7 +109,7 @@ print_cyan "Testing default query behavior..."
 
 LATEST=$(sqlite3 "$TEST_DB" \
     "SELECT id FROM memories
-     WHERE namespace='decisions:database'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'decisions-database' 
      ORDER BY importance DESC, created_at DESC LIMIT 1" 2>/dev/null)
 
 if [ "$LATEST" = "$NEW_ID" ]; then
@@ -126,7 +126,7 @@ print_cyan "Testing historical access..."
 
 HISTORY=$(sqlite3 "$TEST_DB" \
     "SELECT id FROM memories
-     WHERE namespace='decisions:database'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'decisions-database' 
      ORDER BY created_at ASC" 2>/dev/null)
 
 HISTORY_COUNT=$(echo "$HISTORY" | wc -l)
@@ -160,7 +160,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

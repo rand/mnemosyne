@@ -37,7 +37,9 @@ TEST_DB=$(setup_power_user "$TEST_NAME")
 print_green "  ✓ Test database: $TEST_DB"
 
 PARALLEL_NS="project:parallel-tasks"
-AGENT_NS="agent:parallel-executor"
+PARALLEL_NS_WHERE=$(namespace_where_clause "$PARALLEL_NS")
+AGENT_NS="project:agent-parallel-executor"
+AGENT_NS_WHERE=$(namespace_where_clause "$AGENT_NS")
 
 # ===================================================================
 # SCENARIO: Parallel Task Execution
@@ -130,7 +132,7 @@ section "Validation 1: All Tasks Completed"
 print_cyan "Verifying all parallel tasks completed..."
 
 COMPLETED_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$PARALLEL_NS' AND type='task'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $PARALLEL_NS_WHERE AND memory_type ='task'" 2>/dev/null)
 
 print_cyan "  Completed tasks: $COMPLETED_COUNT / 3"
 
@@ -147,8 +149,7 @@ print_cyan "Validating enrichment quality for parallel tasks..."
 
 ENRICHED_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$PARALLEL_NS'
-     AND summary IS NOT NULL
+     WHERE $PARALLEL_NS_WHERE  summary IS NOT NULL
      AND summary != ''" 2>/dev/null)
 
 print_cyan "  Enriched tasks: $ENRICHED_COUNT / 3"
@@ -179,10 +180,10 @@ print_cyan "Checking for resource conflicts..."
 
 # Verify no duplicate IDs
 UNIQUE_IDS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(DISTINCT id) FROM memories WHERE namespace='$PARALLEL_NS'" 2>/dev/null)
+    "SELECT COUNT(DISTINCT id) FROM memories WHERE $PARALLEL_NS_WHERE " 2>/dev/null)
 
 TOTAL_IDS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(id) FROM memories WHERE namespace='$PARALLEL_NS'" 2>/dev/null)
+    "SELECT COUNT(id) FROM memories WHERE $PARALLEL_NS_WHERE " 2>/dev/null)
 
 print_cyan "  Unique IDs: $UNIQUE_IDS"
 print_cyan "  Total IDs: $TOTAL_IDS"
@@ -194,8 +195,7 @@ fi
 # Verify no data corruption
 VALID_CONTENT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$PARALLEL_NS'
-     AND content IS NOT NULL
+     WHERE $PARALLEL_NS_WHERE  content IS NOT NULL
      AND LENGTH(content) > 50" 2>/dev/null)
 
 if [ "$VALID_CONTENT" -eq 3 ]; then
@@ -218,7 +218,7 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --verbose 2>&1 >/dev/null || warn "Could not store results"
 
 AGENT_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_NS_WHERE " 2>/dev/null)
 
 if [ "$AGENT_MEMORIES" -ge 1 ]; then
     print_green "  ✓ Results merged and recorded"
@@ -245,7 +245,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_power_user "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

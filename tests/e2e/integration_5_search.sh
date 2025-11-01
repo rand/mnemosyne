@@ -113,7 +113,7 @@ NAMESPACE_SEARCH=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall \
     --limit 5 2>&1) || {
     NAMESPACE_SEARCH=$(sqlite3 "$TEST_DB" \
         "SELECT id FROM memories
-         WHERE namespace='project:backend' AND content LIKE '%performance%'" 2>/dev/null)
+         WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'backend' AND content LIKE '%performance%'" 2>/dev/null)
 }
 
 if [ -n "$NAMESPACE_SEARCH" ]; then
@@ -155,7 +155,7 @@ print_cyan "Testing type-based filtering..."
 
 # Get insights only
 TYPE_SEARCH=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE type='insight'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE memory_type ='insight'" 2>/dev/null)
 
 print_cyan "  Insight-type memories: $TYPE_SEARCH"
 
@@ -251,7 +251,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_power_user "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

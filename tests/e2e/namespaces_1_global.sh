@@ -43,13 +43,13 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
 
 # Verify global namespace
 GLOBAL_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='global'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'global' " 2>/dev/null)
 
 print_cyan "  Global memories: $GLOBAL_COUNT"
 assert_greater_than "$GLOBAL_COUNT" 1 "Global memory count"
 print_green "  ✓ Global namespace populated"
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 section "Test Summary: Namespaces - Global [REGRESSION]"
 echo "✓ Global namespace: PASS ($GLOBAL_COUNT memories)"

@@ -250,10 +250,10 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
 
 # Count memories in each namespace
 MYPROJECT_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:myproject'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'myproject' " 2>/dev/null)
 
 OTHERPROJECT_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:otherproject'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'otherproject' " 2>/dev/null)
 
 print_cyan "  project:myproject: $MYPROJECT_COUNT memories"
 print_cyan "  project:otherproject: $OTHERPROJECT_COUNT memories"
@@ -270,7 +270,7 @@ fi
 
 section "Cleanup"
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

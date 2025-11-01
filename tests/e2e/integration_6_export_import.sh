@@ -31,6 +31,7 @@ print_green "  ✓ Test database: $TEST_DB"
 
 EXPORT_FILE="/tmp/mnemosyne_export_${TEST_NAME}_$(date +%s).jsonl"
 TEST_NS="export:test"
+TEST_NS_WHERE=$(namespace_where_clause "$TEST_NS")
 
 # ===================================================================
 # TEST 1: Create Test Data
@@ -49,7 +50,7 @@ for i in {1..5}; do
 done
 
 CREATED_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$TEST_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $TEST_NS_WHERE " 2>/dev/null)
 
 assert_equals "$CREATED_COUNT" "5" "Created memories"
 print_green "  ✓ Created 5 test memories"
@@ -70,7 +71,7 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" export \
     warn "Export command not implemented, using SQL"
     sqlite3 "$TEST_DB" <<SQL > "$EXPORT_FILE"
 .mode json
-SELECT * FROM memories WHERE namespace='$TEST_NS';
+SELECT * FROM memories WHERE $TEST_NS_WHERE ;
 SQL
 }
 
@@ -136,7 +137,7 @@ DATABASE_URL="sqlite://$IMPORT_DB" "$BIN" import \
 
 if [ -f "$IMPORT_DB" ]; then
     IMPORTED_COUNT=$(sqlite3 "$IMPORT_DB" \
-        "SELECT COUNT(*) FROM memories WHERE namespace='$TEST_NS'" 2>/dev/null || echo "0")
+        "SELECT COUNT(*) FROM memories WHERE $TEST_NS_WHERE " 2>/dev/null || echo "0")
 
     print_cyan "  Imported memories: $IMPORTED_COUNT"
 
@@ -224,7 +225,7 @@ fi
 # ===================================================================
 
 rm -f "$EXPORT_FILE"
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

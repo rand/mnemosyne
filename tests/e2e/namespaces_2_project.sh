@@ -43,10 +43,10 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
 
 # Verify isolation
 PROJ_A=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:projectA'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'projectA' " 2>/dev/null)
 
 PROJ_B=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:projectB'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'projectB' " 2>/dev/null)
 
 print_cyan "  Project A memories: $PROJ_A"
 print_cyan "  Project B memories: $PROJ_B"
@@ -55,7 +55,7 @@ assert_equals "$PROJ_A" "1" "Project A isolation"
 assert_equals "$PROJ_B" "1" "Project B isolation"
 print_green "  ✓ Project namespaces isolated"
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 section "Test Summary: Namespaces - Project [REGRESSION]"
 echo "✓ Project isolation: PASS"

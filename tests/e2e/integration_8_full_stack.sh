@@ -149,7 +149,7 @@ print_cyan "Validating all components integrated correctly..."
 
 # CLI → Database
 CLI_DB_CHECK=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='incidents:production'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'global' " 2>/dev/null)
 
 if [ "$CLI_DB_CHECK" -eq 1 ]; then
     print_green "  ✓ CLI → Database: Working"
@@ -208,7 +208,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_power_user "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

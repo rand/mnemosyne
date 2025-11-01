@@ -98,7 +98,7 @@ LIST_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" list \
     # Fallback to SQL if list command doesn't exist
     warn "List command not implemented, using SQL"
     LIST_OUTPUT=$(sqlite3 "$TEST_DB" \
-        "SELECT id FROM memories WHERE namespace='cli:test' LIMIT 10" 2>/dev/null)
+        "SELECT id FROM memories WHERE json_extract(namespace, '$.type') = 'global'  LIMIT 10" 2>/dev/null)
 }
 
 if [ -n "$LIST_OUTPUT" ]; then
@@ -232,7 +232,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

@@ -80,7 +80,7 @@ print_green "  ✓ Created $CREATED_COUNT team activity memories"
 for i in {1..5}; do
     DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
         --content "Team decision $i: Important architectural or process decision" \
-        --namespace "team:engineering" \
+        --namespace "project:team-engineering" \
         --importance "$((7 + (i % 4)))" \
         --type "decision" >/dev/null 2>&1 || true
 done
@@ -443,7 +443,7 @@ section "Cleanup"
 rm -f "$REPORT_FILE"
 print_green "  ✓ Report file removed"
 
-teardown_persona "$TEST_DB"
+cleanup_team_lead "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

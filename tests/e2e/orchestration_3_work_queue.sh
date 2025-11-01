@@ -37,7 +37,9 @@ TEST_DB=$(setup_team_lead "$TEST_NAME")
 print_green "  ✓ Test database: $TEST_DB"
 
 QUEUE_NS="queue:work-items"
-AGENT_NS="agent:dispatcher"
+QUEUE_NS_WHERE=$(namespace_where_clause "$QUEUE_NS")
+AGENT_NS="project:agent-dispatcher"
+AGENT_NS_WHERE=$(namespace_where_clause "$AGENT_NS")
 
 # ===================================================================
 # SCENARIO: Work Queue with Real LLM Enrichment
@@ -160,7 +162,7 @@ print_cyan "Verifying priority-based queue ordering..."
 QUEUE_ORDER=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT importance, id
      FROM memories
-     WHERE namespace='$QUEUE_NS' AND type='task'
+     WHERE $QUEUE_NS_WHERE AND memory_type ='task'
      ORDER BY importance DESC, created_at ASC" 2>/dev/null)
 
 print_cyan "  Queue order (by priority):"
@@ -197,7 +199,7 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --verbose 2>&1 >/dev/null
 
 ASSIGNMENTS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_NS' AND content LIKE '%Assigned%'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_NS_WHERE AND content LIKE '%Assigned%'" 2>/dev/null)
 
 print_cyan "  Task assignments: $ASSIGNMENTS"
 
@@ -214,10 +216,10 @@ section "Test 4: Queue State"
 print_cyan "Querying work queue state..."
 
 TOTAL_TASKS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$QUEUE_NS' AND type='task'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $QUEUE_NS_WHERE AND memory_type ='task'" 2>/dev/null)
 
 CRITICAL=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$QUEUE_NS' AND type='task' AND importance >= 9" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $QUEUE_NS_WHERE AND memory_type ='task' AND importance >= 9" 2>/dev/null)
 
 print_cyan "  Total tasks in queue: $TOTAL_TASKS"
 print_cyan "  Critical tasks: $CRITICAL"
@@ -230,7 +232,7 @@ print_green "  ✓ Queue state queryable"
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_team_lead "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

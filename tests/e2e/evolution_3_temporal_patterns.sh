@@ -40,7 +40,7 @@ print_cyan "Creating memories with temporal distribution..."
 for i in {1..5}; do
     DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
         --content "Memory $i: Temporal pattern testing at time $i" \
-        --namespace "temporal:test" \
+        --namespace "project:temporal" \
         --importance $((5 + i)) \
         --type reference >/dev/null 2>&1
     sleep 1
@@ -58,7 +58,7 @@ print_cyan "Querying recent memories..."
 
 RECENT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT id FROM memories
-     WHERE namespace='temporal:test'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'temporal' 
      ORDER BY created_at DESC LIMIT 2" 2>/dev/null)
 
 RECENT_COUNT=$(echo "$RECENT" | wc -l)
@@ -79,7 +79,7 @@ print_cyan "Querying historical memories..."
 
 HISTORICAL=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT id FROM memories
-     WHERE namespace='temporal:test'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'temporal' 
      ORDER BY created_at ASC LIMIT 2" 2>/dev/null)
 
 HISTORICAL_COUNT=$(echo "$HISTORICAL" | wc -l)
@@ -106,12 +106,12 @@ print_cyan "Calculating temporal span..."
 
 OLDEST=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT created_at FROM memories
-     WHERE namespace='temporal:test'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'temporal' 
      ORDER BY created_at ASC LIMIT 1" 2>/dev/null)
 
 NEWEST=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT created_at FROM memories
-     WHERE namespace='temporal:test'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'temporal' 
      ORDER BY created_at DESC LIMIT 1" 2>/dev/null)
 
 if [ -n "$OLDEST" ] && [ -n "$NEWEST" ] && [ "$OLDEST" != "$NEWEST" ]; then
@@ -129,20 +129,18 @@ print_cyan "Testing time-based filters..."
 # Get middle timestamp
 MIDDLE_TIME=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT created_at FROM memories
-     WHERE namespace='temporal:test'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'temporal' 
      ORDER BY created_at LIMIT 1 OFFSET 2" 2>/dev/null)
 
 # Count before middle
 BEFORE_MIDDLE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='temporal:test'
-     AND created_at < '$MIDDLE_TIME'" 2>/dev/null || echo "0")
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'temporal'  created_at < '$MIDDLE_TIME'" 2>/dev/null || echo "0")
 
 # Count after middle
 AFTER_MIDDLE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='temporal:test'
-     AND created_at >= '$MIDDLE_TIME'" 2>/dev/null || echo "0")
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'temporal'  created_at >= '$MIDDLE_TIME'" 2>/dev/null || echo "0")
 
 print_cyan "  Before middle: $BEFORE_MIDDLE"
 print_cyan "  After/at middle: $AFTER_MIDDLE"
@@ -155,7 +153,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

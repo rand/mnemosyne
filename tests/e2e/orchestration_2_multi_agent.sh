@@ -42,11 +42,16 @@ TEST_DB=$(setup_power_user "$TEST_NAME")
 print_green "  ✓ Test database: $TEST_DB"
 
 # Agent namespaces
-ORCHESTRATOR_NS="agent:orchestrator"
-OPTIMIZER_NS="agent:optimizer"
-REVIEWER_NS="agent:reviewer"
-EXECUTOR_NS="agent:executor"
+ORCHESTRATOR_NS="project:agent-orchestrator"
+ORCHESTRATOR_NS_WHERE=$(namespace_where_clause "$ORCHESTRATOR_NS")
+OPTIMIZER_NS="project:agent-optimizer"
+OPTIMIZER_NS_WHERE=$(namespace_where_clause "$OPTIMIZER_NS")
+REVIEWER_NS="project:agent-reviewer"
+REVIEWER_NS_WHERE=$(namespace_where_clause "$REVIEWER_NS")
+EXECUTOR_NS="project:agent-executor"
+EXECUTOR_NS_WHERE=$(namespace_where_clause "$EXECUTOR_NS")
 SHARED_NS="project:multi-agent-task"
+SHARED_NS_WHERE=$(namespace_where_clause "$SHARED_NS")
 
 print_cyan "  4-Agent System:"
 print_cyan "    - Orchestrator: Coordinates workflow"
@@ -355,16 +360,16 @@ print_cyan "Verifying each agent maintains distinct role..."
 
 # Count memories per agent
 ORCH_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$ORCHESTRATOR_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $ORCHESTRATOR_NS_WHERE " 2>/dev/null)
 
 OPT_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$OPTIMIZER_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $OPTIMIZER_NS_WHERE " 2>/dev/null)
 
 REV_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$REVIEWER_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $REVIEWER_NS_WHERE " 2>/dev/null)
 
 EXEC_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$EXECUTOR_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $EXECUTOR_NS_WHERE " 2>/dev/null)
 
 print_cyan "  Orchestrator memories: $ORCH_COUNT"
 print_cyan "  Optimizer memories: $OPT_COUNT"
@@ -384,7 +389,7 @@ section "Test 3: Shared Project Context"
 print_cyan "Verifying shared project context accessibility..."
 
 SHARED_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$SHARED_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $SHARED_NS_WHERE " 2>/dev/null)
 
 print_cyan "  Shared project memories: $SHARED_COUNT"
 
@@ -418,7 +423,7 @@ fi
 
 section "Cleanup"
 
-teardown_persona "$TEST_DB"
+cleanup_power_user "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

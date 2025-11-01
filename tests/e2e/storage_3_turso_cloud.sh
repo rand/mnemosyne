@@ -94,7 +94,7 @@ print_cyan "Testing remote write operations..."
 for i in {1..5}; do
     DATABASE_URL="$DATABASE_URL" "$BIN" remember \
         --content "Cloud write test $i - testing remote storage functionality" \
-        --namespace "test:cloud-writes" \
+        --namespace "project:test-cloud" \
         --importance $((6 + i % 3)) \
         --type reference >/dev/null 2>&1 || fail "Write $i failed"
 done
@@ -104,12 +104,12 @@ if [ "$TURSO_AVAILABLE" = true ]; then
     # Query Turso directly
     WRITE_COUNT=$(DATABASE_URL="$TURSO_DATABASE_URL" "$BIN" recall \
         --query "cloud write" \
-        --namespace "test:cloud-writes" \
+        --namespace "project:test-cloud" \
         --limit 10 2>&1 | grep -c "mem-" || echo "0")
 else
     # Query local database
     WRITE_COUNT=$(sqlite3 "$TEST_DB" \
-        "SELECT COUNT(*) FROM memories WHERE namespace='test:cloud-writes'" 2>/dev/null)
+        "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'test-cloud' " 2>/dev/null)
 fi
 
 assert_equals "$WRITE_COUNT" "5" "Cloud write count"
@@ -126,7 +126,7 @@ print_cyan "Testing remote read operations..."
 # Read from cloud
 READ_RESULT=$(DATABASE_URL="$DATABASE_URL" "$BIN" recall \
     --query "cloud write test" \
-    --namespace "test:cloud-writes" \
+    --namespace "project:test-cloud" \
     --limit 3 2>&1) || fail "Remote read failed"
 
 # Verify results returned

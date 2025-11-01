@@ -29,8 +29,10 @@ print_cyan "Setting up test environment..."
 TEST_DB=$(setup_solo_developer "$TEST_NAME")
 print_green "  ✓ Test database: $TEST_DB"
 
-TASK_NS="tasks:priority-queue"
-AGENT_NS="agent:task-executor"
+TASK_NS="project:tasks-priority-queue"
+TASK_NS_WHERE=$(namespace_where_clause "$TASK_NS")
+AGENT_NS="project:agent-task-executor"
+AGENT_NS_WHERE=$(namespace_where_clause "$AGENT_NS")
 
 # ===================================================================
 # SCENARIO: Priority-Based Task Queue
@@ -104,7 +106,7 @@ print_cyan "Verifying priority-based ordering..."
 PRIORITY_ORDER=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT importance, substr(content, 7, 40)
      FROM memories
-     WHERE namespace='$TASK_NS' AND type='task'
+     WHERE $TASK_NS_WHERE AND memory_type ='task'
      ORDER BY importance DESC, created_at ASC" 2>/dev/null)
 
 print_cyan "  Task queue (ordered by priority):"
@@ -115,7 +117,7 @@ done
 # Check that highest priority tasks come first
 FIRST_PRIORITY=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT importance FROM memories
-     WHERE namespace='$TASK_NS' AND type='task'
+     WHERE $TASK_NS_WHERE AND memory_type ='task'
      ORDER BY importance DESC, created_at ASC LIMIT 1" 2>/dev/null)
 
 if [ "$FIRST_PRIORITY" -eq 10 ]; then
@@ -125,7 +127,7 @@ fi
 # Check last is lowest priority
 LAST_PRIORITY=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT importance FROM memories
-     WHERE namespace='$TASK_NS' AND type='task'
+     WHERE $TASK_NS_WHERE AND memory_type ='task'
      ORDER BY importance ASC, created_at ASC LIMIT 1" 2>/dev/null)
 
 if [ "$LAST_PRIORITY" -eq 3 ]; then
@@ -143,7 +145,7 @@ print_cyan "Simulating agent selecting high-priority tasks..."
 # Get top 3 priority tasks
 TOP_TASKS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT id, importance FROM memories
-     WHERE namespace='$TASK_NS' AND type='task'
+     WHERE $TASK_NS_WHERE AND memory_type ='task'
      ORDER BY importance DESC, created_at ASC LIMIT 3" 2>/dev/null)
 
 TOP_TASK_COUNT=$(echo "$TOP_TASKS" | wc -l)
@@ -177,7 +179,7 @@ print_cyan "Testing priority range filters..."
 # High priority tasks (≥8)
 HIGH_PRIORITY=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$TASK_NS' AND type='task' AND importance >= 8" 2>/dev/null)
+     WHERE $TASK_NS_WHERE AND memory_type ='task' AND importance >= 8" 2>/dev/null)
 
 print_cyan "  High priority tasks (≥8): $HIGH_PRIORITY"
 
@@ -188,7 +190,7 @@ fi
 # Critical tasks (=10)
 CRITICAL=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$TASK_NS' AND type='task' AND importance = 10" 2>/dev/null)
+     WHERE $TASK_NS_WHERE AND memory_type ='task' AND importance = 10" 2>/dev/null)
 
 print_cyan "  Critical tasks (=10): $CRITICAL"
 
@@ -199,7 +201,7 @@ fi
 # Low priority tasks (≤5)
 LOW_PRIORITY=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$TASK_NS' AND type='task' AND importance <= 5" 2>/dev/null)
+     WHERE $TASK_NS_WHERE AND memory_type ='task' AND importance <= 5" 2>/dev/null)
 
 print_cyan "  Low priority tasks (≤5): $LOW_PRIORITY"
 
@@ -219,7 +221,7 @@ print_cyan "Verifying FIFO ordering within same priority level..."
 CRITICAL_TASKS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT id, substr(content, 7, 30), created_at
      FROM memories
-     WHERE namespace='$TASK_NS' AND type='task' AND importance = 10
+     WHERE $TASK_NS_WHERE AND memory_type ='task' AND importance = 10
      ORDER BY created_at ASC" 2>/dev/null)
 
 FIRST_CRITICAL=$(echo "$CRITICAL_TASKS" | head -1 | cut -d'|' -f2)
@@ -245,7 +247,7 @@ print_cyan "Analyzing priority distribution..."
 for priority in 10 9 8 7 6 5 4 3; do
     COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
         "SELECT COUNT(*) FROM memories
-         WHERE namespace='$TASK_NS' AND type='task' AND importance=$priority" 2>/dev/null)
+         WHERE $TASK_NS_WHERE AND memory_type ='task' AND importance=$priority" 2>/dev/null)
 
     if [ "$COUNT" -gt 0 ]; then
         print_cyan "  Priority $priority: $COUNT tasks"
@@ -253,7 +255,7 @@ for priority in 10 9 8 7 6 5 4 3; do
 done
 
 TOTAL_TASKS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$TASK_NS' AND type='task'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $TASK_NS_WHERE AND memory_type ='task'" 2>/dev/null)
 
 print_cyan "  Total tasks: $TOTAL_TASKS"
 
@@ -281,7 +283,7 @@ print_cyan "  Emergency task added"
 # Should be processable immediately (top priority)
 NEW_TOP=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT content FROM memories
-     WHERE namespace='$TASK_NS' AND type='task'
+     WHERE $TASK_NS_WHERE AND memory_type ='task'
      ORDER BY importance DESC, created_at DESC LIMIT 1" 2>/dev/null)
 
 if echo "$NEW_TOP" | grep -q "EMERGENCY"; then
@@ -307,14 +309,14 @@ print_green "  ✓ Task completion recorded"
 
 # Remaining tasks in queue
 REMAINING=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$TASK_NS' AND type='task'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $TASK_NS_WHERE AND memory_type ='task'" 2>/dev/null)
 
 print_cyan "  Tasks remaining in queue: $REMAINING"
 
 # Completed tasks in agent namespace
 COMPLETED=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$AGENT_NS' AND content LIKE '%completed%'" 2>/dev/null)
+     WHERE $AGENT_NS_WHERE AND content LIKE '%completed%'" 2>/dev/null)
 
 print_cyan "  Completed tasks: $COMPLETED"
 
@@ -333,7 +335,7 @@ print_cyan "Analyzing workload by priority..."
 # Calculate importance-weighted workload
 AVG_IMPORTANCE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT AVG(importance) FROM memories
-     WHERE namespace='$TASK_NS' AND type='task'" 2>/dev/null)
+     WHERE $TASK_NS_WHERE AND memory_type ='task'" 2>/dev/null)
 
 print_cyan "  Average task importance: $AVG_IMPORTANCE"
 
@@ -346,7 +348,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

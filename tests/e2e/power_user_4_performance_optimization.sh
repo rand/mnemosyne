@@ -120,7 +120,7 @@ print_cyan "Analyzing database query performance..."
 # Test indexed query (by namespace)
 START=$(date +%s%3N 2>/dev/null || date +%s)
 DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:stress:shard0'" >/dev/null 2>&1
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'stress:shard0' " >/dev/null 2>&1
 END=$(date +%s%3N 2>/dev/null || date +%s)
 INDEXED_TIME=$((END - START))
 
@@ -201,7 +201,7 @@ fi
 # Check for indexes
 INDEXES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT name FROM sqlite_master
-     WHERE type='index' AND sql IS NOT NULL" 2>/dev/null || echo "")
+     WHERE memory_type ='index' AND sql IS NOT NULL" 2>/dev/null || echo "")
 
 INDEX_COUNT=$(echo "$INDEXES" | grep -c -v '^$' || echo 0)
 
@@ -357,7 +357,7 @@ fi
 
 section "Cleanup"
 
-teardown_persona "$TEST_DB"
+cleanup_power_user "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

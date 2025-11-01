@@ -50,6 +50,7 @@ print_cyan "Starting debugging session..."
 
 SESSION_ID="debug-$(date +%Y%m%d-%H%M%S)"
 SESSION_NS="session:$SESSION_ID"
+SESSION_NS_WHERE=$(namespace_where_clause "$SESSION_NS")
 
 print_cyan "  Session namespace: $SESSION_NS"
 
@@ -204,7 +205,7 @@ print_cyan "Counting memories in debugging session..."
 
 SESSION_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$SESSION_NS'" 2>/dev/null)
+     WHERE $SESSION_NS_WHERE " 2>/dev/null)
 
 print_cyan "  Session memories: $SESSION_COUNT"
 
@@ -341,12 +342,12 @@ CLEANUP_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" cleanup-session \
     --session "$SESSION_ID" 2>&1) || {
     warn "Cleanup command not implemented, using SQL"
     DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-        "DELETE FROM memories WHERE namespace='$SESSION_NS'" 2>/dev/null
+        "DELETE FROM memories WHERE $SESSION_NS_WHERE " 2>/dev/null
 }
 
 # Count after cleanup
 AFTER_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$SESSION_NS'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $SESSION_NS_WHERE " 2>/dev/null)
 
 print_cyan "  Session memories after cleanup: $AFTER_COUNT"
 
@@ -369,7 +370,7 @@ print_green "  ✓ Promoted memory preserved after session cleanup"
 
 section "Cleanup"
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

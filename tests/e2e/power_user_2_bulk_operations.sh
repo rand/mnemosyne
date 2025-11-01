@@ -138,7 +138,7 @@ print_cyan "Step 2: Power user promotes all security-related memories..."
 # Get current importance of security memories
 BEFORE_SECURITY=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT AVG(importance) FROM memories
-     WHERE namespace='project:security'" 2>/dev/null || echo "0")
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'security' " 2>/dev/null || echo "0")
 
 print_cyan "  Security memories importance (before): $BEFORE_SECURITY"
 
@@ -150,7 +150,7 @@ BULK_UPDATE_OUTPUT=$(DATABASE_URL="sqlite://$TEST_DB" "$BIN" bulk-update \
     # Fallback: SQL update
     DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
         "UPDATE memories SET importance = 10
-         WHERE namespace='project:security'" 2>/dev/null && \
+         WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'security' " 2>/dev/null && \
         print_green "  ✓ Updated via SQL" || \
         warn "Could not update importance"
     SKIP_BULK_UPDATE=1
@@ -163,7 +163,7 @@ fi
 # Verify update
 AFTER_SECURITY=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT AVG(importance) FROM memories
-     WHERE namespace='project:security'" 2>/dev/null || echo "0")
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'security' " 2>/dev/null || echo "0")
 
 print_cyan "  Security memories importance (after): $AFTER_SECURITY"
 
@@ -185,7 +185,7 @@ print_cyan "Step 3: Power user reorganizes project namespaces..."
 # Count memories in old namespace
 OLD_NS_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='project:backend'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'backend' " 2>/dev/null)
 
 print_cyan "  Memories in project:backend: $OLD_NS_COUNT"
 
@@ -211,11 +211,11 @@ fi
 # Verify migration
 NEW_NS_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='project:api:backend'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'api:backend' " 2>/dev/null)
 
 OLD_REMAINING=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='project:backend'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'backend' " 2>/dev/null)
 
 print_cyan "  Memories migrated to new namespace: $NEW_NS_COUNT"
 print_cyan "  Memories remaining in old namespace: $OLD_REMAINING"
@@ -412,7 +412,7 @@ fi
 
 section "Cleanup"
 
-teardown_persona "$TEST_DB"
+cleanup_power_user "$TEST_DB"
 print_green "  ✓ Test environment cleaned up"
 
 # ===================================================================

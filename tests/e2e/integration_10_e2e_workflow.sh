@@ -83,8 +83,7 @@ print_cyan "Validating LLM enrichment..."
 
 ENRICHED=$(sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='project:security'
-     AND summary IS NOT NULL
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'security'  summary IS NOT NULL
      AND summary != ''" 2>/dev/null)
 
 print_cyan "  Enriched memories: $ENRICHED / 2"
@@ -137,7 +136,7 @@ print_green "  ✓ Consolidated memory: $M3"
 sleep 2
 
 TOTAL=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:security'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'security' " 2>/dev/null)
 
 print_cyan "  Total security memories: $TOTAL (2 original + 1 consolidated)"
 
@@ -151,7 +150,7 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" export \
     # Fallback export
     sqlite3 "$TEST_DB" <<SQL > "$EXPORT_FILE"
 .mode json
-SELECT * FROM memories WHERE namespace='project:security';
+SELECT * FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'security' ;
 SQL
 }
 
@@ -182,10 +181,10 @@ print_green "  ✓ Step 5: Export (${EXPORT_SIZE:-0} bytes)"
 
 # Final state check
 FINAL_COUNT=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:security'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'security' " 2>/dev/null)
 
 HIGHEST_IMPORTANCE=$(sqlite3 "$TEST_DB" \
-    "SELECT MAX(importance) FROM memories WHERE namespace='project:security'" 2>/dev/null)
+    "SELECT MAX(importance) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'security' " 2>/dev/null)
 
 print_cyan "  Final memory count: $FINAL_COUNT"
 print_cyan "  Highest importance: $HIGHEST_IMPORTANCE"
@@ -199,7 +198,7 @@ fi
 # ===================================================================
 
 rm -f "$EXPORT_FILE"
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

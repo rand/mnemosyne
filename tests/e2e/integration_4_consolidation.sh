@@ -70,7 +70,7 @@ print_cyan "Detecting duplicate/similar memories..."
 
 # Get all memories in namespace
 ALL_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT id, content FROM memories WHERE namespace='project:perf'" 2>/dev/null)
+    "SELECT id, content FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'perf' " 2>/dev/null)
 
 MEMORY_COUNT=$(echo "$ALL_MEMORIES" | wc -l)
 
@@ -85,8 +85,7 @@ SIMILAR_KEYWORDS="database|query|slow|performance|2-3|seconds|2000-3000ms"
 
 SIMILAR_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='project:perf'
-     AND (content LIKE '%database%' AND content LIKE '%slow%'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'perf'  (content LIKE '%database%' AND content LIKE '%slow%'
           OR content LIKE '%performance%' AND content LIKE '%query%')" 2>/dev/null)
 
 print_cyan "  Similar memories detected: $SIMILAR_COUNT"
@@ -127,8 +126,7 @@ print_cyan "Verifying source memories preserved..."
 # Mark original memories as superseded
 ORIGINAL_IDS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT id FROM memories
-     WHERE namespace='project:perf'
-     AND id != '$CONSOL_ID'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'perf'  id != '$CONSOL_ID'
      ORDER BY created_at LIMIT 3" 2>/dev/null)
 
 # In a real implementation, we'd mark them as superseded
@@ -173,7 +171,7 @@ CONSOL_IMPORTANCE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
 
 ORIGINAL_IMPORTANCE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT importance FROM memories
-     WHERE namespace='project:perf' AND id != '$CONSOL_ID'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'perf' AND id != '$CONSOL_ID'
      LIMIT 1" 2>/dev/null)
 
 print_cyan "  Consolidated importance: $CONSOL_IMPORTANCE"
@@ -193,7 +191,7 @@ print_cyan "Testing query behavior after consolidation..."
 
 # Total memories should be 4 (3 original + 1 consolidated)
 TOTAL_AFTER=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:perf'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'perf' " 2>/dev/null)
 
 print_cyan "  Total memories after consolidation: $TOTAL_AFTER"
 
@@ -204,7 +202,7 @@ fi
 # Consolidated should be highest importance
 HIGHEST=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT id FROM memories
-     WHERE namespace='project:perf'
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'perf' 
      ORDER BY importance DESC LIMIT 1" 2>/dev/null)
 
 if [ "$HIGHEST" = "$CONSOL_ID" ]; then
@@ -215,7 +213,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

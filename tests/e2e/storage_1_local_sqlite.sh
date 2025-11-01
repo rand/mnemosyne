@@ -102,7 +102,7 @@ print_cyan "Validating database schema..."
 
 # Check memories table structure
 SCHEMA=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT sql FROM sqlite_master WHERE type='table' AND name='memories'" 2>/dev/null)
+    "SELECT sql FROM sqlite_master WHERE memory_type ='table' AND name='memories'" 2>/dev/null)
 
 print_cyan "  Memories table schema exists"
 
@@ -140,7 +140,7 @@ END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 
 BULK_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:perf'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'perf' " 2>/dev/null)
 
 assert_equals "$BULK_COUNT" "20" "Bulk insert count"
 print_cyan "  Inserted 20 memories in ${DURATION}s"
@@ -163,7 +163,7 @@ print_cyan "Testing query performance..."
 # Simple SELECT
 QUERY_START=$(date +%s%3N)
 QUERY_RESULT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT * FROM memories WHERE namespace='project:perf' LIMIT 10" 2>/dev/null)
+    "SELECT * FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'perf'  LIMIT 10" 2>/dev/null)
 QUERY_END=$(date +%s%3N)
 QUERY_TIME=$((QUERY_END - QUERY_START))
 
@@ -227,7 +227,7 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
 wait
 
 CONCURRENT_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='project:concurrent'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'concurrent' " 2>/dev/null)
 
 if [ "$CONCURRENT_COUNT" -eq 3 ]; then
     print_green "  ✓ All concurrent writes successful"
@@ -239,7 +239,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

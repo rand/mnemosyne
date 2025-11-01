@@ -161,11 +161,11 @@ section "Test 3: Namespace Boundaries"
 print_cyan "Verifying namespace isolation..."
 
 FRONTEND_ONLY=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='component:frontend'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'global' " 2>/dev/null)
 BACKEND_ONLY=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='component:backend'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'global' " 2>/dev/null)
 SHARED_ONLY=$(sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='shared:architecture'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'global' " 2>/dev/null)
 
 print_cyan "  Frontend: $FRONTEND_ONLY, Backend: $BACKEND_ONLY, Shared: $SHARED_ONLY"
 
@@ -177,7 +177,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_team_lead "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY

@@ -39,17 +39,17 @@ print_cyan "Creating linked memories..."
 # Root memory
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Decision: Use microservices architecture for new platform" \
-    --namespace "decisions:arch" \
+    --namespace "project:decisions-arch" \
     --importance 9 \
     --type decision >/dev/null 2>&1
 
 ROOT_ID=$(sqlite3 "$TEST_DB" \
-    "SELECT id FROM memories WHERE namespace='decisions:arch' LIMIT 1" 2>/dev/null)
+    "SELECT id FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'decisions-arch'  LIMIT 1" 2>/dev/null)
 
 # Related memory 1
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Implementation: Service communication via message queue. Related to microservices decision ($ROOT_ID)." \
-    --namespace "decisions:arch" \
+    --namespace "project:decisions-arch" \
     --importance 8 \
     --type reference >/dev/null 2>&1
 
@@ -59,7 +59,7 @@ RELATED_1=$(sqlite3 "$TEST_DB" \
 # Related memory 2
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Deployment: Each microservice in separate container. Implements decision $ROOT_ID." \
-    --namespace "decisions:arch" \
+    --namespace "project:decisions-arch" \
     --importance 8 \
     --type reference >/dev/null 2>&1
 
@@ -82,8 +82,7 @@ print_cyan "Testing explicit memory references..."
 # Check if related memories reference root
 REF_COUNT=$(sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='decisions:arch'
-     AND content LIKE '%$ROOT_ID%'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'decisions-arch'  content LIKE '%$ROOT_ID%'" 2>/dev/null)
 
 print_cyan "  Memories referencing root: $REF_COUNT"
 
@@ -181,7 +180,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY
