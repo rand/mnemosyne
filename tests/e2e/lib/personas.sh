@@ -16,6 +16,12 @@ _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=tests/e2e/lib/common.sh
 source "$_LIB_DIR/common.sh"
 
+# Ensure BIN is available for all persona functions
+if [ -z "${BIN:-}" ]; then
+    export BIN
+    BIN=$(ensure_binary)
+fi
+
 # ===================================================================
 # SOLO DEVELOPER PERSONA
 # ===================================================================
@@ -92,6 +98,38 @@ cleanup_team_lead() {
     print_cyan "[PERSONA] Cleaning up Team Lead environment..."
     rm -f "$test_db" "${test_db}-wal" "${test_db}-shm"
     unset DATABASE_URL
+}
+
+# ===================================================================
+# POWER USER PERSONA
+# ===================================================================
+
+setup_power_user() {
+    local test_name="$1"
+    local test_db="/tmp/mnemosyne_power_${test_name}_$(date +%s).db"
+
+    print_cyan "[PERSONA] Setting up Power User environment..."
+
+    export DATABASE_URL="sqlite://$test_db"
+    export MNEMOSYNE_NAMESPACE="advanced:workflows"
+
+    # Store advanced preferences
+    "$BIN" remember --content "Use advanced search with filters and importance thresholds" \
+        --namespace "global" --importance 8 >/dev/null 2>&1 || true
+
+    "$BIN" remember --content "Enable all LLM features: enrichment, consolidation, discovery" \
+        --namespace "global" --importance 9 >/dev/null 2>&1 || true
+
+    print_green "  ✓ Power user environment ready"
+    echo "$test_db"
+}
+
+cleanup_power_user() {
+    local test_db="$1"
+
+    print_cyan "[PERSONA] Cleaning up Power User environment..."
+    rm -f "$test_db" "${test_db}-wal" "${test_db}-shm"
+    unset DATABASE_URL MNEMOSYNE_NAMESPACE
 }
 
 # ===================================================================
@@ -344,6 +382,9 @@ setup_persona() {
         team_lead|team)
             setup_team_lead "$test_name"
             ;;
+        power_user|power)
+            setup_power_user "$test_name"
+            ;;
         ai_agent|agent)
             setup_ai_agent "$test_name"
             ;;
@@ -382,6 +423,9 @@ cleanup_persona() {
         team_lead|team)
             cleanup_team_lead "$test_data"
             ;;
+        power_user|power)
+            cleanup_power_user "$test_data"
+            ;;
         ai_agent|agent)
             cleanup_ai_agent "$test_data"
             ;;
@@ -409,6 +453,7 @@ cleanup_persona() {
 # Export persona functions
 export -f setup_solo_developer cleanup_solo_developer
 export -f setup_team_lead cleanup_team_lead
+export -f setup_power_user cleanup_power_user
 export -f setup_ai_agent cleanup_ai_agent
 export -f setup_multi_agent cleanup_multi_agent
 export -f setup_python_developer cleanup_python_developer
