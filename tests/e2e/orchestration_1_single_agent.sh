@@ -30,7 +30,8 @@ TEST_DB=$(setup_solo_developer "$TEST_NAME")
 print_green "  ✓ Test database: $TEST_DB"
 
 # Create agent session namespace
-AGENT_SESSION="session:agent-$(date +%Y%m%d-%H%M%S)"
+AGENT_SESSION="session:agents/$(date +%Y%m%d-%H%M%S)"
+AGENT_NS_WHERE=$(namespace_where_clause "$AGENT_SESSION")
 print_cyan "  Agent session: $AGENT_SESSION"
 
 # ===================================================================
@@ -114,20 +115,20 @@ section "Test 1: Agent Memory Chain"
 print_cyan "Verifying agent's decision-making chain..."
 
 SESSION_MEMORIES=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_SESSION'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_NS_WHERE" 2>/dev/null)
 
-assert_equals "$SESSION_MEMORIES" "5" "Agent session memory count"
-print_green "  ✓ Complete workflow chain recorded (5 memories)"
+assert_equals "$SESSION_MEMORIES" "6" "Agent session memory count"
+print_green "  ✓ Complete workflow chain recorded (6 memories)"
 
 # Verify memory types
 TASK_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_SESSION' AND type='task'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_NS_WHERE AND memory_type='task'" 2>/dev/null)
 
 INSIGHT_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_SESSION' AND type='insight'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_NS_WHERE AND memory_type='insight'" 2>/dev/null)
 
 DECISION_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_SESSION' AND type='decision'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_NS_WHERE AND memory_type='architecture_decision'" 2>/dev/null)
 
 print_cyan "  Tasks: $TASK_COUNT"
 print_cyan "  Insights: $INSIGHT_COUNT"
@@ -169,7 +170,8 @@ section "Test 3: Session Isolation"
 print_cyan "Testing session isolation..."
 
 # Create a different agent session
-OTHER_SESSION="session:agent-other-$(date +%s)"
+OTHER_SESSION="session:agents/other-$(date +%s)"
+OTHER_NS_WHERE=$(namespace_where_clause "$OTHER_SESSION")
 
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Different agent task: Deploy to production" \
@@ -179,15 +181,15 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
 
 # Verify sessions are isolated
 FIRST_SESSION_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_SESSION'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_NS_WHERE" 2>/dev/null)
 
 OTHER_SESSION_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$OTHER_SESSION'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $OTHER_NS_WHERE" 2>/dev/null)
 
 print_cyan "  First agent session: $FIRST_SESSION_COUNT memories"
 print_cyan "  Other agent session: $OTHER_SESSION_COUNT memories"
 
-if [ "$FIRST_SESSION_COUNT" -eq 5 ] && [ "$OTHER_SESSION_COUNT" -eq 1 ]; then
+if [ "$FIRST_SESSION_COUNT" -eq 6 ] && [ "$OTHER_SESSION_COUNT" -eq 1 ]; then
     print_green "  ✓ Agent sessions properly isolated"
 fi
 
@@ -202,7 +204,7 @@ print_cyan "Analyzing agent decision quality..."
 # Retrieve decision with importance
 DECISION_IMPORTANCE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT importance FROM memories
-     WHERE namespace='$AGENT_SESSION' AND type='decision'" 2>/dev/null)
+     WHERE $AGENT_NS_WHERE AND memory_type='architecture_decision'" 2>/dev/null)
 
 print_cyan "  Decision importance: $DECISION_IMPORTANCE"
 
@@ -213,7 +215,7 @@ fi
 # Check if critical observations have higher importance
 HIGH_IMPORTANCE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace='$AGENT_SESSION' AND importance >= 9" 2>/dev/null)
+     WHERE $AGENT_NS_WHERE AND importance >= 9" 2>/dev/null)
 
 print_cyan "  High importance memories (≥9): $HIGH_IMPORTANCE"
 
@@ -231,9 +233,9 @@ print_cyan "Verifying workflow temporal ordering..."
 
 # Get memories in chronological order
 WORKFLOW_ORDER=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT type, substr(content, 1, 30)
+    "SELECT memory_type, substr(content, 1, 30)
      FROM memories
-     WHERE namespace='$AGENT_SESSION'
+     WHERE $AGENT_NS_WHERE
      ORDER BY created_at" 2>/dev/null)
 
 print_cyan "  Workflow sequence:"
@@ -243,10 +245,10 @@ done
 
 # First should be task, last should be reference (completion)
 FIRST_TYPE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT type FROM memories WHERE namespace='$AGENT_SESSION' ORDER BY created_at LIMIT 1" 2>/dev/null)
+    "SELECT memory_type FROM memories WHERE $AGENT_NS_WHERE ORDER BY created_at LIMIT 1" 2>/dev/null)
 
 LAST_TYPE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT type FROM memories WHERE namespace='$AGENT_SESSION' ORDER BY created_at DESC LIMIT 1" 2>/dev/null)
+    "SELECT memory_type FROM memories WHERE $AGENT_NS_WHERE ORDER BY created_at DESC LIMIT 1" 2>/dev/null)
 
 if [ "$FIRST_TYPE" = "task" ]; then
     print_green "  ✓ Workflow starts with task"
@@ -264,17 +266,17 @@ section "Test 6: Agent Session Cleanup"
 
 print_cyan "Testing agent session cleanup..."
 
+# Count all session memories (any project)
 BEFORE_CLEANUP=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace LIKE 'session:agent-%'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '\$.type') = 'session' AND json_extract(namespace, '\$.project') = 'agents'" 2>/dev/null)
 
 print_cyan "  Total agent sessions before cleanup: $BEFORE_CLEANUP"
 
 # Cleanup first agent session
-DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "DELETE FROM memories WHERE namespace='$AGENT_SESSION'" 2>/dev/null
+delete_by_namespace "$TEST_DB" "$AGENT_SESSION"
 
 AFTER_CLEANUP=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$AGENT_SESSION'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $AGENT_NS_WHERE" 2>/dev/null)
 
 print_cyan "  First session after cleanup: $AFTER_CLEANUP"
 
@@ -284,7 +286,7 @@ fi
 
 # Other session should still exist
 OTHER_STILL_EXISTS=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories WHERE namespace='$OTHER_SESSION'" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $OTHER_NS_WHERE" 2>/dev/null)
 
 if [ "$OTHER_STILL_EXISTS" -eq 1 ]; then
     print_green "  ✓ Other agent sessions preserved"
@@ -294,7 +296,7 @@ fi
 # CLEANUP
 # ===================================================================
 
-teardown_persona "$TEST_DB"
+cleanup_solo_developer "$TEST_DB"
 
 # ===================================================================
 # TEST SUMMARY
@@ -302,7 +304,7 @@ teardown_persona "$TEST_DB"
 
 section "Test Summary: Orchestration - Single Agent [REGRESSION]"
 
-echo "✓ Agent workflow chain: PASS (5 memories)"
+echo "✓ Agent workflow chain: PASS (6 memories)"
 echo "✓ Memory type categorization: PASS (task: $TASK_COUNT, insight: $INSIGHT_COUNT, decision: $DECISION_COUNT)"
 echo "✓ Context recall: PASS"
 echo "✓ Session isolation: PASS"

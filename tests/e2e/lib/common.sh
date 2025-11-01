@@ -606,17 +606,38 @@ namespace_where_clause() {
 
     if [ "$namespace_str" = "global" ]; then
         echo "json_extract(namespace, '\$.type') = 'global'"
-    elif [[ "$namespace_str" =~ ^project:(.+)$ ]]; then
-        local project_name="${BASH_REMATCH[1]}"
+    elif echo "$namespace_str" | grep -q '^project:'; then
+        local project_name=$(echo "$namespace_str" | sed 's/^project://')
         echo "json_extract(namespace, '\$.type') = 'project' AND json_extract(namespace, '\$.name') = '$project_name'"
-    elif [[ "$namespace_str" =~ ^session:(.+)/(.+)$ ]]; then
-        local project_name="${BASH_REMATCH[1]}"
-        local session_id="${BASH_REMATCH[2]}"
+    elif echo "$namespace_str" | grep -q '^session:.*\/'; then
+        local project_name=$(echo "$namespace_str" | sed 's/^session:\([^/]*\)\/.*$/\1/')
+        local session_id=$(echo "$namespace_str" | sed 's/^session:[^/]*\/\(.*\)$/\1/')
         echo "json_extract(namespace, '\$.type') = 'session' AND json_extract(namespace, '\$.project') = '$project_name' AND json_extract(namespace, '\$.session_id') = '$session_id'"
     else
         # Unknown format - fall back to Global
         echo "json_extract(namespace, '\$.type') = 'global'"
     fi
+}
+
+# Delete memories by namespace
+# SQLite doesn't allow json_extract in DELETE with FTS triggers
+# So we select IDs first, then delete by ID
+delete_by_namespace() {
+    local db_path="$1"
+    local namespace_str="$2"
+    local where_clause=$(namespace_where_clause "$namespace_str")
+
+    # Get IDs to delete
+    local ids=$(DATABASE_URL="sqlite://$db_path" sqlite3 "$db_path" \
+        "SELECT id FROM memories WHERE $where_clause" 2>/dev/null)
+
+    # Delete each ID
+    echo "$ids" | while read -r id; do
+        if [ -n "$id" ]; then
+            DATABASE_URL="sqlite://$db_path" sqlite3 "$db_path" \
+                "DELETE FROM memories WHERE id='$id'" 2>/dev/null
+        fi
+    done
 }
 
 # ============================================================================
@@ -637,4 +658,4 @@ export -f measure_time measure_and_print measure_average
 export -f generate_uuid create_memory create_sample_memories create_tiered_memories create_keyword_memories
 export -f wait_for retry
 export -f setup_test_env teardown_test_env
-export -f namespace_where_clause
+export -f namespace_where_clause delete_by_namespace
