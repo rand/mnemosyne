@@ -51,8 +51,10 @@ DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --importance 7 \
     --type reference >/dev/null 2>&1 || fail "Failed to create memory"
 
+# Count only the test memory (persona setup creates 2 additional memories in global namespace)
+NS_WHERE=$(namespace_where_clause "project:test")
 MEMORY_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $NS_WHERE" 2>/dev/null)
 
 assert_equals "$MEMORY_COUNT" "1" "Memory count after create"
 print_green "  ✓ CREATE operation successful"
@@ -86,8 +88,9 @@ print_cyan "Testing DELETE..."
 DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "DELETE FROM memories WHERE id='$MEMORY_ID'" 2>/dev/null
 
+# Count only test namespace memories (persona memories remain)
 AFTER_DELETE=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(*) FROM memories" 2>/dev/null)
+    "SELECT COUNT(*) FROM memories WHERE $NS_WHERE" 2>/dev/null)
 
 assert_equals "$AFTER_DELETE" "0" "Memory count after delete"
 print_green "  ✓ DELETE operation successful"

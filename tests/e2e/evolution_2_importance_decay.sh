@@ -47,14 +47,16 @@ URGENT_ID=$(sqlite3 "$TEST_DB" \
     "SELECT id FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'tasks-urgent'  LIMIT 1" 2>/dev/null)
 
 # Medium importance insight (enduring)
+# Note: Using global namespace for principles (principles:architecture is invalid format)
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
     --content "Architecture principle: Always use dependency injection for testability" \
-    --namespace "principles:architecture" \
+    --namespace "global" \
     --importance 8 \
     --type architecture >/dev/null 2>&1
 
+# Find the architecture principle (not the persona setup memories)
 PRINCIPLE_ID=$(sqlite3 "$TEST_DB" \
-    "SELECT id FROM memories WHERE json_extract(namespace, '$.type') = 'global'  LIMIT 1" 2>/dev/null)
+    "SELECT id FROM memories WHERE json_extract(namespace, '$.type') = 'global' AND memory_type = 'architecture_decision' LIMIT 1" 2>/dev/null)
 
 print_green "  ✓ Created 2 memories (1 temporary, 1 enduring)"
 
