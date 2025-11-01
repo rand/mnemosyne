@@ -544,6 +544,111 @@ configure_mcp() {
     echo "Claude Code will automatically start the server when needed."
 }
 
+# Configure Claude Code hooks
+configure_hooks() {
+    print_header "Configuring Claude Code hooks (optional)"
+
+    # Ask user if they want hooks configured
+    if ! prompt_yes_no "Configure Claude Code hooks for automatic memory capture?" "y"; then
+        echo "Skipping hooks configuration"
+        echo "You can configure hooks later - see INSTALL.md for details"
+        return 0
+    fi
+
+    # Check if .claude directory exists
+    if [ ! -d "${PROJECT_ROOT}/.claude" ]; then
+        mkdir -p "${PROJECT_ROOT}/.claude"
+        print_success "Created .claude directory"
+    fi
+
+    # Check if hooks directory exists
+    if [ ! -d "${PROJECT_ROOT}/.claude/hooks" ]; then
+        print_error "Hooks directory not found: ${PROJECT_ROOT}/.claude/hooks"
+        echo "This project may not have hooks configured."
+        return 1
+    fi
+
+    # Make hooks executable
+    chmod +x "${PROJECT_ROOT}/.claude/hooks/"*.sh
+    print_success "Made hooks executable"
+
+    # Configure settings.json with absolute paths
+    local settings_file="${PROJECT_ROOT}/.claude/settings.json"
+    local hooks_config=$(cat <<EOF
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PROJECT_ROOT}/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PROJECT_ROOT}/.claude/hooks/pre-compact.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^Bash\\\\(git commit.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PROJECT_ROOT}/.claude/hooks/post-commit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+)
+
+    if [ -f "$settings_file" ]; then
+        # Settings file exists - merge with existing config
+        print_success "Found existing settings.json"
+
+        # Create backup
+        cp "$settings_file" "${settings_file}.backup.$(date +%Y%m%d_%H%M%S)"
+        print_success "Created backup"
+
+        # Merge using jq if available
+        if command -v jq &> /dev/null; then
+            local temp_file=$(mktemp)
+            echo "$hooks_config" | jq -s '.[0] * .[1]' "$settings_file" - > "$temp_file"
+            mv "$temp_file" "$settings_file"
+            print_success "Merged hooks configuration with absolute paths"
+        else
+            print_warning "jq not found - cannot merge automatically"
+            echo "Add the hooks configuration manually to: $settings_file"
+            echo "$hooks_config"
+        fi
+    else
+        # Create new settings file
+        echo "$hooks_config" > "$settings_file"
+        print_success "Created settings.json with hooks configuration"
+    fi
+
+    echo ""
+    echo "Hooks configured with absolute paths:"
+    echo "  - SessionStart: Load memories at session start"
+    echo "  - PreCompact: Save context before compaction"
+    echo "  - PostToolUse: Capture git commits"
+    echo ""
+    echo "Note: Absolute paths prevent issues after context compaction"
+}
+
 # Verify installation
 verify_installation() {
     print_header "Verifying installation"
@@ -620,6 +725,7 @@ main() {
     init_database
     configure_api_key
     configure_mcp
+    configure_hooks
     verify_installation
     print_next_steps
 }

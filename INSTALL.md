@@ -465,28 +465,71 @@ mnemosyne init
 
 ### Hooks Configuration (Optional)
 
-For automatic memory capture, set up hooks:
+For automatic memory capture in Claude Code, you can configure hooks:
 
+**Automatic Setup** (Recommended):
 ```bash
-# Copy hooks to your project
-cp -r /path/to/mnemosyne/.claude/hooks /path/to/your/project/.claude/
+# The install.sh script offers to configure hooks automatically
+./scripts/install/install.sh
+# Answer "yes" when prompted about hooks configuration
+```
 
-# Make executable
-chmod +x /path/to/your/project/.claude/hooks/*.sh
+**Manual Setup** (if needed):
+```bash
+# Make hooks executable
+chmod +x .claude/hooks/*.sh
 
-# Configure in .claude/settings.json
-cat > .claude/settings.json <<'EOF'
+# Configure in .claude/settings.json with ABSOLUTE paths
+# Important: Use absolute paths to prevent issues after context compaction
+cat > .claude/settings.json <<EOF
 {
   "hooks": {
-    "user_prompt_submit": ".claude/hooks/session-start.sh",
-    "before_compact": ".claude/hooks/pre-compact.sh",
-    "after_git_commit": ".claude/hooks/post-commit.sh"
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(pwd)/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(pwd)/.claude/hooks/pre-compact.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^Bash\\\\(git commit.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$(pwd)/.claude/hooks/post-commit.sh"
+          }
+        ]
+      }
+    ]
   }
 }
 EOF
 ```
 
-See [HOOKS_TESTING.md](HOOKS_TESTING.md) for detailed hook configuration.
+**What the hooks do**:
+- `session-start.sh`: Loads important project memories at session start
+- `pre-compact.sh`: Saves context before Claude Code compacts conversation history
+- `post-commit.sh`: Captures git commits as memories for traceability
+
+**Important**: Always use absolute paths in hook configurations to prevent "No such file or directory" errors after context compaction.
+
+See [HOOKS_TESTING.md](HOOKS_TESTING.md) for detailed hook testing and validation.
 
 ---
 

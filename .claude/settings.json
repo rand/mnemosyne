@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/session-start.sh"
+            "command": "/Users/rand/src/mnemosyne/.claude/hooks/session-start.sh"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/pre-compact.sh"
+            "command": "/Users/rand/src/mnemosyne/.claude/hooks/pre-compact.sh"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/post-commit.sh"
+            "command": "/Users/rand/src/mnemosyne/.claude/hooks/post-commit.sh"
           }
         ]
       }

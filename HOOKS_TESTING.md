@@ -69,6 +69,9 @@ Tags: system-integration, memory-architecture, development-tooling, commit, ec0b
 ## Configuration
 
 ### .claude/settings.json
+
+**Important**: Use absolute paths to prevent errors after context compaction.
+
 ```json
 {
   "hooks": {
@@ -78,7 +81,7 @@ Tags: system-integration, memory-architecture, development-tooling, commit, ec0b
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/session-start.sh"
+            "command": "/Users/rand/src/mnemosyne/.claude/hooks/session-start.sh"
           }
         ]
       }
@@ -89,7 +92,7 @@ Tags: system-integration, memory-architecture, development-tooling, commit, ec0b
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/pre-compact.sh"
+            "command": "/Users/rand/src/mnemosyne/.claude/hooks/pre-compact.sh"
           }
         ]
       }
@@ -100,7 +103,7 @@ Tags: system-integration, memory-architecture, development-tooling, commit, ec0b
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/post-commit.sh"
+            "command": "/Users/rand/src/mnemosyne/.claude/hooks/post-commit.sh"
           }
         ]
       }
@@ -108,6 +111,8 @@ Tags: system-integration, memory-architecture, development-tooling, commit, ec0b
   }
 }
 ```
+
+**Automatic Setup**: The install script (`./scripts/install/install.sh`) now configures hooks with absolute paths automatically.
 
 ## CLI Commands
 
