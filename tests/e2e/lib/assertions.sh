@@ -5,9 +5,9 @@
 # Supports JSON validation, pattern matching, threshold checking, etc.
 
 # Source common utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=tests/e2e/lib/common.sh
-source "$SCRIPT_DIR/common.sh"
+source "$_LIB_DIR/common.sh"
 
 # ===================================================================
 # JSON ASSERTIONS
