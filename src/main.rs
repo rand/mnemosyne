@@ -285,6 +285,26 @@ async fn start_mcp_server_with_api(
     Ok(())
 }
 
+/// Parse memory type from string with support for aliases
+fn parse_memory_type(type_str: &str) -> mnemosyne_core::MemoryType {
+    match type_str.to_lowercase().as_str() {
+        // Canonical names and aliases
+        "architecture_decision" | "architecture" | "decision" => mnemosyne_core::MemoryType::ArchitectureDecision,
+        "code_pattern" | "pattern" => mnemosyne_core::MemoryType::CodePattern,
+        "bug_fix" | "bug" | "bugfix" => mnemosyne_core::MemoryType::BugFix,
+        "configuration" | "config" => mnemosyne_core::MemoryType::Configuration,
+        "constraint" => mnemosyne_core::MemoryType::Constraint,
+        "entity" => mnemosyne_core::MemoryType::Entity,
+        "insight" => mnemosyne_core::MemoryType::Insight,
+        "reference" | "ref" => mnemosyne_core::MemoryType::Reference,
+        "preference" | "pref" => mnemosyne_core::MemoryType::Preference,
+        "task" | "todo" => mnemosyne_core::MemoryType::Task,
+        "agent_event" | "event" => mnemosyne_core::MemoryType::AgentEvent,
+        // Default to Insight for unknown types
+        _ => mnemosyne_core::MemoryType::Insight,
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "mnemosyne")]
 #[command(about = "Project-aware agentic memory system for Claude Code", long_about = None)]
@@ -428,6 +448,10 @@ enum Commands {
         /// Tags (comma-separated)
         #[arg(short, long)]
         tags: Option<String>,
+
+        /// Memory type (architecture|code_pattern|bug_fix|configuration|constraint|entity|insight|reference|preference|task|decision)
+        #[arg(short = 'y', long, alias = "type")]
+        memory_type: Option<String>,
 
         /// Output format
         #[arg(short, long, default_value = "text")]
@@ -1280,6 +1304,7 @@ async fn main() -> Result<()> {
             importance,
             context,
             tags,
+            memory_type,
             format,
         }) => {
             // Initialize storage and services
@@ -1364,7 +1389,10 @@ async fn main() -> Result<()> {
                             keywords: Vec::new(),
                             tags: Vec::new(),
                             context: ctx.clone(),
-                            memory_type: mnemosyne_core::MemoryType::Insight,
+                            memory_type: memory_type
+                                .as_deref()
+                                .map(|t| parse_memory_type(t))
+                                .unwrap_or(mnemosyne_core::MemoryType::Insight),
                             importance: importance.clamp(1, 10),
                             confidence: 0.5,
                             links: Vec::new(),
@@ -1399,7 +1427,10 @@ async fn main() -> Result<()> {
                     keywords: Vec::new(),
                     tags: Vec::new(),
                     context: ctx,
-                    memory_type: mnemosyne_core::MemoryType::Insight,
+                    memory_type: memory_type
+                        .as_deref()
+                        .map(|t| parse_memory_type(t))
+                        .unwrap_or(mnemosyne_core::MemoryType::Insight),
                     importance: importance.clamp(1, 10),
                     confidence: 0.5,
                     links: Vec::new(),
@@ -1418,6 +1449,9 @@ async fn main() -> Result<()> {
             // Override with CLI parameters (in case LLM set different values)
             memory.namespace = ns;
             memory.importance = importance.clamp(1, 10);
+            if let Some(ref type_str) = memory_type {
+                memory.memory_type = parse_memory_type(type_str);
+            }
 
             // Add custom tags if provided
             if let Some(tag_str) = tags {
