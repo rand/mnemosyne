@@ -5,6 +5,18 @@ All notable changes to Mnemosyne will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Performance
+
+**Build Speed Improvements**
+- Disabled debug symbols in dev builds for 10-20% faster compilation
+- Optimized tokio features: removed `full`, use only required features (macros, rt-multi-thread, sync, time, net, io-util, tracing)
+- Configured sccache for compilation caching across builds
+- Clean build time: 2m 58s → 2m 46s (7% improvement)
+- Incremental builds: ~3-4s (excellent for rapid development)
+- See `docs/BUILD_OPTIMIZATION.md` for details and future optimization opportunities
+
 ## [2.1.0] - 2025-10-31
 
 ### Added
