@@ -450,6 +450,11 @@ cleanup_persona() {
     esac
 }
 
+# Alias for backward compatibility with tests
+teardown_persona() {
+    cleanup_persona "$@"
+}
+
 # Export persona functions
 export -f setup_solo_developer cleanup_solo_developer
 export -f setup_team_lead cleanup_team_lead
@@ -460,4 +465,4 @@ export -f setup_python_developer cleanup_python_developer
 export -f setup_api_consumer cleanup_api_consumer
 export -f setup_ics_user cleanup_ics_user
 export -f setup_dashboard_observer cleanup_dashboard_observer
-export -f setup_persona cleanup_persona
+export -f setup_persona cleanup_persona teardown_persona
