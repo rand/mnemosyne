@@ -288,14 +288,14 @@ print_cyan "Checking memory evolution state..."
 # Count superseded memories
 SUPERSEDED_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'myproject'  superseded_by IS NOT NULL" 2>/dev/null || echo "0")
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'myproject' AND superseded_by IS NOT NULL" 2>/dev/null || echo "0")
 
 print_cyan "  Superseded memories: $SUPERSEDED_COUNT"
 
 # Count active memories (not superseded)
 ACTIVE_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'myproject'  (superseded_by IS NULL OR superseded_by = '')" 2>/dev/null || echo "0")
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'myproject' AND (superseded_by IS NULL OR superseded_by = '')" 2>/dev/null || echo "0")
 
 print_cyan "  Active memories: $ACTIVE_COUNT"
 

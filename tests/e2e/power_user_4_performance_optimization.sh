@@ -78,10 +78,11 @@ section "Benchmark 2: Query Performance"
 print_cyan "Testing query performance on large dataset..."
 
 # Benchmark: List all memories
-START=$(date +%s%3N 2>/dev/null || date +%s)
+START=$(date +%s)
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" list --limit 50 >/dev/null 2>&1 || warn "List query failed"
-END=$(date +%s%3N 2>/dev/null || date +%s)
+END=$(date +%s)
 LIST_TIME=$((END - START))
+LIST_TIME=$((LIST_TIME * 1000))  # Convert to ms
 
 print_cyan "  List query (50 memories): ${LIST_TIME}ms"
 
@@ -94,10 +95,11 @@ else
 fi
 
 # Benchmark: Search query
-START=$(date +%s%3N 2>/dev/null || date +%s)
+START=$(date +%s)
 DATABASE_URL="sqlite://$TEST_DB" "$BIN" recall --query "memory content" --limit 10 >/dev/null 2>&1 || warn "Search failed"
-END=$(date +%s%3N 2>/dev/null || date +%s)
+END=$(date +%s)
 SEARCH_TIME=$((END - START))
+SEARCH_TIME=$((SEARCH_TIME * 1000))  # Convert to ms
 
 print_cyan "  Search query: ${SEARCH_TIME}ms"
 
@@ -118,11 +120,12 @@ section "Benchmark 3: Database Query Optimization"
 print_cyan "Analyzing database query performance..."
 
 # Test indexed query (by namespace)
-START=$(date +%s%3N 2>/dev/null || date +%s)
+START=$(date +%s)
 DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = 'stress:shard0' " >/dev/null 2>&1
-END=$(date +%s%3N 2>/dev/null || date +%s)
+END=$(date +%s)
 INDEXED_TIME=$((END - START))
+INDEXED_TIME=$((INDEXED_TIME * 1000))  # Convert to ms
 
 print_cyan "  Indexed query (namespace): ${INDEXED_TIME}ms"
 
@@ -135,11 +138,12 @@ else
 fi
 
 # Test filtered query (by importance)
-START=$(date +%s%3N 2>/dev/null || date +%s)
+START=$(date +%s)
 DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories WHERE importance >= 8" >/dev/null 2>&1
-END=$(date +%s%3N 2>/dev/null || date +%s)
+END=$(date +%s)
 FILTER_TIME=$((END - START))
+FILTER_TIME=$((FILTER_TIME * 1000))  # Convert to ms
 
 print_cyan "  Filtered query (importance): ${FILTER_TIME}ms"
 
@@ -255,15 +259,16 @@ section "Benchmark 7: Aggregation Query Performance"
 print_cyan "Testing complex aggregation queries..."
 
 # Aggregation: Group by namespace
-START=$(date +%s%3N 2>/dev/null || date +%s)
+START=$(date +%s)
 DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT namespace, COUNT(*), AVG(importance)
      FROM memories
      GROUP BY namespace
      ORDER BY COUNT(*) DESC
      LIMIT 10" >/dev/null 2>&1
-END=$(date +%s%3N 2>/dev/null || date +%s)
+END=$(date +%s)
 AGG_TIME=$((END - START))
+AGG_TIME=$((AGG_TIME * 1000))  # Convert to ms
 
 print_cyan "  Aggregation query: ${AGG_TIME}ms"
 

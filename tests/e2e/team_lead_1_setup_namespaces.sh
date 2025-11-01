@@ -187,7 +187,7 @@ EOF
 
     DATABASE_URL="sqlite://$TEST_DB" "$BIN" remember \
         --content "$MEMBER_INIT" \
-        --namespace "member:$member" \
+        --namespace "project:member-$member" \
         --importance 5 \
         --type reference >/dev/null 2>&1 || warn "Failed to init member:$member"
 done
@@ -259,18 +259,18 @@ section "Validation: Namespace Structure"
 
 print_cyan "Verifying namespace structure..."
 
-# Count namespaces by type
+# Count namespaces by type (using JSON extraction)
 TEAM_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(DISTINCT namespace) FROM memories
-     WHERE namespace LIKE 'team:%'" 2>/dev/null)
+    "SELECT COUNT(DISTINCT json_extract(namespace, '$.name')) FROM memories
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') LIKE 'team-%'" 2>/dev/null)
 
 PROJECT_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(DISTINCT namespace) FROM memories
-     WHERE namespace LIKE 'project:%'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project'" 2>/dev/null)
 
 MEMBER_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
-    "SELECT COUNT(DISTINCT namespace) FROM memories
-     WHERE namespace LIKE 'member:%'" 2>/dev/null)
+    "SELECT COUNT(DISTINCT json_extract(namespace, '$.name')) FROM memories
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') LIKE 'member-%'" 2>/dev/null)
 
 print_cyan "  Namespace distribution:"
 print_cyan "    team:* namespaces:   $TEAM_COUNT"
@@ -293,9 +293,10 @@ section "Validation: Hierarchical Namespace Structure"
 print_cyan "Checking hierarchical namespace structure..."
 
 # Sprint namespaces should be under projects
+# Note: Sprint namespaces stored as "project:auth-service:sprint:42" become project type with name "auth-service:sprint:42"
 SPRINT_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
     "SELECT COUNT(*) FROM memories
-     WHERE namespace LIKE 'project:%:sprint:%'" 2>/dev/null)
+     WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') LIKE '%:sprint:%'" 2>/dev/null)
 
 print_cyan "  Sprint namespaces: $SPRINT_COUNT"
 
@@ -348,7 +349,7 @@ print_cyan "Verifying project isolation..."
 for project in "auth-service" "api-gateway" "frontend"; do
     PROJ_COUNT=$(DATABASE_URL="sqlite://$TEST_DB" sqlite3 "$TEST_DB" \
         "SELECT COUNT(*) FROM memories
-         WHERE namespace='project:$project'" 2>/dev/null)
+         WHERE json_extract(namespace, '$.type') = 'project' AND json_extract(namespace, '$.name') = '$project'" 2>/dev/null)
 
     print_cyan "  project:$project: $PROJ_COUNT memories"
 
