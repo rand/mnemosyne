@@ -64,6 +64,7 @@ config = "0.13"
 clap = { version = "4.4", features = ["derive"] }
 async-trait = "0.1"
 regex = "1.10"
+rand = "0.8"
 atty = "0.2"  # Terminal detection for ICS
 rustc_version_runtime = "0.3"  # Runtime Rust version for status command
 lru = "0.12"  # LRU cache for semantic highlighting

@@ -3,9 +3,21 @@
 //! This module provides refined user-facing output during Mnemosyne launch,
 //! replacing verbose INFO logs with a clean, informative, and playful experience.
 
+use rand::seq::SliceRandom;
 use std::io::{self, Write};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+
+/// ASCII art banner for Mnemosyne
+const BANNER: &str = r#"
+███╗   ███╗███╗   ██╗███████╗███╗   ███╗ ██████╗ ███████╗██╗   ██╗███╗   ██╗███████╗
+████╗ ████║████╗  ██║██╔════╝████╗ ████║██╔═══██╗██╔════╝╚██╗ ██╔╝████╗  ██║██╔════╝
+██╔████╔██║██╔██╗ ██║█████╗  ██╔████╔██║██║   ██║███████╗ ╚████╔╝ ██╔██╗ ██║█████╗
+██║╚██╔╝██║██║╚██╗██║██╔══╝  ██║╚██╔╝██║██║   ██║╚════██║  ╚██╔╝  ██║╚██╗██║██╔══╝
+██║ ╚═╝ ██║██║ ╚████║███████╗██║ ╚═╝ ██║╚██████╔╝███████║   ██║   ██║ ╚████║███████╗
+╚═╝     ╚═╝╚═╝  ╚═══╝╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═══╝╚══════╝
+"#;
+
+/// Tagline displayed below banner
+const TAGLINE: &str = "Agentic Memory for Claude Code";
 
 /// Playful loading messages shown during initialization
 const LOADING_MESSAGES: &[&str] = &[
@@ -19,32 +31,97 @@ const LOADING_MESSAGES: &[&str] = &[
     "Aligning chakras",
     "Defragmenting memories",
     "Untangling quantum states",
+    "Initializing agent substrate",
+    "Harmonizing vector embeddings",
+    "Bootstrapping semantic networks",
+    "Activating memory traces",
+    "Synchronizing thought streams",
+    "Priming knowledge graphs",
+    "Energizing cognitive pathways",
+    "Indexing conceptual spaces",
+    "Weaving context threads",
+    "Awakening neural ensembles",
+    "Crystallizing insights",
+    "Tuning attention mechanisms",
 ];
 
-/// Launch progress tracker
-pub struct LaunchProgress {
-    message_index: Arc<AtomicUsize>,
+/// ANSI color codes for banner gradient
+mod colors {
+    pub const BRIGHT_BLUE: &str = "\x1b[94m";
+    pub const BLUE: &str = "\x1b[34m";
+    pub const CYAN: &str = "\x1b[36m";
+    pub const BRIGHT_CYAN: &str = "\x1b[96m";
+    pub const BRIGHT_MAGENTA: &str = "\x1b[95m";
+    pub const MAGENTA: &str = "\x1b[35m";
+    pub const RESET: &str = "\x1b[0m";
+    pub const ITALIC: &str = "\x1b[3m";
+    pub const YELLOW: &str = "\x1b[33m";
 }
+
+/// Launch progress tracker
+pub struct LaunchProgress;
 
 impl LaunchProgress {
     /// Create a new launch progress tracker
     pub fn new() -> Self {
-        Self {
-            message_index: Arc::new(AtomicUsize::new(0)),
-        }
+        Self
     }
 
-    /// Display the main launch header
+    /// Display the full banner with gradient colors
+    pub fn show_banner(&self) {
+        let lines: Vec<&str> = BANNER.trim().lines().collect();
+        let gradient_colors = [
+            colors::BRIGHT_BLUE,
+            colors::BLUE,
+            colors::CYAN,
+            colors::BRIGHT_CYAN,
+            colors::BRIGHT_MAGENTA,
+            colors::MAGENTA,
+        ];
+
+        println!(); // Top spacing
+        for (i, line) in lines.iter().enumerate() {
+            let color = gradient_colors[i % gradient_colors.len()];
+            println!("{}{}{}", color, line, colors::RESET);
+        }
+
+        // Centered tagline in italic yellow
+        println!(
+            "{}{}{}{}",
+            colors::ITALIC,
+            colors::YELLOW,
+            center_text(TAGLINE, 80),
+            colors::RESET
+        );
+        println!(); // Bottom spacing
+    }
+
+    /// Display the main launch header (legacy - now shows banner)
     pub fn show_header(&self, version: &str) {
-        println!("\n🧠 Launching Mnemosyne Agents :: orchestrating Claude Code");
+        self.show_banner();
         println!("   v{}\n", version);
     }
 
-    /// Show a playful loading message
+    /// Show a playful loading message (now with random selection)
     pub fn show_loading_message(&self) {
-        let idx = self.message_index.fetch_add(1, Ordering::Relaxed);
-        let message = LOADING_MESSAGES[idx % LOADING_MESSAGES.len()];
+        let mut rng = rand::thread_rng();
+        let message = LOADING_MESSAGES.choose(&mut rng).unwrap_or(&"Initializing");
         print!("   ⚙  {}...", message);
+        io::stdout().flush().ok();
+    }
+
+    /// Cycle through multiple random loading messages
+    pub fn cycle_loading_messages(&self, count: usize) {
+        let mut rng = rand::thread_rng();
+        let mut messages = LOADING_MESSAGES.to_vec();
+        messages.shuffle(&mut rng);
+
+        for message in messages.iter().take(count) {
+            print!("\r   ⚙  {}...                    ", message);
+            io::stdout().flush().ok();
+            std::thread::sleep(std::time::Duration::from_millis(200));
+        }
+        print!("\r"); // Clear the line
         io::stdout().flush().ok();
     }
 
@@ -54,10 +131,14 @@ impl LaunchProgress {
         io::stdout().flush().ok();
     }
 
-    /// Show configuration details
-    pub fn show_config(&self, db_path: &str, agent_count: usize) {
+    /// Show configuration details with agent names
+    pub fn show_config(&self, db_path: &str, agent_names: &[&str]) {
         println!("   Database: {}", db_path);
-        println!("   Agents: {}\n", agent_count);
+        println!(
+            "   Agents: {}: {}\n",
+            agent_names.len(),
+            agent_names.join(", ")
+        );
     }
 
     /// Show a brief status message
@@ -82,11 +163,21 @@ impl Default for LaunchProgress {
     }
 }
 
+/// Helper function to center text in a given width
+fn center_text(text: &str, width: usize) -> String {
+    let text_len = text.len();
+    if text_len >= width {
+        return text.to_string();
+    }
+    let padding = (width - text_len) / 2;
+    format!("{}{}", " ".repeat(padding), text)
+}
+
 /// Quick helper to show a simple launch header with config
-pub fn show_launch_header(version: &str, db_path: &str, agent_count: usize) {
+pub fn show_launch_header(version: &str, db_path: &str, agent_names: &[&str]) {
     let progress = LaunchProgress::new();
     progress.show_header(version);
-    progress.show_config(db_path, agent_count);
+    progress.show_config(db_path, agent_names);
 }
 
 /// Quick helper to show a loading step
@@ -103,23 +194,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_loading_messages_rotate() {
+    fn test_loading_messages_random() {
         let progress = LaunchProgress::new();
-
-        // Show that messages rotate
-        for i in 0..LOADING_MESSAGES.len() * 2 {
-            let idx = i % LOADING_MESSAGES.len();
-            assert_eq!(
-                progress.message_index.load(Ordering::Relaxed) % LOADING_MESSAGES.len(),
-                idx
-            );
+        // Just verify we can call show_loading_message multiple times without panic
+        for _ in 0..10 {
             progress.show_loading_message();
         }
     }
 
     #[test]
-    fn test_launch_progress_creation() {
+    fn test_cycle_loading_messages() {
         let progress = LaunchProgress::new();
-        assert_eq!(progress.message_index.load(Ordering::Relaxed), 0);
+        // Verify cycling through messages doesn't panic
+        progress.cycle_loading_messages(3);
+    }
+
+    #[test]
+    fn test_launch_progress_creation() {
+        let _progress = LaunchProgress::new();
+        // Just verify we can create an instance
+    }
+
+    #[test]
+    fn test_center_text() {
+        assert_eq!(center_text("test", 10), "   test");
+        assert_eq!(center_text("a", 5), "  a");
+        assert_eq!(center_text("toolong", 5), "toolong");
+    }
+
+    #[test]
+    fn test_banner_display() {
+        let progress = LaunchProgress::new();
+        // Just verify banner display doesn't panic
+        progress.show_banner();
     }
 }

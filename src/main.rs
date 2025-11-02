@@ -2073,16 +2073,19 @@ async fn main() -> Result<()> {
             // Get database path
             let db_path = get_db_path(cli.db_path);
 
-            // Show clean launch UI
+            // Define agent names
+            let agent_names = ["Orchestrator", "Optimizer", "Reviewer", "Executor"];
+
+            // Show clean launch UI with banner
             launcher::ui::show_launch_header(
                 env!("CARGO_PKG_VERSION"),
                 &db_path,
-                4, // 4 agents: Orchestrator, Optimizer, Reviewer, Executor
+                &agent_names,
             );
 
-            // Show playful loading message
+            // Show playful loading messages cycling
             let progress = launcher::ui::LaunchProgress::new();
-            progress.show_loading_message();
+            progress.cycle_loading_messages(4);
 
             // Launch orchestrated session
             let result = launcher::launch_orchestrated_session(Some(db_path), None, None).await;
@@ -2090,6 +2093,7 @@ async fn main() -> Result<()> {
             // Show completion or error
             if result.is_ok() {
                 progress.show_step_complete("Orchestration ready");
+                println!(); // Extra spacing after startup
             } else if let Err(ref e) = result {
                 progress.show_error(&format!("{}", e));
             }
