@@ -32,11 +32,18 @@ result = reviewer(
 """
 
 __all__ = [
-    # Agent modules (will be added as we implement them)
+    # Agent modules
+    "ReviewerModule",
+    # Future modules
     # "OrchestratorModule",
     # "OptimizerModule",
-    # "ReviewerModule",
     # "ExecutorModule",
     # Semantic module
     # "SemanticModule",
 ]
+
+# Import implemented modules
+try:
+    from .reviewer_module import ReviewerModule
+except ImportError:
+    pass  # Module will be imported lazily by DSpyService
