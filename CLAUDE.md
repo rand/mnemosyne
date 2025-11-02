@@ -382,6 +382,64 @@ tail -f /tmp/test_output.log
 - UI layer: 60%+
 - Overall: 70%+
 
+### API Key Access
+
+**Anthropic API Key Configuration** (required for DSPy integration tests):
+
+The system checks for API keys in this priority order:
+1. **Environment variable**: `ANTHROPIC_API_KEY`
+2. **Age-encrypted config**: `~/.config/mnemosyne/secrets.age` (or macOS Application Support)
+3. **OS Keychain**: `mnemosyne.anthropic_api_key`
+
+**Check Configuration Status**:
+```bash
+# Verify secrets system status
+mnemosyne secrets info
+
+# Show API key configuration
+mnemosyne config show-key
+```
+
+**Set API Key** (choose one method):
+```bash
+# Method 1: Environment variable (temporary, session-only)
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# Method 2: Secure encrypted storage (recommended, persistent)
+mnemosyne secrets init     # Interactive setup, creates encrypted config
+# OR
+mnemosyne config set-key   # Stores in OS keychain
+
+# Method 3: Non-interactive setup
+mnemosyne config set-key "sk-ant-..."  # Pass key as argument
+```
+
+**Get API Key**: https://console.anthropic.com/settings/keys
+
+**Before Running DSPy Tests**:
+```bash
+# 1. Verify API key is accessible
+mnemosyne config show-key
+
+# 2. If not configured, set via environment or secrets
+export ANTHROPIC_API_KEY="sk-ant-..."
+
+# 3. Run tests with Python 3.14 compatibility
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 cargo test --features python
+```
+
+**Testing with API Calls**:
+```bash
+# Python DSPy module tests (use uv)
+cd src/orchestration/dspy_modules
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 uv run pytest test_*.py -v
+
+# Rust adapter integration tests (marked #[ignore], require API key)
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 cargo test --features python -- --ignored
+```
+
+**Reference**: See `SECRETS_MANAGEMENT.md` for detailed documentation on the secrets system.
+
 ---
 
 ## 7. Version Control & Git
