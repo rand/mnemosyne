@@ -43,6 +43,11 @@ impl Constitution {
         }
     }
 
+    /// Create a constitution with builder pattern
+    pub fn builder(project_name: String) -> ConstitutionBuilder {
+        ConstitutionBuilder::new(project_name)
+    }
+
     pub fn add_quality_gate(&mut self, gate: String) {
         self.quality_gates.push(gate);
         self.metadata.update_timestamp();
@@ -51,6 +56,52 @@ impl Constitution {
     pub fn add_constraint(&mut self, constraint: String) {
         self.constraints.push(constraint);
         self.metadata.update_timestamp();
+    }
+
+    pub fn add_principle(&mut self, principle: String) {
+        self.principles.push(principle);
+        self.metadata.update_timestamp();
+    }
+}
+
+/// Builder for Constitution to enable fluent API
+pub struct ConstitutionBuilder {
+    project_name: String,
+    principles: Vec<String>,
+    quality_gates: Vec<String>,
+    constraints: Vec<String>,
+}
+
+impl ConstitutionBuilder {
+    pub fn new(project_name: String) -> Self {
+        Self {
+            project_name,
+            principles: Vec::new(),
+            quality_gates: Vec::new(),
+            constraints: Vec::new(),
+        }
+    }
+
+    pub fn principle(mut self, principle: impl Into<String>) -> Self {
+        self.principles.push(principle.into());
+        self
+    }
+
+    pub fn quality_gate(mut self, gate: impl Into<String>) -> Self {
+        self.quality_gates.push(gate.into());
+        self
+    }
+
+    pub fn constraint(mut self, constraint: impl Into<String>) -> Self {
+        self.constraints.push(constraint.into());
+        self
+    }
+
+    pub fn build(self) -> Constitution {
+        let mut constitution = Constitution::new(self.project_name, self.principles);
+        constitution.quality_gates = self.quality_gates;
+        constitution.constraints = self.constraints;
+        constitution
     }
 }
 

@@ -70,6 +70,11 @@ impl FeatureSpec {
         }
     }
 
+    /// Create a feature spec with builder pattern
+    pub fn builder(feature_id: String, feature_name: String) -> FeatureSpecBuilder {
+        FeatureSpecBuilder::new(feature_id, feature_name)
+    }
+
     pub fn add_scenario(&mut self, scenario: UserScenario) {
         self.scenarios.push(scenario);
         self.metadata.update_timestamp();
@@ -78,6 +83,63 @@ impl FeatureSpec {
     pub fn add_requirement(&mut self, requirement: String) {
         self.requirements.push(requirement);
         self.metadata.update_timestamp();
+    }
+
+    pub fn add_success_criterion(&mut self, criterion: String) {
+        self.success_criteria.push(criterion);
+        self.metadata.update_timestamp();
+    }
+}
+
+/// Builder for FeatureSpec to enable fluent API
+pub struct FeatureSpecBuilder {
+    feature_id: String,
+    feature_name: String,
+    parent_feature: Option<String>,
+    scenarios: Vec<UserScenario>,
+    requirements: Vec<String>,
+    success_criteria: Vec<String>,
+}
+
+impl FeatureSpecBuilder {
+    pub fn new(feature_id: String, feature_name: String) -> Self {
+        Self {
+            feature_id,
+            feature_name,
+            parent_feature: None,
+            scenarios: Vec::new(),
+            requirements: Vec::new(),
+            success_criteria: Vec::new(),
+        }
+    }
+
+    pub fn parent_feature(mut self, parent: impl Into<String>) -> Self {
+        self.parent_feature = Some(parent.into());
+        self
+    }
+
+    pub fn scenario(mut self, scenario: UserScenario) -> Self {
+        self.scenarios.push(scenario);
+        self
+    }
+
+    pub fn requirement(mut self, requirement: impl Into<String>) -> Self {
+        self.requirements.push(requirement.into());
+        self
+    }
+
+    pub fn success_criterion(mut self, criterion: impl Into<String>) -> Self {
+        self.success_criteria.push(criterion.into());
+        self
+    }
+
+    pub fn build(self) -> FeatureSpec {
+        let mut spec = FeatureSpec::new(self.feature_id, self.feature_name);
+        spec.parent_feature = self.parent_feature;
+        spec.scenarios = self.scenarios;
+        spec.requirements = self.requirements;
+        spec.success_criteria = self.success_criteria;
+        spec
     }
 }
 

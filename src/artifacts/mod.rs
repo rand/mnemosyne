@@ -43,6 +43,7 @@
 pub mod types;
 pub mod storage;
 pub mod memory_link;
+pub mod workflow;
 pub mod constitution;
 pub mod feature_spec;
 pub mod plan;
@@ -56,8 +57,9 @@ pub use types::{
 };
 pub use storage::{ArtifactStorage, parse_frontmatter, serialize_frontmatter};
 pub use memory_link::MemoryLinker;
-pub use constitution::Constitution;
-pub use feature_spec::FeatureSpec;
+pub use workflow::ArtifactWorkflow;
+pub use constitution::{Constitution, ConstitutionBuilder};
+pub use feature_spec::{FeatureSpec, FeatureSpecBuilder, UserScenario};
 pub use plan::ImplementationPlan;
 pub use tasks::TaskBreakdown;
 pub use checklist::QualityChecklist;
