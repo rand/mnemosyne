@@ -1,8 +1,8 @@
-# Spec-Kit Artifacts Design
+# Specification Artifacts Design
 
 ## Overview
 
-This document defines the artifact storage system for Spec-Kit workflow integration in Mnemosyne, inspired by GitHub's Spec-Kit but adapted for Mnemosyne's memory-first architecture.
+This document defines the artifact storage system for specification workflow integration in Mnemosyne, inspired by GitHub's Spec-Kit but adapted for Mnemosyne's memory-first architecture.
 
 ## Directory Structure
 
@@ -445,7 +445,7 @@ enum ArtifactCommands {
 
 ## References
 
-- Spec-Kit: https://github.com/github/spec-kit
+- GitHub Spec-Kit (inspiration): https://github.com/github/spec-kit
 - Mnemosyne Work Plan Protocol: CLAUDE.md
 - Memory Types: src/types.rs
 - Storage Schema: docs/STORAGE_SCHEMA.md

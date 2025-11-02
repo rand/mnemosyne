@@ -149,7 +149,7 @@ pub enum MemoryType {
     /// Agent coordination events for orchestration
     AgentEvent,
 
-    // Spec-Kit Workflow Types
+    // Specification Workflow Types
     /// Project constitution defining principles and quality gates
     Constitution,
 

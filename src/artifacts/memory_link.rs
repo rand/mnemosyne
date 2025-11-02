@@ -39,7 +39,7 @@ impl MemoryLinker {
             summary: format!("Artifact: {}", artifact_path),
             keywords: Vec::new(),
             tags,
-            context: format!("Spec-Kit artifact stored at {}", artifact_path),
+            context: format!("Specification artifact stored at {}", artifact_path),
             memory_type,
             importance,
             confidence: 1.0,

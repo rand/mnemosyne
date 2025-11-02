@@ -1,7 +1,7 @@
-//! Artifact Management for Spec-Kit Workflow
+//! Artifact Management for Specification Workflow
 //!
 //! This module provides structured artifact storage for specification-driven development,
-//! inspired by GitHub Spec-Kit. Artifacts are markdown files with YAML frontmatter that
+//! inspired by GitHub's Spec-Kit (adapted for Mnemosyne). Artifacts are markdown files with YAML frontmatter that
 //! integrate with Mnemosyne's memory system.
 //!
 //! # Artifact Types

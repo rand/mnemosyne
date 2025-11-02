@@ -3,7 +3,7 @@ name: feature-specify
 description: Create feature specification with user scenarios and requirements
 ---
 
-I will help you create a feature specification following the Spec-Kit workflow. This will capture user scenarios, requirements, and acceptance criteria in a structured format.
+I will help you create a feature specification following the specification workflow. This will capture user scenarios, requirements, and acceptance criteria in a structured format.
 
 **Usage**:
 - `/feature-specify <brief description>` - Create new feature spec

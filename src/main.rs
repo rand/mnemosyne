@@ -314,7 +314,7 @@ fn parse_memory_type(type_str: &str) -> mnemosyne_core::MemoryType {
         "preference" | "pref" => mnemosyne_core::MemoryType::Preference,
         "task" | "todo" => mnemosyne_core::MemoryType::Task,
         "agent_event" | "event" => mnemosyne_core::MemoryType::AgentEvent,
-        // Spec-Kit workflow types
+        // Specification workflow types
         "constitution" => mnemosyne_core::MemoryType::Constitution,
         "feature_spec" | "spec" | "feature" => mnemosyne_core::MemoryType::FeatureSpec,
         "implementation_plan" | "plan" | "impl_plan" => mnemosyne_core::MemoryType::ImplementationPlan,
@@ -537,7 +537,7 @@ enum Commands {
         job: EvolveJob,
     },
 
-    /// Manage Spec-Kit workflow artifacts
+    /// Manage specification workflow artifacts
     Artifact {
         #[command(subcommand)]
         command: ArtifactCommands,
@@ -2136,7 +2136,7 @@ async fn main() -> Result<()> {
                     let readme_path = base.join("README.md");
                     let readme_content = r#"# Mnemosyne Artifacts
 
-This directory contains Spec-Kit workflow artifacts for structured specification-driven development.
+This directory contains specification workflow artifacts for structured specification-driven development.
 
 ## Structure
 
@@ -2163,7 +2163,7 @@ mnemosyne artifact show <artifact-id>
 mnemosyne artifact validate <path>
 ```
 
-For more information, see: docs/specs/spec-kit-artifacts.md
+For more information, see: docs/specs/specification-artifacts.md
 "#;
                     fs::write(&readme_path, readme_content)?;
                     println!("  ✓ Created {}", readme_path.display());

@@ -309,7 +309,7 @@ impl<'a> MemoryPanel<'a> {
                         crate::types::MemoryType::Preference => "Preference",
                         crate::types::MemoryType::Task => "Task",
                         crate::types::MemoryType::AgentEvent => "AgentEvent",
-                        // Spec-Kit workflow types
+                        // Specification workflow types
                         crate::types::MemoryType::Constitution => "Constitution",
                         crate::types::MemoryType::FeatureSpec => "FeatureSpec",
                         crate::types::MemoryType::ImplementationPlan => "Plan",
@@ -370,7 +370,7 @@ impl<'a> MemoryPanel<'a> {
                     crate::types::MemoryType::Preference => "Preference",
                     crate::types::MemoryType::Task => "Task",
                     crate::types::MemoryType::AgentEvent => "AgentEvent",
-                    // Spec-Kit workflow types
+                    // Specification workflow types
                     crate::types::MemoryType::Constitution => "Constitution",
                     crate::types::MemoryType::FeatureSpec => "FeatureSpec",
                     crate::types::MemoryType::ImplementationPlan => "Plan",

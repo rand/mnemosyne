@@ -236,7 +236,7 @@ fn format_memory_type(mt: &crate::types::MemoryType) -> &'static str {
         MemoryType::Preference => "Preference",
         MemoryType::Task => "Task",
         MemoryType::AgentEvent => "Agent Event",
-        // Spec-Kit workflow types
+        // Specification workflow types
         MemoryType::Constitution => "Constitution",
         MemoryType::FeatureSpec => "Feature Spec",
         MemoryType::ImplementationPlan => "Implementation Plan",
