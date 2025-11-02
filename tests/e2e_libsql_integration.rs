@@ -430,6 +430,8 @@ async fn test_e2e_graph_traversal() {
         strength: 0.9,
         reason: "Event-driven implements microservices".to_string(),
         created_at: chrono::Utc::now(),
+        last_traversed_at: None,
+        user_created: false,
     });
 
     mem3.links.push(MemoryLink {
@@ -438,6 +440,8 @@ async fn test_e2e_graph_traversal() {
         strength: 0.8,
         reason: "Message queue implements event-driven".to_string(),
         created_at: chrono::Utc::now(),
+        last_traversed_at: None,
+        user_created: false,
     });
 
     storage.update_memory(&mem2).await.unwrap();
