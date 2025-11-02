@@ -536,6 +536,12 @@ enum Commands {
         #[command(subcommand)]
         job: EvolveJob,
     },
+
+    /// Manage Spec-Kit workflow artifacts
+    Artifact {
+        #[command(subcommand)]
+        command: ArtifactCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -609,6 +615,31 @@ enum EvolveJob {
         /// Database path
         #[arg(short, long)]
         database: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum ArtifactCommands {
+    /// Initialize artifact directory structure
+    Init,
+
+    /// List all artifacts
+    List {
+        /// Filter by artifact type (constitution|spec|plan|tasks|checklist|clarification)
+        #[arg(short, long)]
+        artifact_type: Option<String>,
+    },
+
+    /// Show artifact details
+    Show {
+        /// Artifact ID or file path
+        artifact: String,
+    },
+
+    /// Validate artifact structure and frontmatter
+    Validate {
+        /// Artifact file path
+        path: String,
     },
 }
 
@@ -2069,6 +2100,276 @@ async fn main() -> Result<()> {
                     println!();
 
                     println!("All evolution jobs complete!");
+                    Ok(())
+                }
+            }
+        }
+        Some(Commands::Artifact { command }) => {
+            use mnemosyne_core::artifacts::{
+                Constitution, FeatureSpec, Artifact as ArtifactTrait,
+                parse_frontmatter,
+            };
+            use std::fs;
+
+            match command {
+                ArtifactCommands::Init => {
+                    println!("Initializing artifact directory structure...");
+
+                    // Create artifact directories
+                    let base = PathBuf::from(".mnemosyne/artifacts");
+                    let subdirs = [
+                        "constitution",
+                        "specs",
+                        "plans",
+                        "tasks",
+                        "checklists",
+                        "clarifications",
+                    ];
+
+                    for subdir in &subdirs {
+                        let path = base.join(subdir);
+                        fs::create_dir_all(&path)?;
+                        println!("  ✓ Created {}", path.display());
+                    }
+
+                    // Create README
+                    let readme_path = base.join("README.md");
+                    let readme_content = r#"# Mnemosyne Artifacts
+
+This directory contains Spec-Kit workflow artifacts for structured specification-driven development.
+
+## Structure
+
+- `constitution/` - Project constitution defining principles and quality gates
+- `specs/` - Feature specifications with user scenarios
+- `plans/` - Implementation plans with technical architecture
+- `tasks/` - Task breakdowns with dependencies
+- `checklists/` - Quality checklists for validation
+- `clarifications/` - Clarifications resolving ambiguities
+
+## Usage
+
+Use slash commands in Claude Code:
+- `/project-constitution` - Create/update constitution
+- `/feature-specify <description>` - Create feature spec
+- `/feature-plan <feature-id>` - Create implementation plan
+- `/feature-tasks <feature-id>` - Create task breakdown
+- `/feature-checklist <feature-id>` - Create quality checklist
+
+Or use CLI:
+```bash
+mnemosyne artifact list
+mnemosyne artifact show <artifact-id>
+mnemosyne artifact validate <path>
+```
+
+For more information, see: docs/specs/spec-kit-artifacts.md
+"#;
+                    fs::write(&readme_path, readme_content)?;
+                    println!("  ✓ Created {}", readme_path.display());
+
+                    println!();
+                    println!("✓ Artifact structure initialized successfully!");
+                    println!();
+                    println!("Next steps:");
+                    println!("  1. Create constitution: /project-constitution");
+                    println!("  2. Create feature spec: /feature-specify <description>");
+                    println!("  3. View artifacts: mnemosyne artifact list");
+                    Ok(())
+                }
+                ArtifactCommands::List { artifact_type } => {
+                    println!("Listing artifacts...");
+
+                    let base = PathBuf::from(".mnemosyne/artifacts");
+                    if !base.exists() {
+                        eprintln!("✗ Artifact directory not found. Run 'mnemosyne artifact init' first.");
+                        std::process::exit(1);
+                    }
+
+                    let search_dirs = if let Some(ref atype) = artifact_type {
+                        // Map type to directory
+                        let dir = match atype.as_str() {
+                            "constitution" => "constitution",
+                            "spec" | "feature_spec" => "specs",
+                            "plan" | "implementation_plan" => "plans",
+                            "tasks" | "task_breakdown" => "tasks",
+                            "checklist" | "quality_checklist" => "checklists",
+                            "clarification" => "clarifications",
+                            _ => {
+                                eprintln!("✗ Unknown artifact type: {}", atype);
+                                eprintln!("Valid types: constitution, spec, plan, tasks, checklist, clarification");
+                                std::process::exit(1);
+                            }
+                        };
+                        vec![base.join(dir)]
+                    } else {
+                        // All directories
+                        vec![
+                            base.join("constitution"),
+                            base.join("specs"),
+                            base.join("plans"),
+                            base.join("tasks"),
+                            base.join("checklists"),
+                            base.join("clarifications"),
+                        ]
+                    };
+
+                    let mut found_any = false;
+                    for dir in search_dirs {
+                        if !dir.exists() {
+                            continue;
+                        }
+
+                        let dir_name = dir.file_name().unwrap().to_string_lossy();
+                        let entries: Vec<_> = fs::read_dir(&dir)?
+                            .filter_map(|e| e.ok())
+                            .filter(|e| {
+                                e.path().extension().map_or(false, |ext| ext == "md")
+                            })
+                            .collect();
+
+                        if !entries.is_empty() {
+                            println!("\n{}:", dir_name);
+                            found_any = true;
+
+                            for entry in entries {
+                                let path = entry.path();
+                                let name = path.file_name().unwrap().to_string_lossy();
+
+                                // Try to parse frontmatter to get metadata
+                                if let Ok(content) = fs::read_to_string(&path) {
+                                    if let Ok((frontmatter, _)) = parse_frontmatter(&content) {
+                                        let version = frontmatter.get("version")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("unknown");
+                                        let status = frontmatter.get("status")
+                                            .and_then(|v| v.as_str())
+                                            .unwrap_or("unknown");
+
+                                        println!("  • {} (v{}, {})", name, version, status);
+                                    } else {
+                                        println!("  • {}", name);
+                                    }
+                                } else {
+                                    println!("  • {}", name);
+                                }
+                            }
+                        }
+                    }
+
+                    if !found_any {
+                        println!("No artifacts found.");
+                        println!("Create your first artifact with: /project-constitution");
+                    }
+
+                    Ok(())
+                }
+                ArtifactCommands::Show { artifact } => {
+                    // Try to find artifact by ID or path
+                    let path = if artifact.ends_with(".md") {
+                        PathBuf::from(artifact)
+                    } else {
+                        // Search for artifact by ID in all directories
+                        let base = PathBuf::from(".mnemosyne/artifacts");
+                        let search_dirs = [
+                            base.join("constitution"),
+                            base.join("specs"),
+                            base.join("plans"),
+                            base.join("tasks"),
+                            base.join("checklists"),
+                            base.join("clarifications"),
+                        ];
+
+                        let mut found_path: Option<PathBuf> = None;
+                        for dir in &search_dirs {
+                            if !dir.exists() {
+                                continue;
+                            }
+
+                            let artifact_file = format!("{}.md", artifact);
+                            let candidate = dir.join(&artifact_file);
+                            if candidate.exists() {
+                                found_path = Some(candidate);
+                                break;
+                            }
+                        }
+
+                        found_path.unwrap_or_else(|| {
+                            eprintln!("✗ Artifact not found: {}", artifact);
+                            eprintln!("Try: mnemosyne artifact list");
+                            std::process::exit(1);
+                        })
+                    };
+
+                    if !path.exists() {
+                        eprintln!("✗ File not found: {}", path.display());
+                        std::process::exit(1);
+                    }
+
+                    let content = fs::read_to_string(&path)?;
+                    println!("{}", content);
+                    Ok(())
+                }
+                ArtifactCommands::Validate { path } => {
+                    println!("Validating artifact: {}", path);
+
+                    let path_buf = PathBuf::from(&path);
+                    if !path_buf.exists() {
+                        eprintln!("✗ File not found: {}", path);
+                        std::process::exit(1);
+                    }
+
+                    let content = fs::read_to_string(&path_buf)?;
+
+                    // Parse frontmatter
+                    match parse_frontmatter(&content) {
+                        Ok((frontmatter, markdown)) => {
+                            println!("✓ Valid YAML frontmatter");
+
+                            // Check required fields
+                            let required_fields = ["type", "id", "name", "version"];
+                            let mut missing_fields = Vec::new();
+
+                            for field in &required_fields {
+                                if frontmatter.get(*field).is_none() {
+                                    missing_fields.push(*field);
+                                }
+                            }
+
+                            if !missing_fields.is_empty() {
+                                eprintln!("✗ Missing required fields: {}", missing_fields.join(", "));
+                                std::process::exit(1);
+                            }
+
+                            println!("✓ All required fields present");
+
+                            // Validate version format
+                            if let Some(version) = frontmatter.get("version").and_then(|v| v.as_str()) {
+                                if version.split('.').count() == 3 {
+                                    println!("✓ Valid semantic version: {}", version);
+                                } else {
+                                    eprintln!("✗ Invalid version format: {} (expected X.Y.Z)", version);
+                                    std::process::exit(1);
+                                }
+                            }
+
+                            // Check markdown content
+                            if markdown.trim().is_empty() {
+                                eprintln!("✗ Empty content (no markdown after frontmatter)");
+                                std::process::exit(1);
+                            }
+
+                            println!("✓ Non-empty content ({} chars)", markdown.len());
+
+                            println!();
+                            println!("✓ Artifact is valid!");
+                        }
+                        Err(e) => {
+                            eprintln!("✗ Invalid artifact: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+
                     Ok(())
                 }
             }

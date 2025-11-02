@@ -54,7 +54,7 @@ pub mod clarification;
 pub use types::{
     Artifact, ArtifactMetadata, ArtifactType, ArtifactStatus, ArtifactVersion,
 };
-pub use storage::ArtifactStorage;
+pub use storage::{ArtifactStorage, parse_frontmatter, serialize_frontmatter};
 pub use memory_link::MemoryLinker;
 pub use constitution::Constitution;
 pub use feature_spec::FeatureSpec;
