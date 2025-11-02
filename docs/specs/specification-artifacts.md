@@ -433,13 +433,177 @@ enum ArtifactCommands {
 
 ## Rollout Plan
 
-1. **Phase 1.1**: Artifact storage infrastructure ✅ (current commit)
-2. **Phase 1.2**: Memory linking and graph relationships
-3. **Phase 1.3**: Directory initialization
-4. **Phase 1.4**: Tests and validation
-5. **Phase 2.1**: `/project-constitution` command
-6. **Phase 2.2**: `/feature-specify` command
-7. ...
+1. **Phase 1.1**: Artifact storage infrastructure ✅
+2. **Phase 1.2**: Memory linking and graph relationships ✅
+3. **Phase 1.3**: Directory initialization ✅
+4. **Phase 1.4**: Tests and validation ✅
+5. **Phase 2.1**: Workflow coordinator and builders ✅
+6. **Phase 2.2**: CLI create commands ✅
+7. **Phase 2.3**: Database schema updates ✅
+8. **Phase 2.4**: End-to-end examples ✅
+
+## CLI Usage
+
+### Initialize Artifact Directory
+
+```bash
+mnemosyne artifact init
+```
+
+Creates the directory structure:
+```
+.mnemosyne/artifacts/
+├── constitution/
+├── specs/
+├── plans/
+├── tasks/
+├── checklists/
+├── clarifications/
+└── README.md
+```
+
+### Create Project Constitution
+
+```bash
+mnemosyne artifact create-constitution \
+  --project "MyProject" \
+  --principle "Performance First: Sub-200ms latency" \
+  --principle "Type Safety: Leverage strong typing" \
+  --quality-gate "90%+ test coverage" \
+  --quality-gate "All warnings addressed" \
+  --constraint "Rust-only for core logic" \
+  --namespace "project:myproject"  # optional, defaults to project:PROJECT_NAME
+```
+
+Output:
+```
+✅ Constitution saved!
+   Memory ID: abc-123-...
+   File: constitution/project-constitution.md
+```
+
+The command will:
+1. Build constitution using fluent builder API
+2. Save to `.mnemosyne/artifacts/constitution/project-constitution.md` with YAML frontmatter
+3. Create memory entry in database with high importance (9)
+4. Link memory entry to artifact file
+5. Update frontmatter with memory ID
+
+### Create Feature Specification
+
+```bash
+mnemosyne artifact create-feature-spec \
+  --id "user-authentication" \
+  --name "User Authentication" \
+  --requirement "Use JWT tokens for authentication" \
+  --requirement "Support refresh tokens" \
+  --success-criterion "Sub-100ms authentication latency" \
+  --success-criterion "Support 10,000 concurrent sessions" \
+  --constitution-id "abc-123-..."  # optional, links to constitution
+  --namespace "project:myproject"  # optional, inferred from cwd
+```
+
+Output:
+```
+✅ Feature spec saved!
+   Memory ID: def-456-...
+   File: specs/user-authentication.md
+   Linked to constitution: abc-123-...
+```
+
+The command will:
+1. Build feature spec using fluent builder API
+2. Save to `.mnemosyne/artifacts/specs/<feature-id>.md` with YAML frontmatter
+3. Create memory entry with importance 8
+4. Link to constitution if provided
+5. Update frontmatter with memory ID and references
+
+### List Artifacts
+
+```bash
+# List all artifacts
+mnemosyne artifact list
+
+# List by type
+mnemosyne artifact list --artifact-type constitution
+mnemosyne artifact list --artifact-type spec
+mnemosyne artifact list --artifact-type plan
+```
+
+### Show Artifact Details
+
+```bash
+# By artifact ID
+mnemosyne artifact show constitution
+mnemosyne artifact show user-authentication
+
+# By file path
+mnemosyne artifact show .mnemosyne/artifacts/specs/user-authentication.md
+```
+
+### Validate Artifact
+
+```bash
+mnemosyne artifact validate .mnemosyne/artifacts/constitution/project-constitution.md
+```
+
+Checks:
+- YAML frontmatter structure
+- Required fields present
+- Valid field types
+
+## Programmatic API
+
+For advanced use cases, use the Rust API directly:
+
+```rust
+use mnemosyne_core::artifacts::{Constitution, FeatureSpec, ArtifactWorkflow};
+use mnemosyne_core::types::Namespace;
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize storage and workflow
+    let storage = Arc::new(LibsqlStorage::new_with_validation(...).await?);
+    let workflow = ArtifactWorkflow::new(
+        ".mnemosyne/artifacts".into(),
+        storage
+    )?;
+
+    // Create constitution
+    let mut constitution = Constitution::builder("MyProject".to_string())
+        .principle("Performance First")
+        .quality_gate("90%+ coverage")
+        .constraint("Rust-only")
+        .build();
+
+    let namespace = Namespace::Project { name: "myproject".to_string() };
+    let memory_id = workflow.save_constitution(&mut constitution, namespace).await?;
+
+    // Create feature spec
+    let mut spec = FeatureSpec::builder(
+        "user-auth".to_string(),
+        "User Authentication".to_string()
+    )
+        .requirement("Use JWT tokens")
+        .success_criterion("Sub-100ms latency")
+        .build();
+
+    let spec_id = workflow.save_feature_spec(
+        &mut spec,
+        namespace,
+        Some(memory_id.to_string())
+    ).await?;
+
+    // Load artifacts
+    let loaded_constitution = workflow.load_constitution().await?;
+    let loaded_spec = workflow.load_feature_spec("user-auth").await?;
+
+    Ok(())
+}
+```
+
+See `examples/specification_workflow.rs` for complete working example.
 
 ---
 
