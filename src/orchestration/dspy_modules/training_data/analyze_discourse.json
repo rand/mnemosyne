@@ -1,0 +1,321 @@
+[
+  {
+    "inputs": {
+      "text": "The system is distributed. This enables horizontal scaling. However, it introduces complexity in debugging."
+    },
+    "outputs": {
+      "segments": [
+        {
+          "start": 0,
+          "end": 27,
+          "text": "The system is distributed.",
+          "relation": "Background",
+          "related_to_start": null,
+          "related_to_end": null,
+          "confidence": 0.95
+        },
+        {
+          "start": 28,
+          "end": 63,
+          "text": "This enables horizontal scaling.",
+          "relation": "Elaboration",
+          "related_to_start": 0,
+          "related_to_end": 27,
+          "confidence": 0.92
+        },
+        {
+          "start": 64,
+          "end": 109,
+          "text": "However, it introduces complexity in debugging.",
+          "relation": "Contrast",
+          "related_to_start": 28,
+          "related_to_end": 63,
+          "confidence": 0.90
+        }
+      ],
+      "coherence_score": 0.85
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "technical_architecture",
+      "notes": "Tests Elaboration and Contrast relations in system architecture context"
+    }
+  },
+  {
+    "inputs": {
+      "text": "First, we authenticate the user. Next, we validate their permissions. Finally, we grant access to the resource."
+    },
+    "outputs": {
+      "segments": [
+        {
+          "start": 0,
+          "end": 36,
+          "text": "First, we authenticate the user.",
+          "relation": "Background",
+          "related_to_start": null,
+          "related_to_end": null,
+          "confidence": 0.95
+        },
+        {
+          "start": 37,
+          "end": 75,
+          "text": "Next, we validate their permissions.",
+          "relation": "Sequence",
+          "related_to_start": 0,
+          "related_to_end": 36,
+          "confidence": 0.93
+        },
+        {
+          "start": 76,
+          "end": 114,
+          "text": "Finally, we grant access to the resource.",
+          "relation": "Sequence",
+          "related_to_start": 37,
+          "related_to_end": 75,
+          "confidence": 0.94
+        }
+      ],
+      "coherence_score": 0.95
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "authentication",
+      "notes": "Clear sequential flow with explicit discourse markers (First, Next, Finally)"
+    }
+  },
+  {
+    "inputs": {
+      "text": "If the cache is empty, we query the database. The query returns user data including profile and preferences. We then populate the cache for future requests."
+    },
+    "outputs": {
+      "segments": [
+        {
+          "start": 0,
+          "end": 47,
+          "text": "If the cache is empty, we query the database.",
+          "relation": "Condition",
+          "related_to_start": null,
+          "related_to_end": null,
+          "confidence": 0.90
+        },
+        {
+          "start": 48,
+          "end": 111,
+          "text": "The query returns user data including profile and preferences.",
+          "relation": "Elaboration",
+          "related_to_start": 0,
+          "related_to_end": 47,
+          "confidence": 0.88
+        },
+        {
+          "start": 112,
+          "end": 162,
+          "text": "We then populate the cache for future requests.",
+          "relation": "Sequence",
+          "related_to_start": 48,
+          "related_to_end": 111,
+          "confidence": 0.92
+        }
+      ],
+      "coherence_score": 0.87
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "caching",
+      "notes": "Tests Condition relation with conditional logic flow"
+    }
+  },
+  {
+    "inputs": {
+      "text": "The API rate limit was exceeded. Users experienced timeouts. This caused revenue loss for the business."
+    },
+    "outputs": {
+      "segments": [
+        {
+          "start": 0,
+          "end": 33,
+          "text": "The API rate limit was exceeded.",
+          "relation": "Background",
+          "related_to_start": null,
+          "related_to_end": null,
+          "confidence": 0.92
+        },
+        {
+          "start": 34,
+          "end": 63,
+          "text": "Users experienced timeouts.",
+          "relation": "Cause",
+          "related_to_start": 0,
+          "related_to_end": 33,
+          "confidence": 0.85
+        },
+        {
+          "start": 64,
+          "end": 107,
+          "text": "This caused revenue loss for the business.",
+          "relation": "Cause",
+          "related_to_start": 34,
+          "related_to_end": 63,
+          "confidence": 0.87
+        }
+      ],
+      "coherence_score": 0.80
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "incident_analysis",
+      "notes": "Tests Cause relation in causal chain (rate limit → timeouts → revenue loss)"
+    }
+  },
+  {
+    "inputs": {
+      "text": "The old system used polling. The new system uses webhooks instead. Webhooks are more efficient because they push updates immediately."
+    },
+    "outputs": {
+      "segments": [
+        {
+          "start": 0,
+          "end": 27,
+          "text": "The old system used polling.",
+          "relation": "Background",
+          "related_to_start": null,
+          "related_to_end": null,
+          "confidence": 0.93
+        },
+        {
+          "start": 28,
+          "end": 64,
+          "text": "The new system uses webhooks instead.",
+          "relation": "Contrast",
+          "related_to_start": 0,
+          "related_to_end": 27,
+          "confidence": 0.91
+        },
+        {
+          "start": 65,
+          "end": 136,
+          "text": "Webhooks are more efficient because they push updates immediately.",
+          "relation": "Elaboration",
+          "related_to_start": 28,
+          "related_to_end": 64,
+          "confidence": 0.89
+        }
+      ],
+      "coherence_score": 0.88
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "system_comparison",
+      "notes": "Tests Contrast (old vs new) and Elaboration (explaining advantage)"
+    }
+  },
+  {
+    "inputs": {
+      "text": "Overall, the migration was successful. We moved 10TB of data with zero downtime. Customer satisfaction increased by 15%. The team delivered ahead of schedule."
+    },
+    "outputs": {
+      "segments": [
+        {
+          "start": 0,
+          "end": 42,
+          "text": "Overall, the migration was successful.",
+          "relation": "Summary",
+          "related_to_start": null,
+          "related_to_end": null,
+          "confidence": 0.94
+        },
+        {
+          "start": 43,
+          "end": 85,
+          "text": "We moved 10TB of data with zero downtime.",
+          "relation": "Elaboration",
+          "related_to_start": 0,
+          "related_to_end": 42,
+          "confidence": 0.90
+        },
+        {
+          "start": 86,
+          "end": 124,
+          "text": "Customer satisfaction increased by 15%.",
+          "relation": "Elaboration",
+          "related_to_start": 0,
+          "related_to_end": 42,
+          "confidence": 0.88
+        },
+        {
+          "start": 125,
+          "end": 161,
+          "text": "The team delivered ahead of schedule.",
+          "relation": "Elaboration",
+          "related_to_start": 0,
+          "related_to_end": 42,
+          "confidence": 0.87
+        }
+      ],
+      "coherence_score": 0.92
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "project_summary",
+      "notes": "Tests Summary relation with supporting elaborations"
+    }
+  },
+  {
+    "inputs": {
+      "text": "The implementation is terrible. Memory leaks everywhere. No error handling whatsoever. I recommend a complete rewrite."
+    },
+    "outputs": {
+      "segments": [
+        {
+          "start": 0,
+          "end": 34,
+          "text": "The implementation is terrible.",
+          "relation": "Evaluation",
+          "related_to_start": null,
+          "related_to_end": null,
+          "confidence": 0.95
+        },
+        {
+          "start": 35,
+          "end": 59,
+          "text": "Memory leaks everywhere.",
+          "relation": "Elaboration",
+          "related_to_start": 0,
+          "related_to_end": 34,
+          "confidence": 0.90
+        },
+        {
+          "start": 60,
+          "end": 89,
+          "text": "No error handling whatsoever.",
+          "relation": "Elaboration",
+          "related_to_start": 0,
+          "related_to_end": 34,
+          "confidence": 0.90
+        },
+        {
+          "start": 90,
+          "end": 121,
+          "text": "I recommend a complete rewrite.",
+          "relation": "Evaluation",
+          "related_to_start": 0,
+          "related_to_end": 34,
+          "confidence": 0.92
+        }
+      ],
+      "coherence_score": 0.75
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "code_review",
+      "notes": "Tests Evaluation relation with negative assessment and supporting evidence"
+    }
+  }
+]

@@ -1,0 +1,287 @@
+[
+  {
+    "inputs": {
+      "text": "Could you please implement authentication for the API?"
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 56,
+          "text": "Could you please implement authentication for the API?",
+          "type": "IndirectSpeech",
+          "speech_act": "Request",
+          "explanation": "Phrased as a question with modal 'could' and politeness marker 'please', but functions as a request/command for action rather than inquiry about ability.",
+          "implied_meaning": "I want you to implement authentication for the API",
+          "confidence": 0.95
+        },
+        {
+          "start": 0,
+          "end": 56,
+          "text": "Could you please implement authentication for the API?",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes that: (1) authentication is not currently implemented, (2) recipient has ability to implement it, (3) authentication is needed/valuable.",
+          "implied_meaning": "Authentication does not exist yet and needs to be added",
+          "confidence": 0.90
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "feature_request",
+      "notes": "Classic indirect speech act - polite request disguised as ability question"
+    }
+  },
+  {
+    "inputs": {
+      "text": "It would be great if we had real-time notifications."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 54,
+          "text": "It would be great if we had real-time notifications.",
+          "type": "IndirectSpeech",
+          "speech_act": "Request",
+          "explanation": "Conditional 'would be great' expresses desire/wish, but pragmatically functions as a feature request. Speaker is not merely expressing opinion but requesting implementation.",
+          "implied_meaning": "Please implement real-time notifications",
+          "confidence": 0.88
+        },
+        {
+          "start": 0,
+          "end": 54,
+          "text": "It would be great if we had real-time notifications.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes real-time notifications don't currently exist ('if we had' implies we don't have them now).",
+          "implied_meaning": "Real-time notifications are not currently implemented",
+          "confidence": 0.92
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "feature_wish",
+      "notes": "Tests Wish speech act and presupposition of absence"
+    }
+  },
+  {
+    "inputs": {
+      "text": "Have you finished the migration? The deadline was yesterday."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 31,
+          "text": "Have you finished the migration?",
+          "type": "SpeechAct",
+          "speech_act": "Question",
+          "explanation": "Direct question seeking information about completion status. Genuine inquiry, not disguised request.",
+          "implied_meaning": null,
+          "confidence": 0.95
+        },
+        {
+          "start": 32,
+          "end": 60,
+          "text": "The deadline was yesterday.",
+          "type": "Implicature",
+          "speech_act": "Assertion",
+          "explanation": "States fact about deadline, but implicates urgency, possible criticism for lateness, and expectation that work should be complete. Creates pressure without explicit criticism.",
+          "implied_meaning": "The migration should be done by now; you may be late",
+          "confidence": 0.85
+        },
+        {
+          "start": 0,
+          "end": 31,
+          "text": "Have you finished the migration?",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) there is a migration task, (2) recipient is responsible for it, (3) it was supposed to be finished.",
+          "implied_meaning": "You are responsible for completing the migration",
+          "confidence": 0.90
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "project_management",
+      "notes": "Tests Implicature (implied criticism) and multiple presuppositions"
+    }
+  },
+  {
+    "inputs": {
+      "text": "I promise to have the feature deployed by Friday."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 50,
+          "text": "I promise to have the feature deployed by Friday.",
+          "type": "SpeechAct",
+          "speech_act": "Promise",
+          "explanation": "Explicit performative verb 'promise' commits speaker to future action. Creates obligation and expectation of follow-through.",
+          "implied_meaning": "You can count on this being done by Friday; I am committed",
+          "confidence": 0.98
+        },
+        {
+          "start": 0,
+          "end": 50,
+          "text": "I promise to have the feature deployed by Friday.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) there is a specific feature to deploy, (2) speaker has control over deployment, (3) Friday is the target date, (4) it's not deployed yet.",
+          "implied_meaning": "The feature exists but is not yet deployed",
+          "confidence": 0.92
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "commitment",
+      "notes": "Clear Promise speech act with explicit performative verb"
+    }
+  },
+  {
+    "inputs": {
+      "text": "The code is clean and well-structured. No issues found during review."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 39,
+          "text": "The code is clean and well-structured.",
+          "type": "SpeechAct",
+          "speech_act": "Assertion",
+          "explanation": "Statement of fact (or opinion presented as fact) about code quality. Direct assertion, no hidden meaning.",
+          "implied_meaning": null,
+          "confidence": 0.95
+        },
+        {
+          "start": 40,
+          "end": 68,
+          "text": "No issues found during review.",
+          "type": "SpeechAct",
+          "speech_act": "Assertion",
+          "explanation": "Factual statement about review outcome. Reinforces positive assessment from first sentence.",
+          "implied_meaning": null,
+          "confidence": 0.95
+        },
+        {
+          "start": 0,
+          "end": 68,
+          "text": "The code is clean and well-structured. No issues found during review.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes a code review was conducted. 'During review' implies review happened.",
+          "implied_meaning": "A code review process was completed",
+          "confidence": 0.90
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "code_review",
+      "notes": "Straightforward assertions with minimal pragmatic complexity"
+    }
+  },
+  {
+    "inputs": {
+      "text": "We should probably add logging. It might help with debugging."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 34,
+          "text": "We should probably add logging.",
+          "type": "IndirectSpeech",
+          "speech_act": "Request",
+          "explanation": "Modal 'should' with hedge 'probably' softens the directive, but pragmatically functions as a recommendation/request for action. Not merely stating opinion.",
+          "implied_meaning": "Please add logging to the system",
+          "confidence": 0.80
+        },
+        {
+          "start": 35,
+          "end": 64,
+          "text": "It might help with debugging.",
+          "type": "Implicature",
+          "speech_act": "Assertion",
+          "explanation": "Provides justification for adding logging. 'Might help' is hedged, but implicates speaker believes logging would be beneficial, not just a remote possibility.",
+          "implied_meaning": "Logging will likely be useful for debugging",
+          "confidence": 0.75
+        },
+        {
+          "start": 0,
+          "end": 34,
+          "text": "We should probably add logging.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes logging is not currently implemented ('add' implies it doesn't exist).",
+          "implied_meaning": "Logging is not currently in place",
+          "confidence": 0.88
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "infrastructure_suggestion",
+      "notes": "Tests hedged request with justification and implicature"
+    }
+  },
+  {
+    "inputs": {
+      "text": "Fix this bug immediately! The production system is down and customers are complaining."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 28,
+          "text": "Fix this bug immediately!",
+          "type": "SpeechAct",
+          "speech_act": "Command",
+          "explanation": "Imperative mood with intensifier 'immediately' and exclamation mark. Direct command with urgency.",
+          "implied_meaning": "This is critical and must be done now",
+          "confidence": 0.98
+        },
+        {
+          "start": 29,
+          "end": 88,
+          "text": "The production system is down and customers are complaining.",
+          "type": "Implicature",
+          "speech_act": "Assertion",
+          "explanation": "Provides justification for urgency. Implicates: (1) situation is serious, (2) business impact is significant, (3) delay is not acceptable, (4) recipient should prioritize this above other work.",
+          "implied_meaning": "This is a critical issue affecting revenue and reputation; drop everything else",
+          "confidence": 0.92
+        },
+        {
+          "start": 0,
+          "end": 28,
+          "text": "Fix this bug immediately!",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) there is a specific bug, (2) recipient knows about it ('this bug'), (3) recipient has ability to fix it, (4) bug is causing the outage.",
+          "implied_meaning": "You know about this bug and are capable of fixing it",
+          "confidence": 0.88
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "incident_response",
+      "notes": "Tests urgent Command with high-stakes justification"
+    }
+  }
+]

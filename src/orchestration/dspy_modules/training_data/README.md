@@ -144,13 +144,24 @@ Before using training data:
 
 ## Current Status
 
+### ReviewerModule
 - **ExtractRequirements**: 10/20 examples ✅ **MINIMUM MET**
 - **ValidateIntentSatisfaction**: 10/20 examples ✅ **MINIMUM MET**
 - **ValidateCompleteness**: 0/20 examples (TODO)
 - **ValidateCorrectness**: 0/20 examples (TODO)
 - **GenerateImprovementGuidance**: 0/20 examples (TODO)
 
-**Total**: 20/100 minimum examples (20% complete, **critical signatures covered**)
+**ReviewerModule Total**: 20/100 examples (20%)
+
+### SemanticModule
+- **AnalyzeDiscourse**: 7/20 examples (TODO: add 13 more)
+- **DetectContradictions**: 8/20 examples (TODO: add 12 more)
+- **ExtractPragmatics**: 7/20 examples (TODO: add 13 more)
+
+**SemanticModule Total**: 22/60 examples (37%, exceeds minimum 20)
+
+### Overall Total
+**42/160 minimum examples (26% complete)** - Critical ReviewerModule + initial SemanticModule covered
 
 ## Next Steps
 
