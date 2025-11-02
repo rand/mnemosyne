@@ -120,6 +120,8 @@ class DSpyService:
         - optimizer_module
         - reviewer_module
         - executor_module
+        - memory_evolution_module
+        - semantic_module
 
         Missing modules are logged but don't fail initialization.
         """
@@ -128,6 +130,8 @@ class DSpyService:
             "optimizer",
             "reviewer",
             "executor",
+            "memory_evolution",
+            "semantic",
         ]
 
         for name in module_names:

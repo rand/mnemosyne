@@ -28,34 +28,6 @@ impl MemoryEvolutionDSpyAdapter {
         Self { bridge }
     }
 
-    /// Get MemoryEvolutionModule from DSPy service
-    #[cfg(feature = "python")]
-    async fn get_evolution_module(
-        &self,
-    ) -> Result<pyo3::Py<pyo3::PyAny>> {
-        let service = self.bridge.service().clone();
-
-        tokio::task::spawn_blocking(move || {
-            Python::with_gil(|py| -> Result<pyo3::Py<pyo3::PyAny>> {
-                let service_guard = service.blocking_lock();
-                let service_ref = service_guard.bind(py);
-
-                let module = service_ref
-                    .call_method0("get_memory_evolution_module")
-                    .map_err(|e| {
-                        MnemosyneError::Other(format!(
-                            "Failed to get memory evolution module: {}",
-                            e
-                        ))
-                    })?;
-
-                Ok(module.into())
-            })
-        })
-        .await
-        .map_err(|e| MnemosyneError::Other(format!("Tokio spawn error: {}", e)))?
-    }
-
     /// Consolidate memory cluster using DSPy
     ///
     /// Analyzes a cluster of similar memories and decides consolidation strategy:
@@ -101,72 +73,15 @@ impl MemoryEvolutionDSpyAdapter {
             })
             .collect();
 
-        let module = self.get_evolution_module().await?;
-        let memories_str = serde_json::to_string(&memories_json)?;
-        let scores_str = serde_json::to_string(&scores_json)?;
-        let avg_sim = cluster.avg_similarity;
+        let mut inputs = HashMap::new();
+        inputs.insert("cluster_memories".to_string(), json!(memories_json));
+        inputs.insert("avg_similarity".to_string(), json!(cluster.avg_similarity));
+        inputs.insert("similarity_scores".to_string(), json!(scores_json));
 
-        let result = tokio::task::spawn_blocking(move || {
-            Python::with_gil(|py| -> Result<HashMap<String, Value>> {
-                let module_ref = module.bind(py);
-
-                // Call consolidate_cluster method
-                let prediction = module_ref
-                    .call_method1(
-                        "consolidate_cluster",
-                        (memories_str, avg_sim, scores_str),
-                    )
-                    .map_err(|e| {
-                        MnemosyneError::Other(format!("consolidate_cluster call failed: {}", e))
-                    })?;
-
-                // Extract fields from prediction
-                let mut outputs = HashMap::new();
-
-                let action = prediction.getattr("action")
-                    .and_then(|v| v.extract::<String>())
-                    .map_err(|e| MnemosyneError::Other(format!("Failed to extract action: {}", e)))?;
-                outputs.insert("action".to_string(), json!(action));
-
-                let primary_id = prediction.getattr("primary_memory_id")
-                    .and_then(|v| v.extract::<String>())
-                    .map_err(|e| MnemosyneError::Other(format!("Failed to extract primary_memory_id: {}", e)))?;
-                outputs.insert("primary_memory_id".to_string(), json!(primary_id));
-
-                // secondary_memory_ids - may be string or list
-                if let Ok(secondary_ids_str) = prediction.getattr("secondary_memory_ids")
-                    .and_then(|v| v.extract::<String>()) {
-                    // Parse as JSON array
-                    if let Ok(ids) = serde_json::from_str::<Vec<String>>(&secondary_ids_str) {
-                        outputs.insert("secondary_memory_ids".to_string(), json!(ids));
-                    } else {
-                        outputs.insert("secondary_memory_ids".to_string(), json!(Vec::<String>::new()));
-                    }
-                } else {
-                    outputs.insert("secondary_memory_ids".to_string(), json!(Vec::<String>::new()));
-                }
-
-                let rationale = prediction.getattr("rationale")
-                    .and_then(|v| v.extract::<String>())
-                    .unwrap_or_default();
-                outputs.insert("rationale".to_string(), json!(rationale));
-
-                let preserved_content = prediction.getattr("preserved_content")
-                    .and_then(|v| v.extract::<String>())
-                    .unwrap_or_default();
-                outputs.insert("preserved_content".to_string(), json!(preserved_content));
-
-                let confidence = prediction.getattr("confidence")
-                    .and_then(|v| v.extract::<String>())
-                    .and_then(|s| s.parse::<f32>().map_err(|e| pyo3::PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e))))
-                    .unwrap_or(0.0);
-                outputs.insert("confidence".to_string(), json!(confidence));
-
-                Ok(outputs)
-            })
-        })
-        .await
-        .map_err(|e| MnemosyneError::Other(format!("Tokio spawn error: {}", e)))??;
+        let result = self
+            .bridge
+            .call_agent_module("memory_evolution", inputs)
+            .await?;
 
         // Parse action
         let action_str = result
@@ -189,7 +104,7 @@ impl MemoryEvolutionDSpyAdapter {
         let primary_memory_id: MemoryId = result
             .get("primary_memory_id")
             .and_then(|v| v.as_str())
-            .and_then(|s| s.parse().ok())
+            .and_then(|s| MemoryId::from_string(s).ok())
             .ok_or_else(|| {
                 MnemosyneError::Other("Invalid primary_memory_id in response".to_string())
             })?;
@@ -199,7 +114,7 @@ impl MemoryEvolutionDSpyAdapter {
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|v| v.as_str().and_then(|s| s.parse().ok()))
+                    .filter_map(|v| v.as_str().and_then(|s| MemoryId::from_string(s).ok()))
                     .collect()
             })
             .unwrap_or_default();
@@ -251,68 +166,25 @@ impl MemoryEvolutionDSpyAdapter {
         &self,
         memory: &MemoryNote,
     ) -> Result<ImportanceRecalibration> {
-        let module = self.get_evolution_module().await?;
-
-        let memory_id = memory.id.to_string();
-        let memory_summary = memory.summary.clone();
-        let memory_type = format!("{:?}", memory.memory_type);
-        let current_importance = memory.importance;
-        let access_count = memory.access_count;
-
         let now = chrono::Utc::now();
         let days_since_created = (now - memory.created_at).num_days() as i64;
         let days_since_accessed = (now - memory.last_accessed_at).num_days() as i64;
-        let linked_memories_count = memory.links.len();
-        let namespace = memory.namespace.to_string();
 
-        let result = tokio::task::spawn_blocking(move || {
-            Python::with_gil(|py| -> Result<HashMap<String, Value>> {
-                let module_ref = module.bind(py);
+        let mut inputs = HashMap::new();
+        inputs.insert("memory_id".to_string(), json!(memory.id.to_string()));
+        inputs.insert("memory_summary".to_string(), json!(memory.summary));
+        inputs.insert("memory_type".to_string(), json!(format!("{:?}", memory.memory_type)));
+        inputs.insert("current_importance".to_string(), json!(memory.importance));
+        inputs.insert("access_count".to_string(), json!(memory.access_count));
+        inputs.insert("days_since_created".to_string(), json!(days_since_created));
+        inputs.insert("days_since_accessed".to_string(), json!(days_since_accessed));
+        inputs.insert("linked_memories_count".to_string(), json!(memory.links.len()));
+        inputs.insert("namespace".to_string(), json!(memory.namespace.to_string()));
 
-                // Call recalibrate_importance method
-                let prediction = module_ref
-                    .call_method1(
-                        "recalibrate_importance",
-                        (
-                            memory_id,
-                            memory_summary,
-                            memory_type,
-                            current_importance,
-                            access_count,
-                            days_since_created,
-                            days_since_accessed,
-                            linked_memories_count,
-                            namespace,
-                        ),
-                    )
-                    .map_err(|e| {
-                        MnemosyneError::Other(format!("recalibrate_importance call failed: {}", e))
-                    })?;
-
-                // Extract fields
-                let mut outputs = HashMap::new();
-
-                let new_importance = prediction.getattr("new_importance")
-                    .and_then(|v| v.extract::<String>())
-                    .and_then(|s| s.parse::<u8>().map_err(|e| pyo3::PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{}", e))))
-                    .map_err(|e| MnemosyneError::Other(format!("Failed to extract new_importance: {}", e)))?;
-                outputs.insert("new_importance".to_string(), json!(new_importance));
-
-                let adjustment_reason = prediction.getattr("adjustment_reason")
-                    .and_then(|v| v.extract::<String>())
-                    .unwrap_or_default();
-                outputs.insert("adjustment_reason".to_string(), json!(adjustment_reason));
-
-                let recommended_action = prediction.getattr("recommended_action")
-                    .and_then(|v| v.extract::<String>())
-                    .unwrap_or_else(|_| "KEEP".to_string());
-                outputs.insert("recommended_action".to_string(), json!(recommended_action));
-
-                Ok(outputs)
-            })
-        })
-        .await
-        .map_err(|e| MnemosyneError::Other(format!("Tokio spawn error: {}", e)))??;
+        let result = self
+            .bridge
+            .call_agent_module("memory_evolution", inputs)
+            .await?;
 
         let new_importance: u8 = result
             .get("new_importance")
@@ -384,72 +256,22 @@ impl MemoryEvolutionDSpyAdapter {
             })
             .collect();
 
-        let module = self.get_evolution_module().await?;
-        let memories_str = serde_json::to_string(&memories_json)?;
-        let threshold_days = config.archival_threshold_days;
-        let min_importance = config.min_importance;
+        let mut inputs = HashMap::new();
+        inputs.insert("memories".to_string(), json!(memories_json));
+        inputs.insert("archival_threshold_days".to_string(), json!(config.archival_threshold_days));
+        inputs.insert("min_importance".to_string(), json!(config.min_importance));
 
-        let result = tokio::task::spawn_blocking(move || {
-            Python::with_gil(|py| -> Result<HashMap<String, Value>> {
-                let module_ref = module.bind(py);
-
-                // Call detect_archival_candidates method
-                let prediction = module_ref
-                    .call_method1(
-                        "detect_archival_candidates",
-                        (memories_str, threshold_days, min_importance),
-                    )
-                    .map_err(|e| {
-                        MnemosyneError::Other(format!(
-                            "detect_archival_candidates call failed: {}",
-                            e
-                        ))
-                    })?;
-
-                // Extract fields
-                let mut outputs = HashMap::new();
-
-                // archive_ids - may be string or list
-                if let Ok(archive_ids_str) = prediction.getattr("archive_ids")
-                    .and_then(|v| v.extract::<String>()) {
-                    if let Ok(ids) = serde_json::from_str::<Vec<String>>(&archive_ids_str) {
-                        outputs.insert("archive_ids".to_string(), json!(ids));
-                    } else {
-                        outputs.insert("archive_ids".to_string(), json!(Vec::<String>::new()));
-                    }
-                } else {
-                    outputs.insert("archive_ids".to_string(), json!(Vec::<String>::new()));
-                }
-
-                // keep_ids - may be string or list
-                if let Ok(keep_ids_str) = prediction.getattr("keep_ids")
-                    .and_then(|v| v.extract::<String>()) {
-                    if let Ok(ids) = serde_json::from_str::<Vec<String>>(&keep_ids_str) {
-                        outputs.insert("keep_ids".to_string(), json!(ids));
-                    } else {
-                        outputs.insert("keep_ids".to_string(), json!(Vec::<String>::new()));
-                    }
-                } else {
-                    outputs.insert("keep_ids".to_string(), json!(Vec::<String>::new()));
-                }
-
-                let rationale = prediction.getattr("rationale")
-                    .and_then(|v| v.extract::<String>())
-                    .unwrap_or_default();
-                outputs.insert("rationale".to_string(), json!(rationale));
-
-                Ok(outputs)
-            })
-        })
-        .await
-        .map_err(|e| MnemosyneError::Other(format!("Tokio spawn error: {}", e)))??;
+        let result = self
+            .bridge
+            .call_agent_module("memory_evolution", inputs)
+            .await?;
 
         let archive_ids: Vec<MemoryId> = result
             .get("archive_ids")
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|v| v.as_str().and_then(|s| s.parse().ok()))
+                    .filter_map(|v| v.as_str().and_then(|s| MemoryId::from_string(s).ok()))
                     .collect()
             })
             .unwrap_or_default();
@@ -459,7 +281,7 @@ impl MemoryEvolutionDSpyAdapter {
             .and_then(|v| v.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|v| v.as_str().and_then(|s| s.parse().ok()))
+                    .filter_map(|v| v.as_str().and_then(|s| MemoryId::from_string(s).ok()))
                     .collect()
             })
             .unwrap_or_default();

@@ -4643,6 +4643,7 @@ dependencies = [
  "pyo3",
  "ractor",
  "ractor_cluster",
+ "rand 0.8.5",
  "ratatui 0.29.0",
  "regex",
  "reqwest 0.11.27",
