@@ -39,7 +39,13 @@ CREATE TABLE IF NOT EXISTS memories (
         'reference',
         'preference',
         'task',
-        'agent_event'
+        'agent_event',
+        'constitution',
+        'feature_spec',
+        'implementation_plan',
+        'task_breakdown',
+        'quality_checklist',
+        'clarification'
     )),
     importance INTEGER NOT NULL CHECK(importance BETWEEN 1 AND 10),
     confidence REAL NOT NULL CHECK(confidence BETWEEN 0.0 AND 1.0),
