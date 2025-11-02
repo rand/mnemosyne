@@ -148,6 +148,25 @@ pub enum MemoryType {
 
     /// Agent coordination events for orchestration
     AgentEvent,
+
+    // Spec-Kit Workflow Types
+    /// Project constitution defining principles and quality gates
+    Constitution,
+
+    /// Feature specification with user scenarios and requirements
+    FeatureSpec,
+
+    /// Implementation plan with architecture and technical design
+    ImplementationPlan,
+
+    /// Task breakdown with dependencies and parallelization markers
+    TaskBreakdown,
+
+    /// Quality checklist for validation and acceptance criteria
+    QualityChecklist,
+
+    /// Clarification resolving ambiguities in specs or requirements
+    Clarification,
 }
 
 impl MemoryType {
@@ -155,13 +174,26 @@ impl MemoryType {
     /// Different memory types have different base value
     pub fn type_factor(&self) -> f32 {
         match self {
+            // Core architectural types (highest value)
+            MemoryType::Constitution => 1.3,           // Project principles
             MemoryType::ArchitectureDecision => 1.2,
             MemoryType::Constraint => 1.1,
-            MemoryType::AgentEvent => 1.0, // High value for orchestration
+
+            // Workflow and coordination types
+            MemoryType::FeatureSpec => 1.1,            // Feature requirements
+            MemoryType::ImplementationPlan => 1.0,     // Technical design
+            MemoryType::AgentEvent => 1.0,             // Orchestration events
             MemoryType::CodePattern => 1.0,
+
+            // Execution and validation types
+            MemoryType::TaskBreakdown => 0.9,          // Task lists
+            MemoryType::QualityChecklist => 0.9,       // Validation criteria
             MemoryType::BugFix => 0.9,
             MemoryType::Insight => 0.9,
             MemoryType::Task => 0.9,
+
+            // Reference and clarification types
+            MemoryType::Clarification => 0.8,          // Resolved ambiguities
             _ => 0.8,
         }
     }

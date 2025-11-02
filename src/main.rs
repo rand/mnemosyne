@@ -314,6 +314,13 @@ fn parse_memory_type(type_str: &str) -> mnemosyne_core::MemoryType {
         "preference" | "pref" => mnemosyne_core::MemoryType::Preference,
         "task" | "todo" => mnemosyne_core::MemoryType::Task,
         "agent_event" | "event" => mnemosyne_core::MemoryType::AgentEvent,
+        // Spec-Kit workflow types
+        "constitution" => mnemosyne_core::MemoryType::Constitution,
+        "feature_spec" | "spec" | "feature" => mnemosyne_core::MemoryType::FeatureSpec,
+        "implementation_plan" | "plan" | "impl_plan" => mnemosyne_core::MemoryType::ImplementationPlan,
+        "task_breakdown" | "tasks" | "breakdown" => mnemosyne_core::MemoryType::TaskBreakdown,
+        "quality_checklist" | "checklist" | "qa" => mnemosyne_core::MemoryType::QualityChecklist,
+        "clarification" | "clarify" => mnemosyne_core::MemoryType::Clarification,
         // Default to Insight for unknown types
         _ => mnemosyne_core::MemoryType::Insight,
     }
