@@ -19,6 +19,9 @@ use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::sync::Arc;
 use std::time::Duration;
 
+#[cfg(feature = "python")]
+use crate::orchestration::actors::optimizer_dspy_adapter::OptimizerDSpyAdapter;
+
 /// Context budget allocation percentages (WIP)
 #[allow(dead_code)]
 const CRITICAL_BUDGET: f32 = 0.40;
@@ -75,6 +78,10 @@ pub struct OptimizerState {
 
     /// Skills discovery engine
     skills_discovery: SkillsDiscovery,
+
+    /// DSPy adapter for intelligent optimization (optional)
+    #[cfg(feature = "python")]
+    optimizer_adapter: Option<Arc<OptimizerDSpyAdapter>>,
 }
 
 impl OptimizerState {
@@ -93,11 +100,19 @@ impl OptimizerState {
             tokens_per_skill: 3000,  // Estimated tokens per skill (~300 lines)
             critical_tokens: 80_000, // CRITICAL_BUDGET * context_budget
             skills_discovery: SkillsDiscovery::new(get_skills_directory()),
+            #[cfg(feature = "python")]
+            optimizer_adapter: None,
         }
     }
 
     pub fn register_orchestrator(&mut self, orchestrator: ActorRef<OrchestratorMessage>) {
         self.orchestrator = Some(orchestrator);
+    }
+
+    /// Register DSPy adapter for intelligent optimization
+    #[cfg(feature = "python")]
+    pub fn register_optimizer_adapter(&mut self, adapter: Arc<OptimizerDSpyAdapter>) {
+        self.optimizer_adapter = Some(adapter);
     }
 }
 
@@ -324,6 +339,8 @@ impl OptimizerActor {
     /// - Attempt 1: Detailed feedback (preserve all context)
     /// - Attempt 2-3: Structured summary (key issues + patterns)
     /// - Attempt 4+: Compressed essentials (critical blockers only)
+    ///
+    /// Uses DSPy for intelligent consolidation when available, falls back to heuristics
     async fn consolidate_work_item_context(
         state: &mut OptimizerState,
         item_id: WorkItemId,
@@ -337,6 +354,132 @@ impl OptimizerActor {
             item_id,
             review_attempt
         );
+
+        // Try DSPy-based consolidation if available
+        #[cfg(feature = "python")]
+        if let Some(adapter) = &state.optimizer_adapter {
+            tracing::debug!("Using DSPy for intelligent context consolidation");
+
+            // Determine consolidation mode based on review attempt
+            let consolidation_mode = match review_attempt {
+                1 => "detailed",
+                2..=3 => "summary",
+                _ => "compressed",
+            };
+
+            // Retrieve execution memories
+            let mut execution_summaries = Vec::new();
+            for memory_id in &execution_memory_ids {
+                match state.storage.get_memory(*memory_id).await {
+                    Ok(memory) => {
+                        execution_summaries.push(format!(
+                            "{}: {}",
+                            memory.summary,
+                            memory.content.chars().take(200).collect::<String>()
+                        ));
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to retrieve memory {}: {:?}", memory_id, e);
+                    }
+                }
+            }
+
+            // Call DSPy consolidation
+            let original_intent = format!("Work item {}", item_id);
+            match adapter
+                .consolidate_context(
+                    &original_intent,
+                    execution_summaries,
+                    review_feedback.clone(),
+                    suggested_tests.clone(),
+                    review_attempt,
+                    consolidation_mode,
+                )
+                .await
+            {
+                Ok(consolidated) => {
+                    tracing::info!(
+                        "DSPy consolidation complete: {} tokens, {} key issues",
+                        consolidated.estimated_tokens,
+                        consolidated.key_issues.len()
+                    );
+
+                    // Create consolidated memory with DSPy content
+                    let consolidated_memory = crate::types::MemoryNote {
+                        id: MemoryId::new(),
+                        namespace: state.events.namespace.clone(),
+                        created_at: chrono::Utc::now(),
+                        updated_at: chrono::Utc::now(),
+                        content: consolidated.consolidated_content,
+                        summary: format!(
+                            "Review feedback for work item (attempt {}, {} issues)",
+                            review_attempt,
+                            consolidated.key_issues.len()
+                        ),
+                        keywords: vec![
+                            "review_feedback".to_string(),
+                            "work_item".to_string(),
+                            format!("attempt_{}", review_attempt),
+                        ],
+                        tags: vec![
+                            "optimization".to_string(),
+                            "context_consolidation".to_string(),
+                            "dspy_enhanced".to_string(),
+                        ],
+                        context: format!("Consolidated context for work item {:?}", item_id),
+                        memory_type: crate::types::MemoryType::Insight,
+                        importance: 8 + review_attempt.min(2) as u8,
+                        confidence: 1.0,
+                        links: execution_memory_ids
+                            .iter()
+                            .map(|id| crate::types::MemoryLink {
+                                target_id: *id,
+                                link_type: crate::types::LinkType::References,
+                                strength: 1.0,
+                                reason: "Execution context".to_string(),
+                                created_at: chrono::Utc::now(),
+                                last_traversed_at: None,
+                                user_created: true,
+                            })
+                            .collect(),
+                        related_files: vec![],
+                        related_entities: vec![],
+                        access_count: 0,
+                        last_accessed_at: chrono::Utc::now(),
+                        expires_at: None,
+                        is_archived: false,
+                        superseded_by: None,
+                        embedding: None,
+                        embedding_model: String::new(),
+                    };
+
+                    let memory_id = consolidated_memory.id;
+                    state.storage.store_memory(&consolidated_memory).await?;
+
+                    // Persist event
+                    state
+                        .events
+                        .persist(AgentEvent::ContextConsolidated {
+                            item_id: item_id.clone(),
+                            consolidated_memory_id: memory_id,
+                            estimated_tokens: consolidated.estimated_tokens,
+                            consolidation_level: consolidation_mode.to_string(),
+                        })
+                        .await?;
+
+                    return Ok((memory_id, consolidated.estimated_tokens));
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "DSPy consolidation failed, falling back to heuristics: {:?}",
+                        e
+                    );
+                    // Fall through to heuristic implementation
+                }
+            }
+        }
+
+        // Heuristic-based consolidation (backward compatibility and fallback)
 
         // ACE Principle 1: Incremental Updates
         // Load existing consolidated context if available
