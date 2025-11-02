@@ -118,6 +118,8 @@ async fn w2_multi_agent_collaboration() {
         strength: 0.9,
         reason: "Implementation of architectural pattern".to_string(),
         created_at: chrono::Utc::now(),
+        last_traversed_at: None,
+        user_created: false,
     });
 
     storage

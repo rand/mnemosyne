@@ -160,6 +160,8 @@ async fn e3_link_decay() {
         strength: 0.9,
         reason: "Strong reference".to_string(),
         created_at: chrono::Utc::now(),
+        last_traversed_at: None,
+        user_created: false,
     };
 
     memory_a.links.push(link);
