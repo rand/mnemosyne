@@ -44,6 +44,7 @@
 
 pub mod agents;
 pub mod api; // HTTP API for event streaming
+pub mod artifacts; // Spec-Kit workflow artifacts
 pub mod config;
 pub mod daemon;
 pub mod embeddings;

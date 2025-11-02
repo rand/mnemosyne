@@ -206,6 +206,9 @@ pub enum LinkType {
     /// B builds upon or extends A
     Extends,
 
+    /// B builds upon A (alias for workflow relationships)
+    BuildsUpon,
+
     /// B contradicts or invalidates A
     Contradicts,
 
@@ -214,6 +217,12 @@ pub enum LinkType {
 
     /// B references or cites A
     References,
+
+    /// B is referenced by A (inverse of References)
+    ReferencedBy,
+
+    /// B clarifies ambiguities in A
+    Clarifies,
 
     /// B replaces or supersedes A
     Supersedes,
