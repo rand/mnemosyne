@@ -18,11 +18,19 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
+#[cfg(feature = "python")]
+use crate::evolution::memory_evolution_dspy_adapter::{
+    ArchivalConfig, MemoryCluster as DSpyMemoryCluster, MemoryEvolutionDSpyAdapter,
+};
+
 /// Consolidation job - detects and merges duplicate memories
 pub struct ConsolidationJob {
     storage: Arc<LibsqlStorage>,
     llm: Option<Arc<LlmService>>,
     consolidation_config: super::config::ConsolidationConfig,
+    /// DSPy adapter for intelligent consolidation decisions (optional)
+    #[cfg(feature = "python")]
+    evolution_adapter: Option<Arc<MemoryEvolutionDSpyAdapter>>,
 }
 
 impl ConsolidationJob {
@@ -31,6 +39,8 @@ impl ConsolidationJob {
             storage,
             llm: None,
             consolidation_config: super::config::ConsolidationConfig::default(),
+            #[cfg(feature = "python")]
+            evolution_adapter: None,
         }
     }
 
@@ -40,6 +50,8 @@ impl ConsolidationJob {
             storage,
             llm: Some(llm),
             consolidation_config: super::config::ConsolidationConfig::default(),
+            #[cfg(feature = "python")]
+            evolution_adapter: None,
         }
     }
 
@@ -53,6 +65,37 @@ impl ConsolidationJob {
             storage,
             llm,
             consolidation_config,
+            #[cfg(feature = "python")]
+            evolution_adapter: None,
+        }
+    }
+
+    /// Create with DSPy adapter for intelligent consolidation
+    #[cfg(feature = "python")]
+    pub fn with_dspy(
+        storage: Arc<LibsqlStorage>,
+        evolution_adapter: Arc<MemoryEvolutionDSpyAdapter>,
+    ) -> Self {
+        Self {
+            storage,
+            llm: None,
+            consolidation_config: super::config::ConsolidationConfig::default(),
+            evolution_adapter: Some(evolution_adapter),
+        }
+    }
+
+    /// Create with both DSPy adapter and custom config
+    #[cfg(feature = "python")]
+    pub fn with_dspy_and_config(
+        storage: Arc<LibsqlStorage>,
+        evolution_adapter: Arc<MemoryEvolutionDSpyAdapter>,
+        consolidation_config: super::config::ConsolidationConfig,
+    ) -> Self {
+        Self {
+            storage,
+            llm: None,
+            consolidation_config,
+            evolution_adapter: Some(evolution_adapter),
         }
     }
 
@@ -402,11 +445,68 @@ impl ConsolidationJob {
     }
 
     /// Make LLM-guided consolidation decision for a cluster
+    ///
+    /// Uses DSPy for intelligent decisions when available, falls back to direct LLM calls
     async fn make_llm_consolidation_decision(
         &self,
         cluster: &MemoryCluster,
     ) -> Result<ConsolidationDecision, JobError> {
-        // Check if LLM service is available
+        // Try DSPy-based consolidation if available
+        #[cfg(feature = "python")]
+        if let Some(adapter) = &self.evolution_adapter {
+            tracing::debug!("Using DSPy for memory cluster consolidation");
+
+            // Convert MemoryCluster to DSpyMemoryCluster
+            let dspy_cluster = DSpyMemoryCluster {
+                memories: cluster.memories.clone(),
+                similarity_scores: cluster.similarity_scores.clone(),
+                avg_similarity: cluster.avg_similarity,
+            };
+
+            match adapter.consolidate_cluster(&dspy_cluster).await {
+                Ok(dspy_decision) => {
+                    tracing::info!(
+                        "DSPy consolidation decision: {:?}, confidence: {:.2}",
+                        dspy_decision.action,
+                        dspy_decision.confidence
+                    );
+
+                    // Convert DSPy decision to our ConsolidationDecision
+                    let action = match dspy_decision.action {
+                        crate::evolution::memory_evolution_dspy_adapter::ConsolidationAction::Merge => {
+                            ConsolidationAction::Merge
+                        }
+                        crate::evolution::memory_evolution_dspy_adapter::ConsolidationAction::Supersede => {
+                            ConsolidationAction::Supersede
+                        }
+                        crate::evolution::memory_evolution_dspy_adapter::ConsolidationAction::Keep => {
+                            ConsolidationAction::Keep
+                        }
+                    };
+
+                    return Ok(ConsolidationDecision {
+                        action,
+                        memory_ids: cluster.memories.iter().map(|m| m.id).collect(),
+                        superseded_id: dspy_decision.secondary_memory_ids.first().copied(),
+                        superseding_id: dspy_decision.primary_memory_id,
+                        reason: format!(
+                            "{} (confidence: {:.0}%)",
+                            dspy_decision.rationale,
+                            dspy_decision.confidence * 100.0
+                        ),
+                    });
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "DSPy consolidation failed, falling back to direct LLM: {:?}",
+                        e
+                    );
+                    // Fall through to LLM fallback
+                }
+            }
+        }
+
+        // Fallback to direct LLM service (backward compatibility)
         let llm = self
             .llm
             .as_ref()
