@@ -17,13 +17,11 @@ mod semantic_bridge_tests {
 
     /// Helper to create test semantic bridge (requires Python environment)
     async fn create_test_bridge() -> DSpySemanticBridge {
-        let dspy_service = mnemosyne_core::orchestration::dspy_service::DSpyService::new()
-            .await
-            .expect("Failed to create DSPy service");
+        // Initialize Python interpreter for tests
+        pyo3::prepare_freethreaded_python();
 
-        DSpySemanticBridge::new(Arc::new(tokio::sync::Mutex::new(
-            dspy_service.into_py_object(),
-        )))
+        // Create bridge (it manages its own Python service internally)
+        DSpySemanticBridge::new().expect("Failed to create semantic bridge")
     }
 
     // =============================================================================

@@ -16,15 +16,11 @@ mod dspy_bridge_tests {
 
     /// Helper to create test DSpyBridge (requires Python environment)
     async fn create_test_bridge() -> Arc<DSpyBridge> {
-        // This test requires actual Python environment with DSPy installed
-        // In CI, this would be skipped if python feature not available
-        let dspy_service = mnemosyne_core::orchestration::dspy_service::DSpyService::new()
-            .await
-            .expect("Failed to create DSPy service");
+        // Initialize Python interpreter for tests
+        pyo3::prepare_freethreaded_python();
 
-        Arc::new(DSpyBridge::new(Arc::new(tokio::sync::Mutex::new(
-            dspy_service.into_py_object(),
-        ))))
+        // Create bridge (it manages its own Python service internally)
+        Arc::new(DSpyBridge::new().expect("Failed to create DSPy bridge"))
     }
 
     #[tokio::test]
