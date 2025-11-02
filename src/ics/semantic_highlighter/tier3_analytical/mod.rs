@@ -23,10 +23,16 @@ pub mod contradictions;
 pub mod pragmatics;
 pub mod batching;
 
+#[cfg(feature = "python")]
+pub mod dspy_integration;
+
 pub use discourse::{DiscourseAnalyzer, DiscourseSegment, DiscourseRelation, CoherenceScore};
 pub use contradictions::{ContradictionDetector, Contradiction, ContradictionType};
 pub use pragmatics::{PragmaticsAnalyzer, PragmaticElement, PragmaticType, SpeechActType};
 pub use batching::{RequestBatcher, BatchRequest, BatchConfig, AnalysisType};
+
+#[cfg(feature = "python")]
+pub use dspy_integration::DSpySemanticBridge;
 
 use super::engine::AnalysisRequest;
 
