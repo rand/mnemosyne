@@ -200,8 +200,18 @@ async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
 
     // Create and run server
     let server = McpServer::new(tool_handler);
-    server.run().await?;
 
+    // Run server with graceful shutdown on signals
+    tokio::select! {
+        result = server.run() => {
+            result?;
+        }
+        _ = tokio::signal::ctrl_c() => {
+            info!("Received shutdown signal, stopping MCP server gracefully...");
+        }
+    }
+
+    info!("MCP server shut down complete");
     Ok(())
 }
 
@@ -272,7 +282,7 @@ async fn start_mcp_server_with_api(
     // Create MCP server
     let mcp_server = McpServer::new(tool_handler);
 
-    // Run both servers concurrently
+    // Run both servers concurrently with graceful shutdown on signals
     tokio::select! {
         result = mcp_server.run() => {
             result?;
@@ -280,8 +290,12 @@ async fn start_mcp_server_with_api(
         result = api_server.serve() => {
             result?;
         }
+        _ = tokio::signal::ctrl_c() => {
+            info!("Received shutdown signal, stopping MCP server and API server gracefully...");
+        }
     }
 
+    info!("MCP server and API server shut down complete");
     Ok(())
 }
 
