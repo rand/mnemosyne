@@ -1,0 +1,119 @@
+[
+  {
+    "inputs": {
+      "user_intent": "Implement user authentication with JWT tokens",
+      "context": "Phase: Specification, Agent: Executor, Files: auth.rs, user.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Add login endpoint accepting email and password",
+        "Hash passwords using bcrypt before storage",
+        "Generate JWT access tokens on successful login",
+        "Implement token validation middleware for protected routes",
+        "Add token expiration with configurable lifetime",
+        "Store refresh tokens for session extension"
+      ],
+      "priorities": [10, 9, 10, 9, 8, 7]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "authentication",
+      "notes": "Classic authentication scenario with standard security practices"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add caching to improve API performance",
+      "context": "Phase: Implementation, Agent: Executor, Files: api/handlers.rs, cache.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Identify cacheable API endpoints",
+        "Implement cache layer with TTL support",
+        "Add cache invalidation strategy",
+        "Configure cache storage backend (Redis or in-memory)",
+        "Measure cache hit rate and latency improvement",
+        "Add cache warming for frequently accessed data"
+      ],
+      "priorities": [10, 10, 9, 8, 7, 6]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "performance",
+      "notes": "Requires understanding of caching strategies and trade-offs"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Fix the bug where users can't upload large files",
+      "context": "Phase: Bug Fix, Agent: Executor, Files: upload.rs, config.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Identify root cause of upload failures for large files",
+        "Increase maximum file size limit in configuration",
+        "Add file size validation before upload attempt",
+        "Implement chunked upload for files >10MB",
+        "Add progress tracking for long uploads",
+        "Test with files of various sizes (1MB, 10MB, 50MB, 100MB)"
+      ],
+      "priorities": [10, 9, 8, 9, 7, 8]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "bug_fix",
+      "notes": "Bug fix scenario requiring investigation and multiple changes"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Make the dashboard load faster",
+      "context": "Phase: Optimization, Agent: Executor, Files: dashboard.tsx, api/stats.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Profile dashboard loading performance to identify bottlenecks",
+        "Optimize database queries (add indexes, reduce N+1 queries)",
+        "Implement lazy loading for below-the-fold content",
+        "Add client-side caching for static data",
+        "Paginate or virtualize large data lists",
+        "Set target p95 latency goal (e.g., <500ms)"
+      ],
+      "priorities": [10, 9, 8, 7, 8, 10]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "performance",
+      "notes": "Vague intent requiring clarification of performance targets"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add logging",
+      "context": "Phase: Implementation, Agent: Executor, Files: main.rs, lib.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Define logging levels (ERROR, WARN, INFO, DEBUG)",
+        "Configure logging framework (env_logger, tracing)",
+        "Add structured logging with context fields",
+        "Log request/response for all API endpoints",
+        "Log errors with stack traces",
+        "Configure log output destination (stdout, file, remote)",
+        "Add log rotation policy",
+        "Ensure sensitive data is not logged (passwords, tokens)"
+      ],
+      "priorities": [9, 10, 8, 7, 10, 8, 6, 10]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "infrastructure",
+      "notes": "Intentionally vague to test requirement extraction from minimal intent"
+    }
+  }
+]

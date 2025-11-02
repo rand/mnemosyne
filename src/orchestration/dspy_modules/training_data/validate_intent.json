@@ -1,0 +1,137 @@
+[
+  {
+    "inputs": {
+      "user_intent": "Add user authentication",
+      "work_item": "Implement JWT-based authentication system",
+      "implementation": "Added login endpoint POST /api/auth/login accepting email/password. Implemented JWT token generation with RS256 signing. Created middleware for token validation on protected routes. Added refresh token support with 7-day expiration. Files: auth.rs (250 lines), middleware.rs (100 lines), user.rs (updates). Tests: test_auth.rs (15 tests covering happy path, invalid credentials, token expiration).",
+      "requirements": [
+        "Login endpoint",
+        "JWT token generation",
+        "Token validation",
+        "Password hashing"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation fully addresses user intent to add authentication. All core requirements met: login endpoint accepts credentials, JWT tokens generated for authenticated users, middleware validates tokens on protected routes. Additionally includes refresh token support which exceeds base requirements but aligns with authentication best practices. Password hashing implied by security-conscious implementation.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "authentication",
+      "notes": "Clear case where implementation exceeds requirements"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Improve API performance",
+      "work_item": "Optimize database queries",
+      "implementation": "Added indexes on user.email and posts.created_at columns. Reduced N+1 queries in /api/posts endpoint by implementing eager loading. Changed query result limit from unlimited to 100. Files: migrations/001_add_indexes.sql, handlers/posts.rs (query optimization). No performance testing conducted.",
+      "requirements": [
+        "Identify slow queries",
+        "Add database indexes",
+        "Reduce query count",
+        "Measure improvement"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation addresses database optimization (indexes, N+1 reduction) but does not satisfy the broader intent of 'improve API performance'. Missing critical aspect: no performance measurement before/after to confirm improvement actually occurred. User intent implies measurable performance gains, but implementation provides potential improvements without validation.",
+      "missing_aspects": [
+        "Performance benchmarking (before/after metrics)",
+        "Latency targets or goals",
+        "Load testing results",
+        "Verification that changes actually improved performance"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "performance",
+      "notes": "Tests ability to detect missing validation of improvement"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Make the upload feature work with large files",
+      "work_item": "Fix file upload size limitations",
+      "implementation": "Changed MAX_FILE_SIZE from 10MB to 100MB in config.rs. Files: config.rs (1 line change). No testing with actual large files performed.",
+      "requirements": [
+        "Support larger file uploads",
+        "Test with large files"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation partially addresses intent by increasing file size limit, but this is insufficient. Simply increasing a constant doesn't ensure large files actually work - there may be other bottlenecks (memory usage, timeout limits, network buffering). Missing validation that large files can now be uploaded successfully. No evidence of root cause analysis or comprehensive testing.",
+      "missing_aspects": [
+        "Root cause analysis of why large files failed previously",
+        "Testing with actual large files (50MB, 100MB)",
+        "Handling of memory/timeout issues for large uploads",
+        "Chunked upload implementation if needed",
+        "Progress tracking for long uploads"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "bug_fix",
+      "notes": "Tests detection of superficial fix that doesn't address root problem"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add logging to help debug production issues",
+      "work_item": "Implement structured logging",
+      "implementation": "Added env_logger dependency. Configured logging with INFO level. Added log statements to all API handlers showing request method and path. Added error logging with context. Files: Cargo.toml (env_logger=0.11), main.rs (logger init), handlers/* (log statements throughout). Example log output shows structured fields (timestamp, level, target, message, request_id).",
+      "requirements": [
+        "Configure logging framework",
+        "Log API requests",
+        "Log errors with context",
+        "Structured logging output"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation satisfies user intent to add logging for debugging production issues. All requirements met: logging framework configured, API requests logged with relevant fields, errors logged with context for debugging. Structured logging with fields like request_id aids production debugging. Intent explicitly mentions 'debug production issues' and implementation provides necessary observability.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "infrastructure",
+      "notes": "Straightforward case where implementation matches intent well"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add a feature to let users export their data",
+      "work_item": "Implement data export functionality",
+      "implementation": "Added GET /api/users/:id/export endpoint that returns user data as JSON. Includes user profile, posts, comments. Files: handlers/export.rs (new, 80 lines). Tests: test_export.rs (5 tests for JSON format, data completeness). No CSV or other formats supported. No pagination for large datasets. No privacy/security considerations for sensitive data in exports.",
+      "requirements": [
+        "Export endpoint",
+        "Include user data (profile, content)",
+        "Support common export formats",
+        "Handle large datasets"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation provides basic export capability but misses implicit expectations for data export feature. Only supports JSON format (most users expect CSV, PDF, or other common formats). No handling of large datasets (missing pagination or streaming). Missing privacy considerations (sensitive data like passwords, IP addresses should be excluded from exports). Intent 'let users export their data' implies user-friendly, comprehensive solution.",
+      "missing_aspects": [
+        "Support for user-friendly formats (CSV, PDF)",
+        "Pagination or streaming for large datasets",
+        "Privacy filtering (exclude passwords, tokens, IP addresses)",
+        "Email delivery for large exports",
+        "Export format selection UI"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "feature",
+      "notes": "Tests detection of implicit expectations not explicitly stated"
+    }
+  }
+]
