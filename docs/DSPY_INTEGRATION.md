@@ -7,6 +7,8 @@ Complete guide to the DSPy integration in Mnemosyne, providing systematic prompt
 This integration replaces direct PyObject calls with a clean adapter pattern using DSPy for:
 - **Reviewer Agent**: Intent validation, completeness checking, correctness verification
 - **Tier 3 Semantic Analysis**: Discourse, contradictions, pragmatics
+- **Optimizer Agent**: Context consolidation, skills discovery, context budget optimization
+- **Memory Evolution**: Cluster consolidation, importance recalibration, archival detection
 
 ## Architecture
 
@@ -32,6 +34,52 @@ class SemanticModule(dspy.Module):
     def detect_contradictions(text) -> contradictions
     def extract_pragmatics(text) -> elements
 ```
+
+#### OptimizerModule (`optimizer_module.py`)
+```python
+class OptimizerModule(dspy.Module):
+    def consolidate_context(
+        original_intent, execution_summaries, review_feedback,
+        suggested_tests, review_attempt, consolidation_mode
+    ) -> (consolidated_content, key_issues, strategic_guidance, estimated_tokens)
+
+    def discover_skills_for_task(
+        task_description, available_skills, max_skills, current_context_usage
+    ) -> (selected_skills, relevance_scores, reasoning)
+
+    def optimize_context_allocation(
+        current_usage, loaded_resources, target_pct, work_priority
+    ) -> (unload_skills, unload_memory_ids, optimization_rationale)
+```
+
+**Consolidation Modes**:
+- `detailed` (attempt 1): Preserve all context, full reasoning
+- `summary` (attempts 2-3): Key issues + patterns
+- `compressed` (attempt 4+): Critical blockers only
+
+#### MemoryEvolutionModule (`memory_evolution_module.py`)
+```python
+class MemoryEvolutionModule(dspy.Module):
+    def consolidate_cluster(
+        cluster_memories, avg_similarity, similarity_scores
+    ) -> (action, primary_memory_id, secondary_memory_ids, rationale,
+          preserved_content, confidence)
+
+    def recalibrate_importance(
+        memory_id, memory_summary, memory_type, current_importance,
+        access_count, days_since_created, days_since_accessed,
+        linked_memories_count, namespace
+    ) -> (new_importance, adjustment_reason, recommended_action)
+
+    def detect_archival_candidates(
+        memories, archival_threshold_days, min_importance
+    ) -> (archive_ids, keep_ids, rationale)
+```
+
+**Consolidation Actions**:
+- `MERGE`: Combine into single comprehensive memory
+- `SUPERSEDE`: Newer memory replaces older
+- `KEEP`: Maintain all memories separately
 
 **Key Features**:
 - ChainOfThought for transparency
@@ -84,6 +132,142 @@ impl DSpySemanticBridge {
 }
 ```
 
+#### OptimizerDSpyAdapter (`orchestration/actors/optimizer_dspy_adapter.rs`)
+```rust
+impl OptimizerDSpyAdapter {
+    async fn consolidate_context(
+        &self,
+        original_intent: &str,
+        execution_summaries: Vec<String>,
+        review_feedback: Vec<String>,
+        suggested_tests: Vec<String>,
+        review_attempt: u32,
+        consolidation_mode: &str,
+    ) -> Result<ConsolidatedContext>
+
+    async fn discover_skills(
+        &self,
+        task_description: &str,
+        available_skills: Vec<SkillMetadata>,
+        max_skills: usize,
+        current_context_usage: f64,
+    ) -> Result<SkillDiscoveryResult>
+
+    async fn optimize_context_budget(
+        &self,
+        current_usage: ContextUsage,
+        loaded_resources: LoadedResources,
+        target_pct: f64,
+        work_priority: u8,
+    ) -> Result<OptimizationPlan>
+}
+```
+
+**Type Definitions**:
+```rust
+pub struct ConsolidatedContext {
+    pub consolidated_content: String,
+    pub key_issues: Vec<String>,
+    pub strategic_guidance: String,
+    pub estimated_tokens: usize,
+}
+
+pub struct SkillMetadata {
+    pub name: String,
+    pub description: String,
+    pub keywords: Vec<String>,
+    pub domains: Vec<String>,
+}
+
+pub struct SkillDiscoveryResult {
+    pub selected_skills: Vec<String>,
+    pub relevance_scores: HashMap<String, f64>,
+    pub reasoning: String,
+}
+
+pub struct ContextUsage {
+    pub critical_pct: f64,
+    pub skills_pct: f64,
+    pub project_pct: f64,
+    pub general_pct: f64,
+    pub total_pct: f64,
+}
+
+pub struct OptimizationPlan {
+    pub unload_skills: Vec<String>,
+    pub unload_memory_ids: Vec<String>,
+    pub optimization_rationale: String,
+}
+```
+
+#### MemoryEvolutionDSpyAdapter (`evolution/memory_evolution_dspy_adapter.rs`)
+```rust
+impl MemoryEvolutionDSpyAdapter {
+    async fn consolidate_cluster(
+        &self,
+        cluster: &MemoryCluster,
+    ) -> Result<ConsolidationDecision>
+
+    async fn recalibrate_importance(
+        &self,
+        memory: &MemoryNote,
+    ) -> Result<ImportanceRecalibration>
+
+    async fn detect_archival_candidates(
+        &self,
+        memories: &[MemoryNote],
+        config: &ArchivalConfig,
+    ) -> Result<ArchivalDecisions>
+}
+```
+
+**Type Definitions**:
+```rust
+pub struct MemoryCluster {
+    pub memories: Vec<MemoryNote>,
+    pub similarity_scores: Vec<(MemoryId, MemoryId, f64)>,
+    pub avg_similarity: f64,
+}
+
+pub enum ConsolidationAction {
+    Merge,
+    Supersede,
+    Keep,
+}
+
+pub struct ConsolidationDecision {
+    pub action: ConsolidationAction,
+    pub primary_memory_id: Option<MemoryId>,
+    pub secondary_memory_ids: Vec<MemoryId>,
+    pub rationale: String,
+    pub preserved_content: Option<String>,
+    pub confidence: f64,
+}
+
+pub struct ImportanceRecalibration {
+    pub new_importance: u8,
+    pub adjustment_reason: String,
+    pub recommended_action: RecommendedAction,
+}
+
+pub enum RecommendedAction {
+    Keep,
+    Archive,
+    Delete,
+}
+
+pub struct ArchivalConfig {
+    pub archival_threshold_days: i64,
+    pub min_importance: u8,
+}
+
+pub struct ArchivalDecisions {
+    pub archive_ids: Vec<MemoryId>,
+    pub keep_ids: Vec<MemoryId>,
+    pub rationale: String,
+}
+```
+
 ### Layer 4: Integration Points
 
 **Reviewer Actor** (`orchestration/actors/reviewer.rs`):
@@ -111,6 +295,78 @@ impl Analyzer {
         } else {
             // Fallback error
         }
+    }
+}
+```
+
+**Optimizer Actor** (`orchestration/actors/optimizer.rs`):
+```rust
+impl OptimizerState {
+    #[cfg(feature = "python")]
+    pub fn register_optimizer_adapter(&mut self, adapter: Arc<OptimizerDSpyAdapter>)
+
+    async fn consolidate_work_item_context(...) -> Result<(MemoryId, usize)> {
+        #[cfg(feature = "python")]
+        if let Some(adapter) = &state.optimizer_adapter {
+            // Determine mode based on review attempt
+            let consolidation_mode = match review_attempt {
+                1 => "detailed",
+                2..=3 => "summary",
+                _ => "compressed",
+            };
+
+            // Try DSPy consolidation
+            match adapter.consolidate_context(...).await {
+                Ok(consolidated) => {
+                    // Create memory with DSPy content
+                    // Add "dspy_enhanced" tag
+                    return Ok((memory_id, consolidated.estimated_tokens));
+                }
+                Err(e) => {
+                    // Fall back to heuristics
+                }
+            }
+        }
+        // Heuristic-based consolidation (fallback)
+    }
+}
+```
+
+**Memory Evolution** (`evolution/consolidation.rs`):
+```rust
+impl ConsolidationJob {
+    #[cfg(feature = "python")]
+    pub fn with_dspy(
+        storage: Arc<LibsqlStorage>,
+        evolution_adapter: Arc<MemoryEvolutionDSpyAdapter>,
+    ) -> Self
+
+    #[cfg(feature = "python")]
+    pub fn with_dspy_and_config(
+        storage: Arc<LibsqlStorage>,
+        evolution_adapter: Arc<MemoryEvolutionDSpyAdapter>,
+        config: ConsolidationConfig,
+    ) -> Self
+
+    async fn make_llm_consolidation_decision(
+        &self,
+        cluster: &MemoryCluster,
+    ) -> Result<ConsolidationDecision, JobError> {
+        #[cfg(feature = "python")]
+        if let Some(adapter) = &self.evolution_adapter {
+            // Try DSPy consolidation
+            match adapter.consolidate_cluster(cluster).await {
+                Ok(dspy_decision) => {
+                    // Convert to ConsolidationDecision
+                    // Include confidence in rationale
+                    return Ok(decision);
+                }
+                Err(e) => {
+                    // Fall through to LLM fallback
+                }
+            }
+        }
+        // Fallback to direct LLM service
     }
 }
 ```
@@ -153,6 +409,60 @@ DSPy ChainOfThought → Claude API
 JSON Response {"segments": [...], "coherence_score": 0.8}
     ↓
 Rust Vec<DiscourseSegment>
+```
+
+### Optimizer Context Consolidation Flow
+```
+Work Context (intent, summaries, feedback, review_attempt)
+    ↓
+OptimizerState::consolidate_work_item_context()
+    ↓
+Determine mode (detailed/summary/compressed)
+    ↓
+OptimizerDSpyAdapter::consolidate_context()
+    ↓
+DSpyBridge::call_agent_module("optimizer", inputs)
+    ↓
+[Python GIL] OptimizerModule.consolidate_context()
+    ↓
+DSPy ChainOfThought → Claude API
+    ↓
+JSON Response {
+    "consolidated_content": "...",
+    "key_issues": [...],
+    "strategic_guidance": "...",
+    "estimated_tokens": 1500
+}
+    ↓
+Rust ConsolidatedContext
+    ↓
+Create memory with "dspy_enhanced" tag
+```
+
+### Memory Evolution Consolidation Flow
+```
+Memory Cluster (similar memories)
+    ↓
+ConsolidationJob::make_llm_consolidation_decision()
+    ↓
+MemoryEvolutionDSpyAdapter::consolidate_cluster()
+    ↓
+DSpyBridge::call_agent_module("memory_evolution", inputs)
+    ↓
+[Python GIL] MemoryEvolutionModule.consolidate_cluster()
+    ↓
+DSPy ChainOfThought → Claude API
+    ↓
+JSON Response {
+    "action": "MERGE",
+    "primary_memory_id": "mem-123",
+    "rationale": "...",
+    "confidence": 0.92
+}
+    ↓
+Rust ConsolidationDecision
+    ↓
+Execute action (merge/supersede/keep)
 ```
 
 ## Benefits
@@ -266,18 +576,186 @@ let elements = pragmatics_analyzer
     .await?;
 ```
 
+### Using Optimizer Operations
+
+```rust
+use mnemosyne_core::orchestration::actors::optimizer_dspy_adapter::OptimizerDSpyAdapter;
+
+// Create optimizer adapter
+let optimizer_adapter = Arc::new(OptimizerDSpyAdapter::new(bridge));
+
+// Register with optimizer state
+optimizer_state.register_optimizer_adapter(Arc::clone(&optimizer_adapter));
+
+// Consolidate context (automatic mode selection)
+let consolidated = optimizer_adapter
+    .consolidate_context(
+        "Implement authentication",
+        vec!["Created JWT module".to_string()],
+        vec!["Missing token refresh".to_string()],
+        vec!["Test expiration".to_string()],
+        1, // First attempt -> "detailed" mode
+        "detailed",
+    )
+    .await?;
+
+println!("Consolidated: {}", consolidated.consolidated_content);
+println!("Key issues: {:?}", consolidated.key_issues);
+println!("Strategic guidance: {}", consolidated.strategic_guidance);
+println!("Estimated tokens: {}", consolidated.estimated_tokens);
+
+// Discover relevant skills
+use mnemosyne_core::orchestration::actors::optimizer_dspy_adapter::SkillMetadata;
+
+let skills = vec![
+    SkillMetadata {
+        name: "rust-async".to_string(),
+        description: "Async Rust programming".to_string(),
+        keywords: vec!["async".to_string(), "tokio".to_string()],
+        domains: vec!["rust".to_string()],
+    },
+    SkillMetadata {
+        name: "database-postgres".to_string(),
+        description: "PostgreSQL database".to_string(),
+        keywords: vec!["postgres".to_string(), "sql".to_string()],
+        domains: vec!["database".to_string()],
+    },
+];
+
+let discovery = optimizer_adapter
+    .discover_skills(
+        "Build async REST API with database",
+        skills,
+        3,
+        0.5, // Current context usage
+    )
+    .await?;
+
+println!("Selected skills: {:?}", discovery.selected_skills);
+println!("Reasoning: {}", discovery.reasoning);
+
+// Optimize context budget
+use mnemosyne_core::orchestration::actors::optimizer_dspy_adapter::{
+    ContextUsage, LoadedResources
+};
+
+let usage = ContextUsage {
+    critical_pct: 0.40,
+    skills_pct: 0.30,
+    project_pct: 0.20,
+    general_pct: 0.10,
+    total_pct: 1.0,
+};
+
+let resources = LoadedResources {
+    skill_names: vec!["skill-1".to_string(), "skill-2".to_string()],
+    memory_ids: vec!["mem-1".to_string(), "mem-2".to_string()],
+    memory_summaries: vec!["Summary 1".to_string(), "Summary 2".to_string()],
+};
+
+let plan = optimizer_adapter
+    .optimize_context_budget(usage, resources, 0.75, 8)
+    .await?;
+
+println!("Unload skills: {:?}", plan.unload_skills);
+println!("Unload memories: {:?}", plan.unload_memory_ids);
+println!("Rationale: {}", plan.optimization_rationale);
+```
+
+### Using Memory Evolution
+
+```rust
+use mnemosyne_core::evolution::memory_evolution_dspy_adapter::{
+    MemoryEvolutionDSpyAdapter, MemoryCluster, ArchivalConfig
+};
+
+// Create evolution adapter
+let evolution_adapter = Arc::new(MemoryEvolutionDSpyAdapter::new(bridge));
+
+// Create consolidation job with DSPy
+let consolidation_job = ConsolidationJob::with_dspy(
+    storage,
+    Arc::clone(&evolution_adapter),
+);
+
+// Consolidate memory cluster
+let cluster = MemoryCluster {
+    memories: vec![memory1, memory2],
+    similarity_scores: vec![(mem1.id, mem2.id, 0.92)],
+    avg_similarity: 0.92,
+};
+
+let decision = evolution_adapter
+    .consolidate_cluster(&cluster)
+    .await?;
+
+match decision.action {
+    ConsolidationAction::Merge => {
+        println!("Merging memories: {}", decision.rationale);
+        // Execute merge
+    }
+    ConsolidationAction::Supersede => {
+        println!("Superseding memory: {}", decision.rationale);
+        // Execute supersede
+    }
+    ConsolidationAction::Keep => {
+        println!("Keeping separate: {}", decision.rationale);
+        // Keep separate
+    }
+}
+
+println!("Confidence: {:.1}%", decision.confidence * 100.0);
+
+// Recalibrate importance
+let recalibration = evolution_adapter
+    .recalibrate_importance(&memory)
+    .await?;
+
+println!("Old importance: {}", memory.importance);
+println!("New importance: {}", recalibration.new_importance);
+println!("Reason: {}", recalibration.adjustment_reason);
+
+match recalibration.recommended_action {
+    RecommendedAction::Keep => println!("Keep memory"),
+    RecommendedAction::Archive => println!("Archive memory"),
+    RecommendedAction::Delete => println!("Delete memory"),
+}
+
+// Detect archival candidates
+let config = ArchivalConfig {
+    archival_threshold_days: 90,
+    min_importance: 8,
+};
+
+let archival_decisions = evolution_adapter
+    .detect_archival_candidates(&memories, &config)
+    .await?;
+
+println!("Archive: {:?}", archival_decisions.archive_ids);
+println!("Keep: {:?}", archival_decisions.keep_ids);
+println!("Rationale: {}", archival_decisions.rationale);
+```
+
 ## Testing
 
 ### Python Tests
 
 ```bash
-# Test DSPy modules directly
+# Test all DSPy modules
 pytest src/orchestration/dspy_modules/ -v
 
-# Run specific test file
+# Run specific test files
 pytest src/orchestration/dspy_modules/test_semantic_module.py -v
 pytest src/orchestration/dspy_modules/test_reviewer_module.py -v
+pytest src/orchestration/dspy_modules/test_optimizer_module.py -v
+pytest src/orchestration/dspy_modules/test_memory_evolution_module.py -v
 ```
+
+**Test Coverage**:
+- **ReviewerModule**: Requirements extraction, intent validation, completeness, correctness
+- **SemanticModule**: Discourse analysis, contradiction detection, pragmatics extraction
+- **OptimizerModule**: Context consolidation (3 modes), skills discovery, budget optimization
+- **MemoryEvolutionModule**: Cluster consolidation, importance recalibration, archival detection
 
 ### Rust Integration Tests
 
@@ -285,11 +763,24 @@ pytest src/orchestration/dspy_modules/test_reviewer_module.py -v
 # Run all integration tests (requires Python environment)
 cargo test --features python -- --ignored
 
-# Run specific test file
+# Run specific adapter tests
 cargo test --features python dspy_bridge_integration_test -- --ignored
 cargo test --features python reviewer_dspy_adapter_test -- --ignored
 cargo test --features python dspy_semantic_bridge_test -- --ignored
+cargo test --features python optimizer_dspy_adapter_test -- --ignored
+cargo test --features python memory_evolution_dspy_adapter_test -- --ignored
 ```
+
+**Test Coverage**:
+- **ReviewerDSpyAdapter**: Full workflow validation, concurrent operations
+- **DSpySemanticBridge**: Type conversion, error handling, concurrent operations
+- **OptimizerDSpyAdapter**: All 3 consolidation modes, skills discovery, budget optimization, concurrent ops
+- **MemoryEvolutionDSpyAdapter**: Cluster consolidation, importance recalibration, archival detection, concurrent ops
+
+All Rust tests are marked `#[ignore]` and require:
+- Python environment with DSPy
+- `ANTHROPIC_API_KEY` environment variable
+- `python` feature flag enabled
 
 ## Optimization
 
@@ -366,6 +857,96 @@ if content.contains("INTENT NOT SATISFIED") {
 let (satisfied, issues) = adapter
     .semantic_intent_check(intent, implementation, context)
     .await?;
+```
+
+### From Heuristic Context Consolidation to DSPy
+
+**Before** (heuristic-based):
+```rust
+fn consolidate_context(...) -> String {
+    let mut consolidated = String::new();
+    consolidated.push_str("## Original Intent\n");
+    consolidated.push_str(original_intent);
+    consolidated.push_str("\n\n## Execution Summary\n");
+    for summary in execution_summaries {
+        consolidated.push_str(&format!("- {}\n", summary));
+    }
+    // Manual string concatenation...
+    consolidated
+}
+```
+
+**After** (DSPy-based with automatic mode selection):
+```rust
+async fn consolidate_context(...) -> Result<ConsolidatedContext> {
+    #[cfg(feature = "python")]
+    if let Some(adapter) = &state.optimizer_adapter {
+        let mode = match review_attempt {
+            1 => "detailed",
+            2..=3 => "summary",
+            _ => "compressed",
+        };
+
+        let consolidated = adapter
+            .consolidate_context(
+                original_intent,
+                execution_summaries,
+                review_feedback,
+                suggested_tests,
+                review_attempt,
+                mode,
+            )
+            .await?;
+
+        // Returns structured ConsolidatedContext with:
+        // - consolidated_content
+        // - key_issues (Vec<String>)
+        // - strategic_guidance
+        // - estimated_tokens
+        return Ok(consolidated);
+    }
+    // Fallback to heuristics
+}
+```
+
+### From Direct LLM Calls to DSPy Memory Evolution
+
+**Before** (direct LLM prompt):
+```rust
+async fn should_consolidate(&self, cluster: &MemoryCluster) -> Result<bool> {
+    let prompt = format!(
+        "Should these memories be consolidated?\n{}",
+        cluster.memories.iter()
+            .map(|m| format!("- {}", m.summary))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+
+    let response = self.llm.generate(prompt).await?;
+    Ok(response.contains("yes") || response.contains("consolidate"))
+}
+```
+
+**After** (DSPy with structured decisions):
+```rust
+async fn make_consolidation_decision(
+    &self,
+    cluster: &MemoryCluster,
+) -> Result<ConsolidationDecision> {
+    #[cfg(feature = "python")]
+    if let Some(adapter) = &self.evolution_adapter {
+        let decision = adapter.consolidate_cluster(cluster).await?;
+
+        // Returns structured ConsolidationDecision with:
+        // - action: Merge | Supersede | Keep
+        // - primary_memory_id
+        // - secondary_memory_ids
+        // - rationale (ChainOfThought reasoning)
+        // - confidence (0.0-1.0)
+        return Ok(decision);
+    }
+    // Fallback to direct LLM
+}
 ```
 
 ## Configuration
@@ -449,11 +1030,42 @@ let json_value = serde_json::to_value(&data)?;
 
 ## Future Work
 
-1. **Improvement Guidance**: Implement in ReviewerModule (currently stubbed)
-2. **Optimization Pipeline**: Automated teleprompter training
-3. **Multi-Agent GEPA**: Joint optimization across all agents
-4. **Prompt Versioning**: Track and rollback optimized prompts
-5. **A/B Testing**: Compare optimized vs baseline modules
+### Phase 4: Optimization Pipeline (Planned)
+
+1. **Training Data Collection**:
+   - Collect real-world examples from Optimizer and Memory Evolution operations
+   - Build labeled datasets for teleprompter training
+   - Define quality metrics for each module
+
+2. **MIPROv2 Optimization**:
+   - Optimize OptimizerModule for context consolidation quality
+   - Optimize MemoryEvolutionModule for consolidation accuracy
+   - Run teleprompter training with collected datasets
+
+3. **GEPA Joint Optimization**:
+   - Jointly optimize all four modules (Reviewer, Semantic, Optimizer, Memory Evolution)
+   - Coordinate prompts across agent boundaries
+   - Maintain consistency in decision-making
+
+4. **Prompt Versioning**:
+   - Version control for optimized modules
+   - Rollback mechanism for prompt changes
+   - A/B testing framework for comparing versions
+
+5. **Additional Integrations**:
+   - Executor agent DSPy module for task decomposition
+   - Orchestrator agent DSPy module for coordination
+   - Skills discovery DSPy module for context optimization
+
+### Completed Work
+
+- ✅ **Phase 1**: Reviewer + Tier 3 Semantic (merged)
+- ✅ **Phase 2**: Optimizer Agent DSPy integration
+- ✅ **Phase 3**: Memory Evolution DSPy integration
+- ✅ Comprehensive test coverage (Python + Rust)
+- ✅ Progressive consolidation modes
+- ✅ Type-safe Rust adapters
+- ✅ Graceful fallback mechanisms
 
 ## References
 
