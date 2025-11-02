@@ -133,5 +133,138 @@
       "category": "feature",
       "notes": "Tests detection of implicit expectations not explicitly stated"
     }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add comprehensive testing for the authentication module",
+      "work_item": "Implement test suite for auth system",
+      "implementation": "Created test_auth.rs with 25 tests covering: login happy path (email/password validation), invalid credentials (wrong password, non-existent user), token generation (RS256 signing, expiration), token validation (valid/invalid/expired tokens), middleware integration (protected routes), edge cases (empty fields, SQL injection attempts, rate limiting). Added integration tests for full auth flow. Added property-based tests for token generation/validation. Files: test_auth.rs (500 lines), fixtures/test_data.rs (test user data). Coverage: 95% of auth.rs code paths.",
+      "requirements": [
+        "Test login endpoint",
+        "Test token generation",
+        "Test token validation",
+        "Test edge cases",
+        "Achieve high code coverage"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation comprehensively addresses intent to add testing for authentication. All major components tested: login, token generation/validation, middleware. Goes beyond basic requirements with property-based tests, integration tests, and edge case coverage (SQL injection, rate limiting). 95% code coverage exceeds typical standards. Clear evidence of thorough testing approach.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "testing",
+      "notes": "Comprehensive testing implementation that exceeds expectations"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add input validation to prevent security vulnerabilities",
+      "work_item": "Implement input validation for user-submitted data",
+      "implementation": "Added validation for email format using regex. Added length limits (email max 255 chars, password 8-100 chars). Added sanitization to remove HTML tags from text fields. Files: validation.rs (100 lines). Tests: test_validation.rs (10 tests for valid/invalid formats). No validation for SQL injection, no validation for special characters in non-email fields, no XSS prevention beyond basic HTML tag removal, no validation for file uploads.",
+      "requirements": [
+        "Validate email format",
+        "Validate password strength",
+        "Prevent injection attacks",
+        "Sanitize user input"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation provides basic validation but fails to address the core security intent. Email/password validation is superficial (no password strength requirements like special characters, numbers). Missing critical security validations: SQL injection prevention (parameterized queries not mentioned), comprehensive XSS prevention (only basic HTML removal), file upload validation. Intent 'prevent security vulnerabilities' requires defense-in-depth, but implementation only scratches surface.",
+      "missing_aspects": [
+        "SQL injection prevention (parameterized queries, ORM usage)",
+        "Password strength requirements (complexity rules)",
+        "Comprehensive XSS prevention (Content-Security-Policy, output encoding)",
+        "File upload validation (type checking, size limits, malware scanning)",
+        "CSRF protection",
+        "Security testing (penetration testing, fuzzing)"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "security",
+      "notes": "Tests detection of superficial security implementation"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Create a REST API for managing user profiles",
+      "work_item": "Implement user profile API endpoints",
+      "implementation": "Added 5 RESTful endpoints: GET /api/users/:id (fetch profile), PUT /api/users/:id (update profile), DELETE /api/users/:id (delete account), GET /api/users (list all users with pagination), POST /api/users/:id/avatar (upload avatar). All endpoints return JSON with proper status codes (200, 201, 404, 400). Added OpenAPI/Swagger documentation. Request/response validation using serde. Authentication required for all endpoints except GET /api/users/:id (public profiles). Files: handlers/users.rs (300 lines), models/user.rs (updates), docs/api.yaml (OpenAPI spec). Tests: test_user_api.rs (20 tests covering CRUD operations, validation, auth).",
+      "requirements": [
+        "GET endpoint for profile retrieval",
+        "PUT endpoint for profile updates",
+        "DELETE endpoint for account deletion",
+        "Proper HTTP status codes",
+        "JSON request/response format",
+        "API documentation"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation fully satisfies intent to create REST API for user profiles. All CRUD operations implemented with proper RESTful design. Exceeds requirements with pagination for list endpoint, avatar upload, OpenAPI documentation. Proper status codes, JSON format, validation, and authentication all present. Tests cover major scenarios. This is a complete, production-ready API implementation.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "api",
+      "notes": "Well-designed API implementation that meets all expectations"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Migrate all database queries to use prepared statements",
+      "work_item": "Refactor queries for SQL injection prevention",
+      "implementation": "Converted 15 queries in user.rs to use prepared statements. Converted 8 queries in posts.rs to prepared statements. Files: user.rs (prepared statements), posts.rs (prepared statements). Remaining files: comments.rs (10 queries still using string concatenation), admin.rs (5 queries using string concatenation), analytics.rs (3 queries using raw SQL). Total: 23/41 queries migrated (56%).",
+      "requirements": [
+        "Convert all queries to prepared statements",
+        "Eliminate SQL injection vulnerabilities"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation is incomplete and leaves system vulnerable. User intent explicitly states 'all database queries' but only 56% migrated. Remaining queries in comments.rs, admin.rs, and analytics.rs still vulnerable to SQL injection. Partial migration creates inconsistent security posture and false sense of safety. Intent requires 100% coverage to eliminate vulnerabilities, but implementation stops halfway.",
+      "missing_aspects": [
+        "Migrate remaining 18 queries in comments.rs, admin.rs, analytics.rs",
+        "Code audit to identify any missed queries",
+        "Automated testing for SQL injection vulnerabilities",
+        "Documentation of migration completion status"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "security",
+      "notes": "Tests detection of incomplete migration leaving vulnerabilities"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add error recovery so the application doesn't crash on failures",
+      "work_item": "Implement graceful error handling",
+      "implementation": "Wrapped all database operations in Result types with proper error propagation. Added error logging for all failures. Implemented retry logic for transient database errors (connection timeouts, deadlocks) with exponential backoff. Added fallback responses for non-critical failures (e.g., return cached data if database unavailable). Implemented circuit breaker pattern for external API calls to prevent cascading failures. Added health check endpoint reporting system status. Files: error.rs (error types), middleware/recovery.rs (panic recovery), retry.rs (retry logic), circuit_breaker.rs (external API protection). Tests: test_recovery.rs (25 tests for various failure scenarios including database errors, API timeouts, panics).",
+      "requirements": [
+        "Handle database failures gracefully",
+        "Prevent application crashes",
+        "Add retry logic for transient errors",
+        "Implement fallback strategies"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation comprehensively addresses intent to prevent crashes and add error recovery. All requirements met: Result types for error propagation, retry logic with exponential backoff, fallback strategies (cached data), circuit breaker for cascade prevention. Goes beyond basic error handling with health checks and extensive testing. System will degrade gracefully rather than crash on failures.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "reliability",
+      "notes": "Comprehensive error recovery implementation with multiple strategies"
+    }
   }
 ]

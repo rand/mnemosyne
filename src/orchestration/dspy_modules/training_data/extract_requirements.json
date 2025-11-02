@@ -115,5 +115,132 @@
       "category": "infrastructure",
       "notes": "Intentionally vague to test requirement extraction from minimal intent"
     }
+  },
+  {
+    "inputs": {
+      "user_intent": "Migrate the database from SQLite to PostgreSQL",
+      "context": "Phase: Refactoring, Agent: Executor, Files: database/*.rs, migrations/"
+    },
+    "outputs": {
+      "requirements": [
+        "Create PostgreSQL schema matching current SQLite schema",
+        "Write data migration script to transfer existing data",
+        "Update database connection configuration",
+        "Modify queries using SQLite-specific features (e.g., datetime functions)",
+        "Add PostgreSQL-specific optimizations (indexes, constraints)",
+        "Test migration process with production-like data volumes",
+        "Create rollback procedure in case of migration failure",
+        "Update documentation with new database requirements"
+      ],
+      "priorities": [10, 10, 9, 9, 7, 10, 9, 6]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "database",
+      "notes": "Complex migration requiring data preservation and compatibility"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add API versioning so we can make breaking changes without affecting existing clients",
+      "context": "Phase: Architecture, Agent: Executor, Files: api/v1/, api/v2/, router.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Design versioning strategy (URL path, header, or query parameter)",
+        "Create API v2 namespace/module structure",
+        "Implement version routing logic",
+        "Maintain v1 API for backward compatibility",
+        "Define deprecation policy for old versions",
+        "Add version negotiation for clients",
+        "Document versioning guidelines for future changes",
+        "Add tests for both v1 and v2 endpoints"
+      ],
+      "priorities": [10, 9, 10, 10, 8, 7, 8, 9]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "api_design",
+      "notes": "Architectural decision with long-term maintenance implications"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Improve error handling across the application",
+      "context": "Phase: Refactoring, Agent: Executor, Files: error.rs, handlers/*.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Define consistent error types for different failure modes",
+        "Add context to errors (stack traces, request IDs, user actions)",
+        "Implement error recovery strategies where possible",
+        "Add user-friendly error messages (not just technical details)",
+        "Log errors with appropriate severity levels",
+        "Return proper HTTP status codes for API errors",
+        "Add error boundaries to prevent cascading failures",
+        "Test error scenarios (network failures, database errors, validation errors)"
+      ],
+      "priorities": [10, 9, 8, 9, 10, 9, 7, 8]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "error_handling",
+      "notes": "Systematic improvement across codebase"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Set up continuous integration",
+      "context": "Phase: Infrastructure, Agent: Executor, Files: .github/workflows/ci.yml, scripts/test.sh"
+    },
+    "outputs": {
+      "requirements": [
+        "Configure CI platform (GitHub Actions, GitLab CI, etc.)",
+        "Run tests on every pull request",
+        "Run linting and formatting checks",
+        "Build project to verify compilation",
+        "Run security vulnerability scans",
+        "Generate and upload code coverage reports",
+        "Add status badges to README",
+        "Configure branch protection rules requiring CI pass"
+      ],
+      "priorities": [10, 10, 9, 9, 8, 7, 5, 9]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "ci_cd",
+      "notes": "Infrastructure setup with multiple integration points"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add support for real-time notifications",
+      "context": "Phase: Feature, Agent: Executor, Files: websocket.rs, notifications.rs, events.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Choose real-time transport mechanism (WebSocket, SSE, polling)",
+        "Implement WebSocket connection handling",
+        "Add authentication for WebSocket connections",
+        "Define notification event schema and types",
+        "Implement pub/sub system for broadcasting notifications",
+        "Add connection state management (reconnection, heartbeat)",
+        "Handle concurrent connections efficiently",
+        "Add rate limiting to prevent notification spam",
+        "Implement notification persistence for offline users",
+        "Test with multiple concurrent connections (load testing)"
+      ],
+      "priorities": [10, 10, 9, 9, 9, 8, 8, 7, 8, 7]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "realtime",
+      "notes": "Complex feature with state management and scalability concerns"
+    }
   }
 ]
