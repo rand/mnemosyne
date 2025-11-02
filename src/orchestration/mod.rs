@@ -23,6 +23,9 @@
 
 pub mod actors;
 pub mod branch_coordinator;
+
+#[cfg(feature = "python")]
+pub mod dspy_bridge;
 pub mod branch_guard;
 pub mod branch_registry;
 pub mod cli;
@@ -52,6 +55,9 @@ mod coordination_tests;
 
 // Re-export key types
 pub use actors::{ExecutorActor, OptimizerActor, OrchestratorActor, ReviewerActor};
+
+#[cfg(feature = "python")]
+pub use dspy_bridge::DSpyBridge;
 pub use branch_coordinator::{
     BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse,
 };
