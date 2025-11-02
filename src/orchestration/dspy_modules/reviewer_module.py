@@ -81,7 +81,7 @@ import dspy
 from typing import Optional
 import logging
 
-from .signatures import (
+from signatures import (
     ExtractRequirements,
     ValidateIntentSatisfaction,
     ValidateCompleteness,

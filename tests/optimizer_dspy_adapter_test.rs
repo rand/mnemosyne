@@ -18,6 +18,9 @@ mod optimizer_adapter_tests {
 
     /// Helper to create test adapter (requires Python environment)
     async fn create_test_adapter() -> OptimizerDSpyAdapter {
+        // Initialize Python interpreter for tests
+        pyo3::prepare_freethreaded_python();
+
         let bridge = Arc::new(DSpyBridge::new().expect("Failed to create DSPy bridge"));
         OptimizerDSpyAdapter::new(bridge)
     }
