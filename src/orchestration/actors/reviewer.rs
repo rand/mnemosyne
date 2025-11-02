@@ -94,8 +94,6 @@
 //! - User guide: `docs/guides/llm-reviewer.md`
 
 use crate::error::Result;
-#[cfg(feature = "python")]
-use crate::error::MnemosyneError;
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{OrchestratorMessage, ReviewerMessage, WorkResult};
@@ -106,13 +104,11 @@ use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::sync::Arc;
 
 #[cfg(feature = "python")]
+use crate::orchestration::actors::reviewer_dspy_adapter::ReviewerDSpyAdapter;
+#[cfg(feature = "python")]
+use crate::orchestration::dspy_bridge::DSpyBridge;
+#[cfg(feature = "python")]
 use crate::python_bindings::{collect_implementation_from_memories, execution_memories_to_python_format};
-#[cfg(feature = "python")]
-use pyo3::prelude::*;
-#[cfg(feature = "python")]
-use std::collections::HashMap;
-#[cfg(feature = "python")]
-use std::time::Duration;
 
 /// Quality gates that must pass (8 total: 5 existing + 3 pillars)
 #[derive(Debug, Clone)]
@@ -208,87 +204,6 @@ impl Default for ReviewerConfig {
     }
 }
 
-/// Helper macro for retrying LLM operations with exponential backoff and timeout
-///
-/// This macro wraps Python LLM calls with retry logic, timeout handling, and
-/// exponential backoff between attempts.
-///
-/// Usage:
-/// ```ignore
-/// retry_llm_operation!(
-///     config,           // ReviewerConfig reference
-///     "operation_name", // Operation name for logging
-///     {                 // Block containing the Python GIL operation
-///         Python::with_gil(|py| {
-///             // ... Python operation ...
-///         })
-///     }
-/// )
-/// ```
-#[cfg(feature = "python")]
-macro_rules! retry_llm_operation {
-    ($config:expr, $op_name:expr, $operation:block) => {{
-        let config = $config;
-        let op_name = $op_name;
-        let mut attempt = 0;
-        #[allow(unused_assignments)] // False positive: last_error IS used on line 272
-        let mut last_error = None;
-
-        loop {
-            attempt += 1;
-
-            tracing::debug!(
-                "LLM operation '{}' attempt {}/{}",
-                op_name,
-                attempt,
-                config.max_llm_retries
-            );
-
-            // Try the operation
-            let result: std::result::Result<_, PyErr> = $operation;
-
-            match result {
-                Ok(value) => {
-                    if attempt > 1 {
-                        tracing::info!(
-                            "LLM operation '{}' succeeded on attempt {}",
-                            op_name,
-                            attempt
-                        );
-                    }
-                    break Ok(value);
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        "LLM operation '{}' failed on attempt {}: {}",
-                        op_name,
-                        attempt,
-                        e
-                    );
-                    last_error = Some(e.to_string());
-
-                    if attempt >= config.max_llm_retries {
-                        let final_error = last_error.unwrap_or_else(|| "Unknown error".to_string());
-                        break Err(MnemosyneError::LlmRetryExhausted(
-                            config.max_llm_retries,
-                            format!("{}: {}", op_name, final_error),
-                        ));
-                    }
-
-                    // Exponential backoff: 1s, 2s, 4s, ...
-                    let backoff_secs = 2u64.pow(attempt - 1);
-                    tracing::debug!(
-                        "Retrying LLM operation '{}' after {}s backoff",
-                        op_name,
-                        backoff_secs
-                    );
-                    tokio::time::sleep(Duration::from_secs(backoff_secs)).await;
-                }
-            }
-        }
-    }};
-}
-
 /// Reviewer actor state
 pub struct ReviewerState {
     /// Event persistence
@@ -303,9 +218,9 @@ pub struct ReviewerState {
     /// Quality gate results per work item
     quality_results: std::collections::HashMap<WorkItemId, QualityGates>,
 
-    /// Optional Python ReviewerAgent for LLM-based semantic validation
+    /// Optional DSPy ReviewerAdapter for LLM-based semantic validation
     #[cfg(feature = "python")]
-    py_reviewer: Option<std::sync::Arc<PyObject>>,
+    reviewer_adapter: Option<Arc<ReviewerDSpyAdapter>>,
 
     /// Configuration for LLM-based validation
     #[cfg(feature = "python")]
@@ -320,7 +235,7 @@ impl ReviewerState {
             orchestrator: None,
             quality_results: std::collections::HashMap::new(),
             #[cfg(feature = "python")]
-            py_reviewer: None,
+            reviewer_adapter: None,
             #[cfg(feature = "python")]
             config: ReviewerConfig::default(),
         }
@@ -330,17 +245,26 @@ impl ReviewerState {
         self.orchestrator = Some(orchestrator);
     }
 
-    /// Register Python ReviewerAgent for LLM-based validation with optional custom configuration
+    /// Register DSPy bridge for LLM-based validation
     #[cfg(feature = "python")]
-    pub fn register_py_reviewer(&mut self, py_reviewer: std::sync::Arc<PyObject>) {
-        self.py_reviewer = Some(py_reviewer);
+    pub fn register_dspy_bridge(&mut self, bridge: Arc<DSpyBridge>) {
+        self.reviewer_adapter = Some(Arc::new(ReviewerDSpyAdapter::new(bridge)));
         self.config.enable_llm_validation = true;
         tracing::info!(
-            "Python LLM reviewer registered with model {} (timeout: {}s, max retries: {})",
+            "DSPy reviewer bridge registered with model {} (timeout: {}s, max retries: {})",
             self.config.llm_model,
             self.config.llm_timeout_secs,
             self.config.max_llm_retries
         );
+    }
+
+    /// Deprecated: Use register_dspy_bridge instead
+    ///
+    /// This method is kept for backward compatibility but will be removed in a future version.
+    #[cfg(feature = "python")]
+    #[deprecated(note = "Use register_dspy_bridge instead")]
+    pub fn register_py_reviewer(&mut self, _py_reviewer: std::sync::Arc<pyo3::PyObject>) {
+        tracing::warn!("register_py_reviewer is deprecated. Use register_dspy_bridge instead.");
     }
 
     /// Update reviewer configuration
@@ -357,9 +281,9 @@ impl ReviewerState {
         tracing::info!("LLM validation disabled, using pattern matching only");
     }
 
-    /// Extract explicit requirements from work item intent using LLM
+    /// Extract explicit requirements from work item intent using DSPy
     ///
-    /// This method uses the Python ReviewerAgent to analyze the original_intent
+    /// This method uses the DSPy ReviewerModule to analyze the original_intent
     /// and extract structured requirements that can be tracked and validated.
     ///
     /// Returns: List of extracted requirements, or empty vec if extraction fails or LLM unavailable
@@ -368,7 +292,7 @@ impl ReviewerState {
         &self,
         work_item: &WorkItem,
     ) -> Result<Vec<String>> {
-        if !self.config.enable_llm_validation || self.py_reviewer.is_none() {
+        if !self.config.enable_llm_validation || self.reviewer_adapter.is_none() {
             tracing::debug!("LLM validation not enabled, skipping requirement extraction");
             return Ok(Vec::new());
         }
@@ -384,37 +308,23 @@ impl ReviewerState {
             work_item.file_scope
         );
 
-        // Call Python LLM to extract requirements with retry logic
-        let py_reviewer = self.py_reviewer.clone();
-        let original_intent = work_item.original_intent.clone();
-        let work_item_id = work_item.id.clone();
-
-        match retry_llm_operation!(&self.config, "extract_requirements_from_intent", {
-            Python::with_gil(|py| -> PyResult<Vec<String>> {
-                let py_reviewer = py_reviewer.as_ref().unwrap();
-
-                let result = py_reviewer.call_method1(
-                    py,
-                    "extract_requirements_from_intent",
-                    (original_intent.clone(), Some(context.clone())),
-                )?;
-
-                result.extract(py)
-            })
-        }) {
+        // Call DSPy adapter to extract requirements
+        match self.reviewer_adapter.as_ref().unwrap()
+            .extract_requirements(&work_item.original_intent, Some(&context))
+            .await
+        {
             Ok(requirements) => {
                 tracing::info!(
                     "Extracted {} requirements from intent for work item {}",
                     requirements.len(),
-                    work_item_id
+                    work_item.id
                 );
                 Ok(requirements)
             }
             Err(e) => {
                 tracing::warn!(
-                    "Failed to extract requirements via LLM for work item {} after {} retries: {}. Continuing without explicit requirements.",
-                    work_item_id,
-                    self.config.max_llm_retries,
+                    "Failed to extract requirements via DSPy for work item {}: {}. Continuing without explicit requirements.",
+                    work_item.id,
                     e
                 );
                 Ok(Vec::new())
@@ -497,8 +407,8 @@ impl ReviewerActor {
 
         // Generate improvement guidance if review failed
         #[cfg(feature = "python")]
-        let improvement_guidance = if !passed && state.config.enable_llm_validation && state.py_reviewer.is_some() {
-            tracing::info!("Generating LLM improvement guidance for failed review");
+        let improvement_guidance = if !passed && state.config.enable_llm_validation && state.reviewer_adapter.is_some() {
+            tracing::info!("Generating DSPy improvement guidance for failed review");
 
             match Self::generate_improvement_guidance(state, &gates, &all_issues, &work_item, &result).await {
                 Ok(guidance) => {
@@ -632,10 +542,10 @@ impl ReviewerActor {
             return Ok((false, issues));
         }
 
-        // LLM semantic validation if enabled
+        // DSPy semantic validation if enabled
         #[cfg(feature = "python")]
-        if state.config.enable_llm_validation && state.py_reviewer.is_some() {
-            tracing::debug!("Using LLM for semantic intent validation");
+        if state.config.enable_llm_validation && state.reviewer_adapter.is_some() {
+            tracing::debug!("Using DSPy for semantic intent validation");
 
             // Collect implementation content from execution memories
             let implementation = collect_implementation_from_memories(
@@ -643,51 +553,41 @@ impl ReviewerActor {
                 &result.memory_ids
             ).await?;
 
-            // Convert memory IDs to Python-compatible format (List[Dict[str, Any]])
-            let execution_memories = execution_memories_to_python_format(
+            // Convert memory IDs to JSON-compatible format
+            let execution_memories_raw = execution_memories_to_python_format(
                 &state.storage,
                 &result.memory_ids
             ).await?;
 
-            // Clone data for retry macro
-            let py_reviewer = state.py_reviewer.clone();
-            let original_intent = work_item.original_intent.clone();
-            let config = state.config.clone();
+            let execution_memories: Vec<serde_json::Value> = execution_memories_raw
+                .into_iter()
+                .map(|m| serde_json::to_value(m).unwrap_or_default())
+                .collect();
 
-            // Call Python LLM validator with retry logic
-            match retry_llm_operation!(&config, "semantic_intent_check", {
-                Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
-                    let py_reviewer = py_reviewer.as_ref().unwrap();
-
-                    let result = py_reviewer.call_method1(
-                        py,
-                        "semantic_intent_check",
-                        (
-                            original_intent.clone(),
-                            implementation.clone(),
-                            execution_memories.clone(),
-                        ),
-                    )?;
-
-                    result.extract(py)
-                })
-            }) {
+            // Call DSPy adapter for semantic validation
+            match state.reviewer_adapter.as_ref().unwrap()
+                .semantic_intent_check(
+                    &work_item.original_intent,
+                    &implementation,
+                    execution_memories
+                )
+                .await
+            {
                 Ok((passed, llm_issues)) => {
                     if !passed {
                         tracing::warn!(
-                            "LLM semantic validation failed with {} issues",
+                            "DSPy semantic validation failed with {} issues",
                             llm_issues.len()
                         );
                         issues.extend(llm_issues);
                     } else {
-                        tracing::info!("LLM semantic validation: intent satisfied");
+                        tracing::info!("DSPy semantic validation: intent satisfied");
                     }
                     return Ok((passed && issues.is_empty(), issues));
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "LLM semantic validation error after {} retries (falling back to pattern matching): {}",
-                        config.max_llm_retries,
+                        "DSPy semantic validation error (falling back to pattern matching): {}",
                         e
                     );
                     // Fall through to pattern matching
@@ -893,10 +793,10 @@ impl ReviewerActor {
             }
         }
 
-        // LLM semantic validation if enabled
+        // DSPy semantic validation if enabled
         #[cfg(feature = "python")]
-        if state.config.enable_llm_validation && state.py_reviewer.is_some() {
-            tracing::debug!("Using LLM for semantic completeness validation");
+        if state.config.enable_llm_validation && state.reviewer_adapter.is_some() {
+            tracing::debug!("Using DSPy for semantic completeness validation");
 
             // Collect implementation content
             let implementation = collect_implementation_from_memories(
@@ -911,49 +811,40 @@ impl ReviewerActor {
                 vec![work_item.original_intent.clone()]
             };
 
-            // Convert memory IDs to Python-compatible format (List[Dict[str, Any]])
-            let execution_memories = execution_memories_to_python_format(
+            // Convert memory IDs to JSON-compatible format
+            let execution_memories_raw = execution_memories_to_python_format(
                 &state.storage,
                 &result.memory_ids
             ).await?;
 
-            // Clone data for retry macro
-            let py_reviewer = state.py_reviewer.clone();
-            let config = state.config.clone();
+            let execution_memories: Vec<serde_json::Value> = execution_memories_raw
+                .into_iter()
+                .map(|m| serde_json::to_value(m).unwrap_or_default())
+                .collect();
 
-            // Call Python LLM validator with retry logic
-            match retry_llm_operation!(&config, "semantic_completeness_check", {
-                Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
-                    let py_reviewer = py_reviewer.as_ref().unwrap();
-
-                    let result = py_reviewer.call_method1(
-                        py,
-                        "semantic_completeness_check",
-                        (
-                            requirements.clone(),
-                            implementation.clone(),
-                            execution_memories.clone(),
-                        ),
-                    )?;
-
-                    result.extract(py)
-                })
-            }) {
+            // Call DSPy adapter for completeness validation
+            match state.reviewer_adapter.as_ref().unwrap()
+                .verify_completeness(
+                    &requirements,
+                    &implementation,
+                    execution_memories
+                )
+                .await
+            {
                 Ok((passed, llm_issues)) => {
                     if !passed {
                         tracing::warn!(
-                            "LLM completeness validation failed with {} issues",
+                            "DSPy completeness validation failed with {} issues",
                             llm_issues.len()
                         );
                         issues.extend(llm_issues);
                     } else {
-                        tracing::info!("LLM completeness validation passed");
+                        tracing::info!("DSPy completeness validation passed");
                     }
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "LLM completeness validation error after {} retries (continuing with pattern matching): {}",
-                        config.max_llm_retries,
+                        "DSPy completeness validation error (continuing with pattern matching): {}",
                         e
                     );
                     // Continue with pattern matching results
@@ -1032,10 +923,10 @@ impl ReviewerActor {
             }
         }
 
-        // LLM semantic validation if enabled
+        // DSPy semantic validation if enabled
         #[cfg(feature = "python")]
-        if state.config.enable_llm_validation && state.py_reviewer.is_some() {
-            tracing::debug!("Using LLM for semantic correctness validation");
+        if state.config.enable_llm_validation && state.reviewer_adapter.is_some() {
+            tracing::debug!("Using DSPy for semantic correctness validation");
 
             // Collect implementation content
             let implementation = collect_implementation_from_memories(
@@ -1043,52 +934,39 @@ impl ReviewerActor {
                 &result.memory_ids
             ).await?;
 
-            // Build test results JSON (empty if no test info available)
-            let test_results_json = String::new(); // TODO: Extract test results from execution memories
-
-            // Convert memory IDs to Python-compatible format (List[Dict[str, Any]])
-            let execution_memories = execution_memories_to_python_format(
+            // Convert memory IDs to JSON-compatible format
+            let execution_memories_raw = execution_memories_to_python_format(
                 &state.storage,
                 &result.memory_ids
             ).await?;
 
-            // Clone data for retry macro
-            let py_reviewer = state.py_reviewer.clone();
-            let config = state.config.clone();
+            let execution_memories: Vec<serde_json::Value> = execution_memories_raw
+                .into_iter()
+                .map(|m| serde_json::to_value(m).unwrap_or_default())
+                .collect();
 
-            // Call Python LLM validator with retry logic
-            match retry_llm_operation!(&config, "semantic_correctness_check", {
-                Python::with_gil(|py| -> PyResult<(bool, Vec<String>)> {
-                    let py_reviewer = py_reviewer.as_ref().unwrap();
-
-                    let result = py_reviewer.call_method1(
-                        py,
-                        "semantic_correctness_check",
-                        (
-                            implementation.clone(),
-                            test_results_json.clone(),
-                            execution_memories.clone(),
-                        ),
-                    )?;
-
-                    result.extract(py)
-                })
-            }) {
+            // Call DSPy adapter for correctness validation
+            match state.reviewer_adapter.as_ref().unwrap()
+                .verify_correctness(
+                    &implementation,
+                    execution_memories
+                )
+                .await
+            {
                 Ok((passed, llm_issues)) => {
                     if !passed {
                         tracing::warn!(
-                            "LLM correctness validation failed with {} issues",
+                            "DSPy correctness validation failed with {} issues",
                             llm_issues.len()
                         );
                         issues.extend(llm_issues);
                     } else {
-                        tracing::info!("LLM correctness validation passed");
+                        tracing::info!("DSPy correctness validation passed");
                     }
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "LLM correctness validation error after {} retries (continuing with pattern matching): {}",
-                        config.max_llm_retries,
+                        "DSPy correctness validation error (continuing with pattern matching): {}",
                         e
                     );
                     // Continue with pattern matching results
@@ -1166,59 +1044,53 @@ impl ReviewerActor {
         Ok((passed, issues))
     }
 
-    /// Generate LLM-powered improvement guidance for failed reviews
+    /// Generate DSPy-powered improvement guidance for failed reviews
     ///
-    /// Uses Claude to create detailed, actionable guidance for retry.
+    /// NOTE: This functionality is not yet implemented in ReviewerModule.
+    /// Returns a basic summary of failed gates and issues as a placeholder.
     #[cfg(feature = "python")]
     async fn generate_improvement_guidance(
-        state: &ReviewerState,
+        _state: &ReviewerState,
         gates: &QualityGates,
         issues: &[String],
         work_item: &WorkItem,
-        result: &WorkResult,
+        _result: &WorkResult,
     ) -> Result<String> {
-        // Build failed gates map
-        let mut failed_gates = HashMap::new();
-        failed_gates.insert("intent_satisfied".to_string(), gates.intent_satisfied);
-        failed_gates.insert("tests_passing".to_string(), gates.tests_passing);
-        failed_gates.insert("documentation_complete".to_string(), gates.documentation_complete);
-        failed_gates.insert("no_anti_patterns".to_string(), gates.no_anti_patterns);
-        failed_gates.insert("constraints_maintained".to_string(), gates.constraints_maintained);
-        failed_gates.insert("completeness".to_string(), gates.completeness);
-        failed_gates.insert("correctness".to_string(), gates.correctness);
-        failed_gates.insert("principled_implementation".to_string(), gates.principled_implementation);
+        // TODO: Implement improvement guidance in ReviewerModule
+        // For now, generate a basic summary
+        let mut guidance = String::new();
+        guidance.push_str(&format!("Review failed for work item: {}\n\n", work_item.description));
+        guidance.push_str("Failed Quality Gates:\n");
 
-        // Convert memory IDs to Python-compatible format (List[Dict[str, Any]])
-        let execution_memories = execution_memories_to_python_format(
-            &state.storage,
-            &result.memory_ids
-        ).await?;
+        if !gates.intent_satisfied {
+            guidance.push_str("- Intent not satisfied\n");
+        }
+        if !gates.tests_passing {
+            guidance.push_str("- Tests not passing\n");
+        }
+        if !gates.documentation_complete {
+            guidance.push_str("- Documentation incomplete\n");
+        }
+        if !gates.no_anti_patterns {
+            guidance.push_str("- Anti-patterns detected\n");
+        }
+        if !gates.constraints_maintained {
+            guidance.push_str("- Constraints not maintained\n");
+        }
+        if !gates.completeness {
+            guidance.push_str("- Implementation incomplete\n");
+        }
+        if !gates.correctness {
+            guidance.push_str("- Logical correctness issues\n");
+        }
+        if !gates.principled_implementation {
+            guidance.push_str("- Unprincipled implementation\n");
+        }
 
-        // Clone data for retry macro
-        let py_reviewer = state.py_reviewer.clone();
-        let original_intent = work_item.original_intent.clone();
-        let issues_vec = issues.to_vec();
-        let config = state.config.clone();
-
-        // Call Python LLM validator with retry logic
-        let guidance = retry_llm_operation!(&config, "generate_improvement_guidance", {
-            Python::with_gil(|py| -> PyResult<String> {
-                let py_reviewer = py_reviewer.as_ref().unwrap();
-
-                let result = py_reviewer.call_method1(
-                    py,
-                    "generate_improvement_guidance",
-                    (
-                        failed_gates.clone(),
-                        issues_vec.clone(),
-                        original_intent.clone(),
-                        execution_memories.clone(),
-                    ),
-                )?;
-
-                result.extract(py)
-            })
-        })?;
+        guidance.push_str(&format!("\nIssues Found ({}):\n", issues.len()));
+        for (i, issue) in issues.iter().enumerate() {
+            guidance.push_str(&format!("{}. {}\n", i + 1, issue));
+        }
 
         Ok(guidance)
     }
