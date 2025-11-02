@@ -4,12 +4,18 @@
 //! 1. Initialize artifact directory
 //! 2. Create project constitution
 //! 3. Create feature specification
-//! 4. Link artifacts with memory system
+//! 4. Create implementation plan
+//! 5. Create task breakdown
+//! 6. Create quality checklist
+//! 7. Create clarifications
+//! 8. Link artifacts with memory system
 //!
 //! Run with: cargo run --example specification_workflow
 
 use mnemosyne_core::artifacts::{
-    Constitution, FeatureSpec, UserScenario, ArtifactWorkflow,
+    Constitution, FeatureSpec, UserScenario, ImplementationPlan, TaskBreakdown,
+    TaskPhase, Task, QualityChecklist, ChecklistSection, ChecklistItem,
+    Clarification, ClarificationItem, ArtifactWorkflow,
 };
 use mnemosyne_core::types::Namespace;
 use mnemosyne_core::{ConnectionMode, LibsqlStorage};
@@ -121,7 +127,263 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   File: {}/specs/user-authentication.md", artifacts_dir.display());
     println!("   Linked to constitution: {}\n", constitution_memory_id);
 
-    // 5. Verify files were created
+    // 5. Create implementation plan
+    println!("📋 Creating implementation plan...\n");
+
+    let mut plan = ImplementationPlan::new(
+        "user-authentication".to_string(),
+        "JWT Authentication Implementation Plan".to_string(),
+        "Using jsonwebtoken crate with RS256 algorithm for asymmetric signing. \
+         Refresh tokens stored in HTTP-only cookies with secure flag. \
+         Token revocation via blacklist in Redis.".to_string(),
+    );
+
+    plan.dependencies.push("jsonwebtoken = \"9.2\"".to_string());
+    plan.dependencies.push("redis = { version = \"0.23\", features = [\"tokio-comp\"] }".to_string());
+
+    let plan_memory_id = workflow
+        .save_implementation_plan(
+            &mut plan,
+            namespace.clone(),
+            Some(spec_memory_id.to_string()),
+        )
+        .await?;
+
+    println!("✅ Implementation plan saved!");
+    println!("   Memory ID: {}", plan_memory_id);
+    println!("   File: {}/plans/user-authentication-plan.md", artifacts_dir.display());
+    println!("   Linked to spec: {}\n", spec_memory_id);
+
+    // 6. Create task breakdown
+    println!("📝 Creating task breakdown...\n");
+
+    let mut tasks = TaskBreakdown::new(
+        "user-authentication".to_string(),
+        "JWT Authentication Tasks".to_string(),
+    );
+
+    tasks.phases.push(TaskPhase {
+        name: "Setup".to_string(),
+        tasks: vec![
+            Task {
+                id: "T001".to_string(),
+                description: "Add jsonwebtoken and redis dependencies".to_string(),
+                parallelizable: false,
+                story: None,
+                completed: false,
+                depends_on: vec![],
+            },
+            Task {
+                id: "T002".to_string(),
+                description: "Create keys directory and generate RS256 keypair".to_string(),
+                parallelizable: false,
+                story: None,
+                completed: false,
+                depends_on: vec![],
+            },
+        ],
+    });
+
+    tasks.phases.push(TaskPhase {
+        name: "P0: User Login with Token".to_string(),
+        tasks: vec![
+            Task {
+                id: "T003".to_string(),
+                description: "[P] Implement token generation function".to_string(),
+                parallelizable: true,
+                story: None,
+                completed: false,
+                depends_on: vec!["T001".to_string(), "T002".to_string()],
+            },
+            Task {
+                id: "T004".to_string(),
+                description: "[P] Implement token validation middleware".to_string(),
+                parallelizable: true,
+                story: None,
+                completed: false,
+                depends_on: vec!["T001".to_string(), "T002".to_string()],
+            },
+            Task {
+                id: "T005".to_string(),
+                description: "Integrate login endpoint with token generation".to_string(),
+                parallelizable: false,
+                story: None,
+                completed: false,
+                depends_on: vec!["T003".to_string()],
+            },
+        ],
+    });
+
+    tasks.phases.push(TaskPhase {
+        name: "P1: Token Refresh".to_string(),
+        tasks: vec![
+            Task {
+                id: "T006".to_string(),
+                description: "Implement refresh token storage in Redis".to_string(),
+                parallelizable: false,
+                story: None,
+                completed: false,
+                depends_on: vec!["T003".to_string()],
+            },
+            Task {
+                id: "T007".to_string(),
+                description: "Add refresh endpoint with token validation".to_string(),
+                parallelizable: false,
+                story: None,
+                completed: false,
+                depends_on: vec!["T006".to_string()],
+            },
+        ],
+    });
+
+    let tasks_memory_id = workflow
+        .save_task_breakdown(
+            &mut tasks,
+            namespace.clone(),
+            Some(plan_memory_id.to_string()),
+        )
+        .await?;
+
+    println!("✅ Task breakdown saved!");
+    println!("   Memory ID: {}", tasks_memory_id);
+    println!("   File: {}/tasks/user-authentication-tasks.md", artifacts_dir.display());
+    println!("   Linked to plan: {}\n", plan_memory_id);
+
+    // 7. Create quality checklist
+    println!("✅ Creating quality checklist...\n");
+
+    let mut checklist = QualityChecklist::new(
+        "user-authentication".to_string(),
+        "JWT Authentication Quality Checklist".to_string(),
+    );
+
+    checklist.add_section(ChecklistSection {
+        name: "Functional Requirements".to_string(),
+        items: vec![
+            ChecklistItem {
+                description: "Token generation works with correct claims".to_string(),
+                completed: false,
+                notes: None,
+            },
+            ChecklistItem {
+                description: "Token validation rejects invalid/expired tokens".to_string(),
+                completed: false,
+                notes: None,
+            },
+            ChecklistItem {
+                description: "Refresh token flow works end-to-end".to_string(),
+                completed: false,
+                notes: Some("Test with expired access token".to_string()),
+            },
+        ],
+    });
+
+    checklist.add_section(ChecklistSection {
+        name: "Non-Functional Requirements".to_string(),
+        items: vec![
+            ChecklistItem {
+                description: "Performance: Authentication latency < 100ms p95".to_string(),
+                completed: false,
+                notes: None,
+            },
+            ChecklistItem {
+                description: "Security: No secrets in git".to_string(),
+                completed: false,
+                notes: Some("Verify .gitignore includes keys/".to_string()),
+            },
+            ChecklistItem {
+                description: "Security: Keys stored securely with proper permissions".to_string(),
+                completed: false,
+                notes: None,
+            },
+        ],
+    });
+
+    checklist.add_section(ChecklistSection {
+        name: "Testing".to_string(),
+        items: vec![
+            ChecklistItem {
+                description: "Unit tests: 90%+ coverage".to_string(),
+                completed: false,
+                notes: None,
+            },
+            ChecklistItem {
+                description: "Integration tests for token lifecycle".to_string(),
+                completed: false,
+                notes: None,
+            },
+        ],
+    });
+
+    let checklist_memory_id = workflow
+        .save_quality_checklist(
+            &mut checklist,
+            namespace.clone(),
+            Some(spec_memory_id.to_string()),
+        )
+        .await?;
+
+    println!("✅ Quality checklist saved!");
+    println!("   Memory ID: {}", checklist_memory_id);
+    println!("   File: {}/checklists/user-authentication-checklist.md", artifacts_dir.display());
+    println!("   Linked to spec: {}\n", spec_memory_id);
+
+    // 8. Create clarifications
+    println!("❓ Creating clarifications...\n");
+
+    let mut clarification = Clarification::new(
+        "user-authentication".to_string(),
+        "JWT Authentication Clarifications".to_string(),
+    );
+
+    clarification.add_item(ClarificationItem {
+        id: "Q001".to_string(),
+        question: "Should we support refresh tokens or only short-lived access tokens?".to_string(),
+        context: "The spec mentions stateless sessions but doesn't specify refresh mechanism.".to_string(),
+        decision: Some("Use refresh tokens stored in HTTP-only cookies".to_string()),
+        rationale: Some("Improves security (refresh tokens can be revoked) and UX (no manual re-auth every 24h)".to_string()),
+        spec_updates: vec![
+            "Added P1 scenario for refresh token flow".to_string(),
+            "Updated security requirements to include token revocation".to_string(),
+        ],
+    });
+
+    clarification.add_item(ClarificationItem {
+        id: "Q002".to_string(),
+        question: "Which JWT algorithm should we use?".to_string(),
+        context: "Security best practices need to be clarified".to_string(),
+        decision: Some("Use RS256 asymmetric signing".to_string()),
+        rationale: Some("Better key rotation and security properties than HS256".to_string()),
+        spec_updates: vec!["Added RS256 requirement to spec".to_string()],
+    });
+
+    clarification.add_item(ClarificationItem {
+        id: "Q003".to_string(),
+        question: "Should we implement password recovery in this feature?".to_string(),
+        context: "Out of scope for MVP?".to_string(),
+        decision: None,
+        rationale: None,
+        spec_updates: vec![],
+    });
+
+    let clarification_memory_id = workflow
+        .save_clarification(
+            &mut clarification,
+            namespace.clone(),
+            Some(spec_memory_id.to_string()),
+        )
+        .await?;
+
+    println!("✅ Clarifications saved!");
+    println!("   Memory ID: {}", clarification_memory_id);
+    println!("   File: {}/clarifications/user-authentication-clarifications.md", artifacts_dir.display());
+    println!("   Linked to spec: {}", spec_memory_id);
+    println!("   Status: {} resolved, {} pending\n",
+        clarification.items.iter().filter(|i| i.decision.is_some()).count(),
+        clarification.items.iter().filter(|i| i.decision.is_none()).count()
+    );
+
+    // 9. Verify files were created
     println!("📂 Verifying artifact files...\n");
 
     let constitution_path = artifacts_dir.join("constitution/project-constitution.md");
@@ -141,7 +403,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!();
     }
 
-    // 6. Demonstrate loading artifacts
+    // 10. Demonstrate loading all artifacts
     println!("📥 Loading artifacts from files...\n");
 
     let loaded_constitution = workflow.load_constitution().await?;
@@ -158,7 +420,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Success Criteria: {}", loaded_spec.success_criteria.len());
     println!();
 
-    // 7. Cleanup
+    let loaded_plan = workflow.load_implementation_plan("user-authentication").await?;
+    println!("✅ Loaded implementation plan:");
+    println!("   Approach: {} chars", loaded_plan.approach.len());
+    println!("   Dependencies: {}", loaded_plan.dependencies.len());
+    println!();
+
+    let loaded_tasks = workflow.load_task_breakdown("user-authentication").await?;
+    let total_tasks: usize = loaded_tasks.phases.iter().map(|p| p.tasks.len()).sum();
+    println!("✅ Loaded task breakdown:");
+    println!("   Phases: {}", loaded_tasks.phases.len());
+    println!("   Total Tasks: {}", total_tasks);
+    println!();
+
+    let loaded_checklist = workflow.load_quality_checklist("user-authentication").await?;
+    let total_items: usize = loaded_checklist.sections.iter().map(|s| s.items.len()).sum();
+    println!("✅ Loaded quality checklist:");
+    println!("   Sections: {}", loaded_checklist.sections.len());
+    println!("   Total Items: {}", total_items);
+    println!("   Completion: {:.1}%", loaded_checklist.completion_percentage());
+    println!();
+
+    let loaded_clarification = workflow.load_clarification("user-authentication").await?;
+    let resolved = loaded_clarification.items.iter().filter(|i| i.decision.is_some()).count();
+    println!("✅ Loaded clarifications:");
+    println!("   Total Questions: {}", loaded_clarification.items.len());
+    println!("   Resolved: {}", resolved);
+    println!("   Pending: {}", loaded_clarification.items.len() - resolved);
+    println!();
+
+    // 11. Cleanup
     println!("🧹 Cleaning up...");
     std::fs::remove_dir_all(&temp_dir)?;
     println!("✅ Removed temporary directory\n");
@@ -167,9 +458,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nThis example demonstrated:");
     println!("  ✓ Constitution creation with builder pattern");
     println!("  ✓ Feature spec creation with scenarios");
-    println!("  ✓ Memory entry creation with linking");
-    println!("  ✓ Artifact file persistence");
-    println!("  ✓ Artifact loading from files");
+    println!("  ✓ Implementation plan with architecture decisions");
+    println!("  ✓ Task breakdown with phases and dependencies");
+    println!("  ✓ Quality checklist with sections and completion tracking");
+    println!("  ✓ Clarifications with resolved/pending status");
+    println!("  ✓ Memory entry creation with linking (constitution → spec → plan → tasks)");
+    println!("  ✓ Artifact file persistence to .mnemosyne/artifacts/");
+    println!("  ✓ Artifact loading from files with full data preservation");
 
     Ok(())
 }
