@@ -1455,6 +1455,28 @@ mnemosyne/
 
 ---
 
-**Version**: 2.0.0
-**Last Updated**: 2025-10-31
-**Status**: Phase 2 Complete - Composable Tools Architecture
+## See Also
+
+### Essential Documentation
+- [AGENT_GUIDE.md](AGENT_GUIDE.md) - Comprehensive development guide for agents
+- [docs/TYPES_REFERENCE.md](docs/TYPES_REFERENCE.md) - Complete type system reference
+- [docs/STORAGE_SCHEMA.md](docs/STORAGE_SCHEMA.md) - Database schema and query patterns
+- [docs/INDEX.md](docs/INDEX.md) - Documentation navigation hub
+
+### Feature Documentation
+- [docs/features/VECTOR_SEARCH.md](docs/features/VECTOR_SEARCH.md) - Semantic search implementation
+- [docs/features/EVOLUTION.md](docs/features/EVOLUTION.md) - Memory evolution system
+- [docs/features/PRIVACY.md](docs/features/PRIVACY.md) - Privacy-preserving evaluation
+- [docs/features/ICS_README.md](docs/features/ICS_README.md) - Interactive Context Studio
+- [docs/features/semantic_highlighting.md](docs/features/semantic_highlighting.md) - 3-tier highlighting
+
+### Integration Guides
+- [MCP_SERVER.md](MCP_SERVER.md) - MCP protocol integration details
+- [ORCHESTRATION.md](ORCHESTRATION.md) - Multi-agent coordination system
+- [docs/guides/migration.md](docs/guides/migration.md) - TUI to composable tools migration
+
+---
+
+**Version**: 2.1.0
+**Last Updated**: 2025-11-02
+**Status**: Phase 2 Complete - Composable Tools Architecture + Documentation Reorganization

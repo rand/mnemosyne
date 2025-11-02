@@ -57,7 +57,7 @@
 //! reconstruction possible.
 //!
 //! For complete privacy documentation, see:
-//! - **Privacy Policy**: `docs/PRIVACY.md`
+//! - **Privacy Policy**: `docs/features/PRIVACY.md`
 //! - **Technical Details**: `EVALUATION.md`
 //!
 //! # Hierarchical Learning

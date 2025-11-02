@@ -60,7 +60,7 @@ Mnemosyne provides persistent semantic memory with sub-millisecond retrieval, bu
 - **Event Streaming**: Real-time coordination via SSE for monitoring
 
 ### TUI Wrapper Mode (Deprecated in v2.1.0)
-⚠️ **Deprecated**: Use `mnemosyne-ics` + `mnemosyne-dash` instead. See [docs/MIGRATION.md](docs/MIGRATION.md).
+⚠️ **Deprecated**: Use `mnemosyne-ics` + `mnemosyne-dash` instead. See [docs/guides/migration.md](docs/guides/migration.md).
 
 - **Command Palette**: Helix-style fuzzy command selector with type-ahead filtering
 - **Context-Aware Help**: Modal help overlay (?) with mode-specific shortcuts
@@ -194,7 +194,7 @@ mnemosyne-dash
 **TUI Wrapper Mode** (Deprecated in v2.1.0):
 ```bash
 ⚠️ Deprecated: Use mnemosyne-ics + mnemosyne-dash instead
-See docs/MIGRATION.md for migration guide
+See docs/guides/migration.md for migration guide
 
 # Launch TUI with command palette, ICS editor, and agent dashboard
 mnemosyne tui
@@ -364,7 +364,7 @@ mnemosyne serve --with-api [OPTIONS]
 ### TUI (Terminal User Interface) - Deprecated
 ```bash
 ⚠️ Deprecated in v2.1.0: Use mnemosyne-ics + mnemosyne-dash instead
-See docs/MIGRATION.md for migration guide
+See docs/guides/migration.md for migration guide
 
 # Launch enhanced TUI wrapper mode
 mnemosyne tui [OPTIONS]
@@ -446,36 +446,47 @@ ConnectionMode::EmbeddedReplica { ... }  // Local replica with sync
 
 ## Documentation
 
+### Getting Started
+- [README.md](README.md) - Project overview and quick start (this file)
+- [QUICK_START.md](QUICK_START.md) - Get up and running in 5 minutes
+- [INSTALL.md](INSTALL.md) - Detailed installation guide
+
+### For Agents/Developers
+- **[AGENT_GUIDE.md](AGENT_GUIDE.md)** - **START HERE** - Comprehensive development guide
+- [docs/INDEX.md](docs/INDEX.md) - Documentation navigation hub
+- [docs/TYPES_REFERENCE.md](docs/TYPES_REFERENCE.md) - Complete type system reference
+- [docs/STORAGE_SCHEMA.md](docs/STORAGE_SCHEMA.md) - Database schema and query patterns
+
 ### Core System
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture and design decisions
 - [ORCHESTRATION.md](ORCHESTRATION.md) - Multi-agent coordination guide
 - [MCP_SERVER.md](MCP_SERVER.md) - MCP protocol integration
 
 ### Features
-- [docs/EVOLUTION.md](docs/EVOLUTION.md) - Memory evolution system
-- [docs/VECTOR_SEARCH.md](docs/VECTOR_SEARCH.md) - Semantic search implementation
-- [docs/PRIVACY.md](docs/PRIVACY.md) - Privacy-preserving evaluation
-- [docs/ICS_README.md](docs/ICS_README.md) - Integrated Context Studio
+- [docs/features/EVOLUTION.md](docs/features/EVOLUTION.md) - Memory evolution system
+- [docs/features/VECTOR_SEARCH.md](docs/features/VECTOR_SEARCH.md) - Semantic search implementation
+- [docs/features/PRIVACY.md](docs/features/PRIVACY.md) - Privacy-preserving evaluation
+- [docs/features/ICS_README.md](docs/features/ICS_README.md) - Integrated Context Studio
+- [docs/features/semantic_highlighting.md](docs/features/semantic_highlighting.md) - 3-tier highlighting system
 
-### v2.1.0 Features
-- [docs/MIGRATION.md](docs/MIGRATION.md) - Migration from TUI to composable tools (475 lines)
-- [docs/guides/llm-reviewer.md](docs/guides/llm-reviewer.md) - LLM reviewer system (533 lines)
-- [docs/guides/llm-reviewer-setup.md](docs/guides/llm-reviewer-setup.md) - Setup and troubleshooting (448 lines)
-- [SEMANTIC_HIGHLIGHTING.md](SEMANTIC_HIGHLIGHTING.md) - System overview and API reference (423 lines)
-- [SEMANTIC_HIGHLIGHTING_INTEGRATION.md](SEMANTIC_HIGHLIGHTING_INTEGRATION.md) - Integration guide (514 lines)
-- [SEMANTIC_HIGHLIGHTING_STATUS.md](SEMANTIC_HIGHLIGHTING_STATUS.md) - Implementation status (169 lines)
+### Guides
+- [docs/guides/migration.md](docs/guides/migration.md) - Migration from TUI to composable tools
+- [docs/guides/llm-reviewer.md](docs/guides/llm-reviewer.md) - LLM reviewer system
+- [docs/guides/llm-reviewer-setup.md](docs/guides/llm-reviewer-setup.md) - Setup and troubleshooting
+- [docs/guides/workflows.md](docs/guides/workflows.md) - Common development workflows
 
-### Specifications (v2.1.0)
-- [docs/background-processing-spec.md](docs/background-processing-spec.md) - Tier 3 background processing (580 lines)
-- [docs/ics-integration-spec.md](docs/ics-integration-spec.md) - ICS integration specification (557 lines)
-- [docs/incremental-analysis-spec.md](docs/incremental-analysis-spec.md) - Incremental semantic analysis (533 lines)
-- [docs/semantic-highlighter-test-plan.md](docs/semantic-highlighter-test-plan.md) - Testing strategy (716 lines)
-- [docs/tier3-llm-integration-spec.md](docs/tier3-llm-integration-spec.md) - LLM integration architecture (421 lines)
+### Specifications
+- [docs/specs/background-processing-spec.md](docs/specs/background-processing-spec.md) - Tier 3 background processing
+- [docs/specs/ics-integration-spec.md](docs/specs/ics-integration-spec.md) - ICS integration specification
+- [docs/specs/incremental-analysis-spec.md](docs/specs/incremental-analysis-spec.md) - Incremental semantic analysis
+- [docs/specs/semantic-highlighter-test-plan.md](docs/specs/semantic-highlighter-test-plan.md) - Testing strategy
+- [docs/specs/tier3-llm-integration-spec.md](docs/specs/tier3-llm-integration-spec.md) - LLM integration architecture
 
 ### Development
 - [CHANGELOG.md](CHANGELOG.md) - Version history
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues and solutions
 - [TODO_TRACKING.md](TODO_TRACKING.md) - Development progress tracking
+- [docs/BUILD_OPTIMIZATION.md](docs/BUILD_OPTIMIZATION.md) - Build performance tuning
 
 ---
 

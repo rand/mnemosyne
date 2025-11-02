@@ -687,7 +687,7 @@ let job = ConsolidationJob::with_config(storage, Some(llm_service), config);
 
 **Cost**: ~$0.01-0.012 per 100-memory batch with LlmSelective (~$0.36/month for daily runs)
 
-**Reference**: Full specification in `docs/EVOLUTION_ENHANCEMENTS.md`
+**Reference**: Full specification in `docs/features/EVOLUTION_ENHANCEMENTS.md`
 
 ---
 

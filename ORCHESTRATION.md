@@ -28,7 +28,7 @@ mnemosyne_core (PyO3 bindings)
 - Local-only storage (.mnemosyne/project.db, gitignored)
 - Statistical features only, no raw content
 - Graceful degradation when disabled
-- See [EVALUATION.md](EVALUATION.md) and [docs/PRIVACY.md](docs/PRIVACY.md)
+- See [EVALUATION.md](EVALUATION.md) and [docs/features/PRIVACY.md](docs/features/PRIVACY.md)
 
 ---
 

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+**Documentation Reorganization**
+- Created comprehensive agent guide: `AGENT_GUIDE.md` (500+ lines)
+- Added type system reference: `docs/TYPES_REFERENCE.md` (350+ lines)
+- Added database schema documentation: `docs/STORAGE_SCHEMA.md` (450+ lines)
+- Created documentation navigation hub: `docs/INDEX.md` (250+ lines)
+- Organized documentation into logical structure:
+  - `docs/features/` - Feature-specific documentation
+  - `docs/guides/` - How-to guides and workflows
+  - `docs/specs/` - Technical specifications
+  - `docs/historical/` - Archived session and test reports
+
+### Changed
+
+**Signal Handling Improvements**
+- Enhanced graceful shutdown handling for MCP server
+- Proper cleanup on SIGINT and SIGTERM signals
+- Prevents "unsafe use of virtual table" errors during shutdown
+- Ensures database connections are closed cleanly
+
 ### Performance
 
 **Build Speed Improvements**
@@ -91,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - File-based context handoff via .claude/*.md files
 - HTTP SSE for real-time coordination
 - MCP works standalone, API/dashboard are additive
-- Migration guide: docs/MIGRATION.md
+- Migration guide: docs/guides/migration.md
 
 ### Changed
 
@@ -120,12 +141,12 @@ New documentation (11 files, 5,000+ lines):
 - `SEMANTIC_HIGHLIGHTING.md` - System overview and API reference (423 lines)
 - `SEMANTIC_HIGHLIGHTING_INTEGRATION.md` - Integration guide (514 lines)
 - `SEMANTIC_HIGHLIGHTING_STATUS.md` - Implementation status (169 lines)
-- `docs/MIGRATION.md` - Migration from TUI to composable tools (475 lines)
-- `docs/background-processing-spec.md` - Tier 3 background processing (580 lines)
-- `docs/ics-integration-spec.md` - ICS integration specification (557 lines)
-- `docs/incremental-analysis-spec.md` - Incremental semantic analysis (533 lines)
-- `docs/semantic-highlighter-test-plan.md` - Testing strategy (716 lines)
-- `docs/tier3-llm-integration-spec.md` - LLM integration architecture (421 lines)
+- `docs/guides/migration.md` - Migration from TUI to composable tools (475 lines)
+- `docs/specs/background-processing-spec.md` - Tier 3 background processing (580 lines)
+- `docs/specs/ics-integration-spec.md` - ICS integration specification (557 lines)
+- `docs/specs/incremental-analysis-spec.md` - Incremental semantic analysis (533 lines)
+- `docs/specs/semantic-highlighter-test-plan.md` - Testing strategy (716 lines)
+- `docs/specs/tier3-llm-integration-spec.md` - LLM integration architecture (421 lines)
 
 Updated documentation:
 - `ARCHITECTURE.md` - Added composable tools architecture section
@@ -182,7 +203,7 @@ Updated documentation:
 ### Deprecations
 
 - `mnemosyne tui` - Use `mnemosyne-ics` + `mnemosyne-dash` instead
-- See `docs/MIGRATION.md` for migration guide
+- See `docs/guides/migration.md` for migration guide
 
 ---
 

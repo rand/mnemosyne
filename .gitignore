@@ -1,4 +1,7 @@
+# Rust build artifacts
 /target
+
+# Python artifacts
 __pycache__/
 *.py[cod]
 *$py.class
@@ -12,7 +15,26 @@ __pycache__/
 *.db-shm
 .mnemosyne/
 
-.DS_Store
+# Test artifacts
 test_output*.log
+tests/e2e/results/*/
+
+# System files
+.DS_Store
 /tmp/
+
+# Backup files
 .claude/mcp_config.json.backup.*
+*.bak
+*.swp
+*.swo
+*~
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+.beads/daemon.log
