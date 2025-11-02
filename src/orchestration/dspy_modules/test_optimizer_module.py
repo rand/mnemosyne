@@ -8,6 +8,7 @@ Tests verify:
 - ChainOfThought reasoning transparency
 """
 
+import os
 import pytest
 import dspy
 from optimizer_module import OptimizerModule
@@ -15,9 +16,15 @@ from optimizer_module import OptimizerModule
 
 @pytest.fixture
 def optimizer_module():
-    """Create OptimizerModule with test LM."""
-    # Use a test LM or mock for unit tests
-    # In real integration tests, this would use actual Claude
+    """Create OptimizerModule with Claude API (requires ANTHROPIC_API_KEY)."""
+    # Check for API key
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        pytest.skip("ANTHROPIC_API_KEY not set - skipping integration tests")
+
+    # Configure DSPy with Anthropic Claude
+    dspy.configure(lm=dspy.LM('anthropic/claude-3-5-haiku-20241022', api_key=api_key))
+
     return OptimizerModule()
 
 
