@@ -448,15 +448,15 @@ enum ArtifactCommands {
 **Fully Complete** ✅:
 - Constitution: Save/load with principles, quality gates, constraints
 - FeatureSpec: Save/load with scenarios, requirements, success criteria
+- ImplementationPlan: Save/load with approach, architecture decisions, dependencies
+- TaskBreakdown: Save/load with phases, tasks (all markers: [P], [story], dependencies)
+- QualityChecklist: Save/load with sections, items, completion status, notes
 - CLI commands: init, create-constitution, create-feature-spec, list, show, validate
 - Working example: examples/specification_workflow.rs
-- Round-trip serialization: Tested and verified
-- Unit tests: 14 tests covering parsing and round-trips
+- Round-trip serialization: Tested and verified for all artifact types
+- Unit tests: 45 tests covering all artifact parsing and round-trips
 
 **Pending** ⚠️:
-- ImplementationPlan: Basic structure exists, markdown parsing TODO
-- TaskBreakdown: Basic structure exists, markdown parsing TODO
-- QualityChecklist: Basic structure exists, markdown parsing TODO
 - Clarification: Basic structure exists, markdown parsing TODO
 - Workflow integration tests: Minimal coverage (needs expansion)
 - Phase 2 memory linking: Advanced graph operations (link_artifacts, etc.)

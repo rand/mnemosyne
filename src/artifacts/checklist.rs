@@ -6,6 +6,94 @@ use crate::error::{MnemosyneError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// Parse checklist sections from markdown
+///
+/// Extracts sections with format:
+/// ## Section Name
+/// - [x] Item description
+///   - *Note*: Item notes
+fn parse_checklist_sections(markdown: &str) -> Vec<ChecklistSection> {
+    let mut sections = Vec::new();
+    let lines: Vec<&str> = markdown.lines().collect();
+
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i].trim();
+
+        // Look for section header: "## Section Name"
+        if let Some(header) = line.strip_prefix("##") {
+            let section_name = header.trim();
+
+            // Skip "Completion" line or other special headers
+            if section_name.starts_with("*") {
+                i += 1;
+                continue;
+            }
+
+            let mut items = Vec::new();
+
+            // Parse items in this section
+            i += 1;
+            while i < lines.len() {
+                let item_line = lines[i];
+                let trimmed = item_line.trim();
+
+                // Stop at next section
+                if trimmed.starts_with("##") {
+                    break;
+                }
+
+                // Parse checklist item
+                if trimmed.starts_with("- [") {
+                    // Check completion status
+                    let completed = trimmed.contains("- [x]");
+
+                    // Extract description
+                    let after_checkbox = if completed {
+                        trimmed.strip_prefix("- [x]")
+                    } else {
+                        trimmed.strip_prefix("- [ ]")
+                    };
+
+                    if let Some(description) = after_checkbox {
+                        let description = description.trim().to_string();
+
+                        // Check if next line is a note
+                        let mut notes = None;
+                        if i + 1 < lines.len() {
+                            let next_line = lines[i + 1].trim();
+                            if let Some(note_text) = next_line.strip_prefix("- *Note*:") {
+                                notes = Some(note_text.trim().to_string());
+                                i += 1; // Skip note line
+                            }
+                        }
+
+                        items.push(ChecklistItem {
+                            description,
+                            completed,
+                            notes,
+                        });
+                    }
+                }
+
+                i += 1;
+            }
+
+            if !items.is_empty() {
+                sections.push(ChecklistSection {
+                    name: section_name.to_string(),
+                    items,
+                });
+            }
+            continue;
+        }
+
+        i += 1;
+    }
+
+    sections
+}
+
 /// Quality checklist for validation and acceptance criteria
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualityChecklist {
@@ -139,11 +227,21 @@ impl Artifact for QualityChecklist {
         let metadata: ArtifactMetadata = serde_yaml::from_value(frontmatter)
             .map_err(|e| MnemosyneError::Other(format!("Failed to parse metadata: {}", e)))?;
 
+        // Extract feature_id from metadata.id which has format "{feature_id}-checklist"
+        let feature_id = if let Some(suffix_pos) = metadata.id.rfind("-checklist") {
+            metadata.id[..suffix_pos].to_string()
+        } else {
+            metadata.id.clone()
+        };
+
+        // Parse sections from markdown
+        let sections = parse_checklist_sections(&markdown);
+
         Ok(Self {
             metadata,
-            feature_id: String::new(),
-            sections: Vec::new(),
-            content: markdown,
+            feature_id,
+            sections,
+            content: markdown.to_string(),
         })
     }
 }
@@ -187,5 +285,174 @@ mod tests {
         });
 
         assert_eq!(checklist.completion_percentage(), 50.0);
+    }
+
+    #[test]
+    fn test_checklist_round_trip_simple() {
+        // Create simple checklist
+        let mut original = QualityChecklist::new(
+            "test-feature".to_string(),
+            "Test Feature Checklist".to_string(),
+        );
+
+        original.add_section(ChecklistSection {
+            name: "Tests".to_string(),
+            items: vec![
+                ChecklistItem {
+                    description: "Unit tests passing".to_string(),
+                    completed: true,
+                    notes: None,
+                },
+                ChecklistItem {
+                    description: "Integration tests passing".to_string(),
+                    completed: false,
+                    notes: None,
+                },
+            ],
+        });
+
+        // Serialize to markdown
+        let markdown = original.to_markdown().unwrap();
+
+        // Deserialize back
+        let loaded = QualityChecklist::from_markdown(&markdown).unwrap();
+
+        // Verify fields preserved
+        assert_eq!(loaded.feature_id, "test-feature");
+        assert_eq!(loaded.sections.len(), 1);
+        assert_eq!(loaded.sections[0].name, "Tests");
+        assert_eq!(loaded.sections[0].items.len(), 2);
+        assert_eq!(loaded.sections[0].items[0].description, "Unit tests passing");
+        assert!(loaded.sections[0].items[0].completed);
+        assert_eq!(loaded.sections[0].items[1].description, "Integration tests passing");
+        assert!(!loaded.sections[0].items[1].completed);
+    }
+
+    #[test]
+    fn test_checklist_round_trip_complete() {
+        // Create complete checklist with multiple sections and notes
+        let mut original = QualityChecklist::new(
+            "user-auth".to_string(),
+            "User Authentication Checklist".to_string(),
+        );
+
+        original.add_section(ChecklistSection {
+            name: "Functional Requirements".to_string(),
+            items: vec![
+                ChecklistItem {
+                    description: "Token generation works".to_string(),
+                    completed: true,
+                    notes: Some("Using RS256 algorithm".to_string()),
+                },
+                ChecklistItem {
+                    description: "Token validation works".to_string(),
+                    completed: true,
+                    notes: None,
+                },
+                ChecklistItem {
+                    description: "Refresh token flow works".to_string(),
+                    completed: false,
+                    notes: Some("Waiting on cookie implementation".to_string()),
+                },
+            ],
+        });
+
+        original.add_section(ChecklistSection {
+            name: "Testing".to_string(),
+            items: vec![
+                ChecklistItem {
+                    description: "Unit tests: 90%+ coverage".to_string(),
+                    completed: true,
+                    notes: None,
+                },
+                ChecklistItem {
+                    description: "Integration tests passing".to_string(),
+                    completed: false,
+                    notes: None,
+                },
+            ],
+        });
+
+        original.add_section(ChecklistSection {
+            name: "Security".to_string(),
+            items: vec![
+                ChecklistItem {
+                    description: "No secrets in git".to_string(),
+                    completed: true,
+                    notes: Some("Keys stored in .env".to_string()),
+                },
+            ],
+        });
+
+        // Serialize to markdown
+        let markdown = original.to_markdown().unwrap();
+
+        // Deserialize back
+        let loaded = QualityChecklist::from_markdown(&markdown).unwrap();
+
+        // Verify all fields preserved
+        assert_eq!(loaded.feature_id, "user-auth");
+        assert_eq!(loaded.sections.len(), 3);
+
+        // Verify Functional Requirements section
+        assert_eq!(loaded.sections[0].name, "Functional Requirements");
+        assert_eq!(loaded.sections[0].items.len(), 3);
+        assert_eq!(loaded.sections[0].items[0].description, "Token generation works");
+        assert!(loaded.sections[0].items[0].completed);
+        assert_eq!(loaded.sections[0].items[0].notes, Some("Using RS256 algorithm".to_string()));
+        assert_eq!(loaded.sections[0].items[1].description, "Token validation works");
+        assert!(loaded.sections[0].items[1].completed);
+        assert_eq!(loaded.sections[0].items[1].notes, None);
+        assert_eq!(loaded.sections[0].items[2].description, "Refresh token flow works");
+        assert!(!loaded.sections[0].items[2].completed);
+        assert_eq!(loaded.sections[0].items[2].notes, Some("Waiting on cookie implementation".to_string()));
+
+        // Verify Testing section
+        assert_eq!(loaded.sections[1].name, "Testing");
+        assert_eq!(loaded.sections[1].items.len(), 2);
+        assert!(loaded.sections[1].items[0].completed);
+        assert!(!loaded.sections[1].items[1].completed);
+
+        // Verify Security section
+        assert_eq!(loaded.sections[2].name, "Security");
+        assert_eq!(loaded.sections[2].items.len(), 1);
+        assert_eq!(loaded.sections[2].items[0].notes, Some("Keys stored in .env".to_string()));
+    }
+
+    #[test]
+    fn test_parse_checklist_sections() {
+        let markdown = r#"
+# Quality Checklist
+
+**Completion**: 50.0%
+
+## Functional Requirements
+
+- [x] Feature A works
+  - *Note*: Tested manually
+- [ ] Feature B works
+
+## Testing
+
+- [x] Unit tests passing
+- [ ] Integration tests passing
+"#;
+
+        let sections = parse_checklist_sections(markdown);
+        assert_eq!(sections.len(), 2);
+
+        assert_eq!(sections[0].name, "Functional Requirements");
+        assert_eq!(sections[0].items.len(), 2);
+        assert_eq!(sections[0].items[0].description, "Feature A works");
+        assert!(sections[0].items[0].completed);
+        assert_eq!(sections[0].items[0].notes, Some("Tested manually".to_string()));
+        assert_eq!(sections[0].items[1].description, "Feature B works");
+        assert!(!sections[0].items[1].completed);
+        assert_eq!(sections[0].items[1].notes, None);
+
+        assert_eq!(sections[1].name, "Testing");
+        assert_eq!(sections[1].items.len(), 2);
+        assert!(sections[1].items[0].completed);
+        assert!(!sections[1].items[1].completed);
     }
 }
