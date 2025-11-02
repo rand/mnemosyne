@@ -53,11 +53,11 @@ class ExtractRequirements(dspy.Signature):
         desc="Additional context: work item phase, agent, file scope"
     )
 
-    requirements: list[str] = dspy.OutputField(
-        desc="List of explicit, testable requirements extracted from intent"
+    requirements = dspy.OutputField(
+        desc="List of explicit, testable requirements extracted from intent (list[str])"
     )
-    priorities: list[int] = dspy.OutputField(
-        desc="Priority scores (1-10) for each requirement, same order as requirements"
+    priorities = dspy.OutputField(
+        desc="Priority scores (1-10) for each requirement, same order as requirements (list[int])"
     )
 
 
@@ -86,14 +86,14 @@ class ValidateIntentSatisfaction(dspy.Signature):
         desc="Extracted requirements from intent (may be empty)"
     )
 
-    intent_satisfied: bool = dspy.OutputField(
-        desc="True if implementation satisfies user intent, False otherwise"
+    intent_satisfied = dspy.OutputField(
+        desc="True if implementation satisfies user intent, False otherwise (bool)"
     )
-    explanation: str = dspy.OutputField(
-        desc="Explanation of why intent is/isn't satisfied, referencing specific requirements"
+    explanation = dspy.OutputField(
+        desc="Explanation of why intent is/isn't satisfied, referencing specific requirements (str)"
     )
-    missing_aspects: list[str] = dspy.OutputField(
-        desc="List of aspects of user intent not addressed by implementation (empty if satisfied)"
+    missing_aspects = dspy.OutputField(
+        desc="List of aspects of user intent not addressed by implementation, empty if satisfied (list[str])"
     )
 
 
@@ -120,17 +120,17 @@ class ValidateCompleteness(dspy.Signature):
         desc="Extracted requirements (may be empty)"
     )
 
-    is_complete: bool = dspy.OutputField(
-        desc="True if implementation is complete and production-ready"
+    is_complete = dspy.OutputField(
+        desc="True if implementation is complete and production-ready (bool)"
     )
-    incomplete_aspects: list[str] = dspy.OutputField(
-        desc="List of incomplete aspects found (TODOs, stubs, missing tests, etc.)"
+    incomplete_aspects = dspy.OutputField(
+        desc="List of incomplete aspects found: TODOs, stubs, missing tests, etc. (list[str])"
     )
-    typed_holes: list[str] = dspy.OutputField(
-        desc="List of typed holes or unfilled interfaces requiring implementation"
+    typed_holes = dspy.OutputField(
+        desc="List of typed holes or unfilled interfaces requiring implementation (list[str])"
     )
-    missing_tests: list[str] = dspy.OutputField(
-        desc="List of areas lacking test coverage"
+    missing_tests = dspy.OutputField(
+        desc="List of areas lacking test coverage (list[str])"
     )
 
 
@@ -159,17 +159,17 @@ class ValidateCorrectness(dspy.Signature):
         desc="Test execution results: pass/fail counts, error messages"
     )
 
-    is_correct: bool = dspy.OutputField(
-        desc="True if implementation is logically sound and bug-free"
+    is_correct = dspy.OutputField(
+        desc="True if implementation is logically sound and bug-free (bool)"
     )
-    logic_issues: list[str] = dspy.OutputField(
-        desc="List of potential logic errors or bugs found"
+    logic_issues = dspy.OutputField(
+        desc="List of potential logic errors or bugs found (list[str])"
     )
-    error_handling_gaps: list[str] = dspy.OutputField(
-        desc="List of error handling gaps (missing try/catch, validation, etc.)"
+    error_handling_gaps = dspy.OutputField(
+        desc="List of error handling gaps: missing try/catch, validation, etc. (list[str])"
     )
-    edge_cases: list[str] = dspy.OutputField(
-        desc="List of unhandled edge cases"
+    edge_cases = dspy.OutputField(
+        desc="List of unhandled edge cases (list[str])"
     )
 
 
@@ -202,14 +202,14 @@ class GenerateImprovementGuidance(dspy.Signature):
         desc="Consolidated list of all issues found across gates"
     )
 
-    guidance: str = dspy.OutputField(
-        desc="Actionable improvement guidance with specific steps"
+    guidance = dspy.OutputField(
+        desc="Actionable improvement guidance with specific steps (str)"
     )
-    priority_fixes: list[str] = dspy.OutputField(
-        desc="List of highest-priority fixes to address first"
+    priority_fixes = dspy.OutputField(
+        desc="List of highest-priority fixes to address first (list[str])"
     )
-    suggestions: list[str] = dspy.OutputField(
-        desc="Additional suggestions for improving quality beyond minimum requirements"
+    suggestions = dspy.OutputField(
+        desc="Additional suggestions for improving quality beyond minimum requirements (list[str])"
     )
 
 
@@ -223,11 +223,11 @@ class PrioritizeWorkItems(dspy.Signature):
         desc="Dependency relationships between work items"
     )
 
-    prioritized_ids: list[str] = dspy.OutputField(
-        desc="Work item IDs in priority order (highest first)"
+    prioritized_ids = dspy.OutputField(
+        desc="Work item IDs in priority order, highest first (list[str])"
     )
-    reasoning: str = dspy.OutputField(
-        desc="Explanation of prioritization logic"
+    reasoning = dspy.OutputField(
+        desc="Explanation of prioritization logic (str)"
     )
 
 
@@ -241,11 +241,11 @@ class DiscoverRelevantSkills(dspy.Signature):
         desc="List of available skill names"
     )
 
-    relevant_skills: list[str] = dspy.OutputField(
-        desc="Skills relevant to the task, ranked by relevance"
+    relevant_skills = dspy.OutputField(
+        desc="Skills relevant to the task, ranked by relevance (list[str])"
     )
-    relevance_scores: list[float] = dspy.OutputField(
-        desc="Relevance scores (0-1) for each selected skill"
+    relevance_scores = dspy.OutputField(
+        desc="Relevance scores (0-1) for each selected skill (list[float])"
     )
 
 
@@ -259,9 +259,9 @@ class DecomposeTask(dspy.Signature):
         desc="Project context and constraints"
     )
 
-    steps: list[str] = dspy.OutputField(
-        desc="Concrete implementation steps in execution order"
+    steps = dspy.OutputField(
+        desc="Concrete implementation steps in execution order (list[str])"
     )
-    dependencies: list[str] = dspy.OutputField(
-        desc="Dependencies between steps (format: 'step_i depends on step_j')"
+    dependencies = dspy.OutputField(
+        desc="Dependencies between steps, format: 'step_i depends on step_j' (list[str])"
     )

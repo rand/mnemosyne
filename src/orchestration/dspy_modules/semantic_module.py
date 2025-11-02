@@ -104,11 +104,11 @@ class AnalyzeDiscourse(dspy.Signature):
         desc="Text to analyze for discourse structure"
     )
 
-    segments: list[dict] = dspy.OutputField(
-        desc="Discourse segments with fields: start (int), end (int), text (str), relation (str or null), related_to_start (int or null), related_to_end (int or null), confidence (float 0-1)"
+    segments = dspy.OutputField(
+        desc="Discourse segments with fields: start (int), end (int), text (str), relation (str or null), related_to_start (int or null), related_to_end (int or null), confidence (float 0-1). Return as list[dict]."
     )
-    coherence_score: float = dspy.OutputField(
-        desc="Overall discourse coherence score (0-1)"
+    coherence_score = dspy.OutputField(
+        desc="Overall discourse coherence score (0-1) as float"
     )
 
 
@@ -128,8 +128,8 @@ class DetectContradictions(dspy.Signature):
         desc="Text to analyze for contradictions"
     )
 
-    contradictions: list[dict] = dspy.OutputField(
-        desc="Contradictions with fields: statement1_start (int), statement1_end (int), text1 (str), statement2_start (int), statement2_end (int), text2 (str), type (str: Direct/Temporal/Semantic/Implication), explanation (str), confidence (float 0-1)"
+    contradictions = dspy.OutputField(
+        desc="Contradictions with fields: statement1_start (int), statement1_end (int), text1 (str), statement2_start (int), statement2_end (int), text2 (str), type (str: Direct/Temporal/Semantic/Implication), explanation (str), confidence (float 0-1). Return as list[dict]."
     )
 
 
@@ -157,8 +157,8 @@ class ExtractPragmatics(dspy.Signature):
         desc="Text to analyze for pragmatic elements"
     )
 
-    elements: list[dict] = dspy.OutputField(
-        desc="Pragmatic elements with fields: start (int), end (int), text (str), type (str: Presupposition/Implicature/SpeechAct/IndirectSpeech), speech_act (str or null: Assertion/Question/Command/Promise/Request/Wish), explanation (str), implied_meaning (str or null), confidence (float 0-1)"
+    elements = dspy.OutputField(
+        desc="Pragmatic elements with fields: start (int), end (int), text (str), type (str: Presupposition/Implicature/SpeechAct/IndirectSpeech), speech_act (str or null: Assertion/Question/Command/Promise/Request/Wish), explanation (str), implied_meaning (str or null), confidence (float 0-1). Return as list[dict]."
     )
 
 
@@ -183,6 +183,44 @@ class SemanticModule(dspy.Module):
         self.pragmatics = dspy.ChainOfThought(ExtractPragmatics)
 
         logger.info("SemanticModule initialized with ChainOfThought")
+
+    def _parse_json_list(self, text) -> list:
+        """Parse DSPy's JSON-formatted string output into Python list.
+
+        DSPy returns JSON strings like:
+        '[{"key": "value"}, {"key": "value"}]'
+
+        This converts to actual Python list of dicts.
+        """
+        if isinstance(text, list):
+            return text  # Already a list
+
+        if not isinstance(text, str):
+            return []
+
+        # Try to parse as JSON
+        import json
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, list):
+                return parsed
+            return [parsed]  # Single dict wrapped in list
+        except (json.JSONDecodeError, ValueError):
+            logger.warning(f"Failed to parse JSON list: {text[:100]}")
+            return []
+
+    def _parse_float(self, value) -> float:
+        """Parse DSPy's float output which may be string."""
+        if isinstance(value, float):
+            return value
+        if isinstance(value, int):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                return float(value.strip())
+            except ValueError:
+                return 0.0
+        return 0.0
 
     def forward(self, text: str, operation: str = "all"):
         """Main forward pass - performs semantic analysis.
@@ -220,8 +258,16 @@ class SemanticModule(dspy.Module):
 
         result = self.discourse(text=text)
 
-        logger.info(f"Found {len(result.segments)} discourse segments")
-        return result
+        # Parse DSPy's string outputs into proper types
+        segments = self._parse_json_list(result.segments)
+        coherence_score = self._parse_float(result.coherence_score)
+
+        logger.info(f"Found {len(segments)} discourse segments")
+        return dspy.Prediction(
+            segments=segments,
+            coherence_score=coherence_score,
+            **{k: v for k, v in result.items() if k not in ['segments', 'coherence_score']}
+        )
 
     def detect_contradictions(self, text: str) -> dspy.Prediction:
         """Detect contradictions in text.
@@ -237,8 +283,14 @@ class SemanticModule(dspy.Module):
 
         result = self.contradictions(text=text)
 
-        logger.info(f"Found {len(result.contradictions)} contradictions")
-        return result
+        # Parse DSPy's JSON string output into proper list
+        contradictions = self._parse_json_list(result.contradictions)
+
+        logger.info(f"Found {len(contradictions)} contradictions")
+        return dspy.Prediction(
+            contradictions=contradictions,
+            **{k: v for k, v in result.items() if k != 'contradictions'}
+        )
 
     def extract_pragmatics(self, text: str) -> dspy.Prediction:
         """Extract pragmatic elements from text.
@@ -254,8 +306,14 @@ class SemanticModule(dspy.Module):
 
         result = self.pragmatics(text=text)
 
-        logger.info(f"Found {len(result.elements)} pragmatic elements")
-        return result
+        # Parse DSPy's JSON string output into proper list
+        elements = self._parse_json_list(result.elements)
+
+        logger.info(f"Found {len(elements)} pragmatic elements")
+        return dspy.Prediction(
+            elements=elements,
+            **{k: v for k, v in result.items() if k != 'elements'}
+        )
 
     def analyze_all(self, text: str) -> dspy.Prediction:
         """Perform all three analyses on text.

@@ -112,15 +112,61 @@ class ReviewerModule(dspy.Module):
         # Requirement extraction
         self.extract_reqs = dspy.ChainOfThought(ExtractRequirements)
 
-        # Three-pillar validation
-        self.validate_intent = dspy.ChainOfThought(ValidateIntentSatisfaction)
-        self.validate_completeness = dspy.ChainOfThought(ValidateCompleteness)
-        self.validate_correctness = dspy.ChainOfThought(ValidateCorrectness)
+        # Three-pillar validation (using _ prefix to avoid method name conflicts)
+        self._validate_intent_cot = dspy.ChainOfThought(ValidateIntentSatisfaction)
+        self._validate_completeness_cot = dspy.ChainOfThought(ValidateCompleteness)
+        self._validate_correctness_cot = dspy.ChainOfThought(ValidateCorrectness)
 
         # Improvement guidance
         self.generate_guidance = dspy.ChainOfThought(GenerateImprovementGuidance)
 
         logger.info("ReviewerModule initialized with ChainOfThought")
+
+    def _parse_numbered_list(self, text: str) -> list[str]:
+        """Parse DSPy's numbered list format into Python list.
+
+        DSPy often returns formatted strings like:
+        "1. First item\n2. Second item\n3. Third item"
+
+        This converts to: ["First item", "Second item", "Third item"]
+        """
+        if isinstance(text, list):
+            return text  # Already a list
+
+        if not isinstance(text, str):
+            return []
+
+        # Handle string representations of empty lists
+        if text.strip() in ['[]', '[ ]', '']:
+            return []
+
+        # Split by newlines and parse numbered items
+        lines = text.strip().split('\n')
+        items = []
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Match patterns like "1. Item" or "1) Item" or "- Item"
+            import re
+            match = re.match(r'^(?:\d+[\.\)]\s*|[-*]\s*)(.*)', line)
+            if match:
+                items.append(match.group(1).strip())
+            elif line:
+                # If no numbering found, add the whole line
+                items.append(line)
+
+        return items
+
+    def _parse_boolean(self, value) -> bool:
+        """Parse DSPy's boolean output which may be string 'True'/'False'."""
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in ['true', '1', 'yes']
+        return False
 
     def forward(
         self,
@@ -177,13 +223,13 @@ class ReviewerModule(dspy.Module):
     def extract_requirements(
         self,
         user_intent: str,
-        context: str,
+        context: str = "",
     ) -> dspy.Prediction:
         """Extract explicit requirements from user intent.
 
         Args:
             user_intent: User's high-level description
-            context: Work item phase, agent, file scope
+            context: Work item phase, agent, file scope (optional)
 
         Returns:
             Prediction with:
@@ -194,11 +240,32 @@ class ReviewerModule(dspy.Module):
 
         result = self.extract_reqs(
             user_intent=user_intent,
-            context=context,
+            context=context or "General development context",
         )
 
-        logger.info(f"Extracted {len(result.requirements)} requirements")
-        return result
+        # Parse DSPy's formatted string output into list
+        requirements = self._parse_numbered_list(result.requirements)
+        priorities_raw = self._parse_numbered_list(result.priorities) if hasattr(result, 'priorities') else []
+
+        # Extract just the numbers from priorities (e.g., "1. 9 (Critical)" -> 9)
+        priorities = []
+        for p in priorities_raw:
+            try:
+                # Extract first number from string like "1. 9 (Critical)"
+                parts = p.strip().split()
+                if len(parts) >= 2:
+                    priorities.append(int(parts[1]))
+                else:
+                    priorities.append(int(parts[0]))
+            except (ValueError, IndexError):
+                priorities.append(5)  # Default priority
+
+        logger.info(f"Extracted {len(requirements)} requirements")
+        return dspy.Prediction(
+            requirements=requirements,
+            priorities=priorities,
+            **{k: v for k, v in result.items() if k not in ['requirements', 'priorities']}
+        )
 
     def validate_intent_satisfaction(
         self,
@@ -223,7 +290,7 @@ class ReviewerModule(dspy.Module):
         """
         logger.debug("Validating intent satisfaction")
 
-        result = self.validate_intent(
+        result = self._validate_intent_cot(
             user_intent=user_intent,
             work_item=work_item,
             implementation=implementation,
@@ -255,7 +322,7 @@ class ReviewerModule(dspy.Module):
         """
         logger.debug("Validating completeness")
 
-        result = self.validate_completeness(
+        result = self._validate_completeness_cot(
             work_item=work_item,
             implementation=implementation,
             requirements=requirements,
@@ -286,7 +353,7 @@ class ReviewerModule(dspy.Module):
         """
         logger.debug("Validating correctness")
 
-        result = self.validate_correctness(
+        result = self._validate_correctness_cot(
             work_item=work_item,
             implementation=implementation,
             test_results=test_results,
@@ -396,4 +463,136 @@ class ReviewerModule(dspy.Module):
             logic_issues=correctness_result.logic_issues,
             error_handling_gaps=correctness_result.error_handling_gaps,
             edge_cases=correctness_result.edge_cases,
+        )
+
+    # =============================================================================
+    # Simplified Test API
+    # =============================================================================
+    # These methods provide a simplified interface for testing, matching the
+    # test file expectations with execution_context instead of structured inputs.
+
+    def validate_intent(
+        self,
+        user_intent: str,
+        implementation: str,
+        execution_context: list = None,
+    ) -> dspy.Prediction:
+        """Simplified API for testing intent validation.
+
+        Args:
+            user_intent: User's original intent
+            implementation: Implementation summary
+            execution_context: List of execution memory dicts (optional)
+
+        Returns:
+            Prediction with intent_satisfied (bool) and issues (list)
+        """
+        # Extract work_item from execution context if available
+        work_item = ""
+        if execution_context:
+            work_item = execution_context[0].get("summary", "") if len(execution_context) > 0 else ""
+
+        # Call the full validation method
+        result = self.validate_intent_satisfaction(
+            user_intent=user_intent,
+            work_item=work_item or "General implementation",
+            implementation=implementation,
+            requirements=[],
+        )
+
+        # Map to simpler test-expected format
+        issues = self._parse_numbered_list(result.missing_aspects) if hasattr(result, 'missing_aspects') else []
+        intent_satisfied = self._parse_boolean(result.intent_satisfied) if hasattr(result, 'intent_satisfied') else False
+
+        return dspy.Prediction(
+            intent_satisfied=intent_satisfied,
+            issues=issues,
+        )
+
+    def verify_completeness(
+        self,
+        requirements: list[str],
+        implementation: str,
+        execution_context: list = None,
+    ) -> dspy.Prediction:
+        """Simplified API for testing completeness validation.
+
+        Args:
+            requirements: List of requirements to check
+            implementation: Implementation summary
+            execution_context: List of execution memory dicts (optional)
+
+        Returns:
+            Prediction with complete (bool) and issues (list)
+        """
+        # Extract work_item from execution context if available
+        work_item = ""
+        if execution_context:
+            work_item = execution_context[0].get("summary", "") if len(execution_context) > 0 else ""
+
+        # Call the full validation method
+        result = self.validate_implementation_completeness(
+            work_item=work_item or "General implementation",
+            implementation=implementation,
+            requirements=requirements,
+        )
+
+        # Map to simpler test-expected format
+        issues = []
+        if hasattr(result, 'incomplete_aspects'):
+            issues.extend(self._parse_numbered_list(result.incomplete_aspects))
+        if hasattr(result, 'typed_holes'):
+            issues.extend(self._parse_numbered_list(result.typed_holes))
+        if hasattr(result, 'missing_tests'):
+            issues.extend(self._parse_numbered_list(result.missing_tests))
+
+        complete = self._parse_boolean(result.is_complete) if hasattr(result, 'is_complete') else False
+
+        return dspy.Prediction(
+            complete=complete,
+            issues=issues,
+        )
+
+    def verify_correctness(
+        self,
+        implementation: str,
+        execution_context: list = None,
+    ) -> dspy.Prediction:
+        """Simplified API for testing correctness validation.
+
+        Args:
+            implementation: Implementation summary
+            execution_context: List of execution memory dicts (optional)
+
+        Returns:
+            Prediction with correct (bool) and issues (list)
+        """
+        # Extract work_item and test_results from execution context
+        work_item = ""
+        test_results = "No test results provided"
+        if execution_context:
+            work_item = execution_context[0].get("summary", "") if len(execution_context) > 0 else ""
+            test_results = execution_context[1].get("content", "No test results") if len(execution_context) > 1 else test_results
+
+        # Call the full validation method
+        result = self.validate_implementation_correctness(
+            work_item=work_item or "General implementation",
+            implementation=implementation,
+            test_results=test_results,
+        )
+
+        # Map to simpler test-expected format
+        issues = []
+        if hasattr(result, 'logic_issues'):
+            issues.extend(self._parse_numbered_list(result.logic_issues))
+        if hasattr(result, 'error_handling_gaps'):
+            issues.extend(self._parse_numbered_list(result.error_handling_gaps))
+        if hasattr(result, 'edge_cases'):
+            issues.extend(self._parse_numbered_list(result.edge_cases))
+
+        correct = self._parse_boolean(result.is_correct) if hasattr(result, 'is_correct') else False
+
+        return dspy.Prediction(
+            correct=correct,
+            issues=issues,
         )
