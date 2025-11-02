@@ -1,0 +1,401 @@
+[
+  {
+    "inputs": {
+      "task_description": "Implement JWT authentication for REST API endpoints",
+      "available_skills": "[{\"name\": \"api-authentication\", \"description\": \"JWT, OAuth, API keys, session management\", \"keywords\": [\"jwt\", \"oauth\", \"auth\", \"token\"], \"domains\": [\"api\", \"security\"]}, {\"name\": \"api-rest-design\", \"description\": \"RESTful API design patterns, endpoints, versioning\", \"keywords\": [\"rest\", \"api\", \"endpoint\", \"http\"], \"domains\": [\"api\", \"backend\"]}, {\"name\": \"database-postgres\", \"description\": \"PostgreSQL setup, queries, migrations\", \"keywords\": [\"postgres\", \"sql\", \"database\"], \"domains\": [\"database\"]}, {\"name\": \"testing-integration\", \"description\": \"Integration testing strategies\", \"keywords\": [\"test\", \"integration\"], \"domains\": [\"testing\"]}, {\"name\": \"frontend-react\", \"description\": \"React components and hooks\", \"keywords\": [\"react\", \"ui\", \"component\"], \"domains\": [\"frontend\"]}]",
+      "max_skills": "3",
+      "current_context_usage": "0.35"
+    },
+    "outputs": {
+      "selected_skills": "[\"api-authentication\", \"api-rest-design\", \"testing-integration\"]",
+      "relevance_scores": "[0.98, 0.85, 0.72]",
+      "reasoning": "Primary skill is api-authentication (0.98) for JWT implementation. api-rest-design (0.85) provides API endpoint patterns needed to integrate auth. testing-integration (0.72) ensures proper auth testing. Database and frontend skills excluded as not directly needed for API authentication layer."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "api_authentication",
+      "notes": "Clear task with obvious primary skill (api-authentication)"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Optimize database query performance for user dashboard",
+      "available_skills": "[{\"name\": \"database-postgres\", \"description\": \"PostgreSQL optimization, indexing, query planning\", \"keywords\": [\"postgres\", \"sql\", \"performance\"], \"domains\": [\"database\", \"performance\"]}, {\"name\": \"database-query-optimization\", \"description\": \"Query analysis, indexing strategies, N+1 prevention\", \"keywords\": [\"query\", \"optimization\", \"index\"], \"domains\": [\"database\", \"performance\"]}, {\"name\": \"observability-profiling\", \"description\": \"Performance profiling and bottleneck detection\", \"keywords\": [\"profile\", \"performance\", \"metrics\"], \"domains\": [\"observability\", \"performance\"]}, {\"name\": \"caching-redis\", \"description\": \"Redis caching strategies\", \"keywords\": [\"cache\", \"redis\"], \"domains\": [\"caching\", \"performance\"]}, {\"name\": \"frontend-react\", \"description\": \"React components\", \"keywords\": [\"react\", \"ui\"], \"domains\": [\"frontend\"]}]",
+      "max_skills": "4",
+      "current_context_usage": "0.25"
+    },
+    "outputs": {
+      "selected_skills": "[\"database-query-optimization\", \"database-postgres\", \"observability-profiling\", \"caching-redis\"]",
+      "relevance_scores": "[0.95, 0.90, 0.78, 0.75]",
+      "reasoning": "database-query-optimization (0.95) is primary for query performance work. database-postgres (0.90) provides platform-specific optimizations. observability-profiling (0.78) helps identify bottlenecks. caching-redis (0.75) offers complementary performance strategy. Using all 4 skills as context allows it (25% usage) and they work together for comprehensive optimization."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "database_performance",
+      "notes": "Multiple relevant skills that complement each other"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Build a real-time chat feature with WebSocket support",
+      "available_skills": "[{\"name\": \"realtime-websocket\", \"description\": \"WebSocket server setup, connection management\", \"keywords\": [\"websocket\", \"realtime\", \"ws\"], \"domains\": [\"realtime\", \"networking\"]}, {\"name\": \"frontend-react\", \"description\": \"React components and state management\", \"keywords\": [\"react\", \"ui\", \"state\"], \"domains\": [\"frontend\"]}, {\"name\": \"database-postgres\", \"description\": \"PostgreSQL persistence\", \"keywords\": [\"postgres\", \"database\"], \"domains\": [\"database\"]}, {\"name\": \"api-rest-design\", \"description\": \"REST API design\", \"keywords\": [\"rest\", \"api\"], \"domains\": [\"api\"]}, {\"name\": \"testing-e2e\", \"description\": \"End-to-end testing\", \"keywords\": [\"test\", \"e2e\"], \"domains\": [\"testing\"]}]",
+      "max_skills": "3",
+      "current_context_usage": "0.60"
+    },
+    "outputs": {
+      "selected_skills": "[\"realtime-websocket\", \"frontend-react\", \"database-postgres\"]",
+      "relevance_scores": "[0.98, 0.88, 0.70]",
+      "reasoning": "realtime-websocket (0.98) is essential for WebSocket implementation. frontend-react (0.88) needed for chat UI components. database-postgres (0.70) provides message persistence. Limited to 3 skills due to 60% context usage. REST API and E2E testing deferred as lower priority for initial chat feature."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "realtime_communication",
+      "notes": "Context constraint (60%) limits skill count despite multiple relevant options"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Set up CI/CD pipeline with automated testing and deployment",
+      "available_skills": "[{\"name\": \"cicd-github-actions\", \"description\": \"GitHub Actions workflows, automation\", \"keywords\": [\"github\", \"actions\", \"ci\"], \"domains\": [\"cicd\", \"automation\"]}, {\"name\": \"containers-docker\", \"description\": \"Docker images, containers, compose\", \"keywords\": [\"docker\", \"container\"], \"domains\": [\"containers\", \"deployment\"]}, {\"name\": \"testing-automation\", \"description\": \"Automated test execution strategies\", \"keywords\": [\"test\", \"automation\"], \"domains\": [\"testing\", \"cicd\"]}, {\"name\": \"deployment-kubernetes\", \"description\": \"Kubernetes deployment and orchestration\", \"keywords\": [\"k8s\", \"kubernetes\", \"deploy\"], \"domains\": [\"deployment\", \"infrastructure\"]}, {\"name\": \"observability-monitoring\", \"description\": \"Monitoring and alerting\", \"keywords\": [\"monitor\", \"alert\"], \"domains\": [\"observability\"]}]",
+      "max_skills": "5",
+      "current_context_usage": "0.20"
+    },
+    "outputs": {
+      "selected_skills": "[\"cicd-github-actions\", \"testing-automation\", \"containers-docker\", \"deployment-kubernetes\"]",
+      "relevance_scores": "[0.98, 0.92, 0.88, 0.75]",
+      "reasoning": "cicd-github-actions (0.98) is core for pipeline setup. testing-automation (0.92) provides automated testing integration. containers-docker (0.88) needed for containerized builds. deployment-kubernetes (0.75) handles deployment target. Low context usage (20%) allows 4 skills. Observability excluded as post-deployment concern, not pipeline setup."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "cicd_automation",
+      "notes": "Low context usage allows loading more complementary skills"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Debug a memory leak in the production service",
+      "available_skills": "[{\"name\": \"debugging-profiling\", \"description\": \"Memory profiling, leak detection, heap analysis\", \"keywords\": [\"debug\", \"profile\", \"memory\", \"leak\"], \"domains\": [\"debugging\", \"performance\"]}, {\"name\": \"observability-monitoring\", \"description\": \"Production monitoring and metrics\", \"keywords\": [\"monitor\", \"metrics\", \"production\"], \"domains\": [\"observability\"]}, {\"name\": \"debugging-tools\", \"description\": \"Debugger usage, tracing, logging\", \"keywords\": [\"debug\", \"trace\", \"log\"], \"domains\": [\"debugging\"]}, {\"name\": \"containers-docker\", \"description\": \"Docker container debugging\", \"keywords\": [\"docker\", \"container\"], \"domains\": [\"containers\"]}, {\"name\": \"api-rest-design\", \"description\": \"REST API design\", \"keywords\": [\"rest\", \"api\"], \"domains\": [\"api\"]}]",
+      "max_skills": "3",
+      "current_context_usage": "0.45"
+    },
+    "outputs": {
+      "selected_skills": "[\"debugging-profiling\", \"observability-monitoring\", \"debugging-tools\"]",
+      "relevance_scores": "[0.98, 0.85, 0.80]",
+      "reasoning": "debugging-profiling (0.98) is essential for memory leak analysis. observability-monitoring (0.85) provides production context and metrics. debugging-tools (0.80) offers complementary debugging techniques. Container and API skills not directly relevant to memory leak investigation."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "debugging_memory",
+      "notes": "Clear debugging focus with specialized skills"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Implement a graph-based recommendation engine",
+      "available_skills": "[{\"name\": \"algorithms-graph\", \"description\": \"Graph algorithms, traversal, shortest paths\", \"keywords\": [\"graph\", \"algorithm\", \"traversal\"], \"domains\": [\"algorithms\", \"data-structures\"]}, {\"name\": \"ml-recommendation\", \"description\": \"Recommendation algorithms, collaborative filtering\", \"keywords\": [\"recommendation\", \"ml\", \"collaborative\"], \"domains\": [\"ml\", \"algorithms\"]}, {\"name\": \"database-graph\", \"description\": \"Neo4j, graph databases, Cypher queries\", \"keywords\": [\"neo4j\", \"graph\", \"database\"], \"domains\": [\"database\", \"graph\"]}, {\"name\": \"api-rest-design\", \"description\": \"REST API design\", \"keywords\": [\"rest\", \"api\"], \"domains\": [\"api\"]}, {\"name\": \"testing-performance\", \"description\": \"Performance testing and benchmarking\", \"keywords\": [\"test\", \"performance\", \"benchmark\"], \"domains\": [\"testing\", \"performance\"]}]",
+      "max_skills": "4",
+      "current_context_usage": "0.30"
+    },
+    "outputs": {
+      "selected_skills": "[\"ml-recommendation\", \"algorithms-graph\", \"database-graph\", \"testing-performance\"]",
+      "relevance_scores": "[0.95, 0.90, 0.85, 0.72]",
+      "reasoning": "ml-recommendation (0.95) provides recommendation algorithms. algorithms-graph (0.90) offers graph traversal techniques. database-graph (0.85) handles graph data storage and queries. testing-performance (0.72) ensures scalability. API design excluded as implementation detail, not core to recommendation logic."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "ml_recommendation",
+      "notes": "Complex task requiring multiple specialized domains (ML, graph algorithms, databases)"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Refactor legacy monolith to microservices architecture",
+      "available_skills": "[{\"name\": \"architecture-microservices\", \"description\": \"Microservices patterns, service boundaries, communication\", \"keywords\": [\"microservices\", \"architecture\", \"services\"], \"domains\": [\"architecture\"]}, {\"name\": \"refactoring-strategies\", \"description\": \"Refactoring patterns, strangler fig, incremental migration\", \"keywords\": [\"refactor\", \"migration\", \"patterns\"], \"domains\": [\"engineering\"]}, {\"name\": \"api-rest-design\", \"description\": \"REST API design for service communication\", \"keywords\": [\"rest\", \"api\"], \"domains\": [\"api\"]}, {\"name\": \"deployment-kubernetes\", \"description\": \"Kubernetes orchestration\", \"keywords\": [\"k8s\", \"kubernetes\"], \"domains\": [\"deployment\"]}, {\"name\": \"database-postgres\", \"description\": \"PostgreSQL\", \"keywords\": [\"postgres\", \"database\"], \"domains\": [\"database\"]}, {\"name\": \"observability-distributed-tracing\", \"description\": \"Distributed tracing, service mesh observability\", \"keywords\": [\"tracing\", \"observability\", \"distributed\"], \"domains\": [\"observability\"]}]",
+      "max_skills": "3",
+      "current_context_usage": "0.70"
+    },
+    "outputs": {
+      "selected_skills": "[\"architecture-microservices\", \"refactoring-strategies\", \"api-rest-design\"]",
+      "relevance_scores": "[0.98, 0.95, 0.82]",
+      "reasoning": "architecture-microservices (0.98) is essential for microservices design. refactoring-strategies (0.95) provides migration patterns (strangler fig). api-rest-design (0.82) defines service interfaces. Limited to 3 skills due to 70% context constraint. Deployment, database, and observability are important but secondary to architecture and refactoring strategy."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "architecture_migration",
+      "notes": "High context usage (70%) forces prioritization among many relevant skills"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Add dark mode toggle to React application",
+      "available_skills": "[{\"name\": \"frontend-react\", \"description\": \"React hooks, state management, components\", \"keywords\": [\"react\", \"hooks\", \"state\"], \"domains\": [\"frontend\"]}, {\"name\": \"frontend-styling\", \"description\": \"CSS-in-JS, theming, Tailwind, styled-components\", \"keywords\": [\"css\", \"styling\", \"theme\"], \"domains\": [\"frontend\", \"ui\"]}, {\"name\": \"frontend-accessibility\", \"description\": \"ARIA, keyboard navigation, screen readers\", \"keywords\": [\"a11y\", \"accessibility\", \"aria\"], \"domains\": [\"frontend\", \"accessibility\"]}, {\"name\": \"testing-frontend\", \"description\": \"React Testing Library, component testing\", \"keywords\": [\"test\", \"react\", \"component\"], \"domains\": [\"testing\", \"frontend\"]}, {\"name\": \"api-rest-design\", \"description\": \"REST API design\", \"keywords\": [\"rest\", \"api\"], \"domains\": [\"api\"]}]",
+      "max_skills": "3",
+      "current_context_usage": "0.40"
+    },
+    "outputs": {
+      "selected_skills": "[\"frontend-react\", \"frontend-styling\", \"frontend-accessibility\"]",
+      "relevance_scores": "[0.92, 0.90, 0.75]",
+      "reasoning": "frontend-react (0.92) provides state management for theme toggle. frontend-styling (0.90) handles theme variables and CSS switching. frontend-accessibility (0.75) ensures dark mode meets a11y standards (color contrast). Testing and API skills not immediately needed for theme implementation."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "frontend_theming",
+      "notes": "Frontend-focused task with clear skill requirements"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Investigate and fix intermittent 500 errors in production API",
+      "available_skills": "[{\"name\": \"debugging-tools\", \"description\": \"Debuggers, tracing, logging strategies\", \"keywords\": [\"debug\", \"trace\", \"log\"], \"domains\": [\"debugging\"]}, {\"name\": \"observability-monitoring\", \"description\": \"APM, metrics, alerting, dashboards\", \"keywords\": [\"monitor\", \"metrics\", \"apm\"], \"domains\": [\"observability\"]}, {\"name\": \"api-rest-design\", \"description\": \"REST API error handling, status codes\", \"keywords\": [\"rest\", \"api\", \"error\"], \"domains\": [\"api\"]}, {\"name\": \"database-postgres\", \"description\": \"PostgreSQL connection pooling, query debugging\", \"keywords\": [\"postgres\", \"database\"], \"domains\": [\"database\"]}, {\"name\": \"debugging-distributed\", \"description\": \"Distributed systems debugging, race conditions\", \"keywords\": [\"distributed\", \"race\", \"debug\"], \"domains\": [\"debugging\", \"distributed\"]}]",
+      "max_skills": "4",
+      "current_context_usage": "0.35"
+    },
+    "outputs": {
+      "selected_skills": "[\"observability-monitoring\", \"debugging-tools\", \"debugging-distributed\", \"database-postgres\"]",
+      "relevance_scores": "[0.95, 0.88, 0.82, 0.75]",
+      "reasoning": "observability-monitoring (0.95) provides production metrics to identify error patterns. debugging-tools (0.88) offers investigation techniques. debugging-distributed (0.82) addresses intermittent issues (race conditions, timing). database-postgres (0.75) covers common API error source (connection issues). API skill excluded as error handling is well-understood; focus is on investigation."
+    },
+    "metadata": {
+      "source": "real_session",
+      "difficulty": "medium",
+      "category": "debugging_production",
+      "notes": "Production debugging requires observability and distributed systems knowledge"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Write comprehensive test suite for authentication module",
+      "available_skills": "[{\"name\": \"testing-unit\", \"description\": \"Unit testing patterns, mocking, assertions\", \"keywords\": [\"test\", \"unit\", \"mock\"], \"domains\": [\"testing\"]}, {\"name\": \"testing-integration\", \"description\": \"Integration testing, test databases, fixtures\", \"keywords\": [\"test\", \"integration\"], \"domains\": [\"testing\"]}, {\"name\": \"testing-security\", \"description\": \"Security testing, penetration testing, vulnerability scanning\", \"keywords\": [\"test\", \"security\", \"pentest\"], \"domains\": [\"testing\", \"security\"]}, {\"name\": \"api-authentication\", \"description\": \"JWT, OAuth, auth flows\", \"keywords\": [\"jwt\", \"oauth\", \"auth\"], \"domains\": [\"api\", \"security\"]}, {\"name\": \"testing-e2e\", \"description\": \"End-to-end testing\", \"keywords\": [\"test\", \"e2e\"], \"domains\": [\"testing\"]}]",
+      "max_skills": "4",
+      "current_context_usage": "0.25"
+    },
+    "outputs": {
+      "selected_skills": "[\"testing-integration\", \"testing-unit\", \"testing-security\", \"api-authentication\"]",
+      "relevance_scores": "[0.95, 0.90, 0.88, 0.80]",
+      "reasoning": "testing-integration (0.95) is primary for auth module testing (DB, sessions). testing-unit (0.90) covers unit-level token validation. testing-security (0.88) addresses auth-specific security tests (token expiry, replay attacks). api-authentication (0.80) provides domain knowledge for test scenarios. E2E excluded as auth module testing focuses on integration and unit levels."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "testing_authentication",
+      "notes": "Testing task requiring both domain knowledge (auth) and testing strategies"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Implement data export feature for GDPR compliance",
+      "available_skills": "[{\"name\": \"api-rest-design\", \"description\": \"REST endpoints, export formats\", \"keywords\": [\"rest\", \"api\", \"export\"], \"domains\": [\"api\"]}, {\"name\": \"data-privacy\", \"description\": \"GDPR, data privacy, consent management\", \"keywords\": [\"gdpr\", \"privacy\", \"compliance\"], \"domains\": [\"legal\", \"security\"]}, {\"name\": \"database-postgres\", \"description\": \"PostgreSQL queries, data extraction\", \"keywords\": [\"postgres\", \"query\", \"export\"], \"domains\": [\"database\"]}, {\"name\": \"data-serialization\", \"description\": \"JSON, CSV, XML formatting and generation\", \"keywords\": [\"json\", \"csv\", \"serialize\"], \"domains\": [\"data\"]}, {\"name\": \"testing-integration\", \"description\": \"Integration testing\", \"keywords\": [\"test\", \"integration\"], \"domains\": [\"testing\"]}]",
+      "max_skills": "4",
+      "current_context_usage": "0.50"
+    },
+    "outputs": {
+      "selected_skills": "[\"data-privacy\", \"api-rest-design\", \"database-postgres\", \"data-serialization\"]",
+      "relevance_scores": "[0.95, 0.88, 0.85, 0.82]",
+      "reasoning": "data-privacy (0.95) ensures GDPR compliance requirements met. api-rest-design (0.88) defines export endpoint. database-postgres (0.85) handles data extraction queries. data-serialization (0.82) formats export data (JSON/CSV). All 4 skills complementary and within context budget. Testing deferred to separate phase."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "compliance_export",
+      "notes": "Compliance task requiring legal, technical, and data handling skills"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Optimize frontend bundle size and loading performance",
+      "available_skills": "[{\"name\": \"frontend-performance\", \"description\": \"Code splitting, lazy loading, tree shaking\", \"keywords\": [\"performance\", \"bundle\", \"optimization\"], \"domains\": [\"frontend\", \"performance\"]}, {\"name\": \"frontend-build-tools\", \"description\": \"Webpack, Vite, esbuild configuration\", \"keywords\": [\"webpack\", \"vite\", \"build\"], \"domains\": [\"frontend\", \"tooling\"]}, {\"name\": \"observability-profiling\", \"description\": \"Performance profiling, bundle analysis\", \"keywords\": [\"profile\", \"performance\", \"analysis\"], \"domains\": [\"observability\", \"performance\"]}, {\"name\": \"frontend-react\", \"description\": \"React optimization, memoization\", \"keywords\": [\"react\", \"optimization\"], \"domains\": [\"frontend\"]}, {\"name\": \"caching-cdn\", \"description\": \"CDN caching, asset optimization\", \"keywords\": [\"cdn\", \"cache\", \"assets\"], \"domains\": [\"caching\", \"infrastructure\"]}]",
+      "max_skills": "3",
+      "current_context_usage": "0.65"
+    },
+    "outputs": {
+      "selected_skills": "[\"frontend-performance\", \"frontend-build-tools\", \"observability-profiling\"]",
+      "relevance_scores": "[0.98, 0.92, 0.85]",
+      "reasoning": "frontend-performance (0.98) provides bundle optimization techniques. frontend-build-tools (0.92) configures build optimization (tree shaking, minification). observability-profiling (0.85) analyzes bundle and identifies bottlenecks. Limited to 3 due to 65% context. React optimization and CDN are secondary concerns after bundle optimization."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "frontend_performance",
+      "notes": "Performance optimization requiring build tools and profiling"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Design and implement event sourcing for order management",
+      "available_skills": "[{\"name\": \"architecture-event-sourcing\", \"description\": \"Event sourcing patterns, event stores, projections\", \"keywords\": [\"event-sourcing\", \"events\", \"cqrs\"], \"domains\": [\"architecture\", \"patterns\"]}, {\"name\": \"architecture-ddd\", \"description\": \"Domain-driven design, aggregates, bounded contexts\", \"keywords\": [\"ddd\", \"domain\", \"aggregate\"], \"domains\": [\"architecture\"]}, {\"name\": \"database-event-store\", \"description\": \"EventStoreDB, event persistence\", \"keywords\": [\"eventstore\", \"events\", \"persistence\"], \"domains\": [\"database\"]}, {\"name\": \"messaging-kafka\", \"description\": \"Kafka event streaming\", \"keywords\": [\"kafka\", \"messaging\", \"events\"], \"domains\": [\"messaging\"]}, {\"name\": \"api-rest-design\", \"description\": \"REST API design\", \"keywords\": [\"rest\", \"api\"], \"domains\": [\"api\"]}]",
+      "max_skills": "5",
+      "current_context_usage": "0.15"
+    },
+    "outputs": {
+      "selected_skills": "[\"architecture-event-sourcing\", \"architecture-ddd\", \"database-event-store\", \"messaging-kafka\"]",
+      "relevance_scores": "[0.98, 0.92, 0.88, 0.80]",
+      "reasoning": "architecture-event-sourcing (0.98) is core for event sourcing implementation. architecture-ddd (0.92) provides domain modeling (aggregates, commands). database-event-store (0.88) handles event persistence. messaging-kafka (0.80) enables event streaming between services. Low context (15%) allows 4 skills. REST API excluded as event sourcing uses event-driven patterns, not REST."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "architecture_event_sourcing",
+      "notes": "Complex architectural pattern requiring multiple specialized skills"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Add internationalization (i18n) support to web application",
+      "available_skills": "[{\"name\": \"frontend-i18n\", \"description\": \"Internationalization libraries, locale management, translation\", \"keywords\": [\"i18n\", \"internationalization\", \"locale\"], \"domains\": [\"frontend\"]}, {\"name\": \"frontend-react\", \"description\": \"React components and hooks\", \"keywords\": [\"react\", \"component\"], \"domains\": [\"frontend\"]}, {\"name\": \"frontend-accessibility\", \"description\": \"Accessibility for international users\", \"keywords\": [\"a11y\", \"accessibility\"], \"domains\": [\"frontend\", \"accessibility\"]}, {\"name\": \"testing-frontend\", \"description\": \"Frontend testing\", \"keywords\": [\"test\", \"frontend\"], \"domains\": [\"testing\"]}, {\"name\": \"api-rest-design\", \"description\": \"REST API design\", \"keywords\": [\"rest\", \"api\"], \"domains\": [\"api\"]}]",
+      "max_skills": "3",
+      "current_context_usage": "0.45"
+    },
+    "outputs": {
+      "selected_skills": "[\"frontend-i18n\", \"frontend-react\", \"frontend-accessibility\"]",
+      "relevance_scores": "[0.98, 0.85, 0.72]",
+      "reasoning": "frontend-i18n (0.98) provides i18n libraries and patterns (react-i18next). frontend-react (0.85) integrates i18n with React components. frontend-accessibility (0.72) ensures translations meet a11y standards (RTL, locale-specific formats). Testing and API excluded as implementation-focused task."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "frontend_i18n",
+      "notes": "Straightforward frontend task with clear primary skill"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Implement distributed caching layer with Redis",
+      "available_skills": "[{\"name\": \"caching-redis\", \"description\": \"Redis data structures, caching strategies, persistence\", \"keywords\": [\"redis\", \"cache\", \"distributed\"], \"domains\": [\"caching\", \"infrastructure\"]}, {\"name\": \"caching-strategies\", \"description\": \"Cache invalidation, TTL, cache-aside, write-through\", \"keywords\": [\"cache\", \"invalidation\", \"strategy\"], \"domains\": [\"caching\", \"architecture\"]}, {\"name\": \"observability-monitoring\", \"description\": \"Cache metrics, hit rate monitoring\", \"keywords\": [\"monitor\", \"metrics\"], \"domains\": [\"observability\"]}, {\"name\": \"database-postgres\", \"description\": \"PostgreSQL integration\", \"keywords\": [\"postgres\", \"database\"], \"domains\": [\"database\"]}, {\"name\": \"testing-integration\", \"description\": \"Integration testing with cache\", \"keywords\": [\"test\", \"integration\"], \"domains\": [\"testing\"]}]",
+      "max_skills": "4",
+      "current_context_usage": "0.30"
+    },
+    "outputs": {
+      "selected_skills": "[\"caching-redis\", \"caching-strategies\", \"observability-monitoring\", \"database-postgres\"]",
+      "relevance_scores": "[0.98, 0.95, 0.78, 0.75]",
+      "reasoning": "caching-redis (0.98) provides Redis-specific implementation. caching-strategies (0.95) defines invalidation and consistency patterns. observability-monitoring (0.78) tracks cache performance. database-postgres (0.75) integrates caching with database layer. Testing deferred as implementation comes first."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "caching_distributed",
+      "notes": "Caching implementation requiring both technology (Redis) and pattern knowledge"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Migrate legacy jQuery codebase to modern React",
+      "available_skills": "[{\"name\": \"frontend-react\", \"description\": \"React components, hooks, state management\", \"keywords\": [\"react\", \"components\", \"hooks\"], \"domains\": [\"frontend\"]}, {\"name\": \"refactoring-strategies\", \"description\": \"Incremental migration, strangler fig pattern\", \"keywords\": [\"refactor\", \"migration\", \"incremental\"], \"domains\": [\"engineering\"]}, {\"name\": \"frontend-jquery-migration\", \"description\": \"jQuery to React migration patterns\", \"keywords\": [\"jquery\", \"migration\", \"react\"], \"domains\": [\"frontend\", \"migration\"]}, {\"name\": \"testing-frontend\", \"description\": \"Frontend testing during migration\", \"keywords\": [\"test\", \"frontend\"], \"domains\": [\"testing\"]}, {\"name\": \"frontend-build-tools\", \"description\": \"Build setup for React\", \"keywords\": [\"webpack\", \"build\"], \"domains\": [\"frontend\", \"tooling\"]}]",
+      "max_skills": "3",
+      "current_context_usage": "0.55"
+    },
+    "outputs": {
+      "selected_skills": "[\"frontend-react\", \"refactoring-strategies\", \"frontend-jquery-migration\"]",
+      "relevance_scores": "[0.95, 0.92, 0.90]",
+      "reasoning": "frontend-react (0.95) provides target framework knowledge. refactoring-strategies (0.92) offers migration approach (incremental, strangler). frontend-jquery-migration (0.90) provides specific jQuery→React patterns. Limited to 3 due to 55% context. Testing and build tools secondary to migration strategy."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "frontend_migration",
+      "notes": "Complex migration requiring framework knowledge and refactoring strategy"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Set up observability stack with metrics, logs, and traces",
+      "available_skills": "[{\"name\": \"observability-monitoring\", \"description\": \"Prometheus, Grafana, metrics collection\", \"keywords\": [\"prometheus\", \"grafana\", \"metrics\"], \"domains\": [\"observability\"]}, {\"name\": \"observability-logging\", \"description\": \"Structured logging, log aggregation, ELK stack\", \"keywords\": [\"logging\", \"elk\", \"logs\"], \"domains\": [\"observability\"]}, {\"name\": \"observability-distributed-tracing\", \"description\": \"Jaeger, OpenTelemetry, distributed tracing\", \"keywords\": [\"tracing\", \"jaeger\", \"otel\"], \"domains\": [\"observability\"]}, {\"name\": \"containers-docker\", \"description\": \"Docker container instrumentation\", \"keywords\": [\"docker\", \"container\"], \"domains\": [\"containers\"]}, {\"name\": \"deployment-kubernetes\", \"description\": \"Kubernetes observability\", \"keywords\": [\"k8s\", \"kubernetes\"], \"domains\": [\"deployment\"]}]",
+      "max_skills": "5",
+      "current_context_usage": "0.20"
+    },
+    "outputs": {
+      "selected_skills": "[\"observability-monitoring\", \"observability-logging\", \"observability-distributed-tracing\", \"deployment-kubernetes\"]",
+      "relevance_scores": "[0.95, 0.92, 0.90, 0.75]",
+      "reasoning": "observability-monitoring (0.95) covers metrics (Prometheus/Grafana). observability-logging (0.92) handles log aggregation. observability-distributed-tracing (0.90) provides tracing setup. deployment-kubernetes (0.75) integrates observability with K8s. Low context (20%) allows 4 skills for complete observability stack. Docker excluded as K8s includes container concerns."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "observability_stack",
+      "notes": "Complete observability implementation requiring multiple pillars (metrics, logs, traces)"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Build a CLI tool for database migrations",
+      "available_skills": "[{\"name\": \"cli-design\", \"description\": \"CLI argument parsing, command structure, help text\", \"keywords\": [\"cli\", \"command\", \"args\"], \"domains\": [\"cli\", \"tooling\"]}, {\"name\": \"database-migrations\", \"description\": \"Migration strategies, versioning, rollback\", \"keywords\": [\"migration\", \"schema\", \"version\"], \"domains\": [\"database\"]}, {\"name\": \"database-postgres\", \"description\": \"PostgreSQL schema management\", \"keywords\": [\"postgres\", \"schema\"], \"domains\": [\"database\"]}, {\"name\": \"testing-integration\", \"description\": \"Integration testing for migrations\", \"keywords\": [\"test\", \"integration\"], \"domains\": [\"testing\"]}, {\"name\": \"frontend-react\", \"description\": \"React components\", \"keywords\": [\"react\", \"ui\"], \"domains\": [\"frontend\"]}]",
+      "max_skills": "3",
+      "current_context_usage": "0.40"
+    },
+    "outputs": {
+      "selected_skills": "[\"cli-design\", \"database-migrations\", \"database-postgres\"]",
+      "relevance_scores": "[0.95, 0.92, 0.88]",
+      "reasoning": "cli-design (0.95) provides CLI structure and UX patterns. database-migrations (0.92) offers migration strategies (up/down, versioning). database-postgres (0.88) handles PostgreSQL-specific implementation. Testing and frontend completely irrelevant to CLI tool."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "cli_database",
+      "notes": "Clear task with focused skill requirements, irrelevant skill (React) excluded"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Implement rate limiting for public API endpoints",
+      "available_skills": "[{\"name\": \"api-rate-limiting\", \"description\": \"Rate limiting algorithms, token bucket, sliding window\", \"keywords\": [\"rate-limit\", \"throttle\", \"quota\"], \"domains\": [\"api\", \"security\"]}, {\"name\": \"caching-redis\", \"description\": \"Redis for distributed rate limiting\", \"keywords\": [\"redis\", \"cache\", \"distributed\"], \"domains\": [\"caching\"]}, {\"name\": \"api-rest-design\", \"description\": \"REST API middleware, headers (X-RateLimit-*)\", \"keywords\": [\"rest\", \"api\", \"middleware\"], \"domains\": [\"api\"]}, {\"name\": \"observability-monitoring\", \"description\": \"Rate limit metrics and alerting\", \"keywords\": [\"monitor\", \"metrics\"], \"domains\": [\"observability\"]}, {\"name\": \"testing-load\", \"description\": \"Load testing to verify rate limits\", \"keywords\": [\"test\", \"load\", \"performance\"], \"domains\": [\"testing\"]}]",
+      "max_skills": "4",
+      "current_context_usage": "0.35"
+    },
+    "outputs": {
+      "selected_skills": "[\"api-rate-limiting\", \"caching-redis\", \"api-rest-design\", \"observability-monitoring\"]",
+      "relevance_scores": "[0.98, 0.90, 0.85, 0.75]",
+      "reasoning": "api-rate-limiting (0.98) provides algorithms and patterns. caching-redis (0.90) enables distributed rate limiting. api-rest-design (0.85) integrates rate limiting middleware. observability-monitoring (0.75) tracks rate limit hits. Load testing excluded as implementation comes first."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "api_rate_limiting",
+      "notes": "API security feature requiring algorithm knowledge and distributed state"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Create a developer documentation site with search",
+      "available_skills": "[{\"name\": \"documentation-tools\", \"description\": \"Docusaurus, VuePress, MkDocs, static site generators\", \"keywords\": [\"docs\", \"documentation\", \"static-site\"], \"domains\": [\"documentation\"]}, {\"name\": \"search-algolia\", \"description\": \"Algolia search integration, indexing\", \"keywords\": [\"search\", \"algolia\", \"index\"], \"domains\": [\"search\"]}, {\"name\": \"frontend-react\", \"description\": \"React for custom doc components\", \"keywords\": [\"react\", \"component\"], \"domains\": [\"frontend\"]}, {\"name\": \"deployment-static\", \"description\": \"Static site deployment (Netlify, Vercel, GitHub Pages)\", \"keywords\": [\"deploy\", \"static\", \"netlify\"], \"domains\": [\"deployment\"]}, {\"name\": \"database-postgres\", \"description\": \"PostgreSQL\", \"keywords\": [\"postgres\", \"database\"], \"domains\": [\"database\"]}]",
+      "max_skills": "3",
+      "current_context_usage": "0.50"
+    },
+    "outputs": {
+      "selected_skills": "[\"documentation-tools\", \"search-algolia\", \"deployment-static\"]",
+      "relevance_scores": "[0.98, 0.92, 0.78]",
+      "reasoning": "documentation-tools (0.98) provides doc site framework (Docusaurus). search-algolia (0.92) implements search functionality. deployment-static (0.78) handles hosting. React excluded as Docusaurus provides React components. Database completely irrelevant for static documentation site."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "documentation_site",
+      "notes": "Documentation task with clear tooling requirements, irrelevant skill (database) excluded"
+    }
+  },
+  {
+    "inputs": {
+      "task_description": "Optimize slow-running background job processing",
+      "available_skills": "[{\"name\": \"background-jobs\", \"description\": \"Job queues, workers, retry strategies (Sidekiq, Bull, Celery)\", \"keywords\": [\"jobs\", \"queue\", \"worker\"], \"domains\": [\"backend\", \"async\"]}, {\"name\": \"observability-profiling\", \"description\": \"Performance profiling, bottleneck identification\", \"keywords\": [\"profile\", \"performance\", \"bottleneck\"], \"domains\": [\"observability\", \"performance\"]}, {\"name\": \"database-query-optimization\", \"description\": \"Query optimization, N+1 prevention\", \"keywords\": [\"query\", \"optimization\", \"n+1\"], \"domains\": [\"database\", \"performance\"]}, {\"name\": \"caching-redis\", \"description\": \"Redis caching for job data\", \"keywords\": [\"cache\", \"redis\"], \"domains\": [\"caching\"]}, {\"name\": \"testing-performance\", \"description\": \"Performance testing and benchmarking\", \"keywords\": [\"test\", \"performance\", \"benchmark\"], \"domains\": [\"testing\"]}]",
+      "max_skills": "4",
+      "current_context_usage": "0.30"
+    },
+    "outputs": {
+      "selected_skills": "[\"background-jobs\", \"observability-profiling\", \"database-query-optimization\", \"caching-redis\"]",
+      "relevance_scores": "[0.92, 0.90, 0.85, 0.78]",
+      "reasoning": "background-jobs (0.92) provides job queue optimization patterns. observability-profiling (0.90) identifies bottlenecks. database-query-optimization (0.85) addresses common job slowness (N+1 queries). caching-redis (0.78) offers caching strategy for repeated data access. Testing excluded as optimization requires profiling first."
+    },
+    "metadata": {
+      "source": "real_session",
+      "difficulty": "medium",
+      "category": "background_job_optimization",
+      "notes": "Performance optimization requiring profiling, query optimization, and caching"
+    }
+  }
+]
