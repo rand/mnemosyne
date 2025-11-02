@@ -441,6 +441,25 @@ enum ArtifactCommands {
 6. **Phase 2.2**: CLI create commands ✅
 7. **Phase 2.3**: Database schema updates ✅
 8. **Phase 2.4**: End-to-end examples ✅
+9. **Phase 2.5**: Markdown parsing for round-trip serialization ✅
+
+### Implementation Status
+
+**Fully Complete** ✅:
+- Constitution: Save/load with principles, quality gates, constraints
+- FeatureSpec: Save/load with scenarios, requirements, success criteria
+- CLI commands: init, create-constitution, create-feature-spec, list, show, validate
+- Working example: examples/specification_workflow.rs
+- Round-trip serialization: Tested and verified
+- Unit tests: 14 tests covering parsing and round-trips
+
+**Pending** ⚠️:
+- ImplementationPlan: Basic structure exists, markdown parsing TODO
+- TaskBreakdown: Basic structure exists, markdown parsing TODO
+- QualityChecklist: Basic structure exists, markdown parsing TODO
+- Clarification: Basic structure exists, markdown parsing TODO
+- Workflow integration tests: Minimal coverage (needs expansion)
+- Phase 2 memory linking: Advanced graph operations (link_artifacts, etc.)
 
 ## CLI Usage
 
