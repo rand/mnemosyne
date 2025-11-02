@@ -397,7 +397,6 @@ python3 scripts/testing/test_server.py
 ## Architecture
 
 ```mermaid
-%%{init: {'theme':'base', 'themeVariables': {'primaryTextColor':'#000', 'primaryBorderColor':'#333', 'lineColor':'#333', 'fontSize':'14px'}}}%%
 flowchart TD
     User([User/Agent])
 
@@ -437,23 +436,6 @@ flowchart TD
     Storage <--> DB
     LLM --> API
     NS --> DB
-
-    style User fill:#bbdefb,stroke:#0d47a1,stroke-width:3px,color:#000
-    style Claude fill:#e1bee7,stroke:#4a148c,stroke-width:3px,color:#000
-    style Server fill:#ffe0b2,stroke:#e65100,stroke-width:3px,color:#000
-    style Services fill:#e0e0e0,stroke:#212121,stroke-width:2px,color:#000
-    style Protocol fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px,color:#000
-    style API fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px,color:#000
-    style DB fill:#bbdefb,stroke:#0d47a1,stroke-width:3px,color:#000
-
-    style UI fill:#fff,color:#000,stroke:#333,stroke-width:2px
-    style Client fill:#fff,color:#000,stroke:#333,stroke-width:2px
-    style Handler fill:#fff,color:#000,stroke:#333,stroke-width:2px
-    style Router fill:#fff,color:#000,stroke:#333,stroke-width:2px
-    style Storage fill:#fff,color:#000,stroke:#333,stroke-width:2px
-    style LLM fill:#fff,color:#000,stroke:#333,stroke-width:2px
-    style Config fill:#fff,color:#000,stroke:#333,stroke-width:2px
-    style NS fill:#fff,color:#000,stroke:#333,stroke-width:2px
 ```
 
 **Communication**: JSON-RPC 2.0 over stdin/stdout for seamless integration with Claude Code.
