@@ -693,7 +693,7 @@ All evaluation code is open source:
 
 ### Questions
 
-- **Privacy concerns**: See [docs/PRIVACY.md](docs/PRIVACY.md)
+- **Privacy concerns**: See [docs/features/PRIVACY.md](docs/features/PRIVACY.md)
 - **Technical questions**: GitHub Discussions
 - **Bug reports**: GitHub Issues
 
@@ -732,7 +732,7 @@ print(f"Loaded skills: {status['loaded_skills']}")
 
 ## References
 
-- **Privacy Policy**: [docs/PRIVACY.md](docs/PRIVACY.md)
+- **Privacy Policy**: [docs/features/PRIVACY.md](docs/features/PRIVACY.md)
 - **Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Orchestration**: [ORCHESTRATION.md](ORCHESTRATION.md)
 - **Optimizer Agent**: [src/orchestration/agents/optimizer.py](src/orchestration/agents/optimizer.py)
