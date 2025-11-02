@@ -213,10 +213,11 @@ I will help you convert a feature implementation plan into concrete, trackable B
     With parallelization: ~17h (critical + longest parallel stream)
 
     Next steps:
+    - Export and commit: ./scripts/beads-sync.sh commit
     - View tasks: bd list --tags feature:<feature-id> --json
     - Start work: bd update bd-42 --status in_progress --json
     - Track progress: /feature-checklist <feature-id>
-    - Export state: bd export -o .beads/issues.jsonl
+    - See workflow: docs/BEADS_INTEGRATION.md
     ```
 
 11. **Error handling**:
