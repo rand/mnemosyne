@@ -15,11 +15,13 @@ use crate::{
     },
     LlmService,
 };
+#[cfg(feature = "python")]
+use super::dspy_integration::DSpySemanticBridge;
 use ratatui::style::{Color, Modifier, Style};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{debug, warn};
 
 /// Discourse relation type (RST-based)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -93,37 +95,47 @@ pub struct CoherenceScore {
     pub issues: Vec<String>,
 }
 
-/// Discourse analyzer using Claude API
+/// Discourse analyzer using Claude API or DSPy
 #[derive(Clone)]
 pub struct DiscourseAnalyzer {
     _llm_service: Arc<LlmService>,
+    #[cfg(feature = "python")]
+    dspy_bridge: Option<Arc<DSpySemanticBridge>>,
 }
 
 impl DiscourseAnalyzer {
     pub fn new(llm_service: Arc<LlmService>) -> Self {
-        Self { _llm_service: llm_service }
+        Self {
+            _llm_service: llm_service,
+            #[cfg(feature = "python")]
+            dspy_bridge: None,
+        }
+    }
+
+    /// Create analyzer with DSPy integration
+    #[cfg(feature = "python")]
+    pub fn with_dspy(llm_service: Arc<LlmService>, dspy_bridge: Arc<DSpySemanticBridge>) -> Self {
+        Self {
+            _llm_service: llm_service,
+            dspy_bridge: Some(dspy_bridge),
+        }
     }
 
     /// Analyze discourse structure in text
     pub async fn analyze(&self, text: &str) -> Result<Vec<DiscourseSegment>> {
-        let prompt = self.build_discourse_prompt(text);
+        // Use DSPy if available (preferred path)
+        #[cfg(feature = "python")]
+        if let Some(bridge) = &self.dspy_bridge {
+            debug!("Using DSPy for discourse analysis");
+            return bridge.analyze_discourse(text).await
+                .map_err(|e| SemanticError::AnalysisFailed(format!("DSPy discourse analysis failed: {}", e)));
+        }
 
-        // Call LLM with timeout
-        let response = tokio::time::timeout(
-            std::time::Duration::from_secs(30),
-            self._llm_service.call_api(&prompt)
-        )
-        .await
-        .map_err(|_| SemanticError::AnalysisFailed("Timeout after 30s".to_string()))?
-        .map_err(|e| SemanticError::AnalysisFailed(format!("LLM API error: {}", e)))?;
-
-        // Parse JSON response
-        let segments = self.parse_discourse_response(&response, text.len())?;
-
-        // Validate segments
-        self.validate_segments(&segments, text.len())?;
-
-        Ok(segments)
+        // Fallback: Direct LLM call (not yet implemented)
+        debug!("DSPy not available, using direct LLM call (not implemented yet)");
+        Err(SemanticError::AnalysisFailed(
+            "Discourse analysis requires DSPy integration (enable 'python' feature)".to_string()
+        ))
     }
 
     /// Parse discourse response from LLM
