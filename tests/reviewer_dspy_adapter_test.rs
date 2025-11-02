@@ -16,14 +16,7 @@ mod reviewer_adapter_tests {
 
     /// Helper to create test adapter (requires Python environment)
     async fn create_test_adapter() -> ReviewerDSpyAdapter {
-        let dspy_service = mnemosyne_core::orchestration::dspy_service::DSpyService::new()
-            .await
-            .expect("Failed to create DSPy service");
-
-        let bridge = Arc::new(DSpyBridge::new(Arc::new(tokio::sync::Mutex::new(
-            dspy_service.into_py_object(),
-        ))));
-
+        let bridge = Arc::new(DSpyBridge::new().expect("Failed to create DSPy bridge"));
         ReviewerDSpyAdapter::new(bridge)
     }
 

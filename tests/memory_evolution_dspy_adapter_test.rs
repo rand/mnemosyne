@@ -19,21 +19,14 @@ mod memory_evolution_adapter_tests {
 
     /// Helper to create test adapter (requires Python environment)
     async fn create_test_adapter() -> MemoryEvolutionDSpyAdapter {
-        let dspy_service = mnemosyne_core::orchestration::dspy_service::DSpyService::new()
-            .await
-            .expect("Failed to create DSPy service");
-
-        let bridge = Arc::new(DSpyBridge::new(Arc::new(tokio::sync::Mutex::new(
-            dspy_service.into_py_object(),
-        ))));
-
+        let bridge = Arc::new(DSpyBridge::new().expect("Failed to create DSPy bridge"));
         MemoryEvolutionDSpyAdapter::new(bridge)
     }
 
     /// Helper to create test memory
     fn create_test_memory(id_suffix: &str, summary: &str) -> MemoryNote {
         MemoryNote {
-            id: format!("mem-{}", id_suffix).parse().unwrap(),
+            id: MemoryId::from_string(&format!("mem-{}", id_suffix)).unwrap(),
             namespace: Namespace::Global,
             created_at: Utc::now(),
             updated_at: Utc::now(),
@@ -218,13 +211,13 @@ mod memory_evolution_adapter_tests {
         let adapter = create_test_adapter().await;
 
         let mut mem1 = create_test_memory("1", "Old debug log");
-        mem1.memory_type = MemoryType::Debug;
+        mem1.memory_type = MemoryType::BugFix;
         mem1.importance = 3;
         mem1.created_at = Utc::now() - chrono::Duration::days(200);
         mem1.last_accessed_at = Utc::now() - chrono::Duration::days(200);
 
         let mut mem2 = create_test_memory("2", "Recent architecture decision");
-        mem2.memory_type = MemoryType::Architecture;
+        mem2.memory_type = MemoryType::ArchitectureDecision;
         mem2.importance = 9;
         mem2.access_count = 20;
 
@@ -249,7 +242,7 @@ mod memory_evolution_adapter_tests {
         let adapter = create_test_adapter().await;
 
         let mut memory = create_test_memory("1", "Critical architecture decision");
-        memory.memory_type = MemoryType::Architecture;
+        memory.memory_type = MemoryType::ArchitectureDecision;
         memory.importance = 10;
         memory.created_at = Utc::now() - chrono::Duration::days(365);
 
@@ -337,10 +330,12 @@ mod memory_evolution_adapter_tests {
             min_importance: 8,
         };
 
+        let memories_for_archival = vec![mem2.clone()];
+
         let (r1, r2, r3) = tokio::join!(
             adapter1.consolidate_cluster(&cluster),
             adapter2.recalibrate_importance(&mem1),
-            adapter3.detect_archival_candidates(&vec![mem2.clone()], &config),
+            adapter3.detect_archival_candidates(&memories_for_archival, &config),
         );
 
         assert!(r1.is_ok() || r1.is_err());
