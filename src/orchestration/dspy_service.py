@@ -73,6 +73,7 @@ class DSpyService:
         # Initialize module registries
         self.agent_modules: Dict[str, Any] = {}
         self.semantic_module: Optional[Any] = None
+        self.memory_evolution_module: Optional[Any] = None
 
         # Load modules
         self._load_agent_modules()
@@ -165,6 +166,26 @@ class DSpyService:
         except Exception as e:
             logger.error(f"Failed to load semantic module: {e}")
 
+    def _load_memory_evolution_module(self):
+        """Load memory evolution module for consolidation/archival/recalibration.
+
+        Lazy loading - only imported when first accessed.
+        """
+        if self.memory_evolution_module is not None:
+            return
+
+        try:
+            from mnemosyne.orchestration.dspy_modules.memory_evolution_module import (
+                MemoryEvolutionModule,
+            )
+
+            self.memory_evolution_module = MemoryEvolutionModule()
+            logger.info("Loaded memory evolution module successfully")
+        except ModuleNotFoundError:
+            logger.warning("memory_evolution_module.py not found yet")
+        except Exception as e:
+            logger.error(f"Failed to load memory evolution module: {e}")
+
     def get_agent_module(self, agent_name: str) -> Any:
         """Get DSPy module for specified agent.
 
@@ -205,6 +226,25 @@ class DSpyService:
 
         return self.semantic_module
 
+    def get_memory_evolution_module(self) -> Any:
+        """Get memory evolution module.
+
+        Lazy loads module on first access.
+
+        Returns:
+            MemoryEvolutionModule instance
+
+        Raises:
+            RuntimeError: If memory evolution module failed to load
+        """
+        if self.memory_evolution_module is None:
+            self._load_memory_evolution_module()
+
+        if self.memory_evolution_module is None:
+            raise RuntimeError("Memory evolution module failed to load")
+
+        return self.memory_evolution_module
+
     def list_modules(self) -> List[str]:
         """List all loaded agent module names.
 
@@ -224,6 +264,7 @@ class DSpyService:
         # Clear existing modules
         self.agent_modules.clear()
         self.semantic_module = None
+        self.memory_evolution_module = None
 
         # Reload agent modules
         self._load_agent_modules()
