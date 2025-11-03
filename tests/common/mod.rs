@@ -31,7 +31,7 @@ pub fn create_test_llm_service() -> Arc<LlmService> {
     Arc::new(
         LlmService::new(LlmConfig {
             api_key: String::new(),
-            model: "claude-3-5-haiku-20241022".to_string(),
+            model: "claude-haiku-4-5-20251001".to_string(),
             max_tokens: 1024,
             temperature: 0.7,
         })
@@ -47,7 +47,7 @@ pub fn create_real_llm_service() -> Option<Arc<LlmService>> {
         .and_then(|key| {
             LlmService::new(LlmConfig {
                 api_key: key,
-                model: "claude-3-5-haiku-20241022".to_string(),
+                model: "claude-haiku-4-5-20251001".to_string(),
                 max_tokens: 1024,
                 temperature: 0.7,
             })

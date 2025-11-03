@@ -481,9 +481,9 @@ def main():
         return
 
     try:
-        # Configure DSPy with Claude 3.5 Haiku (fast and cost-effective for benchmarking)
-        dspy.configure(lm=dspy.LM('anthropic/claude-3-5-haiku-20241022', api_key=api_key))
-        logger.info(f"DSPy configured with claude-3-5-haiku-20241022")
+        # Configure DSPy with Claude Haiku 4.5 (latest, fastest, most cost-effective)
+        dspy.configure(lm=dspy.LM('anthropic/claude-haiku-4-5-20251001', api_key=api_key))
+        logger.info(f"DSPy configured with claude-haiku-4-5-20251001")
     except Exception as e:
         logger.error(f"Failed to configure DSPy: {e}")
         return

@@ -659,7 +659,7 @@ NO_LINKS
 
 ### API Configuration
 
-**Model**: `claude-3-5-haiku-20241022`
+**Model**: `claude-haiku-4-5-20251001`
 **Max Tokens**: 1024
 **Temperature**: 0.7
 **Endpoint**: `https://api.anthropic.com/v1/messages`

@@ -94,7 +94,7 @@ class DSpyService:
         if anthropic_key:
             logger.info("Configuring Anthropic Claude as LLM provider")
             self.lm = self.dspy.Claude(
-                model="claude-3-5-haiku-20241022",
+                model="claude-haiku-4-5-20251001",
                 api_key=anthropic_key,
                 max_tokens=4096,
             )

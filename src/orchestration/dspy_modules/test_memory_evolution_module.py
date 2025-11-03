@@ -23,7 +23,7 @@ def evolution_module():
         pytest.skip("ANTHROPIC_API_KEY not set - skipping integration tests")
 
     # Configure DSPy with Anthropic Claude
-    dspy.configure(lm=dspy.LM('anthropic/claude-3-5-haiku-20241022', api_key=api_key))
+    dspy.configure(lm=dspy.LM('anthropic/claude-haiku-4-5-20251001', api_key=api_key))
 
     return MemoryEvolutionModule()
 

@@ -54,7 +54,7 @@ pub struct LlmConfig {
     /// Anthropic API key
     pub api_key: String,
 
-    /// Model to use (default: claude-3-5-haiku-20241022)
+    /// Model to use (default: claude-haiku-4-5-20251001)
     pub model: String,
 
     /// Max tokens for responses
@@ -74,7 +74,7 @@ impl Default for LlmConfig {
 
         Self {
             api_key,
-            model: "claude-3-5-haiku-20241022".to_string(),
+            model: "claude-haiku-4-5-20251001".to_string(),
             max_tokens: 1024,
             temperature: 0.7,
         }
