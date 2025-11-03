@@ -23,14 +23,27 @@ I will help you clarify ambiguities in a feature specification through structure
    - Count pending vs. resolved questions
 
 3. **Auto-detect ambiguities** (if `--auto` flag or no existing clarifications):
-   Scan the spec for:
+
+   **Use DSPy ReviewerModule for semantic detection**:
+   ```bash
+   cd src/orchestration/dspy_modules
+   uv run python3 specflow_integration.py ../../.mnemosyne/artifacts/specs/<feature-id>.md --ambiguities-only --json
+   ```
+
+   Parse JSON output for ambiguities array:
+   - `location`: Section where ambiguity was found
+   - `term`: Ambiguous term or phrase
+   - `question`: Suggested clarifying question
+   - `impact`: Why this matters
+
+   **Fallback to pattern-based detection** if DSPy unavailable:
    - **Vague quantifiers**: "fast", "slow", "easy", "hard", "secure", "scalable" without metrics
    - **Missing acceptance criteria**: Scenarios with <3 criteria
    - **Underspecified requirements**: Performance/security requirements without numbers
    - **Unclear dependencies**: References to external systems without details
    - **Open questions**: Explicit "?" or "TBD" markers
 
-   Limit to top 3 most critical ambiguities.
+   Limit to top 3 most critical ambiguities (prioritize by location: P0/P1 scenarios first).
 
 4. **Interactive clarification** (max 3 questions per session):
    For each ambiguity:
@@ -149,6 +162,9 @@ I will help you clarify ambiguities in a feature specification through structure
     Location: .mnemosyne/artifacts/clarifications/<feature-id>-clarifications.md
     Memory ID: <memory-id>
 
+    [If --auto flag was used:]
+    Detection Method: DSPy ReviewerModule v1 (semantic analysis)
+
     Questions:
     - Q001: [Resolved] <question summary>
     - Q002: [Resolved] <question summary>
@@ -172,6 +188,8 @@ I will help you clarify ambiguities in a feature specification through structure
     - If no ambiguities detected: "✓ No ambiguities detected in spec. Spec looks clear!"
     - If clarifications file corrupted: Attempt to parse, warn about errors
     - If user skips question: Mark as "Pending" in clarifications document
+    - If DSPy detection fails: Fall back to pattern-based detection, warn "DSPy detection unavailable, using pattern matching only"
+    - If specflow_integration.py not found: Use pattern-based detection only
 
 **Special behaviors**:
 - `--auto`: Automatically scan and detect ambiguities without user input
