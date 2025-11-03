@@ -44,6 +44,7 @@ JSON report with:
 """
 
 import dspy
+import os
 import time
 import json
 import argparse
@@ -473,13 +474,19 @@ def main():
 
     args = parser.parse_args()
 
-    # Initialize DSPy (configure model if needed)
-    # This assumes DSPy is configured via environment variables or default settings
+    # Initialize DSPy with Anthropic Claude
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        logger.error("ANTHROPIC_API_KEY not set. Set it via environment variable.")
+        return
+
     try:
-        # Example: dspy.configure(lm=dspy.Anthropic(model="claude-3-5-sonnet-20241022"))
-        pass
+        # Configure DSPy with Claude 3.5 Sonnet (updated model name)
+        dspy.configure(lm=dspy.LM('anthropic/claude-3-5-sonnet-20241022', api_key=api_key))
+        logger.info(f"DSPy configured with claude-3-5-sonnet-20241022")
     except Exception as e:
-        logger.warning(f"DSPy configuration may need adjustment: {e}")
+        logger.error(f"Failed to configure DSPy: {e}")
+        return
 
     # Run benchmarks
     results = {
