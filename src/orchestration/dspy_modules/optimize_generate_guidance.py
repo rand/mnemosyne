@@ -31,7 +31,13 @@ from typing import List
 from datetime import datetime
 
 from reviewer_module import GenerateImprovementGuidance
-# Inline simple guidance metric\ndef guidance_metric(example, pred, trace=None) -> float:\n    if not hasattr(pred, 'guidance') or not pred.guidance:\n        return 0.0\n    return 1.0 if len(pred.guidance) > 50 else 0.5
+
+# Inline simple guidance metric
+def guidance_metric(example, pred, trace=None) -> float:
+    """Simple metric checking if guidance was generated."""
+    if not hasattr(pred, 'guidance') or not pred.guidance:
+        return 0.0
+    return 1.0 if len(pred.guidance) > 50 else 0.5
 
 logging.basicConfig(
     level=logging.INFO,
