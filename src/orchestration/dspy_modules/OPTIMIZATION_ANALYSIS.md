@@ -139,3 +139,37 @@ Zero improvement after 5 trials is **expected and not concerning**. The metrics 
 **Recommendation**: Proceed with Option 1 (50-trial optimization) as the principled next step. This follows standard DSPy optimization practices and will provide enough trials for MIPROv2 to explore the prompt space effectively.
 
 If 50 trials still shows minimal improvement, that's valuable information: it means the baseline prompts are already near-optimal, which is a success indicator for the manual prompt engineering that went into ReviewerModule.
+
+---
+
+## Update: Rate Limiting Issue (2025-11-03)
+
+### Problem
+First 50-trial optimization attempt hit Anthropic API rate limits:
+```
+litellm.RateLimitError: This request would exceed the rate limit for your organization
+(f009ea24-3dd8-4960-b4ec-201a731c3cf6) of 90,000 output tokens per minute.
+```
+
+MIPROv2 was making too many parallel API calls during evaluation, exceeding the organization's rate limit.
+
+### Root Cause
+Default `num_threads` parameter in MIPROv2 allows high parallelism (likely 8+ threads). When evaluating multiple instruction candidates × fewshot sets × examples in parallel, token usage rate exceeded 90k tokens/minute.
+
+### Solution
+Added `num_threads=2` parameter to MIPROv2 configuration in `optimize_reviewer.py`:
+
+```python
+teleprompter = MIPROv2(
+    metric=composite_metric,
+    auto=None,
+    num_candidates=10,
+    init_temperature=1.0,
+    verbose=True,
+    num_threads=2  # Limit parallelism to avoid rate limits (90k tokens/min)
+)
+```
+
+**Impact**: Reduces parallel API calls by ~75%, keeping token usage under rate limit. May increase optimization time from 30-60 min to 60-120 min, but allows completion without errors.
+
+**Trade-off**: Acceptable - correctness over speed. A slightly slower optimization that completes is better than a fast one that fails.

@@ -298,7 +298,8 @@ def optimize_module(
         auto=None,                  # Disable auto mode to use manual settings
         num_candidates=10,          # Number of prompt candidates per trial
         init_temperature=1.0,       # Temperature for initial prompt generation
-        verbose=True                # Log optimization progress
+        verbose=True,               # Log optimization progress
+        num_threads=2               # Limit parallelism to avoid rate limits (90k tokens/min)
     )
 
     # Run optimization
