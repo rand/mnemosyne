@@ -283,5 +283,510 @@
       "category": "incident_response",
       "notes": "Tests urgent Command with high-stakes justification"
     }
+  },
+  {
+    "inputs": {
+      "text": "Did anyone actually test this before deploying to production?"
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 62,
+          "text": "Did anyone actually test this before deploying to production?",
+          "type": "IndirectSpeech",
+          "speech_act": "Critique",
+          "explanation": "Rhetorical question that doesn't seek information. 'Actually' adds emphasis, implicating that speaker believes no testing occurred. Functions as criticism disguised as question.",
+          "implied_meaning": "This was not tested properly; someone made a mistake",
+          "confidence": 0.90
+        },
+        {
+          "start": 0,
+          "end": 62,
+          "text": "Did anyone actually test this before deploying to production?",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) something was deployed to production, (2) there may be issues with it, (3) testing should have occurred, (4) speaker doubts testing happened.",
+          "implied_meaning": "Testing was likely skipped or inadequate",
+          "confidence": 0.85
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "quality_critique",
+      "notes": "Rhetorical question as indirect criticism"
+    }
+  },
+  {
+    "inputs": {
+      "text": "Great job hardcoding the API keys. Security will love this."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 41,
+          "text": "Great job hardcoding the API keys.",
+          "type": "Implicature",
+          "speech_act": "Critique",
+          "explanation": "Sarcastic praise. 'Great job' literally positive, but context (hardcoding keys = bad practice) signals sarcasm. Actual meaning is opposite of literal meaning.",
+          "implied_meaning": "This is a serious mistake; you should not have hardcoded API keys",
+          "confidence": 0.95
+        },
+        {
+          "start": 42,
+          "end": 67,
+          "text": "Security will love this.",
+          "type": "Implicature",
+          "speech_act": "Critique",
+          "explanation": "More sarcasm. 'Love' is ironic - security team will actually be concerned/angry. Reinforces criticism through ironic understatement of negative reaction.",
+          "implied_meaning": "The security team will be upset about this vulnerability",
+          "confidence": 0.93
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "security_violation",
+      "notes": "Sarcasm/irony requiring contextual knowledge of security practices"
+    }
+  },
+  {
+    "inputs": {
+      "text": "If we skip the database migration, we'll have data corruption issues in production."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 88,
+          "text": "If we skip the database migration, we'll have data corruption issues in production.",
+          "type": "SpeechAct",
+          "speech_act": "Warning",
+          "explanation": "Conditional statement (if X then Y) warning of negative consequences. Functions as deterrent against skipping migration. Implicit recommendation: don't skip it.",
+          "implied_meaning": "Do not skip the database migration",
+          "confidence": 0.92
+        },
+        {
+          "start": 0,
+          "end": 88,
+          "text": "If we skip the database migration, we'll have data corruption issues in production.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) there is a database migration to perform, (2) skipping it is being considered, (3) speaker knows the consequences, (4) data corruption is unacceptable.",
+          "implied_meaning": "Skipping the migration is being considered but would be risky",
+          "confidence": 0.88
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "technical_warning",
+      "notes": "Conditional warning about consequences"
+    }
+  },
+  {
+    "inputs": {
+      "text": "The performance could be slightly better."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 45,
+          "text": "The performance could be slightly better.",
+          "type": "IndirectSpeech",
+          "speech_act": "Critique",
+          "explanation": "Understatement. 'Slightly better' minimizes the criticism, but 'could be better' implies performance is not satisfactory. Hedged phrasing softens negative assessment.",
+          "implied_meaning": "Performance is not good enough and needs improvement",
+          "confidence": 0.78
+        },
+        {
+          "start": 0,
+          "end": 45,
+          "text": "The performance could be slightly better.",
+          "type": "Implicature",
+          "speech_act": "Critique",
+          "explanation": "By using 'could be', speaker avoids direct criticism but implicates dissatisfaction. 'Slightly' may actually mean 'significantly' depending on context and speaker's style.",
+          "implied_meaning": "I am not satisfied with current performance levels",
+          "confidence": 0.75
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "performance_feedback",
+      "notes": "Understatement and hedging as politeness strategy"
+    }
+  },
+  {
+    "inputs": {
+      "text": "The code works, I guess. It gets the job done."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 49,
+          "text": "The code works, I guess. It gets the job done.",
+          "type": "Implicature",
+          "speech_act": "Critique",
+          "explanation": "Faint praise signals criticism. 'I guess' expresses uncertainty/reluctance. 'Gets the job done' is minimal praise, implicating code quality is poor despite functionality. Classic damning with faint praise.",
+          "implied_meaning": "The code is functional but poorly written or not elegant",
+          "confidence": 0.85
+        },
+        {
+          "start": 0,
+          "end": 49,
+          "text": "The code works, I guess. It gets the job done.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes speaker has evaluated the code and found it wanting in some non-functional aspect (style, maintainability, elegance).",
+          "implied_meaning": "Code quality could be better even though it's functional",
+          "confidence": 0.80
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "code_quality_feedback",
+      "notes": "Damning with faint praise - subtle negative feedback"
+    }
+  },
+  {
+    "inputs": {
+      "text": "What if we refactor the authentication layer to use a more modular design?"
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 79,
+          "text": "What if we refactor the authentication layer to use a more modular design?",
+          "type": "IndirectSpeech",
+          "speech_act": "Suggestion",
+          "explanation": "'What if' frames proposal as collaborative question rather than directive. Softens suggestion by inviting discussion. Pragmatically functions as recommendation for action.",
+          "implied_meaning": "I think we should refactor the authentication layer",
+          "confidence": 0.88
+        },
+        {
+          "start": 0,
+          "end": 79,
+          "text": "What if we refactor the authentication layer to use a more modular design?",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) current authentication layer exists, (2) it is not sufficiently modular, (3) modularity would be beneficial, (4) refactoring is feasible.",
+          "implied_meaning": "Current authentication design lacks modularity",
+          "confidence": 0.85
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "refactoring_proposal",
+      "notes": "Collaborative suggestion phrased as open question"
+    }
+  },
+  {
+    "inputs": {
+      "text": "When are you going to fix the memory leak you introduced?"
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 61,
+          "text": "When are you going to fix the memory leak you introduced?",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Loaded question with multiple presuppositions: (1) there is a memory leak, (2) addressee introduced it, (3) addressee is responsible for fixing it, (4) fix has not happened yet. 'You introduced' assigns blame.",
+          "implied_meaning": "You caused this problem and need to fix it",
+          "confidence": 0.95
+        },
+        {
+          "start": 0,
+          "end": 61,
+          "text": "When are you going to fix the memory leak you introduced?",
+          "type": "SpeechAct",
+          "speech_act": "Critique",
+          "explanation": "While phrased as question about timing, functions as criticism and demand for action. 'You introduced' emphasizes personal responsibility/blame.",
+          "implied_meaning": "You made a mistake and need to address it",
+          "confidence": 0.90
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "accountability",
+      "notes": "Loaded question with blame assignment"
+    }
+  },
+  {
+    "inputs": {
+      "text": "I'm not sure we can meet that deadline with the current resources."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 72,
+          "text": "I'm not sure we can meet that deadline with the current resources.",
+          "type": "IndirectSpeech",
+          "speech_act": "Refusal",
+          "explanation": "Hedged refusal. 'Not sure we can' is polite way of saying 'we cannot'. Softens negative response by expressing uncertainty rather than definitive refusal.",
+          "implied_meaning": "We cannot meet that deadline without more resources",
+          "confidence": 0.85
+        },
+        {
+          "start": 0,
+          "end": 72,
+          "text": "I'm not sure we can meet that deadline with the current resources.",
+          "type": "Implicature",
+          "speech_act": "Request",
+          "explanation": "By mentioning 'current resources', speaker implicates that additional resources would make deadline achievable. Functions as indirect request for more resources.",
+          "implied_meaning": "We need additional resources to meet the deadline",
+          "confidence": 0.80
+        },
+        {
+          "start": 0,
+          "end": 72,
+          "text": "I'm not sure we can meet that deadline with the current resources.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) there is a deadline, (2) current resources are limited/insufficient, (3) speaker has assessed feasibility, (4) meeting deadline is important.",
+          "implied_meaning": "Resources are insufficient for the timeline",
+          "confidence": 0.88
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "capacity_planning",
+      "notes": "Polite refusal with implicit resource request"
+    }
+  },
+  {
+    "inputs": {
+      "text": "The tests are passing now. Ship it!"
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 30,
+          "text": "The tests are passing now.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes tests were previously failing ('now' implies state change). Also presupposes tests exist and passing tests is the deployment criterion.",
+          "implied_meaning": "Tests were failing before but have been fixed",
+          "confidence": 0.92
+        },
+        {
+          "start": 31,
+          "end": 39,
+          "text": "Ship it!",
+          "type": "SpeechAct",
+          "speech_act": "Command",
+          "explanation": "Imperative command to deploy/release. Enthusiastic tone (exclamation mark) expresses confidence and urgency. Direct directive for action.",
+          "implied_meaning": "Deploy to production immediately",
+          "confidence": 0.98
+        },
+        {
+          "start": 31,
+          "end": 39,
+          "text": "Ship it!",
+          "type": "Implicature",
+          "speech_act": "Command",
+          "explanation": "Implicates that passing tests are sufficient condition for deployment, and that no other checks are needed. Cultural phrase 'ship it' in software context.",
+          "implied_meaning": "Passing tests mean we're ready for production",
+          "confidence": 0.85
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "deployment_decision",
+      "notes": "Cultural/contextual meaning + presupposition of state change"
+    }
+  },
+  {
+    "inputs": {
+      "text": "I apologize for the regression. I should have run the full test suite before merging."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 33,
+          "text": "I apologize for the regression.",
+          "type": "SpeechAct",
+          "speech_act": "Apology",
+          "explanation": "Explicit apology acknowledges error and takes responsibility. Performative verb 'apologize' makes it formal speech act.",
+          "implied_meaning": "I acknowledge my mistake and feel regret",
+          "confidence": 0.98
+        },
+        {
+          "start": 34,
+          "end": 92,
+          "text": "I should have run the full test suite before merging.",
+          "type": "SpeechAct",
+          "speech_act": "Admission",
+          "explanation": "'Should have' acknowledges what correct action would have been. Admits specific procedural failure that caused the problem.",
+          "implied_meaning": "I know what I should have done and didn't do it",
+          "confidence": 0.95
+        },
+        {
+          "start": 0,
+          "end": 92,
+          "text": "I apologize for the regression. I should have run the full test suite before merging.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) a regression occurred, (2) speaker caused it, (3) speaker did not run full test suite, (4) running tests would have prevented regression.",
+          "implied_meaning": "I skipped testing and caused a problem",
+          "confidence": 0.92
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "accountability",
+      "notes": "Explicit apology with responsibility admission"
+    }
+  },
+  {
+    "inputs": {
+      "text": "You might want to check the error logs. There's some interesting activity."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 41,
+          "text": "You might want to check the error logs.",
+          "type": "IndirectSpeech",
+          "speech_act": "Suggestion",
+          "explanation": "'Might want to' softens the directive. Functions as suggestion/recommendation rather than command. Polite way to prompt action.",
+          "implied_meaning": "You should check the error logs",
+          "confidence": 0.85
+        },
+        {
+          "start": 42,
+          "end": 79,
+          "text": "There's some interesting activity.",
+          "type": "Implicature",
+          "speech_act": "Warning",
+          "explanation": "'Interesting' is euphemism for 'concerning' or 'problematic'. Understatement to avoid alarm while signaling something is wrong. Implicates urgency.",
+          "implied_meaning": "There's a problem in the error logs that needs attention",
+          "confidence": 0.88
+        },
+        {
+          "start": 0,
+          "end": 79,
+          "text": "You might want to check the error logs. There's some interesting activity.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) error logs exist and are accessible, (2) speaker has seen the logs, (3) the activity is noteworthy/concerning, (4) addressee should investigate.",
+          "implied_meaning": "I've noticed something concerning in the logs",
+          "confidence": 0.90
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "incident_hint",
+      "notes": "Polite suggestion with euphemistic warning"
+    }
+  },
+  {
+    "inputs": {
+      "text": "According to our monitoring, the API response time increased from 100ms to 3 seconds after your last deployment."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 114,
+          "text": "According to our monitoring, the API response time increased from 100ms to 3 seconds after your last deployment.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) monitoring system exists and is reliable, (2) addressee made a deployment, (3) deployment caused performance degradation, (4) correlation implies causation.",
+          "implied_meaning": "Your deployment caused a performance regression",
+          "confidence": 0.92
+        },
+        {
+          "start": 0,
+          "end": 114,
+          "text": "According to our monitoring, the API response time increased from 100ms to 3 seconds after your last deployment.",
+          "type": "Implicature",
+          "speech_act": "Critique",
+          "explanation": "Temporal relationship ('after your deployment') implicates causation. Speaker is attributing performance issue to addressee's deployment without explicitly stating blame.",
+          "implied_meaning": "Your deployment broke performance and needs to be fixed",
+          "confidence": 0.88
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "performance_regression",
+      "notes": "Causal implicature through temporal correlation"
+    }
+  },
+  {
+    "inputs": {
+      "text": "As someone who's worked with distributed systems for 15 years, I can tell you that this architecture won't scale."
+    },
+    "outputs": {
+      "elements": [
+        {
+          "start": 0,
+          "end": 113,
+          "text": "As someone who's worked with distributed systems for 15 years, I can tell you that this architecture won't scale.",
+          "type": "Presupposition",
+          "speech_act": null,
+          "explanation": "Presupposes: (1) speaker has 15 years of experience, (2) experience gives authority, (3) current architecture has scaling issues, (4) speaker's assessment should be trusted.",
+          "implied_meaning": "Trust my expert judgment - this won't work",
+          "confidence": 0.90
+        },
+        {
+          "start": 0,
+          "end": 113,
+          "text": "As someone who's worked with distributed systems for 15 years, I can tell you that this architecture won't scale.",
+          "type": "SpeechAct",
+          "speech_act": "Assertion",
+          "explanation": "Strong assertion backed by claimed expertise. 'I can tell you' emphasizes speaker's authority and confidence in the judgment.",
+          "implied_meaning": "My experience validates this prediction; you should listen",
+          "confidence": 0.92
+        },
+        {
+          "start": 0,
+          "end": 113,
+          "text": "As someone who's worked with distributed systems for 15 years, I can tell you that this architecture won't scale.",
+          "type": "Implicature",
+          "speech_act": "Assertion",
+          "explanation": "By leading with credentials, speaker implicates their opinion carries more weight than others'. Suggests addressee should defer to expertise and change approach.",
+          "implied_meaning": "You should redesign the architecture based on my expert recommendation",
+          "confidence": 0.85
+        }
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "architecture_critique",
+      "notes": "Authority appeal + assertion + presupposition of expertise"
+    }
   }
 ]
