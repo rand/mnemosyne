@@ -41,9 +41,9 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 /// A/B test configuration for a specific module
 ///
@@ -124,6 +124,113 @@ impl ABTestConfig {
     pub fn enable(&mut self) {
         self.enabled = true;
         info!("Enabled A/B test for {}", self.module_name);
+    }
+}
+
+/// Rollback policy configuration
+///
+/// Defines thresholds and rules for automated rollback.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RollbackPolicy {
+    /// Maximum acceptable error rate (0.0-1.0)
+    /// If treatment error rate exceeds this, trigger rollback
+    pub max_error_rate: f64,
+    /// Maximum acceptable latency increase factor (e.g., 1.5 = 50% increase)
+    /// If treatment latency exceeds control * factor, trigger rollback
+    pub max_latency_factor: f64,
+    /// Minimum samples required before rollback can trigger
+    /// Prevents premature rollback on insufficient data
+    pub min_samples: u64,
+    /// Enable automated rollback
+    pub auto_rollback_enabled: bool,
+}
+
+impl RollbackPolicy {
+    /// Create a default rollback policy
+    ///
+    /// Defaults: max_error_rate=0.10 (10%), max_latency_factor=1.5 (50% increase), min_samples=100
+    pub fn default_policy() -> Self {
+        Self {
+            max_error_rate: 0.10, // 10% error rate threshold
+            max_latency_factor: 1.5, // 50% latency increase threshold
+            min_samples: 100,
+            auto_rollback_enabled: true,
+        }
+    }
+
+    /// Create a conservative rollback policy (stricter thresholds)
+    pub fn conservative() -> Self {
+        Self {
+            max_error_rate: 0.05, // 5% error rate threshold
+            max_latency_factor: 1.2, // 20% latency increase threshold
+            min_samples: 200,
+            auto_rollback_enabled: true,
+        }
+    }
+
+    /// Create a permissive rollback policy (looser thresholds)
+    pub fn permissive() -> Self {
+        Self {
+            max_error_rate: 0.20, // 20% error rate threshold
+            max_latency_factor: 2.0, // 100% latency increase threshold
+            min_samples: 50,
+            auto_rollback_enabled: true,
+        }
+    }
+}
+
+impl Default for RollbackPolicy {
+    fn default() -> Self {
+        Self::default_policy()
+    }
+}
+
+/// Rollback event for history tracking
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RollbackEvent {
+    /// Module name
+    pub module_name: String,
+    /// Version rolled back from
+    pub from_version: ModuleVersion,
+    /// Version rolled back to
+    pub to_version: ModuleVersion,
+    /// Reason for rollback
+    pub reason: String,
+    /// Timestamp (Unix milliseconds)
+    pub timestamp_ms: u64,
+    /// Was this an automated rollback?
+    pub automated: bool,
+    /// Metrics snapshot at time of rollback
+    pub metrics_snapshot: Option<String>,
+}
+
+impl RollbackEvent {
+    pub fn new(
+        module_name: impl Into<String>,
+        from_version: ModuleVersion,
+        to_version: ModuleVersion,
+        reason: impl Into<String>,
+        automated: bool,
+    ) -> Self {
+        let timestamp_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
+        Self {
+            module_name: module_name.into(),
+            from_version,
+            to_version,
+            reason: reason.into(),
+            timestamp_ms,
+            automated,
+            metrics_snapshot: None,
+        }
+    }
+
+    pub fn with_metrics(mut self, metrics: String) -> Self {
+        self.metrics_snapshot = Some(metrics);
+        self
     }
 }
 

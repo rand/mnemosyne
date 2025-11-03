@@ -67,7 +67,9 @@ pub use dspy_bridge::DSpyBridge;
 #[cfg(feature = "python")]
 pub use dspy_module_loader::{DSpyModuleLoader, ModuleMetadata, ModuleVersion};
 #[cfg(feature = "python")]
-pub use dspy_ab_testing::{ABTestConfig, ABTestMetrics, ABTestRouter, VersionMetrics};
+pub use dspy_ab_testing::{
+    ABTestConfig, ABTestMetrics, ABTestRouter, RollbackEvent, RollbackPolicy, VersionMetrics,
+};
 #[cfg(feature = "python")]
 pub use dspy_telemetry::{
     CostCalculator, DSpyEvent, EventType, ModuleMetrics as TelemetryModuleMetrics,
