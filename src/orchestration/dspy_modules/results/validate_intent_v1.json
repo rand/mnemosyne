@@ -1,0 +1,52 @@
+{
+  "predictor.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Validate that implementation satisfies original user intent.\n\nSemantic analysis of whether the work done matches what the user requested.\nGoes beyond pattern matching to understand implicit expectations.\n\nChecks:\n- Does implementation address the core problem?\n- Are user expectations met (explicit and implicit)?\n- Is the solution appropriate for the context?",
+      "fields": [
+        {
+          "prefix": "User Intent:",
+          "description": "Original user request describing desired outcome"
+        },
+        {
+          "prefix": "Work Item:",
+          "description": "Description of the work item being validated"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation: code changes, files modified, approach taken"
+        },
+        {
+          "prefix": "Requirements:",
+          "description": "Extracted requirements from intent (may be empty)"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Intent Satisfied:",
+          "description": "True if implementation satisfies user intent, False otherwise (bool)"
+        },
+        {
+          "prefix": "Explanation:",
+          "description": "Explanation of why intent is/isn't satisfied, referencing specific requirements (str)"
+        },
+        {
+          "prefix": "Missing Aspects:",
+          "description": "List of aspects of user intent not addressed by implementation, empty if satisfied (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.14",
+      "dspy": "3.0.3",
+      "cloudpickle": "3.1"
+    }
+  }
+}

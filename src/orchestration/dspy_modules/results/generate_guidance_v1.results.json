@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-11-03T10:13:53.922981",
+  "signature": "generate_guidance",
+  "config": {
+    "trials": 25,
+    "test_mode": false
+  },
+  "baseline_score": 0.5,
+  "optimized_score": 0.5,
+  "improvement": 0.0,
+  "pct_improvement": 0.0
+}

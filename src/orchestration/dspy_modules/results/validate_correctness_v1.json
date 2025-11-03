@@ -1,0 +1,96 @@
+{
+  "predictor.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "implementation": "Database connection pooling. Code: `lazy_static! { static ref DB_POOL: Pool<PostgresConnectionManager> = { let manager = PostgresConnectionManager::new(\"postgresql://user:pass@localhost/db\"); Pool::builder().max_size(10).build(manager).unwrap() }; }` Files: database.rs",
+        "code_sample": "lazy_static! {\n    static ref DB_POOL: Pool<PostgresConnectionManager> = {\n        let manager = PostgresConnectionManager::new(\"postgresql://user:pass@localhost/db\");\n        Pool::builder().max_size(10).build(manager).unwrap()\n    };\n}",
+        "reasoning": "The implementation uses lazy_static to create a database connection pool with a fixed maximum size of 10 connections. The code initializes a PostgresConnectionManager with a hardcoded connection string and builds a pool. However, there are several critical issues: (1) the `.unwrap()` call will panic if pool creation fails, causing the entire application to crash; (2) the connection string is hardcoded with credentials, creating a security vulnerability; (3) there's no error handling for connection failures or pool exhaustion; (4) no timeout configuration is specified for acquiring connections; (5) no validation that connections are actually healthy before use; (6) the pool size is fixed at 10 with no consideration for concurrent request load or graceful degradation.",
+        "is_correct": "False",
+        "logic_issues": "- `.unwrap()` on pool creation will cause panic/crash if initialization fails instead of graceful error handling\n- No connection health checks or validation before returning connections from pool\n- Fixed pool size of 10 may be insufficient for high concurrency or cause connection starvation under load\n- No timeout configuration for acquiring connections from pool, risking indefinite hangs\n- Hardcoded connection string prevents environment-specific configuration (dev/staging/prod)",
+        "error_handling_gaps": "- Missing try-catch or Result handling around `Pool::builder().build()` - uses `.unwrap()` which panics\n- No error handling for connection acquisition failures when pool is exhausted\n- No validation of connection string format or database accessibility at startup\n- Missing error handling for connection drops or network failures during pool lifetime\n- No logging or monitoring of pool exhaustion events",
+        "edge_cases": "- Pool exhaustion: no handling when all 10 connections are in use and new request arrives\n- Database unavailable at startup: `.unwrap()` causes immediate panic rather than retry or graceful degradation\n- Connection timeout: no timeout specified, requests could hang indefinitely waiting for available connection\n- Stale connections: no mechanism to detect or refresh connections that have become invalid\n- Credentials in connection string: exposed in source code, logs, and error messages\n- Zero connections scenario: if max_size is set to 0 or negative, behavior is undefined"
+      },
+      {
+        "augmented": true,
+        "implementation": "Rate limiting using in-memory HashMap tracking request counts per IP. Code: `let mut limits = HashMap::new(); let count = limits.entry(ip).or_insert(0); *count += 1; if *count > 100 { return TooManyRequests; }` Files: middleware/rate_limit.rs",
+        "code_sample": "let mut limits = HashMap::new();\nlet count = limits.entry(ip).or_insert(0);\n*count += 1;\nif *count > 100 { return TooManyRequests; }",
+        "reasoning": "This rate limiting implementation uses an in-memory HashMap to track request counts per IP address. While the basic logic of incrementing counters and checking thresholds appears straightforward, there are several critical issues: (1) no time-window reset mechanism - counters accumulate indefinitely without expiration, (2) no thread-safety considerations for concurrent requests, (3) unbounded memory growth as new IPs are added to the HashMap, (4) no cleanup of stale entries, and (5) the HashMap is likely not protected by synchronization primitives in a multi-threaded web server context.",
+        "is_correct": "False",
+        "logic_issues": "- Counter never resets: counts accumulate indefinitely without time-window expiration, causing legitimate users to be permanently blocked after exceeding threshold once\n- Race condition: multiple concurrent requests from same IP can increment counter simultaneously without synchronization, leading to incorrect counts\n- Unbounded memory growth: HashMap grows without bound as new IPs are encountered, never removing old entries\n- No timestamp tracking: implementation cannot distinguish between old and new requests within a time window\n- Threshold check happens after increment: a request at exactly the limit (101st) gets rejected, but the logic doesn't account for time-based windows",
+        "error_handling_gaps": "- No validation of IP address format or null checks\n- No error handling for HashMap operations (though unlikely to fail, defensive programming is absent)\n- No logging of rate limit violations for monitoring/debugging\n- No graceful degradation if rate limiter fails\n- Missing bounds checking on counter values (potential overflow in long-running processes)",
+        "edge_cases": "- IPv6 addresses may be formatted differently than IPv4, causing same user to appear as different IPs\n- Requests from load balancers/proxies may all appear from same IP, blocking legitimate traffic\n- No handling of IP spoofing or X-Forwarded-For header manipulation\n- Server restart loses all rate limit state (no persistence)\n- Extremely high-traffic scenarios cause HashMap to consume excessive memory\n- No distinction between different endpoints/routes - all requests counted together\n- Time window never expires: after 1 request, user is rate-limited forever if threshold is 100 and no reset occurs"
+      },
+      {
+        "implementation": "JWT token validation middleware extracts token from Authorization header, verifies signature using RS256 public key, checks expiration. Code: `let token = req.headers().get(\"Authorization\").unwrap().to_str().unwrap().trim_start_matches(\"Bearer \");` Files: middleware.rs",
+        "code_sample": "let token = req.headers().get(\"Authorization\").unwrap().to_str().unwrap().trim_start_matches(\"Bearer \");",
+        "is_correct": false,
+        "issues": [
+          "Multiple unwrap() calls will panic if Authorization header missing or malformed",
+          "No error handling - server will crash on invalid input rather than returning 401",
+          "Trim operation assumes 'Bearer ' prefix exists, panics if different auth scheme used"
+        ],
+        "explanation": "Implementation has critical error handling flaw. Three unwrap() calls create panic points: (1) missing Authorization header, (2) non-UTF8 header value, (3) trim operation on potentially empty string. Production code should never panic on user input. Correct approach uses Result/Option with proper error propagation, returning 401 Unauthorized for invalid tokens instead of crashing server."
+      },
+      {
+        "implementation": "Password hashing on registration. Code: `use md5; let hash = md5::compute(password.as_bytes()); let hash_str = format!(\"{:x}\", hash); db.execute(\"INSERT INTO users (email, password_hash) VALUES (?, ?)\", &[email, &hash_str]);` Files: auth.rs",
+        "code_sample": "use md5;\nlet hash = md5::compute(password.as_bytes());\nlet hash_str = format!(\"{:x}\", hash);\ndb.execute(\"INSERT INTO users (email, password_hash) VALUES (?, ?)\", &[email, &hash_str]);",
+        "is_correct": false,
+        "issues": [
+          "MD5 is cryptographically broken and unsuitable for password hashing",
+          "No salt used - identical passwords produce identical hashes (rainbow table vulnerability)",
+          "Fast hash function (MD5) allows brute force attacks at billions of attempts/second",
+          "Critical security flaw that compromises all user passwords"
+        ],
+        "explanation": "Implementation is fundamentally incorrect for password security. MD5 is a fast, unsalted, broken hash function designed for data integrity, not password storage. Correct password hashing requires: (1) slow key derivation function (bcrypt, scrypt, Argon2), (2) unique salt per password, (3) high iteration count. This implementation allows attackers to crack passwords trivially using rainbow tables or brute force. Must use bcrypt or Argon2 with proper salting."
+      }
+    ],
+    "signature": {
+      "instructions": "Validate implementation correctness.\n\nSemantic analysis of logic quality and bug potential.\n\nChecks for:\n- Logic errors (off-by-one, race conditions, etc.)\n- Error handling gaps (uncaught exceptions, missing validation)\n- Edge case handling (empty inputs, overflow, etc.)\n- Type safety issues (implicit conversions, null derefs)\n- Security vulnerabilities\n\nFocus on potential runtime failures, not style or conventions.",
+      "fields": [
+        {
+          "prefix": "Work Item:",
+          "description": "Description of work item"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation with code snippets if available"
+        },
+        {
+          "prefix": "Test Results:",
+          "description": "Test execution results: pass/fail counts, error messages"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Is Correct:",
+          "description": "True if implementation is logically sound and bug-free (bool)"
+        },
+        {
+          "prefix": "Logic Issues:",
+          "description": "List of potential logic errors or bugs found (list[str])"
+        },
+        {
+          "prefix": "Error Handling Gaps:",
+          "description": "List of error handling gaps: missing try/catch, validation, etc. (list[str])"
+        },
+        {
+          "prefix": "Edge Cases:",
+          "description": "List of unhandled edge cases (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.14",
+      "dspy": "3.0.3",
+      "cloudpickle": "3.1"
+    }
+  }
+}

@@ -1,0 +1,216 @@
+{
+  "extract_reqs.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Extract explicit requirements from user intent.\n\nGiven a user's high-level intent and context, identify all explicit\nrequirements that must be satisfied for successful completion.\n\nRequirements should be:\n- Specific and testable\n- Independent (not overlapping)\n- Complete (cover all aspects of intent)\n- Prioritized (ordered by importance)",
+      "fields": [
+        {
+          "prefix": "User Intent:",
+          "description": "User's high-level description of what they want"
+        },
+        {
+          "prefix": "Context:",
+          "description": "Additional context: work item phase, agent, file scope"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Requirements:",
+          "description": "List of explicit, testable requirements extracted from intent (list[str])"
+        },
+        {
+          "prefix": "Priorities:",
+          "description": "Priority scores (1-10) for each requirement, same order as requirements (list[int])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "_validate_intent_cot.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Validate that implementation satisfies original user intent.\n\nSemantic analysis of whether the work done matches what the user requested.\nGoes beyond pattern matching to understand implicit expectations.\n\nChecks:\n- Does implementation address the core problem?\n- Are user expectations met (explicit and implicit)?\n- Is the solution appropriate for the context?",
+      "fields": [
+        {
+          "prefix": "User Intent:",
+          "description": "Original user request describing desired outcome"
+        },
+        {
+          "prefix": "Work Item:",
+          "description": "Description of the work item being validated"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation: code changes, files modified, approach taken"
+        },
+        {
+          "prefix": "Requirements:",
+          "description": "Extracted requirements from intent (may be empty)"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Intent Satisfied:",
+          "description": "True if implementation satisfies user intent, False otherwise (bool)"
+        },
+        {
+          "prefix": "Explanation:",
+          "description": "Explanation of why intent is/isn't satisfied, referencing specific requirements (str)"
+        },
+        {
+          "prefix": "Missing Aspects:",
+          "description": "List of aspects of user intent not addressed by implementation, empty if satisfied (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "_validate_completeness_cot.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Validate implementation completeness.\n\nChecks for:\n- Partial implementations (TODOs, FIXMEs, stubs)\n- Unfilled typed holes (interfaces without implementations)\n- Missing error handling\n- Incomplete test coverage\n- Missing documentation\n\nCompleteness means ready for production, not just \"it compiles\".",
+      "fields": [
+        {
+          "prefix": "Work Item:",
+          "description": "Description of work item being validated"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation with file paths and key changes"
+        },
+        {
+          "prefix": "Requirements:",
+          "description": "Extracted requirements (may be empty)"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Is Complete:",
+          "description": "True if implementation is complete and production-ready (bool)"
+        },
+        {
+          "prefix": "Incomplete Aspects:",
+          "description": "List of incomplete aspects found: TODOs, stubs, missing tests, etc. (list[str])"
+        },
+        {
+          "prefix": "Typed Holes:",
+          "description": "List of typed holes or unfilled interfaces requiring implementation (list[str])"
+        },
+        {
+          "prefix": "Missing Tests:",
+          "description": "List of areas lacking test coverage (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "_validate_correctness_cot.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Validate implementation correctness.\n\nSemantic analysis of logic quality and bug potential.\n\nChecks for:\n- Logic errors (off-by-one, race conditions, etc.)\n- Error handling gaps (uncaught exceptions, missing validation)\n- Edge case handling (empty inputs, overflow, etc.)\n- Type safety issues (implicit conversions, null derefs)\n- Security vulnerabilities\n\nFocus on potential runtime failures, not style or conventions.",
+      "fields": [
+        {
+          "prefix": "Work Item:",
+          "description": "Description of work item"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation with code snippets if available"
+        },
+        {
+          "prefix": "Test Results:",
+          "description": "Test execution results: pass/fail counts, error messages"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Is Correct:",
+          "description": "True if implementation is logically sound and bug-free (bool)"
+        },
+        {
+          "prefix": "Logic Issues:",
+          "description": "List of potential logic errors or bugs found (list[str])"
+        },
+        {
+          "prefix": "Error Handling Gaps:",
+          "description": "List of error handling gaps: missing try/catch, validation, etc. (list[str])"
+        },
+        {
+          "prefix": "Edge Cases:",
+          "description": "List of unhandled edge cases (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "generate_guidance.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Generate actionable improvement guidance for failed reviews.\n\nProvide specific, prioritized recommendations for fixing issues.\nFocus on \"what to do next\" rather than \"what went wrong\".\n\nGuidance should be:\n- Actionable (specific steps, not vague advice)\n- Prioritized (most critical issues first)\n- Referenced (cite specific code/requirements)\n- Constructive (suggest fixes, not just criticism)",
+      "fields": [
+        {
+          "prefix": "User Intent:",
+          "description": "Original user intent"
+        },
+        {
+          "prefix": "Work Item:",
+          "description": "Work item description"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Implementation summary"
+        },
+        {
+          "prefix": "Failed Gates:",
+          "description": "List of quality gates that failed"
+        },
+        {
+          "prefix": "All Issues:",
+          "description": "Consolidated list of all issues found across gates"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Guidance:",
+          "description": "Actionable improvement guidance with specific steps (str)"
+        },
+        {
+          "prefix": "Priority Fixes:",
+          "description": "List of highest-priority fixes to address first (list[str])"
+        },
+        {
+          "prefix": "Suggestions:",
+          "description": "Additional suggestions for improving quality beyond minimum requirements (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.14",
+      "dspy": "3.0.3",
+      "cloudpickle": "3.1"
+    }
+  }
+}

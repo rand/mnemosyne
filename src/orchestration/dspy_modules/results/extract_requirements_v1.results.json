@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-11-03T10:19:37.316324",
+  "signature": "extract_requirements",
+  "config": {
+    "trials": 25,
+    "test_mode": false
+  },
+  "baseline_score": 0.3675,
+  "optimized_score": 0.56,
+  "improvement": 0.19250000000000006,
+  "pct_improvement": 52.380952380952394
+}
