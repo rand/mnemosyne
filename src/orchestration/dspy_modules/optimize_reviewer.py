@@ -39,6 +39,12 @@ from typing import Dict, List, Any
 from datetime import datetime
 
 from reviewer_module import ReviewerModule
+from semantic_metrics_fast import (
+    semantic_requirement_f1,
+    intent_validation_metric as semantic_intent_metric,
+    completeness_metric as semantic_completeness_metric,
+    correctness_metric as semantic_correctness_metric,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -222,12 +228,14 @@ def guidance_metric(example, pred, trace=None) -> float:
 
 
 # Metric mapping
+# Using fast holistic LLM-as-a-Judge for requirement extraction (1 API call vs 50-100)
+# Using semantic boolean matchers for validation flags
 METRICS = {
-    "extract_requirements": requirement_extraction_metric,
-    "validate_intent": intent_validation_metric,
-    "validate_completeness": completeness_metric,
-    "validate_correctness": correctness_metric,
-    "generate_guidance": guidance_metric,
+    "extract_requirements": semantic_requirement_f1,  # Fast holistic semantic F1
+    "validate_intent": semantic_intent_metric,  # Boolean match with semantic parsing
+    "validate_completeness": semantic_completeness_metric,  # Boolean match with semantic parsing
+    "validate_correctness": semantic_correctness_metric,  # Boolean match with semantic parsing
+    "generate_guidance": guidance_metric,  # Keep existing (guidance titles are simpler)
 }
 
 
