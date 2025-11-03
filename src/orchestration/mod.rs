@@ -28,6 +28,8 @@ pub mod branch_coordinator;
 pub mod dspy_bridge;
 #[cfg(feature = "python")]
 pub mod dspy_module_loader;
+#[cfg(feature = "python")]
+pub mod dspy_ab_testing;
 pub mod branch_guard;
 pub mod branch_registry;
 pub mod cli;
@@ -62,6 +64,8 @@ pub use actors::{ExecutorActor, OptimizerActor, OrchestratorActor, ReviewerActor
 pub use dspy_bridge::DSpyBridge;
 #[cfg(feature = "python")]
 pub use dspy_module_loader::{DSpyModuleLoader, ModuleMetadata, ModuleVersion};
+#[cfg(feature = "python")]
+pub use dspy_ab_testing::{ABTestConfig, ABTestMetrics, ABTestRouter, VersionMetrics};
 pub use branch_coordinator::{
     BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse,
 };
