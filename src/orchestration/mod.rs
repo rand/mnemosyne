@@ -30,6 +30,8 @@ pub mod dspy_bridge;
 pub mod dspy_module_loader;
 #[cfg(feature = "python")]
 pub mod dspy_ab_testing;
+#[cfg(feature = "python")]
+pub mod dspy_telemetry;
 pub mod branch_guard;
 pub mod branch_registry;
 pub mod cli;
@@ -66,6 +68,11 @@ pub use dspy_bridge::DSpyBridge;
 pub use dspy_module_loader::{DSpyModuleLoader, ModuleMetadata, ModuleVersion};
 #[cfg(feature = "python")]
 pub use dspy_ab_testing::{ABTestConfig, ABTestMetrics, ABTestRouter, VersionMetrics};
+#[cfg(feature = "python")]
+pub use dspy_telemetry::{
+    CostCalculator, DSpyEvent, EventType, ModuleMetrics as TelemetryModuleMetrics,
+    TelemetryCollector, TokenUsage,
+};
 pub use branch_coordinator::{
     BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse,
 };
