@@ -148,12 +148,32 @@ I will help you create a feature specification following the specification workf
    - Update `memory_id` field in spec's YAML frontmatter
    - Write back to file
 
-10. **Identify ambiguities** (optional auto-clarify):
-    - Scan spec for vague terms: "fast", "easy", "secure", "scalable" without metrics
-    - Scan for missing details in acceptance criteria
-    - If found (max 3): Offer to run `/feature-clarify` immediately
+10. **Validate spec with DSPy ReviewerModule**:
+    - Run validation using optimized v1 ReviewerModule:
+      ```bash
+      cd src/orchestration/dspy_modules
+      uv run python3 specflow_integration.py ../../.mnemosyne/artifacts/specs/<feature-id>.md --json
+      ```
+    - Parse JSON output for:
+      - `is_valid`: Overall validation status
+      - `issues`: List of specific problems found
+      - `suggestions`: Actionable improvement recommendations
+      - `requirements`: LLM-extracted requirements
+      - `ambiguities`: Detected vague terms and missing metrics
+      - `completeness_score`: 0.0-1.0 quality score
+    - Store validation result for next step
 
-11. **Display confirmation**:
+11. **Handle validation results**:
+    - If `completeness_score >= 0.8` and `is_valid == true`:
+      - Proceed to confirmation display
+    - If `completeness_score < 0.8` or `is_valid == false`:
+      - Display validation issues prominently
+      - Show top 3 ambiguities (if any)
+      - Show top 3 suggestions
+      - Offer to run `/feature-clarify` immediately
+      - Ask user: "Continue anyway?" or "Fix issues first?"
+
+12. **Display confirmation**:
     ```
     ✓ Feature spec created successfully
 
@@ -170,18 +190,42 @@ I will help you create a feature specification following the specification workf
 
     Constitution Alignment: ✓ Aligned
 
+    DSPy Validation (ReviewerModule v1):
+    - Completeness Score: <completeness_score>% (✓ Pass | ⚠️ Warning | ✗ Fail)
+    - Requirements Extracted: <requirements_count>
+    - Issues Found: <issues_count>
+    - Ambiguities Detected: <ambiguities_count>
+
+    [If issues or ambiguities detected:]
+    ⚠️  Validation Issues:
+      - <issue 1>
+      - <issue 2>
+      - <issue 3>
+
+    💡 Suggestions:
+      - <suggestion 1>
+      - <suggestion 2>
+
+    🔍 Ambiguities:
+      - <ambiguity 1>: <question>
+      - <ambiguity 2>: <question>
+
     Next steps:
     - Review spec: cat .mnemosyne/artifacts/specs/<feature-id>.md
-    - Clarify ambiguities: /feature-clarify <feature-id>
+    [If validation issues:]
+    - Clarify ambiguities: /feature-clarify <feature-id> (recommended)
+    [Always show:]
     - Create implementation plan: /feature-plan <feature-id>
     - Create git branch: git checkout -b feature/<feature-id>
     ```
 
-12. **Error handling**:
+13. **Error handling**:
     - If artifacts directory missing: "Error: Run 'mnemosyne artifact init' first"
     - If feature-id already exists: Offer to view, update, or choose new ID
     - If no constitution: Warn "No constitution found. Consider creating one with /project-constitution"
     - If description too vague: Ask for more details
+    - If DSPy validation fails: Fall back to pattern-based validation, warn "DSPy validation unavailable, using pattern matching only"
+    - If specflow_integration.py not found: Skip validation, warn "Spec validation skipped (integration module not available)"
 
 **Special behaviors**:
 - `--show <feature-id>`: Display existing spec from file
