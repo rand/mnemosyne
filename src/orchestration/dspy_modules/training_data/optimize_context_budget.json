@@ -1,0 +1,382 @@
+[
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.35, \"skills_pct\": 0.28, \"project_pct\": 0.15, \"general_pct\": 0.05, \"total_pct\": 0.83}",
+      "loaded_resources": "{\"skill_names\": [\"api-authentication\", \"database-postgres\", \"testing-integration\", \"frontend-react\", \"caching-redis\"], \"memory_ids\": [\"mem-123\", \"mem-456\", \"mem-789\"], \"memory_summaries\": [\"JWT implementation patterns\", \"Database schema design\", \"React component patterns\"]}",
+      "target_pct": "0.65",
+      "work_priority": "8"
+    },
+    "outputs": {
+      "unload_skills": "[\"frontend-react\", \"caching-redis\"]",
+      "unload_memory_ids": "[]",
+      "optimization_rationale": "Current usage 83% → target 65% requires 18% reduction. Work priority 8 (high) suggests preserving critical resources. Skills analysis: api-authentication and database-postgres directly relevant to current work, testing-integration needed for quality. frontend-react and caching-redis not immediately needed (can reload if required). Memory preservation: All 3 memories directly relevant to current auth + database work. Unloading 2 low-priority skills estimated to free ~12-15% context."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "high_usage_high_priority",
+      "notes": "High usage (83%) with high priority work - preserve critical resources"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.40, \"skills_pct\": 0.35, \"project_pct\": 0.12, \"general_pct\": 0.08, \"total_pct\": 0.95}",
+      "loaded_resources": "{\"skill_names\": [\"api-rest-design\", \"database-query-optimization\", \"observability-monitoring\", \"debugging-profiling\", \"testing-performance\", \"caching-strategies\", \"frontend-performance\"], \"memory_ids\": [\"mem-201\", \"mem-202\", \"mem-203\", \"mem-204\", \"mem-205\"], \"memory_summaries\": [\"API versioning decisions\", \"Query optimization patterns\", \"Monitoring setup notes\", \"Past debugging sessions\", \"Performance benchmarks\"]}",
+      "target_pct": "0.70",
+      "work_priority": "9"
+    },
+    "outputs": {
+      "unload_skills": "[\"frontend-performance\", \"caching-strategies\", \"testing-performance\"]",
+      "unload_memory_ids": "[\"mem-201\", \"mem-204\"]",
+      "optimization_rationale": "CRITICAL: 95% usage approaching limit. Need 25% reduction urgently. Priority 9 (very high) requires careful resource selection. Skills: Keep api-rest-design (core), database-query-optimization (active work), observability-monitoring (troubleshooting), debugging-profiling (critical for current issue). Remove frontend-performance, caching-strategies, testing-performance (not immediately needed). Memories: Keep mem-202 (query patterns - active), mem-203 (monitoring - needed), mem-205 (benchmarks - reference). Remove mem-201 (API versioning - not current focus), mem-204 (past sessions - historical). Estimated reduction: ~18-22% from 3 skills + 2 memories."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "critical_usage_high_priority",
+      "notes": "Critical usage (95%) requiring aggressive but careful unloading"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.30, \"skills_pct\": 0.15, \"project_pct\": 0.18, \"general_pct\": 0.07, \"total_pct\": 0.70}",
+      "loaded_resources": "{\"skill_names\": [\"database-migrations\", \"testing-unit\"], \"memory_ids\": [\"mem-301\", \"mem-302\", \"mem-303\", \"mem-304\", \"mem-305\", \"mem-306\"], \"memory_summaries\": [\"Migration rollback patterns\", \"Test setup utils\", \"Old refactoring notes\", \"Deprecated API docs\", \"Archived project decisions\", \"Legacy system notes\"]}",
+      "target_pct": "0.65",
+      "work_priority": "5"
+    },
+    "outputs": {
+      "unload_skills": "[]",
+      "unload_memory_ids": "[\"mem-303\", \"mem-304\", \"mem-305\", \"mem-306\"]",
+      "optimization_rationale": "Current 70% → target 65% requires modest 5% reduction. Priority 5 (medium) allows balanced approach. Skills: Only 2 loaded (15% total) and both relevant to current work - keep both. Memories: 6 loaded, many appear stale. Keep mem-301 (migration patterns - relevant), mem-302 (test utils - useful). Remove mem-303 (old refactoring notes), mem-304 (deprecated docs), mem-305 (archived decisions), mem-306 (legacy notes) - all historical/stale. 4 memory removals should achieve 5-7% reduction without impacting current work."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "moderate_usage_medium_priority",
+      "notes": "Moderate usage with clear candidates for removal (stale memories)"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.38, \"skills_pct\": 0.32, \"project_pct\": 0.10, \"general_pct\": 0.03, \"total_pct\": 0.83}",
+      "loaded_resources": "{\"skill_names\": [\"containers-docker\", \"deployment-kubernetes\", \"cicd-github-actions\", \"observability-logging\", \"security-hardening\"], \"memory_ids\": [\"mem-401\", \"mem-402\"], \"memory_summaries\": [\"Kubernetes deployment configs\", \"Security best practices\"]}",
+      "target_pct": "0.70",
+      "work_priority": "3"
+    },
+    "outputs": {
+      "unload_skills": "[\"security-hardening\", \"observability-logging\"]",
+      "unload_memory_ids": "[\"mem-402\"]",
+      "optimization_rationale": "Usage 83% → target 70% needs 13% reduction. Priority 3 (low) suggests this work can tolerate resource constraints. Skills: containers-docker and deployment-kubernetes likely core to deployment task (keep), cicd-github-actions supports automation (keep). security-hardening and observability-logging less critical for immediate deployment (remove, reload later if needed). Memories: mem-401 (K8s configs) directly relevant, mem-402 (security practices) general knowledge that can be reloaded. Removing 2 skills + 1 memory estimated ~10-15% reduction."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "high_usage_low_priority",
+      "notes": "High usage but low priority allows more aggressive unloading"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.25, \"skills_pct\": 0.20, \"project_pct\": 0.15, \"general_pct\": 0.05, \"total_pct\": 0.65}",
+      "loaded_resources": "{\"skill_names\": [\"api-graphql\", \"testing-e2e\"], \"memory_ids\": [\"mem-501\", \"mem-502\", \"mem-503\"], \"memory_summaries\": [\"GraphQL schema design\", \"E2E test patterns\", \"Project requirements\"]}",
+      "target_pct": "0.65",
+      "work_priority": "7"
+    },
+    "outputs": {
+      "unload_skills": "[]",
+      "unload_memory_ids": "[]",
+      "optimization_rationale": "Already at target (65%). No optimization needed. Current resource allocation appears optimal for priority 7 work: 2 focused skills (GraphQL + E2E testing) and 3 relevant memories. Recommendation: Maintain current state, monitor for usage spikes."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "at_target",
+      "notes": "Edge case: already at target usage"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.42, \"skills_pct\": 0.05, \"project_pct\": 0.20, \"general_pct\": 0.10, \"total_pct\": 0.77}",
+      "loaded_resources": "{\"skill_names\": [\"debugging-tools\"], \"memory_ids\": [\"mem-601\", \"mem-602\", \"mem-603\", \"mem-604\", \"mem-605\", \"mem-606\", \"mem-607\", \"mem-608\"], \"memory_summaries\": [\"Current bug investigation\", \"Stack traces\", \"Error logs\", \"User reports\", \"Similar past bugs\", \"Debugging checklist\", \"System architecture\", \"Component dependencies\"]}",
+      "target_pct": "0.65",
+      "work_priority": "10"
+    },
+    "outputs": {
+      "unload_skills": "[]",
+      "unload_memory_ids": "[\"mem-605\", \"mem-606\"]",
+      "optimization_rationale": "Usage 77% → target 65% needs 12% reduction. Priority 10 (CRITICAL) - must preserve essential debugging context. Skills: Only 1 skill loaded (debugging-tools, 5%) - cannot remove without breaking workflow. Memories: 8 loaded (project_pct 20%). Essential for debugging: mem-601 (current investigation), mem-602 (stack traces), mem-603 (error logs), mem-604 (user reports), mem-607 (architecture), mem-608 (dependencies). Removable: mem-605 (similar past bugs - reference only), mem-606 (debugging checklist - general knowledge). Removing 2 memories should achieve ~5-8% reduction. May need additional optimization if insufficient - consider compacting critical context."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "critical_priority_limited_options",
+      "notes": "Highest priority with few safe removals - careful selection required"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.20, \"skills_pct\": 0.40, \"project_pct\": 0.08, \"general_pct\": 0.02, \"total_pct\": 0.70}",
+      "loaded_resources": "{\"skill_names\": [\"frontend-react\", \"frontend-styling\", \"frontend-state-management\", \"frontend-routing\", \"frontend-forms\", \"frontend-accessibility\", \"frontend-performance\", \"frontend-testing\"], \"memory_ids\": [\"mem-701\"], \"memory_summaries\": [\"Component library guidelines\"]}",
+      "target_pct": "0.60",
+      "work_priority": "6"
+    },
+    "outputs": {
+      "unload_skills": "[\"frontend-performance\", \"frontend-accessibility\", \"frontend-testing\"]",
+      "unload_memory_ids": "[]",
+      "optimization_rationale": "Usage 70% → target 60% needs 10% reduction. Skills heavily loaded (40%, 8 frontend skills). Priority 6 (medium) allows selective unloading. Core frontend work needs: frontend-react (base), frontend-styling (UI), frontend-state-management (data), frontend-routing (navigation), frontend-forms (user input). Less immediately critical: frontend-performance, frontend-accessibility, frontend-testing (important but can reload when needed). Memory: Only 1 loaded (component guidelines) - keep as it's relevant. Unloading 3 skills estimated ~12-15% reduction."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "skill_heavy_load",
+      "notes": "Many related skills loaded - need to prioritize core vs supplementary"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.45, \"skills_pct\": 0.10, \"project_pct\": 0.25, \"general_pct\": 0.08, \"total_pct\": 0.88}",
+      "loaded_resources": "{\"skill_names\": [\"refactoring-strategies\"], \"memory_ids\": [\"mem-801\", \"mem-802\", \"mem-803\", \"mem-804\", \"mem-805\", \"mem-806\", \"mem-807\", \"mem-808\", \"mem-809\", \"mem-810\"], \"memory_summaries\": [\"Refactoring plan\", \"Code smell analysis\", \"Dependency graph\", \"Test coverage report\", \"Module A internals\", \"Module B internals\", \"Module C internals\", \"Historical decisions\", \"Team discussion notes\", \"Related PRs\"]}",
+      "target_pct": "0.70",
+      "work_priority": "7"
+    },
+    "outputs": {
+      "unload_skills": "[]",
+      "unload_memory_ids": "[\"mem-808\", \"mem-809\", \"mem-810\", \"mem-806\", \"mem-807\"]",
+      "optimization_rationale": "High usage 88% → target 70% requires 18% reduction. Skill usage low (10%, only refactoring-strategies) - cannot remove without losing capability. Memory usage high (25%, 10 items). Priority 7 allows balanced optimization. Essential memories: mem-801 (refactoring plan - current work), mem-802 (code smells - analysis), mem-803 (dependency graph - planning), mem-804 (test coverage - critical), mem-805 (Module A - likely current focus). Lower priority: mem-806/807 (Modules B/C - can reload if needed), mem-808 (historical decisions - context, not critical), mem-809 (team notes - reference), mem-810 (related PRs - historical). Removing 5 memories should achieve ~12-18% reduction."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "memory_heavy_load",
+      "notes": "Many memories loaded - prioritize active work vs historical context"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.48, \"skills_pct\": 0.22, \"project_pct\": 0.18, \"general_pct\": 0.06, \"total_pct\": 0.94}",
+      "loaded_resources": "{\"skill_names\": [\"ml-training\", \"ml-data-preprocessing\", \"ml-model-evaluation\", \"data-visualization\"], \"memory_ids\": [\"mem-901\", \"mem-902\", \"mem-903\", \"mem-904\", \"mem-905\"], \"memory_summaries\": [\"Training pipeline setup\", \"Dataset preprocessing steps\", \"Model architecture\", \"Hyperparameter tuning results\", \"Evaluation metrics\"]}",
+      "target_pct": "0.75",
+      "work_priority": "8"
+    },
+    "outputs": {
+      "unload_skills": "[\"data-visualization\"]",
+      "unload_memory_ids": "[\"mem-904\", \"mem-905\"]",
+      "optimization_rationale": "CRITICAL: 94% usage near limit. Need 19% reduction urgently. Priority 8 (high) requires preserving ML workflow essentials. Skills: ml-training, ml-data-preprocessing, ml-model-evaluation form core ML pipeline (must keep). data-visualization useful but not critical for training (can reload for analysis). Memories: mem-901 (pipeline - essential), mem-902 (preprocessing - active), mem-903 (architecture - critical). Removable: mem-904 (hyperparameter results - can regenerate), mem-905 (metrics - will recalculate). Unloading 1 skill + 2 memories estimated ~14-20% reduction. If insufficient, may need to compact critical context."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "critical_usage_specialized_domain",
+      "notes": "Near-critical usage with specialized ML workflow - careful to preserve pipeline"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.15, \"skills_pct\": 0.12, \"project_pct\": 0.05, \"general_pct\": 0.03, \"total_pct\": 0.35}",
+      "loaded_resources": "{\"skill_names\": [\"documentation-tools\", \"writing-technical\"], \"memory_ids\": [\"mem-1001\"], \"memory_summaries\": [\"Documentation style guide\"]}",
+      "target_pct": "0.65",
+      "work_priority": "4"
+    },
+    "outputs": {
+      "unload_skills": "[]",
+      "unload_memory_ids": "[]",
+      "optimization_rationale": "Current usage 35% well below target 65%. No optimization needed - have 30% headroom. Current resources minimal (2 skills, 1 memory) and all relevant to documentation work. Recommendation: Maintain current state, can load additional resources if needed for documentation task."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "below_target",
+      "notes": "Edge case: usage below target, no action needed"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.40, \"skills_pct\": 0.25, \"project_pct\": 0.22, \"general_pct\": 0.05, \"total_pct\": 0.92}",
+      "loaded_resources": "{\"skill_names\": [\"api-rest-design\", \"database-postgres\", \"testing-integration\", \"deployment-kubernetes\"], \"memory_ids\": [\"mem-1101\", \"mem-1102\", \"mem-1103\", \"mem-1104\", \"mem-1105\", \"mem-1106\"], \"memory_summaries\": [\"API endpoint design\", \"Database schema\", \"Integration test setup\", \"K8s deployment config\", \"Similar API implementation\", \"Old deployment notes\"]}",
+      "target_pct": "0.65",
+      "work_priority": "9"
+    },
+    "outputs": {
+      "unload_skills": "[\"deployment-kubernetes\"]",
+      "unload_memory_ids": "[\"mem-1105\", \"mem-1106\"]",
+      "optimization_rationale": "CRITICAL: 92% usage approaching limit. Need 27% reduction. Priority 9 (very high) requires careful preservation of API development resources. Skills: api-rest-design, database-postgres, testing-integration are core triad for API work (must keep). deployment-kubernetes relevant but deployment comes after development (safe to unload, reload later). Memories: Keep mem-1101 (API design - active), mem-1102 (schema - core), mem-1103 (test setup - needed), mem-1104 (K8s config - can unload with skill). Remove mem-1105 (similar implementation - reference), mem-1106 (old deployment notes - stale). Unloading 1 skill + 2 memories estimated ~18-25% reduction. May need to compact critical context if more reduction needed."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "near_critical_high_priority",
+      "notes": "Very high priority work with critical usage - strategic unloading"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.35, \"skills_pct\": 0.30, \"project_pct\": 0.12, \"general_pct\": 0.08, \"total_pct\": 0.85}",
+      "loaded_resources": "{\"skill_names\": [\"security-authentication\", \"security-encryption\", \"security-hardening\", \"security-audit\", \"security-compliance\"], \"memory_ids\": [\"mem-1201\", \"mem-1202\", \"mem-1203\"], \"memory_summaries\": [\"Security requirements\", \"Threat model\", \"Compliance checklist\"]}",
+      "target_pct": "0.70",
+      "work_priority": "10"
+    },
+    "outputs": {
+      "unload_skills": "[\"security-compliance\", \"security-audit\"]",
+      "unload_memory_ids": "[]",
+      "optimization_rationale": "Usage 85% → target 70% needs 15% reduction. Priority 10 (CRITICAL) - security work, must preserve core capabilities. Skills loaded: all security-focused (30%). Core security implementation needs: security-authentication (auth layer), security-encryption (data protection), security-hardening (system security). Less immediately critical: security-audit (post-implementation review), security-compliance (documentation/reporting). All 3 memories appear critical to security work - keep all. Unloading 2 security skills (audit + compliance) estimated ~10-14% reduction. These can be reloaded when implementation reaches audit/compliance phase."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "critical_priority_security",
+      "notes": "Highest priority security work - preserve implementation capabilities"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.30, \"skills_pct\": 0.35, \"project_pct\": 0.10, \"general_pct\": 0.05, \"total_pct\": 0.80}",
+      "loaded_resources": "{\"skill_names\": [\"algorithms-sorting\", \"algorithms-searching\", \"data-structures-trees\", \"data-structures-graphs\", \"algorithms-dynamic-programming\", \"algorithms-greedy\", \"data-structures-heaps\"], \"memory_ids\": [\"mem-1301\", \"mem-1302\"], \"memory_summaries\": [\"Algorithm complexity analysis\", \"Problem constraints\"]}",
+      "target_pct": "0.65",
+      "work_priority": "6"
+    },
+    "outputs": {
+      "unload_skills": "[\"algorithms-greedy\", \"algorithms-dynamic-programming\", \"data-structures-heaps\"]",
+      "unload_memory_ids": "[]",
+      "optimization_rationale": "Usage 80% → target 65% needs 15% reduction. Priority 6 (medium) allows balanced approach. Many algorithm/DS skills loaded (7 skills, 35%). Need to determine which are core to current problem. Assuming current work involves searching and trees/graphs (common combination), keep: algorithms-sorting (foundation), algorithms-searching (core), data-structures-trees, data-structures-graphs. Remove advanced algorithms/structures not immediately needed: algorithms-greedy, algorithms-dynamic-programming, data-structures-heaps (can reload if problem requires). Memories minimal (2 items) and both relevant - keep. Unloading 3 skills estimated ~15-18% reduction."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "algorithms_optimization",
+      "notes": "Multiple related algorithm skills - prioritize based on problem domain"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.38, \"skills_pct\": 0.18, \"project_pct\": 0.20, \"general_pct\": 0.12, \"total_pct\": 0.88}",
+      "loaded_resources": "{\"skill_names\": [\"mobile-ios\", \"mobile-android\", \"mobile-react-native\"], \"memory_ids\": [\"mem-1401\", \"mem-1402\", \"mem-1403\", \"mem-1404\", \"mem-1405\", \"mem-1406\", \"mem-1407\"], \"memory_summaries\": [\"iOS app architecture\", \"Android build config\", \"React Native setup\", \"Cross-platform components\", \"Platform-specific workarounds\", \"Old iOS implementation\", \"Deprecated Android code\"]}",
+      "target_pct": "0.70",
+      "work_priority": "7"
+    },
+    "outputs": {
+      "unload_skills": "[]",
+      "unload_memory_ids": "[\"mem-1405\", \"mem-1406\", \"mem-1407\"]",
+      "optimization_rationale": "Usage 88% → target 70% needs 18% reduction. Multi-platform mobile development (iOS, Android, React Native). Skills: All 3 platforms relevant to cross-platform work - removing any would break workflow (keep all 3). Memories: 7 loaded (20%). Active work: mem-1401 (iOS arch), mem-1402 (Android config), mem-1403 (RN setup), mem-1404 (cross-platform components - critical). Removable: mem-1405 (workarounds - can look up when needed), mem-1406 (old iOS - stale), mem-1407 (deprecated Android - stale). Unloading 3 memories estimated ~8-12% reduction. May need additional optimization - consider unloading one platform skill if work focuses on specific platform."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "multi_platform_development",
+      "notes": "Cross-platform work with high usage - limited removal options"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.32, \"skills_pct\": 0.20, \"project_pct\": 0.15, \"general_pct\": 0.08, \"total_pct\": 0.75}",
+      "loaded_resources": "{\"skill_names\": [\"api-rest-design\", \"api-graphql\", \"api-websocket\"], \"memory_ids\": [\"mem-1501\", \"mem-1502\", \"mem-1503\", \"mem-1504\"], \"memory_summaries\": [\"REST API design\", \"GraphQL schema\", \"WebSocket protocol\", \"API versioning strategy\"]}",
+      "target_pct": "0.65",
+      "work_priority": "5"
+    },
+    "outputs": {
+      "unload_skills": "[\"api-websocket\"]",
+      "unload_memory_ids": "[\"mem-1503\"]",
+      "optimization_rationale": "Usage 75% → target 65% needs 10% reduction. Priority 5 (medium) allows flexible optimization. 3 API skills loaded. If work involves choosing between REST and GraphQL (migration scenario), both are needed. api-websocket likely supplementary (real-time features). Remove api-websocket skill and corresponding mem-1503 (WebSocket protocol). Keep api-rest-design + mem-1501, api-graphql + mem-1502, and mem-1504 (versioning strategy - relevant to both). Unloading 1 skill + 1 memory estimated ~8-12% reduction."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "api_design_comparison",
+      "notes": "Multiple API paradigms loaded - remove supplementary (WebSocket)"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.50, \"skills_pct\": 0.08, \"project_pct\": 0.28, \"general_pct\": 0.10, \"total_pct\": 0.96}",
+      "loaded_resources": "{\"skill_names\": [\"architecture-microservices\"], \"memory_ids\": [\"mem-1601\", \"mem-1602\", \"mem-1603\", \"mem-1604\", \"mem-1605\", \"mem-1606\", \"mem-1607\", \"mem-1608\", \"mem-1609\", \"mem-1610\", \"mem-1611\", \"mem-1612\"], \"memory_summaries\": [\"Microservices architecture plan\", \"Service boundaries\", \"Communication patterns\", \"Data consistency strategy\", \"Service A design\", \"Service B design\", \"Service C design\", \"Deployment topology\", \"Monitoring setup\", \"Old monolith code\", \"Migration checklist\", \"Team discussions\"]}",
+      "target_pct": "0.70",
+      "work_priority": "8"
+    },
+    "outputs": {
+      "unload_skills": "[]",
+      "unload_memory_ids": "[\"mem-1610\", \"mem-1611\", \"mem-1612\", \"mem-1607\", \"mem-1608\", \"mem-1609\"]",
+      "optimization_rationale": "EXTREME: 96% usage critical. Need 26% reduction urgently. Priority 8 (high) microservices migration - complex work. Skill: Only 1 loaded (architecture-microservices, 8%) - cannot remove. Memories: 12 loaded (28%, very high). Core architecture: mem-1601 (overall plan), mem-1602 (service boundaries), mem-1603 (communication patterns), mem-1604 (data consistency - critical for distributed systems). Service designs: mem-1605/1606/1607 (Services A/B/C) - can likely keep 1-2 active services, remove others (reload when working on them). Support: mem-1608 (deployment), mem-1609 (monitoring) - important but can reload. Historical: mem-1610 (old monolith - reference), mem-1611 (checklist - can regenerate), mem-1612 (discussions - notes). Remove 6 memories (services C, deployment, monitoring, all historical). Estimated ~14-20% reduction. If insufficient, compress critical context or remove additional service designs."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "extreme_usage_architecture",
+      "notes": "Near-limit usage with complex architecture work - aggressive memory optimization"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.28, \"skills_pct\": 0.22, \"project_pct\": 0.18, \"general_pct\": 0.06, \"total_pct\": 0.74}",
+      "loaded_resources": "{\"skill_names\": [\"testing-unit\", \"testing-integration\", \"testing-e2e\", \"testing-performance\"], \"memory_ids\": [\"mem-1701\", \"mem-1702\", \"mem-1703\", \"mem-1704\"], \"memory_summaries\": [\"Test strategy\", \"Unit test patterns\", \"Integration test setup\", \"E2E test scenarios\"]}",
+      "target_pct": "0.65",
+      "work_priority": "6"
+    },
+    "outputs": {
+      "unload_skills": "[\"testing-performance\"]",
+      "unload_memory_ids": "[\"mem-1704\"]",
+      "optimization_rationale": "Usage 74% → target 65% needs 9% reduction. Priority 6 (medium) testing work. 4 testing skills loaded (22%). Core testing pyramid: testing-unit (base), testing-integration (middle), testing-e2e (top) - all needed. testing-performance supplementary (specialized performance testing). Memories: mem-1701 (test strategy - essential), mem-1702 (unit patterns - needed), mem-1703 (integration setup - active). mem-1704 (E2E scenarios) could be regenerated or loaded when working on E2E. However, removing testing-performance skill + mem-1704 (E2E scenarios replaced with performance focus suggests that was the intent). Estimated ~8-11% reduction."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "testing_optimization",
+      "notes": "Testing work with full pyramid loaded - remove specialized/supplementary"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.35, \"skills_pct\": 0.24, \"project_pct\": 0.14, \"general_pct\": 0.07, \"total_pct\": 0.80}",
+      "loaded_resources": "{\"skill_names\": [\"cli-design\", \"cli-parsing\", \"cli-output-formatting\", \"cli-error-handling\"], \"memory_ids\": [\"mem-1801\", \"mem-1802\", \"mem-1803\", \"mem-1804\"], \"memory_summaries\": [\"CLI command structure\", \"Argument parsing approach\", \"Output formatting examples\", \"Error message templates\"]}",
+      "target_pct": "0.70",
+      "work_priority": "5"
+    },
+    "outputs": {
+      "unload_skills": "[\"cli-output-formatting\"]",
+      "unload_memory_ids": "[\"mem-1803\"]",
+      "optimization_rationale": "Usage 80% → target 70% needs 10% reduction. Priority 5 (medium) CLI development. 4 CLI skills loaded. Core CLI development: cli-design (structure), cli-parsing (arguments), cli-error-handling (UX). cli-output-formatting useful but can be addressed later (initial focus on functionality, polish output later). Memories aligned with skills. Remove cli-output-formatting + mem-1803 (output examples). Keep core functionality skills and memories. Estimated ~8-12% reduction."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "cli_development",
+      "notes": "CLI development - prioritize core functionality over polish"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.42, \"skills_pct\": 0.26, \"project_pct\": 0.16, \"general_pct\": 0.09, \"total_pct\": 0.93}",
+      "loaded_resources": "{\"skill_names\": [\"infrastructure-terraform\", \"infrastructure-ansible\", \"cloud-aws\", \"cloud-gcp\", \"observability-monitoring\"], \"memory_ids\": [\"mem-1901\", \"mem-1902\", \"mem-1903\", \"mem-1904\", \"mem-1905\"], \"memory_summaries\": [\"Infrastructure as code setup\", \"AWS architecture\", \"GCP migration plan\", \"Terraform modules\", \"Monitoring dashboards\"]}",
+      "target_pct": "0.70",
+      "work_priority": "7"
+    },
+    "outputs": {
+      "unload_skills": "[\"cloud-gcp\", \"infrastructure-ansible\"]",
+      "unload_memory_ids": "[\"mem-1903\", \"mem-1905\"]",
+      "optimization_rationale": "CRITICAL: 93% usage near limit. Need 23% reduction. Priority 7 infrastructure work. Skills: infrastructure-terraform (IaC primary), cloud-aws (current cloud), observability-monitoring (operational) appear to be active work. cloud-gcp and infrastructure-ansible less critical (GCP migration = future, Ansible secondary to Terraform). Memories: Keep mem-1901 (IaC setup), mem-1902 (AWS arch - current), mem-1904 (Terraform modules - active). Remove mem-1903 (GCP migration - future), mem-1905 (monitoring dashboards - can regenerate). Unloading 2 skills + 2 memories estimated ~18-24% reduction."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "infrastructure_multi_cloud",
+      "notes": "Multi-cloud infrastructure - prioritize current platform (AWS) over migration target (GCP)"
+    }
+  },
+  {
+    "inputs": {
+      "current_usage": "{\"critical_pct\": 0.30, \"skills_pct\": 0.15, \"project_pct\": 0.12, \"general_pct\": 0.05, \"total_pct\": 0.62}",
+      "loaded_resources": "{\"skill_names\": [\"data-etl\", \"data-warehousing\"], \"memory_ids\": [\"mem-2001\", \"mem-2002\", \"mem-2003\"], \"memory_summaries\": [\"ETL pipeline design\", \"Data warehouse schema\", \"Data quality rules\"]}",
+      "target_pct": "0.70",
+      "work_priority": "6"
+    },
+    "outputs": {
+      "unload_skills": "[]",
+      "unload_memory_ids": "[]",
+      "optimization_rationale": "Current usage 62% below target 70%. No optimization needed - have 8% headroom. Resources minimal and focused on data pipeline work (2 ETL/warehousing skills, 3 relevant memories). Recommendation: Maintain current state, can load additional resources if needed for data engineering tasks."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "below_target_data",
+      "notes": "Edge case: usage below target with focused data engineering resources"
+    }
+  }
+]
