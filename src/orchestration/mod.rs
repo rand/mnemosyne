@@ -26,6 +26,8 @@ pub mod branch_coordinator;
 
 #[cfg(feature = "python")]
 pub mod dspy_bridge;
+#[cfg(feature = "python")]
+pub mod dspy_module_loader;
 pub mod branch_guard;
 pub mod branch_registry;
 pub mod cli;
@@ -58,6 +60,8 @@ pub use actors::{ExecutorActor, OptimizerActor, OrchestratorActor, ReviewerActor
 
 #[cfg(feature = "python")]
 pub use dspy_bridge::DSpyBridge;
+#[cfg(feature = "python")]
+pub use dspy_module_loader::{DSpyModuleLoader, ModuleMetadata, ModuleVersion};
 pub use branch_coordinator::{
     BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse,
 };
