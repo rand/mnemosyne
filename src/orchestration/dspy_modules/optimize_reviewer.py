@@ -130,11 +130,14 @@ def requirement_extraction_metric(example, pred, trace=None) -> float:
 def intent_validation_metric(example, pred, trace=None) -> float:
     """Evaluate intent validation accuracy.
 
-    Binary match: 1.0 if satisfied matches, 0.0 otherwise.
+    Binary match: 1.0 if intent_satisfied matches, 0.0 otherwise.
     """
     try:
-        gold_satisfied = example.satisfied
-        pred_satisfied = pred.satisfied if hasattr(pred, 'satisfied') else None
+        gold_satisfied = example.intent_satisfied
+        pred_satisfied = pred.intent_satisfied if hasattr(pred, 'intent_satisfied') else None
+
+        if pred_satisfied is None:
+            return 0.0
 
         return 1.0 if gold_satisfied == pred_satisfied else 0.0
     except Exception as e:
@@ -145,19 +148,22 @@ def intent_validation_metric(example, pred, trace=None) -> float:
 def completeness_metric(example, pred, trace=None) -> float:
     """Evaluate completeness validation accuracy.
 
-    Combination of binary match and missing items overlap.
+    Combination of binary match and missing requirements overlap.
     """
     try:
         gold_complete = example.is_complete
         pred_complete = pred.is_complete if hasattr(pred, 'is_complete') else None
 
+        if pred_complete is None:
+            return 0.0
+
         # Binary accuracy
         binary_score = 1.0 if gold_complete == pred_complete else 0.0
 
-        # Missing items overlap (if incomplete)
-        if not gold_complete and hasattr(pred, 'missing_items'):
-            gold_missing = set(example.missing_items)
-            pred_missing = set(pred.missing_items)
+        # Missing requirements overlap (if incomplete)
+        if not gold_complete and hasattr(pred, 'missing_requirements') and hasattr(example, 'missing_requirements'):
+            gold_missing = set(example.missing_requirements)
+            pred_missing = set(pred.missing_requirements)
 
             if gold_missing and pred_missing:
                 overlap = len(gold_missing & pred_missing) / len(gold_missing)
@@ -262,9 +268,10 @@ def optimize_module(
     def composite_metric(example, pred, trace=None) -> float:
         """Composite metric across all ReviewerModule operations."""
         # Determine which operation to evaluate based on example fields
-        if hasattr(example, 'requirements'):
+        # Check for output fields that indicate the operation type
+        if hasattr(example, 'requirements') and hasattr(example, 'user_intent'):
             return requirement_extraction_metric(example, pred, trace)
-        elif hasattr(example, 'satisfied'):
+        elif hasattr(example, 'intent_satisfied'):
             return intent_validation_metric(example, pred, trace)
         elif hasattr(example, 'is_complete'):
             return completeness_metric(example, pred, trace)
@@ -273,13 +280,14 @@ def optimize_module(
         elif hasattr(example, 'guidance'):
             return guidance_metric(example, pred, trace)
         else:
-            logger.warning("Unknown example type, returning 0.0")
+            logger.warning(f"Unknown example type (fields: {list(example.__dict__.keys())}), returning 0.0")
             return 0.0
 
     # Configure MIPROv2 teleprompter
     logger.info("Configuring MIPROv2 teleprompter")
     teleprompter = MIPROv2(
         metric=composite_metric,
+        auto=None,                  # Disable auto mode to use manual settings
         num_candidates=10,          # Number of prompt candidates per trial
         init_temperature=1.0,       # Temperature for initial prompt generation
         verbose=True                # Log optimization progress
