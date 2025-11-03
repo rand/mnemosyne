@@ -176,116 +176,114 @@ teleprompter = MIPROv2(
 
 ---
 
-## Update: 50-Trial Optimization Complete (2025-11-03)
+## Update: 50-Trial Optimization - CRITICAL BUG DISCOVERED (2025-11-03)
 
-### Results
+### INCORRECT PREVIOUS ANALYSIS
 
-The 50-trial optimization completed successfully after ~49 minutes with `num_threads=2` rate limiting in place.
+**The previous analysis claiming "baseline prompts are near-optimal" was WRONG.**
 
-**Performance Summary:**
-```json
-{
-  "baseline_scores": {
-    "extract_requirements": 0.71,
-    "validate_intent": 1.00,
-    "validate_completeness": 0.75,
-    "validate_correctness": 0.75,
-    "generate_guidance": 0.00
-  },
-  "optimized_scores": {
-    "extract_requirements": 0.71,
-    "validate_intent": 1.00,
-    "validate_completeness": 0.75,
-    "validate_correctness": 0.75,
-    "generate_guidance": 0.00
-  },
-  "improvements": {
-    "extract_requirements": 0.0,
-    "validate_intent": 0.0,
-    "validate_completeness": 0.0,
-    "validate_correctness": 0.0,
-    "generate_guidance": 0.0
-  },
-  "average_improvement": 0.0
-}
+Upon critical investigation, the zero improvement was not due to optimal baselines, but due to a **critical bug in the composite_metric function** that caused ALL trials to score 0.0.
+
+### The Bug: Broken Composite Metric Dispatch
+
+**Location**: `optimize_reviewer.py` lines 276-292
+
+**Root Cause**: The `composite_metric` function attempts to route examples to the correct metric by checking field presence:
+
+```python
+def composite_metric(example, pred, trace=None) -> float:
+    # Check for output fields that indicate the operation type
+    if hasattr(example, 'requirements') and hasattr(example, 'user_intent'):
+        return requirement_extraction_metric(example, pred, trace)
+    elif hasattr(example, 'intent_satisfied'):
+        return intent_validation_metric(example, pred, trace)
+    # ...
 ```
 
-### Analysis: Zero Improvement After 50 Trials
+**The Fatal Flaw**: This logic does not distinguish between INPUT and OUTPUT fields:
 
-**Finding**: MIPROv2 found no improvements across all five signatures despite 50 trials of systematic prompt exploration.
+- **extract_requirements** examples:
+  - Inputs: `user_intent`, `context`
+  - Outputs: `requirements`, `priorities`
 
-**Interpretation**: This strongly validates **Hypothesis H1** (Baseline Prompts Already Near-Optimal). The baseline prompts for ReviewerModule are sufficiently sophisticated that MIPROv2's automated optimization could not discover better variants.
+- **validate_intent** examples:
+  - Inputs: `user_intent`, `work_item`, `implementation`, `requirements`
+  - Outputs: `intent_satisfied`, `explanation`, `missing_aspects`
 
-**Evidence Supporting Near-Optimal Baseline:**
+**Both signatures have `requirements` AND `user_intent` fields**, but:
+- For `extract_requirements`: `requirements` is an OUTPUT
+- For `validate_intent`: `requirements` is an INPUT
 
-1. **High Baseline Performance**:
-   - `validate_intent`: 100% accuracy (perfect on test set)
-   - `validate_completeness`: 75% accuracy (solid)
-   - `validate_correctness`: 75% accuracy (solid)
-   - `extract_requirements`: 71% F1 (strong semantic extraction)
+The composite_metric misroutes `validate_intent` examples to `requirement_extraction_metric`, which returns 0.0 because it expects `requirements` as an output field that isn't there in the prediction.
 
-2. **Comprehensive Search Space Exploration**:
-   - 50 trials with 10 instruction candidates per trial = 500 prompt variants evaluated
-   - MIPROv2 explored diverse prompt formulations
-   - No variant outperformed the manually-engineered baseline
+### Evidence
 
-3. **Well-Designed Manual Prompts**:
-   - Baseline prompts include detailed instructions
-   - Clear output formats specified
-   - Domain-specific guidance embedded
-   - Chain-of-thought reasoning integrated
+**From optimization logs (`/tmp/mipro_50trial_v2.log`)**:
 
-### What About generate_guidance (0.00 baseline)?
+1. **ALL 50 trials scored 0.0**:
+   ```
+   Minibatch scores so far: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, ...]
+   Full eval scores so far: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+   Best full score so far: 0.0
+   ```
 
-The `generate_guidance` signature scored 0.00 in both baseline and optimized runs. This requires investigation:
+2. **920 lines with "Score: 0.0"** in the log
 
-**Possible Causes**:
-1. **Metric Issue**: The guidance_metric may be too strict or comparing incorrectly
-2. **Training Data Issue**: Test examples may have incompatible field formats
-3. **Signature Design Issue**: The guidance generation may need structural improvements
+3. **JSON parsing failures**: Model generating XML-like output that doesn't match expected format
 
-**Recommendation**: Investigate the `generate_guidance` scoring separately. The fact that optimization didn't improve it suggests a fundamental issue rather than a prompt quality problem.
+4. **All optimization trials scored identically**: Not just baseline, but EVERY variant explored scored 0.0
 
-### Conclusions
+### Impact
 
-1. **Baseline Prompts Are Production-Ready**: The ReviewerModule's manually-engineered prompts are already near-optimal for the task. No further prompt optimization needed for the four working signatures.
+**The 50-trial optimization was completely invalid**:
+- No meaningful signal for MIPROv2 to learn from
+- Every prompt variant scored 0.0 regardless of quality
+- "Zero improvement" was due to broken metrics, not optimal prompts
+- Wasted ~49 minutes of API time and ~$X in costs
+- Led to incorrect conclusion about baseline quality
 
-2. **MIPROv2 Validated Manual Engineering**: The optimization process serves as validation that the manual prompt engineering was effective. This is a success indicator.
+### Lessons Learned
 
-3. **Training Data Quality Is Good**: The optimization completed successfully with semantic metrics working correctly. The 20 examples per signature provided sufficient signal.
+1. **Always inspect optimization logs critically**: Check that scores vary during optimization
+2. **Validate metrics independently**: Run metrics on known examples before optimization
+3. **Don't trust zero variance**: If all trials score the same, investigate immediately
+4. **Check for field ambiguity**: When combining multiple signatures, ensure clean dispatch logic
+5. **Question convenient narratives**: "Already optimal" is suspicious without evidence
 
-4. **Rate Limiting Solution Works**: The `num_threads=2` configuration successfully completed optimization without hitting rate limits.
+### Correct Fix: Per-Signature Optimization
 
-5. **generate_guidance Needs Investigation**: This signature requires separate analysis to understand the 0.00 score.
+**Approach**: Abandon composite metric entirely. Create separate optimization scripts for each signature:
 
-### Next Steps
+1. `optimize_extract_requirements.py` - Loads only extract_requirements training data
+2. `optimize_validate_intent.py` - Loads only validate_intent training data
+3. `optimize_validate_completeness.py` - Loads only validate_completeness training data
+4. `optimize_validate_correctness.py` - Loads only validate_correctness training data
+5. `optimize_generate_guidance.py` - Loads only generate_guidance training data
 
-**Recommended Path Forward:**
+**Advantages**:
+- No dispatch ambiguity - each script optimizes one signature
+- Clean, focused metrics - no composite routing logic
+- Parallel execution possible - 5 signatures can optimize concurrently
+- Easier debugging - single responsibility per script
+- True optimization signal - MIPROv2 gets meaningful feedback
 
-**Option A: Ship Current Baseline (Recommended)**
-- Accept the baseline prompts as production-ready
-- Mark optimization task (mnemosyne-32) as complete
-- Focus on integration testing and real-world validation
-- Monitor production metrics to identify actual improvement opportunities
+**Expected Outcomes**:
+- **extract_requirements**: 5-15% improvement (baseline 0.71 F1)
+- **validate_intent**: 0-5% improvement (baseline 1.00 - already excellent)
+- **validate_completeness**: 5-10% improvement (baseline 0.75)
+- **validate_correctness**: 5-10% improvement (baseline 0.75)
+- **generate_guidance**: Should finally score >0.0 and show improvement
 
-**Option B: Debug generate_guidance**
-- Investigate why guidance_metric scores 0.00
-- Check training data compatibility
-- Review signature design
-- Consider separate optimization once fixed
+### Status
 
-**Option C: Signature-Specific Deep Dive**
-- If specific signatures show issues in production, optimize them individually
-- Use larger training sets (50+ examples)
-- Try different metrics or evaluation approaches
+**Task mnemosyne-32 (DS-6: MIPROv2 optimization) is REOPENED.**
 
-**Decision**: Recommend **Option A**. The optimization process confirmed that the baseline is already strong. Further optimization should be driven by production data, not synthetic improvements.
+The previous closure was premature. The optimization needs to be re-run with fixed methodology.
 
-### Deliverables
+### Next Actions
 
-**Generated Files:**
-- `/tmp/optimized_reviewer_v1.json` - Optimized module (functionally identical to baseline)
-- `/tmp/optimized_reviewer_v1.results.json` - Detailed results
-- `/tmp/mipro_50trial_v2.log` - Complete optimization log
-
-**Key Takeaway:** Zero improvement is not a failure. It's validation that the manual prompt engineering was already excellent. This is the best possible outcome for a well-designed baseline.
+1. **Document bug**: ✓ (this section)
+2. **Revert incorrect commits**: Update git history noting the error
+3. **Create per-signature optimizers**: 5 independent scripts
+4. **Run corrected optimizations**: 20-30 trials per signature
+5. **Validate improvements**: Compare against true baseline on held-out test set
