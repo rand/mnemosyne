@@ -779,5 +779,50 @@
       "category": "pagination",
       "notes": "Pagination validation and determinism"
     }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Retry logic for external API - single failure crashes entire operation",
+          "Circuit breaker - no protection against cascading failures"
+        ],
+        "correctness_issues": [
+          "No timeout on HTTP requests - hangs indefinitely on slow endpoints"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add exponential backoff retry logic",
+          "description": "Implement retry logic with exponential backoff for transient failures. Retry on 5xx errors and network failures, but not on 4xx client errors. Use jitter to prevent thundering herd.",
+          "priority": "high",
+          "code_example": "use tokio::time::{sleep, Duration};\nuse rand::Rng;\n\nasync fn fetch_with_retry<T>(url: &str, max_retries: u32) -> Result<T, Error> {\n    let mut attempt = 0;\n    loop {\n        match fetch_data(url).await {\n            Ok(data) => return Ok(data),\n            Err(e) if e.is_retryable() && attempt < max_retries => {\n                let base_delay = 2_u64.pow(attempt);\n                let jitter = rand::thread_rng().gen_range(0..1000);\n                let delay = Duration::from_millis(base_delay * 1000 + jitter);\n                tracing::warn!(\"Retry {} after {:?}: {}\", attempt + 1, delay, e);\n                sleep(delay).await;\n                attempt += 1;\n            }\n            Err(e) => return Err(e),\n        }\n    }\n}",
+          "estimated_effort": "2 hours"
+        },
+        {
+          "title": "Add request timeout",
+          "description": "Set timeout on all HTTP requests (e.g., 30 seconds). Prevents hanging indefinitely on slow or unresponsive endpoints. Return 504 Gateway Timeout to client.",
+          "priority": "critical",
+          "code_example": "use reqwest::ClientBuilder;\nuse tokio::time::Duration;\n\nlet client = ClientBuilder::new()\n    .timeout(Duration::from_secs(30))\n    .build()?;\n\n// Or per-request timeout:\nlet response = client.get(url)\n    .timeout(Duration::from_secs(30))\n    .send()\n    .await?;",
+          "estimated_effort": "30 minutes"
+        },
+        {
+          "title": "Implement circuit breaker pattern",
+          "description": "Add circuit breaker to fail fast when external service is down. After N consecutive failures, open circuit and reject requests immediately for cooldown period. Prevents cascading failures.",
+          "priority": "medium",
+          "code_example": "use failsafe::{CircuitBreaker, Config};\n\nlet circuit = CircuitBreaker::new(\n    Config::new()\n        .failure_threshold(5)        // Open after 5 failures\n        .success_threshold(2)        // Close after 2 successes\n        .timeout(Duration::from_secs(60)) // Stay open for 60s\n);\n\nmatch circuit.call(|| fetch_data(url)).await {\n    Ok(data) => Ok(data),\n    Err(failsafe::Error::Rejected) => {\n        Err(Error::ServiceUnavailable)\n    }\n    Err(e) => Err(e.into()),\n}",
+          "estimated_effort": "3 hours"
+        }
+      ],
+      "explanation": "Add resilience for external API calls: (1) Add timeout (30 min) - prevents indefinite hangs, critical for stability. (2) Exponential backoff retry (2 hours) - handles transient failures gracefully - high priority. (3) Circuit breaker (3 hours) - prevents cascading failures when service is down - medium priority. Without these patterns, single API failure brings down entire application. Total: 5.5 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "resilience",
+      "notes": "Retry logic, timeouts, and circuit breaker for external dependencies"
+    }
   }
 ]
