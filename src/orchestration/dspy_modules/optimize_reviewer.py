@@ -336,13 +336,18 @@ def evaluate_module(module: ReviewerModule, test_data: Dict[str, List[dspy.Examp
         sig_scores = []
         for example in examples:
             try:
-                # Run module operation
+                # Run module operation - use getattr with defaults for optional fields
                 if sig_name == "extract_requirements":
+                    if not (hasattr(example, 'user_intent') and hasattr(example, 'context')):
+                        continue
                     pred = module.extract_requirements(
                         user_intent=example.user_intent,
                         context=example.context
                     )
                 elif sig_name == "validate_intent":
+                    # Check for required fields
+                    if not all(hasattr(example, f) for f in ['user_intent', 'work_item', 'implementation', 'requirements']):
+                        continue
                     pred = module.validate_intent_satisfaction(
                         user_intent=example.user_intent,
                         work_item=example.work_item,
@@ -350,25 +355,35 @@ def evaluate_module(module: ReviewerModule, test_data: Dict[str, List[dspy.Examp
                         requirements=example.requirements
                     )
                 elif sig_name == "validate_completeness":
+                    # work_item is optional in training data
+                    if not (hasattr(example, 'implementation') and hasattr(example, 'requirements')):
+                        continue
                     pred = module.validate_implementation_completeness(
-                        work_item=example.work_item,
+                        work_item=getattr(example, 'work_item', ''),
                         implementation=example.implementation,
                         requirements=example.requirements
                     )
                 elif sig_name == "validate_correctness":
+                    # work_item is optional
+                    if not (hasattr(example, 'implementation')):
+                        continue
                     pred = module.validate_implementation_correctness(
-                        work_item=example.work_item,
+                        work_item=getattr(example, 'work_item', ''),
                         implementation=example.implementation,
-                        test_results=example.test_results
+                        test_results=getattr(example, 'test_results', '')
                     )
                 elif sig_name == "generate_guidance":
+                    if not all(hasattr(example, f) for f in ['user_intent', 'work_item', 'implementation']):
+                        continue
                     pred = module.generate_improvement_guidance_for_failed_review(
                         user_intent=example.user_intent,
                         work_item=example.work_item,
                         implementation=example.implementation,
-                        failed_gates=example.failed_gates,
-                        all_issues=example.all_issues
+                        failed_gates=getattr(example, 'failed_gates', []),
+                        all_issues=getattr(example, 'all_issues', [])
                     )
+                else:
+                    continue
 
                 score = metric_fn(example, pred)
                 sig_scores.append(score)
