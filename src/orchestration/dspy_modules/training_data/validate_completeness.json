@@ -1,0 +1,549 @@
+[
+  {
+    "inputs": {
+      "implementation": "Added login endpoint POST /api/auth/login accepting email/password. Implemented JWT token generation with RS256 signing. Created middleware for token validation on protected routes. Files: auth.rs (250 lines), middleware.rs (100 lines). Tests: test_auth.rs (15 tests).",
+      "requirements": [
+        "Login endpoint",
+        "JWT token generation",
+        "Token validation middleware",
+        "Password hashing",
+        "Refresh token support"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Password hashing - no evidence of bcrypt or similar password hashing implementation",
+        "Refresh token support - implementation mentions JWT generation but no refresh token mechanism"
+      ],
+      "explanation": "Implementation covers 3 of 5 requirements (login endpoint, JWT generation, token validation middleware). Missing password hashing (critical security requirement) and refresh token support. Without password hashing, user credentials would be stored insecurely. Without refresh tokens, users must re-authenticate frequently, degrading UX."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "authentication",
+      "notes": "Clear case of missing security and UX requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added caching layer using Redis. Implemented cache-aside pattern for GET /api/users/:id and GET /api/posts/:id. Cache TTL set to 5 minutes. Cache invalidation on updates and deletes. Added cache hit/miss metrics. Files: cache.rs (200 lines), redis_config.rs (50 lines). Tests: test_cache.rs (15 tests). Benchmarks show 94% latency improvement.",
+      "requirements": [
+        "Choose caching technology",
+        "Implement caching for frequently accessed endpoints",
+        "Cache invalidation strategy",
+        "Performance metrics"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation addresses all 4 requirements comprehensively. Redis chosen as caching technology, cache-aside pattern for two frequently accessed endpoints, cache invalidation on updates/deletes (proper strategy), performance metrics showing 94% improvement. Cache TTL adds robustness. Complete implementation with testing and benchmarking."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "caching",
+      "notes": "Complete implementation exceeding requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Increased MAX_FILE_SIZE constant from 10MB to 100MB in config.rs. Files: config.rs (1 line change).",
+      "requirements": [
+        "Support file uploads up to 100MB",
+        "Test with actual large files",
+        "Handle memory constraints",
+        "Implement chunked uploads if needed",
+        "Add progress tracking"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Test with actual large files - no testing mentioned, just config change",
+        "Handle memory constraints - no memory management strategy for large files",
+        "Implement chunked uploads if needed - not implemented, may be needed for 100MB files",
+        "Add progress tracking - no progress indication for long uploads"
+      ],
+      "explanation": "Implementation only addresses surface requirement (allow 100MB) by changing a constant. Missing 4 of 5 requirements that ensure large files actually work. No testing means unknown if 100MB uploads succeed. No memory handling may cause OOM errors. No chunked uploads may timeout. No progress leaves users uncertain. Superficial fix, not complete solution."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "file_upload",
+      "notes": "Minimal implementation missing critical supporting requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added env_logger dependency. Configured logging with INFO level in main.rs. Added log statements to all API handlers showing request method, path, and timestamp. Added error logging with stack traces. Implemented structured logging with request_id field. Files: Cargo.toml, main.rs (logger init), handlers/* (log statements throughout). Example logs show proper formatting.",
+      "requirements": [
+        "Configure logging framework",
+        "Log API requests",
+        "Log errors with stack traces",
+        "Structured logging with context",
+        "Log rotation policy",
+        "Exclude sensitive data from logs"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Log rotation policy - no mention of how logs are managed long-term, could fill disk",
+        "Exclude sensitive data from logs - critical security requirement not addressed, passwords/tokens could be logged"
+      ],
+      "explanation": "Implementation covers 4 of 6 requirements (framework configuration, API request logging, error logging with stack traces, structured logging). Missing log rotation means production logs could exhaust disk space. Missing sensitive data filtering is a security vulnerability - user passwords, auth tokens, or personal data could leak into logs. Operational and security gaps make this incomplete."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "logging",
+      "notes": "Good logging basics but missing operational and security requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created PostgreSQL schema matching SQLite. Wrote migration script to transfer data. Updated connection code. Modified SQLite-specific queries. Added connection pooling. Created rollback script. Tested with 5M records. Added indexes and constraints. Updated documentation. Files: migrations/postgres/, scripts/migrate.py, database/postgres_connection.rs, doc/postgres_setup.md. Tests validate schema, data integrity, performance.",
+      "requirements": [
+        "Create PostgreSQL schema",
+        "Migrate existing data",
+        "Update connection code",
+        "Modify SQLite-specific queries",
+        "Test with production-scale data",
+        "Rollback procedure",
+        "Performance optimization"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 7 requirements. PostgreSQL schema created, data migration script with 5M record testing (production-scale), connection code updated, SQLite-specific queries modified, rollback procedure for safety, performance optimizations (connection pooling, indexes, constraints). Documentation ensures team can execute migration. Tests verify correctness. This is a complete, production-ready database migration."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "database_migration",
+      "notes": "Thorough migration covering all aspects"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added semantic HTML (nav, main, article). Added ARIA labels to buttons and links. Ensured 4.5:1 color contrast. Implemented keyboard navigation with focus indicators. Added skip-to-content link. Files: components/*.tsx (semantic HTML, ARIA), styles/accessibility.css (focus, contrast).",
+      "requirements": [
+        "Semantic HTML elements",
+        "ARIA labels for interactive elements",
+        "Color contrast compliance (WCAG AA)",
+        "Keyboard navigation support",
+        "Screen reader testing",
+        "Accessibility audit",
+        "Alt text for images"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Screen reader testing - no validation with NVDA, JAWS, or VoiceOver",
+        "Accessibility audit - no axe-core or Lighthouse scan results",
+        "Alt text for images - not mentioned in implementation"
+      ],
+      "explanation": "Implementation covers 4 of 7 requirements (semantic HTML, ARIA, color contrast, keyboard navigation). Missing testing/validation requirements that prove accessibility actually works. Screen reader testing would catch implementation issues invisible to sighted developers. Accessibility audit would validate WCAG compliance. Missing alt text leaves images inaccessible. Code changes look correct but lack verification."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "accessibility",
+      "notes": "Implementation without validation - common accessibility mistake"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created .github/workflows/ci.yml running on every push/PR. Pipeline runs: cargo test (all tests), cargo clippy (linting), cargo fmt --check (formatting), cargo build --release (compilation), cargo-audit (security scan). Added status badge. Configured branch protection requiring CI pass. Pipeline ~8min. Caches dependencies. Files: .github/workflows/ci.yml, .github/workflows/security-audit.yml. 82% test coverage.",
+      "requirements": [
+        "Run tests on every PR",
+        "Linting checks",
+        "Compilation verification",
+        "Security vulnerability scanning",
+        "Branch protection",
+        "Code coverage reporting"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Code coverage reporting - coverage measured (82%) but not reported/enforced in CI pipeline"
+      ],
+      "explanation": "Implementation covers 5 of 6 requirements excellently (tests, linting, compilation, security scanning, branch protection). Missing coverage reporting in CI means coverage could regress without detection. While coverage is measured, it's not enforced or visible in PR reviews. Small gap but important for maintaining quality standards over time."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "ci_cd",
+      "notes": "Nearly complete, missing only coverage reporting integration"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Implemented token bucket rate limiting. Configured 100 req/min for authenticated users, 20 req/min for IPs. Returns 429 with Retry-After header. Added rate limit headers (X-RateLimit-*). Files: middleware/rate_limit.rs. Tests: 10 tests for limit enforcement.",
+      "requirements": [
+        "Rate limiting algorithm implementation",
+        "Per-user and per-IP limits",
+        "Proper HTTP responses (429, headers)",
+        "Distributed rate limiting (Redis)",
+        "Monitoring for violations",
+        "IP allowlist/blocklist"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Distributed rate limiting (Redis) - uses in-memory storage, doesn't work across multiple servers",
+        "Monitoring for violations - no metrics or alerting for rate limit hits (security blind spot)",
+        "IP allowlist/blocklist - no mechanism for trusted IPs or blocking bad actors"
+      ],
+      "explanation": "Implementation covers 3 of 6 requirements (algorithm, per-user/IP limits, proper HTTP responses). Missing distributed support means rate limits can be bypassed in multi-server deployment. Missing monitoring means DDoS attacks won't be detected. Missing allowlist/blocklist prevents both trusting good actors and blocking bad actors. Functional for single-server but not production-ready for security or scale."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "rate_limiting",
+      "notes": "Basic rate limiting missing production requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Set up Meilisearch and integrated with application. Created indexes for users, posts, comments. Implemented /api/search endpoint with filtering, sorting, pagination. Fuzzy matching (2 char typo tolerance). Title field weighted 2x. <50ms queries for 100K docs. Search analytics. Incremental indexing. Files: search.rs, indexer.rs, handlers/search.rs. Tests: 15 tests for exact/fuzzy match, filtering, pagination, relevance.",
+      "requirements": [
+        "Search technology selection",
+        "Content indexing",
+        "Search endpoint with filtering/sorting",
+        "Fuzzy matching",
+        "Performance optimization",
+        "Index synchronization"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 6 requirements. Meilisearch chosen and integrated, multiple content types indexed (users/posts/comments), search endpoint with filtering/sorting/pagination, fuzzy matching with typo tolerance, <50ms performance (excellent), incremental indexing keeps search synchronized. Relevance tuning and analytics show thoughtful implementation. Complete search solution."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "search",
+      "notes": "Complete search implementation with all features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added tenant_id to all tables. Created tenant_context middleware. Implemented query interceptor adding WHERE tenant_id filter. Tenant management API. Tenant-scoped auth. Files: middleware/tenant_context.rs, database/tenant_filter.rs, models/*, handlers/tenant_admin.rs. Tests: 5 tests for tenant A accessing their data.",
+      "requirements": [
+        "Add tenant_id to all tables",
+        "Tenant context middleware",
+        "Automatic tenant filtering",
+        "Tenant management",
+        "Positive isolation tests (tenant can access own data)",
+        "Negative isolation tests (tenant cannot access other tenant data)",
+        "Audit logging for cross-tenant attempts"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Negative isolation tests - no tests verifying tenant A CANNOT access tenant B data (critical for security)",
+        "Audit logging for cross-tenant attempts - no audit trail for attempted violations"
+      ],
+      "explanation": "Implementation covers 5 of 7 requirements (tenant_id, middleware, filtering, management, positive tests). Missing negative tests is critical security gap - can't prove isolation works without testing the inverse case. Missing audit logging means security violations would go undetected. For multi-tenant systems, proving what users CAN'T access is as important as proving what they CAN access."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "multi_tenancy",
+      "notes": "Multi-tenancy without security validation"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added response compression (gzip for >1KB). Sparse fieldsets via ?fields parameter. Pagination (20 items default). Mobile-specific endpoints. ETag support. Reduced payloads 80% (15KB→3KB). Tested on simulated 3G (60% transfer time improvement). Files: middleware/compression.rs, serialization/sparse_fields.rs, handlers/mobile/*. Tests: network simulation.",
+      "requirements": [
+        "Response compression",
+        "Field filtering",
+        "Pagination",
+        "Mobile-specific endpoints",
+        "Client caching (ETags)",
+        "Network simulation testing"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation addresses all 6 requirements comprehensively. Gzip compression enabled, sparse fieldsets for client-driven optimization, pagination prevents large responses, mobile-specific endpoints for optimized payloads, ETag support for caching, 3G network simulation validates real-world performance. 80% payload reduction and 60% transfer time improvement demonstrate effectiveness. Complete mobile optimization."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "mobile_optimization",
+      "notes": "Thorough mobile optimization with testing"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created README.md with project overview and getting started. Added code comments to handlers. Created examples/curl_samples.sh with 3 sample API calls. Files: README.md (50 lines), examples/curl_samples.sh (20 lines), inline comments.",
+      "requirements": [
+        "API reference (all endpoints, parameters, responses)",
+        "Authentication documentation",
+        "Error code reference",
+        "Usage examples",
+        "Interactive documentation (Swagger/Postman)",
+        "Rate limiting guidelines",
+        "Versioning policy"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "API reference - no comprehensive endpoint documentation",
+        "Authentication documentation - no auth flow or token usage docs",
+        "Error code reference - no explanation of error responses",
+        "Interactive documentation - no Swagger UI or Postman collection",
+        "Rate limiting guidelines - not documented",
+        "Versioning policy - not documented"
+      ],
+      "explanation": "Implementation only covers 1 of 7 requirements (usage examples via curl samples). Missing comprehensive API reference means developers must read source code to understand endpoints. No auth docs means developers don't know how to authenticate. No error reference means developers must guess error meanings. No interactive docs forces manual testing. For external developers, this is insufficient - would require internal team support."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "documentation",
+      "notes": "Minimal docs missing most requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Set up Prometheus server scraping /metrics endpoint. Added metrics for request rate, latency (p50/p95/p99), error rate. Added Grafana dashboard. Files: prometheus.yml, metrics.rs, grafana/dashboard.json.",
+      "requirements": [
+        "Metrics collection (request rate, latency, errors)",
+        "Metrics visualization (dashboard)",
+        "Alerting rules for critical conditions",
+        "PagerDuty/Opsgenie integration",
+        "On-call rotation",
+        "Runbooks for common alerts",
+        "Health check monitoring"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Alerting rules - no alerts configured, passive monitoring only",
+        "PagerDuty/Opsgenie integration - no paging system for notifications",
+        "On-call rotation - no on-call schedule or escalation",
+        "Runbooks - no documented response procedures",
+        "Health check monitoring - no uptime validation"
+      ],
+      "explanation": "Implementation covers 2 of 7 requirements (metrics collection, visualization dashboard). Missing alerting completely undermines intent - team won't know about production issues without proactive notifications. Metrics and dashboards are reactive (must be checked), but production monitoring requires proactive alerting. Missing 5 of 7 requirements means this is observability infrastructure without operational monitoring."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "monitoring",
+      "notes": "Metrics without alerting - common incomplete monitoring"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Scheduled daily database backups. Configured S3 storage. Incremental backups. AES-256 encryption. Retention policy (7 daily, 4 weekly, 12 monthly). Regular restoration tests. Monitoring/alerting for failures. Disaster recovery docs. Backup size/timing verification. Checksum integrity verification. Files: backup.rs, scripts/backup.sh, docs/disaster_recovery.md.",
+      "requirements": [
+        "Daily backup schedule",
+        "Remote storage (S3)",
+        "Incremental backups",
+        "Encryption",
+        "Retention policy",
+        "Restoration testing",
+        "Failure monitoring",
+        "DR documentation"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 8 requirements. Daily backups scheduled, S3 for durable off-site storage, incremental backups reduce costs, AES-256 encryption protects sensitive data, comprehensive retention policy, regular restoration testing validates backups work, monitoring/alerting for failures, disaster recovery documentation for team. Backup verification (size/timing/checksums) adds robustness. Complete backup solution."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "backup_recovery",
+      "notes": "Complete backup implementation covering all aspects"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Chose fluent i18n library. Extracted strings to translation files. Locale detection via Accept-Language header. Translation loading/caching. Date/time formatting per locale. Number/currency formatting. Translated to German, French, Spanish. Language switcher UI. Files: i18n/, locales/, translations.rs. Tests with non-ASCII characters.",
+      "requirements": [
+        "i18n library selection",
+        "String extraction",
+        "Locale detection",
+        "Translation loading",
+        "Date/time/number formatting",
+        "RTL layout support",
+        "Target language translations",
+        "Language switcher"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "RTL layout support - no right-to-left support for Arabic, Hebrew (required for true internationalization)"
+      ],
+      "explanation": "Implementation covers 7 of 8 requirements comprehensively (library, extraction, detection, loading, formatting, translations to 3 European languages, language switcher). Missing RTL support limits i18n to left-to-right languages. For 'internationalization support for European markets', RTL might seem unnecessary, but true i18n includes bidirectional text support. However, if only targeting LTR European markets, this could be considered complete for stated scope."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "internationalization",
+      "notes": "Comprehensive i18n missing RTL (may be acceptable for European-only scope)"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Batch job scheduler using cron. Report generation (daily summaries, weekly analytics). Data aggregation queries. Jobs run at 2 AM to avoid peak hours. Retry logic for failures (3 retries with exponential backoff). Job monitoring/alerting. Execution logging/audit trail. Performance optimization. Idempotency for safe retries. Tested with production-scale data. Files: jobs/batch.rs, scheduler.rs, reports/.",
+      "requirements": [
+        "Job scheduler",
+        "Report generation",
+        "Data aggregation",
+        "Off-peak scheduling",
+        "Retry logic",
+        "Monitoring/alerting",
+        "Audit logging",
+        "Performance optimization",
+        "Idempotency"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 9 requirements. Cron scheduler, report generation (daily/weekly), efficient aggregation queries, 2 AM scheduling avoids peak traffic, retry logic with exponential backoff handles transient failures, monitoring/alerting for job failures, audit trail for compliance, performance optimization for time windows, idempotency allows safe retries, testing with production data validates scale. Complete batch processing solution."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "batch_processing",
+      "notes": "Complete batch processing with all reliability features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Audit log schema (who, what, when, where, why). Log all data modifications (create, update, delete). Capture user identity and auth method. Record IP, user agent, metadata. Before/after state for changes. Tamper-proof storage (append-only). 7-year retention. Audit reports. Search/filtering. <5ms performance impact. Integrity tests. Files: audit.rs, audit_log table, reports/audit_report.rs.",
+      "requirements": [
+        "Audit log schema",
+        "Log data modifications",
+        "User identity tracking",
+        "Request metadata",
+        "Before/after state",
+        "Tamper-proof storage",
+        "Compliance retention (7 years)",
+        "Audit reports",
+        "Search capability",
+        "Performance constraints"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 10 requirements. Complete audit schema (who/what/when/where/why), all modifications logged, user identity and auth method captured, request metadata (IP/user agent), before/after state for forensics, append-only storage prevents tampering, 7-year retention for financial compliance, audit reports for reviews, search/filtering for investigations, <5ms performance impact, integrity validation. Production-ready audit system for compliance."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "compliance",
+      "notes": "Complete compliance audit system"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added email format validation using regex. Password length limits (8-100 chars). HTML tag removal from text. Files: validation.rs (100 lines). Tests: 10 tests for format validation.",
+      "requirements": [
+        "Email format validation",
+        "Password strength requirements",
+        "SQL injection prevention",
+        "XSS prevention",
+        "File upload validation",
+        "CSRF protection",
+        "Security testing"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Password strength requirements - only length checked, no complexity (special chars, numbers, uppercase)",
+        "SQL injection prevention - no mention of parameterized queries",
+        "XSS prevention - only basic HTML removal, not comprehensive",
+        "File upload validation - not implemented",
+        "CSRF protection - not mentioned",
+        "Security testing - no penetration testing or fuzzing"
+      ],
+      "explanation": "Implementation covers 1 of 7 requirements (email format validation) and partially addresses 1 more (password validation without strength). Missing 6 critical security requirements. Basic HTML removal is insufficient XSS protection. No SQL injection prevention means database vulnerable. No file upload validation, CSRF protection, or security testing. For 'prevent security vulnerabilities' intent, this is dangerously incomplete."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "security",
+      "notes": "Superficial security missing most protections"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Wrapped database ops in Result types. Added error logging. Retry logic for transient DB errors (exponential backoff). Fallback responses (cached data). Circuit breaker for external APIs. Health check endpoint. Files: error.rs, middleware/recovery.rs, retry.rs, circuit_breaker.rs. Tests: 25 tests for failure scenarios.",
+      "requirements": [
+        "Error handling with Result types",
+        "Error logging",
+        "Retry logic for transient errors",
+        "Fallback strategies",
+        "Circuit breaker pattern",
+        "Health checks",
+        "Panic recovery",
+        "Graceful degradation"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Panic recovery - no mention of panic handling middleware",
+        "Graceful degradation - fallbacks mentioned but unclear if system degrades gracefully vs hard failures"
+      ],
+      "explanation": "Implementation covers 6 of 8 requirements (Result types, logging, retry logic, fallbacks, circuit breaker, health checks). Missing explicit panic recovery means unexpected panics could crash entire process. Graceful degradation mentioned via fallbacks but not comprehensive. For 'prevent application crashes' intent, missing panic recovery is concerning. Otherwise strong error handling infrastructure."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "error_handling",
+      "notes": "Strong error handling missing panic recovery"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Converted 23 of 41 queries (56%) to prepared statements. user.rs and posts.rs migrated. comments.rs, admin.rs, analytics.rs still use string concatenation. Files: user.rs, posts.rs (prepared statements).",
+      "requirements": [
+        "Convert ALL queries to prepared statements",
+        "Eliminate SQL injection vulnerabilities",
+        "Code audit for missed queries",
+        "Automated SQL injection testing"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Convert ALL queries - only 56% migrated, 18 queries still vulnerable",
+        "Eliminate SQL injection vulnerabilities - vulnerabilities remain in 44% of queries",
+        "Code audit - no audit to ensure all queries found",
+        "Automated testing - no SQL injection tests"
+      ],
+      "explanation": "Implementation is incomplete and fails the core requirement 'ALL queries'. 44% of queries still vulnerable to SQL injection. Partial migration is dangerous - creates inconsistent security posture and false sense of safety. Requirement explicitly says 'all' but implementation stops at 56%. Missing audit and testing means more vulnerable queries could exist undetected. Critical security requirement not satisfied."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "security_migration",
+      "notes": "Incomplete security migration leaving critical vulnerabilities"
+    }
+  }
+]

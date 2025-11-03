@@ -1,0 +1,421 @@
+[
+  {
+    "inputs": {
+      "implementation": "JWT token validation middleware extracts token from Authorization header, verifies signature using RS256 public key, checks expiration. Code: `let token = req.headers().get(\"Authorization\").unwrap().to_str().unwrap().trim_start_matches(\"Bearer \");` Files: middleware.rs",
+      "code_sample": "let token = req.headers().get(\"Authorization\").unwrap().to_str().unwrap().trim_start_matches(\"Bearer \");"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Multiple unwrap() calls will panic if Authorization header missing or malformed",
+        "No error handling - server will crash on invalid input rather than returning 401",
+        "Trim operation assumes 'Bearer ' prefix exists, panics if different auth scheme used"
+      ],
+      "explanation": "Implementation has critical error handling flaw. Three unwrap() calls create panic points: (1) missing Authorization header, (2) non-UTF8 header value, (3) trim operation on potentially empty string. Production code should never panic on user input. Correct approach uses Result/Option with proper error propagation, returning 401 Unauthorized for invalid tokens instead of crashing server."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "error_handling",
+      "notes": "Common Rust antipattern - unwrap() in production code"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Rate limiting using in-memory HashMap tracking request counts per IP. Code: `let mut limits = HashMap::new(); let count = limits.entry(ip).or_insert(0); *count += 1; if *count > 100 { return TooManyRequests; }` Files: middleware/rate_limit.rs",
+      "code_sample": "let mut limits = HashMap::new();\nlet count = limits.entry(ip).or_insert(0);\n*count += 1;\nif *count > 100 { return TooManyRequests; }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "HashMap is not thread-safe - race condition allows concurrent requests to bypass limit",
+        "Creates new HashMap on every request - counts never accumulate, rate limiting ineffective",
+        "No time window - counts never reset, first 100 requests from IP succeed, all subsequent fail forever",
+        "Memory leak - HashMap grows unbounded as IPs are added, never cleaned up"
+      ],
+      "explanation": "Implementation has multiple critical correctness issues. Creating HashMap per request means counts don't persist (rate limiting doesn't work). Missing thread safety means concurrent requests race (allowing >100 requests). No time-window logic means after 100 requests, IP is blocked permanently. Unbounded HashMap growth causes memory leak. Correct implementation requires shared state (Arc<Mutex<HashMap>> or DashMap), time-windowed counts (sliding window or token bucket), and cleanup of old entries."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "concurrency",
+      "notes": "Multiple correctness issues: race condition, logic error, memory leak"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Password hashing on registration. Code: `use md5; let hash = md5::compute(password.as_bytes()); let hash_str = format!(\"{:x}\", hash); db.execute(\"INSERT INTO users (email, password_hash) VALUES (?, ?)\", &[email, &hash_str]);` Files: auth.rs",
+      "code_sample": "use md5;\nlet hash = md5::compute(password.as_bytes());\nlet hash_str = format!(\"{:x}\", hash);\ndb.execute(\"INSERT INTO users (email, password_hash) VALUES (?, ?)\", &[email, &hash_str]);"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "MD5 is cryptographically broken and unsuitable for password hashing",
+        "No salt used - identical passwords produce identical hashes (rainbow table vulnerability)",
+        "Fast hash function (MD5) allows brute force attacks at billions of attempts/second",
+        "Critical security flaw that compromises all user passwords"
+      ],
+      "explanation": "Implementation is fundamentally incorrect for password security. MD5 is a fast, unsalted, broken hash function designed for data integrity, not password storage. Correct password hashing requires: (1) slow key derivation function (bcrypt, scrypt, Argon2), (2) unique salt per password, (3) high iteration count. This implementation allows attackers to crack passwords trivially using rainbow tables or brute force. Must use bcrypt or Argon2 with proper salting."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "security",
+      "notes": "Fundamental security error - wrong algorithm for password hashing"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Database connection pooling. Code: `lazy_static! { static ref DB_POOL: Pool<PostgresConnectionManager> = { let manager = PostgresConnectionManager::new(\"postgresql://user:pass@localhost/db\"); Pool::builder().max_size(10).build(manager).unwrap() }; }` Files: database.rs",
+      "code_sample": "lazy_static! {\n    static ref DB_POOL: Pool<PostgresConnectionManager> = {\n        let manager = PostgresConnectionManager::new(\"postgresql://user:pass@localhost/db\");\n        Pool::builder().max_size(10).build(manager).unwrap()\n    };\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Database credentials hardcoded in source code (security vulnerability)",
+        "Credentials will be committed to version control, exposed in logs/backtraces",
+        "No configuration flexibility - requires code changes to update credentials",
+        "unwrap() causes panic if pool initialization fails (application won't start without clear error)"
+      ],
+      "explanation": "Implementation has security and operational issues. Hardcoded credentials are a critical security flaw - credentials end up in git history, Docker images, error messages. If credentials leak, requires code changes and redeployment to rotate. unwrap() hides initialization errors. Correct approach: load credentials from environment variables or config file, use expect() with descriptive message for initialization errors, never commit secrets to source control."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "security",
+      "notes": "Hardcoded credentials - common security mistake"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "File upload handling. Code: `async fn upload(data: Bytes) -> Result<(), Error> { let path = \"/uploads/file\"; tokio::fs::write(path, &data).await?; Ok(()) }` Files: handlers/upload.rs",
+      "code_sample": "async fn upload(data: Bytes) -> Result<(), Error> {\n    let path = \"/uploads/file\";\n    tokio::fs::write(path, &data).await?;\n    Ok(())\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Fixed filename '/uploads/file' causes concurrent uploads to overwrite each other (data loss)",
+        "No file size validation - allows unbounded uploads (disk exhaustion DoS)",
+        "No file type validation - allows uploading executables/malware",
+        "No path sanitization - potential directory traversal if filename from user input",
+        "Race condition: concurrent uploads to same path corrupt file"
+      ],
+      "explanation": "Implementation has critical correctness and security issues. Fixed path means second upload overwrites first (data loss, race condition). No size limits allows filling disk. No type validation allows malicious files. Correct implementation: generate unique filename (UUID), validate file size before accepting upload, validate file type (magic bytes, not just extension), sanitize user-provided filenames, stream large files instead of loading into memory."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "file_handling",
+      "notes": "Multiple issues: race condition, security, resource exhaustion"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Cache invalidation on user update. Code: `async fn update_user(id: i64, data: UserUpdate) -> Result<User, Error> { let user = db.execute_update(id, data).await?; cache.delete(format!(\"user:{}\", id)).await?; Ok(user) }` Files: handlers/users.rs",
+      "code_sample": "async fn update_user(id: i64, data: UserUpdate) -> Result<User, Error> {\n    let user = db.execute_update(id, data).await?;\n    cache.delete(format!(\"user:{}\", id)).await?;\n    Ok(user)\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Race condition: cache deletion happens AFTER database update, window where stale data can be re-cached",
+        "If cache.delete() fails, database updated but cache stale (inconsistent state)",
+        "Returns error if cache deletion fails, but database already modified (partial failure)",
+        "No atomic operation - cache and database can diverge"
+      ],
+      "explanation": "Implementation has correctness issue with cache/database consistency. Between database update and cache deletion, another request could read from database and re-cache old value. If cache deletion fails, database and cache are inconsistent. Correct patterns: (1) delete from cache BEFORE database update, (2) use cache-aside pattern where reads populate cache from database (makes cache self-healing), (3) use TTLs as fallback for invalidation failures, (4) log but don't fail on cache errors (cache is performance optimization, not critical path)."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "cache_consistency",
+      "notes": "Classic cache invalidation race condition"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "JSON parsing of user input. Code: `let user_data: User = serde_json::from_str(&request_body).unwrap(); db.insert_user(user_data).await?;` Files: handlers/registration.rs",
+      "code_sample": "let user_data: User = serde_json::from_str(&request_body).unwrap();\ndb.insert_user(user_data).await?;"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "unwrap() panics on invalid JSON, crashing server instead of returning 400 Bad Request",
+        "No input validation - accepts any JSON that deserializes, even with invalid/malicious values",
+        "No size limit on request_body - allows memory exhaustion via huge JSON payloads",
+        "Missing email format validation, password strength checks, etc."
+      ],
+      "explanation": "Implementation has error handling and validation gaps. unwrap() means invalid JSON crashes server rather than returning error to client. Even valid JSON might contain inappropriate values (empty email, 100-character password, negative age). Correct approach: use match or ? operator to handle parse errors, validate deserialized data before database insertion, enforce request size limits in middleware, return 400 Bad Request with helpful error messages for client."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "input_validation",
+      "notes": "Missing error handling and validation"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Sorting user posts by creation date. Code: `let mut posts = fetch_posts_from_db(user_id).await?; posts.sort_by(|a, b| a.created_at.cmp(&b.created_at)); Ok(posts)` Files: handlers/posts.rs",
+      "code_sample": "let mut posts = fetch_posts_from_db(user_id).await?;\nposts.sort_by(|a, b| a.created_at.cmp(&b.created_at));\nOk(posts)"
+    },
+    "outputs": {
+      "is_correct": true,
+      "issues": [],
+      "explanation": "Implementation is correct for sorting posts by creation date. Fetches posts from database, sorts in ascending chronological order using stable sort_by with created_at comparison. This is a valid approach for in-memory sorting. Could be optimized by sorting in database query (ORDER BY created_at) to reduce memory usage and leverage database indexes, but current implementation is functionally correct."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "sorting",
+      "notes": "Correct but could be optimized with database sorting"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Email validation. Code: `fn is_valid_email(email: &str) -> bool { let regex = Regex::new(r\"^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$\").unwrap(); regex.is_match(email) }` Files: validation.rs",
+      "code_sample": "fn is_valid_email(email: &str) -> bool {\n    let regex = Regex::new(r\"^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$\").unwrap();\n    regex.is_match(email)\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Creates new Regex on every validation call (performance issue, should use lazy_static or once_cell)",
+        "Simplified regex doesn't match valid emails (e.g., user+tag@example.com, user@sub.domain.com)",
+        "Allows invalid domains (\\w+ allows underscores in TLD)",
+        "unwrap() could panic if regex pattern invalid (though static pattern unlikely to change)"
+      ],
+      "explanation": "Implementation has performance and correctness issues. Compiling regex on every call is inefficient (100-1000x slower than reusing compiled regex). Regex pattern is oversimplified - rejects valid emails with + signs (common for email aliasing) or multiple subdomains. Pattern allows invalid TLDs with underscores. Correct approach: use lazy_static or once_cell for regex, use more comprehensive regex or email validation library (email_address crate), or rely on \"send verification email\" for true validation."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "validation",
+      "notes": "Performance issue and oversimplified validation"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Generating unique user IDs. Code: `fn generate_user_id() -> i64 { use std::time::{SystemTime, UNIX_EPOCH}; SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64 }` Files: models/user.rs",
+      "code_sample": "fn generate_user_id() -> i64 {\n    use std::time::{SystemTime, UNIX_EPOCH};\n    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Timestamp-based IDs not guaranteed unique - collision if two users registered in same millisecond",
+        "Vulnerable to clock skew - if system clock adjusted backwards, can generate duplicate IDs",
+        "Reveals registration order and timing to users (privacy/security concern)",
+        "No randomness - predictable and sequential"
+      ],
+      "explanation": "Implementation incorrectly assumes timestamps are unique identifiers. High-traffic systems can register multiple users per millisecond, causing ID collisions. Clock adjustments (NTP sync, timezone changes, manual adjustment) can produce duplicate timestamps. Sequential IDs leak information (user count, registration rate). Correct approaches: use database auto-increment (guaranteed unique), UUIIDv4 (random, globally unique), or distributed ID generators (Snowflake, ULID) for multi-server environments."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "id_generation",
+      "notes": "Incorrectly assumes timestamps are unique"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Pagination for listing posts. Code: `async fn list_posts(page: usize, page_size: usize) -> Result<Vec<Post>, Error> { let offset = page * page_size; let posts = db.query(\"SELECT * FROM posts LIMIT ? OFFSET ?\", &[page_size, offset]).await?; Ok(posts) }` Files: handlers/posts.rs",
+      "code_sample": "async fn list_posts(page: usize, page_size: usize) -> Result<Vec<Post>, Error> {\n    let offset = page * page_size;\n    let posts = db.query(\"SELECT * FROM posts LIMIT ? OFFSET ?\", &[page_size, offset]).await?;\n    Ok(posts)\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "No validation on page_size - allows unbounded values (page_size=1000000 could fetch entire table)",
+        "No validation on page - allows arbitrarily large offsets (denial of service, performance issue)",
+        "OFFSET pagination inefficient for large offsets (page 1000 requires scanning 1M rows)",
+        "No ORDER BY - results non-deterministic, same page can show different posts on repeated requests"
+      ],
+      "explanation": "Implementation has validation and performance issues. Missing page_size validation allows memory exhaustion. Large offsets are inefficient (database scans offset rows before returning results). Missing ORDER BY means pages overlap or have gaps as data changes. Correct approach: validate page_size (max 100), validate page (max offset), add ORDER BY for deterministic results, use cursor-based pagination (WHERE id > last_id) for better performance at high page numbers."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "pagination",
+      "notes": "Missing validation and ORDER BY, performance issues"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Decimal currency handling. Code: `#[derive(Deserialize)] struct Transaction { amount: f64, currency: String }` Files: models/transaction.rs",
+      "code_sample": "#[derive(Deserialize)]\nstruct Transaction {\n    amount: f64,\n    currency: String\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "f64 (floating-point) for currency causes rounding errors (0.1 + 0.2 != 0.3 in binary float)",
+        "Financial calculations with floats accumulate errors, can lose cents over many transactions",
+        "Violations of accounting principles (money must be exact, not approximate)",
+        "Regulatory compliance issues (financial systems require exact decimal arithmetic)"
+      ],
+      "explanation": "Implementation is fundamentally incorrect for currency. Floating-point cannot exactly represent decimal fractions (e.g., 0.1 is approximated as 0.100000000000000005). This causes rounding errors in financial calculations, violating accounting rules and potentially causing regulatory issues. Correct approaches: use integer cents (amount_cents: i64), use decimal library (rust_decimal or bigdecimal crate), store as string and parse. Never use f32/f64 for money."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "financial",
+      "notes": "Classic mistake - floating-point for currency"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Session cookie generation. Code: `fn generate_session_id() -> String { use rand::Rng; let mut rng = rand::thread_rng(); format!(\"{:08x}\", rng.gen::<u32>()) }` Files: auth/session.rs",
+      "code_sample": "fn generate_session_id() -> String {\n    use rand::Rng;\n    let mut rng = rand::thread_rng();\n    format!(\"{:08x}\", rng.gen::<u32>())\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "32-bit session ID (8 hex chars) has only 4.2 billion possible values - brute-forceable",
+        "Birthday paradox: collision likely after ~65K sessions (√4.2B ≈ 65K)",
+        "Predictable if attacker can observe multiple session IDs (only 32 bits of entropy)",
+        "Security vulnerability: session hijacking via brute force or collision"
+      ],
+      "explanation": "Implementation uses insufficient entropy for session IDs. 32 bits is far too small for cryptographic use - attackers can brute force or exploit birthday paradox collisions. Session IDs should be unpredictable and globally unique. Correct approach: use 128-bit or 256-bit random values (16-32 bytes), use cryptographically secure random number generator (thread_rng is cryptographically secure but 32 bits is too small), standard is UUIDv4 or hex-encoded random bytes. Example: format!(\"{:032x}\", rng.gen::<u128>())."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "security",
+      "notes": "Insufficient entropy for session IDs"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Exponential backoff for retry logic. Code: `for attempt in 0..5 { match operation().await { Ok(result) => return Ok(result), Err(_) => { let delay = 2_u64.pow(attempt); tokio::time::sleep(Duration::from_secs(delay)).await; } } }` Files: retry.rs",
+      "code_sample": "for attempt in 0..5 {\n    match operation().await {\n        Ok(result) => return Ok(result),\n        Err(_) => {\n            let delay = 2_u64.pow(attempt);\n            tokio::time::sleep(Duration::from_secs(delay)).await;\n        }\n    }\n}"
+    },
+    "outputs": {
+      "is_correct": true,
+      "issues": [],
+      "explanation": "Implementation is correct for exponential backoff. Attempts operation up to 5 times with delays of 1s, 2s, 4s, 8s, 16s (2^0 through 2^4). Returns immediately on success, sleeps and retries on failure. Pattern correctly implements exponential backoff. Could be enhanced with jitter (random delay variance to prevent thundering herd) or max delay cap, but current implementation is functionally correct."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "retry_logic",
+      "notes": "Correct exponential backoff implementation"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "SQL query for user search. Code: `let query = format!(\"SELECT * FROM users WHERE name LIKE '%{}%'\", search_term); let users = db.query(&query).await?;` Files: handlers/search.rs",
+      "code_sample": "let query = format!(\"SELECT * FROM users WHERE name LIKE '%{}%'\", search_term);\nlet users = db.query(&query).await?;"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "SQL injection vulnerability - search_term from user input directly interpolated into query",
+        "Attacker can execute arbitrary SQL (e.g., search_term = \"'; DROP TABLE users; --\")",
+        "Critical security flaw allowing data theft, modification, or deletion",
+        "Violates basic secure coding principles"
+      ],
+      "explanation": "Implementation has critical SQL injection vulnerability. User-controlled search_term is concatenated directly into SQL query without sanitization or parameterization. Attacker can inject malicious SQL to extract sensitive data, modify records, or drop tables. This is one of OWASP Top 10 vulnerabilities. Correct approach: use parameterized queries/prepared statements: db.query(\"SELECT * FROM users WHERE name LIKE $1\", &[format!(\"%{}%\", search_term)]). Never build SQL with string formatting from user input."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "security",
+      "notes": "Classic SQL injection vulnerability"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Checking if user is admin. Code: `fn is_admin(user: &User) -> bool { user.roles.iter().any(|r| r == \"admin\") }` Files: auth/permissions.rs",
+      "code_sample": "fn is_admin(user: &User) -> bool {\n    user.roles.iter().any(|r| r == \"admin\")\n}"
+    },
+    "outputs": {
+      "is_correct": true,
+      "issues": [],
+      "explanation": "Implementation is correct for checking admin role. Iterates through user's roles and returns true if any role equals \"admin\". Uses iter().any() which short-circuits on first match (efficient). Comparison is correct. This is a simple, correct role check. Could be case-insensitive (r.eq_ignore_ascii_case(\"admin\")) depending on requirements, but current implementation is functionally correct for exact match."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "authorization",
+      "notes": "Simple correct role check"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Locking for concurrent access. Code: `use std::sync::Mutex; static COUNTER: Mutex<i32> = Mutex::new(0); fn increment() { let mut count = COUNTER.lock().unwrap(); *count += 1; expensive_operation(); }` Files: metrics.rs",
+      "code_sample": "use std::sync::Mutex;\nstatic COUNTER: Mutex<i32> = Mutex::new(0);\nfn increment() {\n    let mut count = COUNTER.lock().unwrap();\n    *count += 1;\n    expensive_operation();\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Lock held during expensive_operation() blocks all other threads trying to increment",
+        "Contention point - only one thread can execute increment() at a time, even after counter updated",
+        "Performance issue - expensive_operation() should be outside critical section",
+        "unwrap() on lock can panic if mutex poisoned (previous thread panicked while holding lock)"
+      ],
+      "explanation": "Implementation has performance correctness issue. Mutex lock is held while expensive_operation() executes, blocking all concurrent increment() calls. Lock should only protect counter modification, then release before expensive_operation(). Correct pattern: { let mut count = COUNTER.lock().unwrap(); *count += 1; } expensive_operation(); Use block scope to ensure MutexGuard drops (releases lock) before expensive_operation(). Also consider using atomic operations for simple counter instead of Mutex."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "concurrency",
+      "notes": "Lock held too long - performance/correctness issue"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Finding maximum value in array. Code: `fn find_max(numbers: &[i32]) -> i32 { let mut max = numbers[0]; for &num in numbers { if num > max { max = num; } } max }` Files: utils.rs",
+      "code_sample": "fn find_max(numbers: &[i32]) -> i32 {\n    let mut max = numbers[0];\n    for &num in numbers {\n        if num > max { max = num; }\n    }\n    max\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Panics on empty array - numbers[0] causes index out of bounds",
+        "No error handling for invalid input (empty slice)",
+        "Should return Option<i32> or Result to handle empty case gracefully"
+      ],
+      "explanation": "Implementation has correctness issue with empty input. Accessing numbers[0] without checking array is non-empty causes panic. Algorithm itself is correct (linear scan finding maximum), but missing edge case handling. Correct approach: return Option<i32> with None for empty array, or use numbers.first()/.get(0) to avoid panic. Better: use numbers.iter().max() which returns Option and handles empty case."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "edge_cases",
+      "notes": "Missing empty array handling"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "WebSocket connection upgrade. Code: `async fn upgrade_connection(req: Request<Body>) -> Response<Body> { if req.headers().get(\"Upgrade\") == Some(&HeaderValue::from_static(\"websocket\")) { // upgrade logic } else { Response::builder().status(426).body(Body::from(\"Upgrade Required\")).unwrap() } }` Files: websocket.rs",
+      "code_sample": "async fn upgrade_connection(req: Request<Body>) -> Response<Body> {\n    if req.headers().get(\"Upgrade\") == Some(&HeaderValue::from_static(\"websocket\")) {\n        // upgrade logic\n    } else {\n        Response::builder().status(426).body(Body::from(\"Upgrade Required\")).unwrap()\n    }\n}"
+    },
+    "outputs": {
+      "is_correct": true,
+      "issues": [],
+      "explanation": "Implementation correctly checks for WebSocket upgrade request. Checks Upgrade header equals \"websocket\" (correct for WebSocket protocol). Returns 426 Upgrade Required for non-WebSocket requests (correct HTTP status). Header comparison is correct (checking exact value match). Implementation follows WebSocket specification for connection upgrade handshake. unwrap() is acceptable here since body construction is infallible."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "websocket",
+      "notes": "Correct WebSocket upgrade check"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Concurrent file writing. Code: `async fn write_logs(entries: Vec<LogEntry>) { for entry in entries { tokio::fs::write(\"/var/log/app.log\", entry.to_string()).await.unwrap(); } }` Files: logging.rs",
+      "code_sample": "async fn write_logs(entries: Vec<LogEntry>) {\n    for entry in entries {\n        tokio::fs::write(\"/var/log/app.log\", entry.to_string()).await.unwrap();\n    }\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "tokio::fs::write() overwrites entire file on each call - only last log entry survives",
+        "Race condition: concurrent calls overwrite each other's logs (data loss)",
+        "Incorrect API usage - should use append mode or OpenOptions::append(true)",
+        "Multiple unwrap() calls mean any write error crashes program"
+      ],
+      "explanation": "Implementation has critical correctness bug. tokio::fs::write() truncates and overwrites file, so loop keeps only last entry. Concurrent callers race to overwrite file. Correct approach: use OpenOptions with append(true), or use tokio::fs::OpenOptions::new().append(true).open() followed by write_all(). Also replace unwrap() with proper error handling (? operator or logging errors without crashing)."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "file_io",
+      "notes": "Incorrect API usage - write instead of append"
+    }
+  }
+]

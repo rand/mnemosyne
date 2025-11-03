@@ -1,0 +1,783 @@
+[
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Password hashing - no evidence of bcrypt implementation",
+          "Refresh token support - only access tokens implemented"
+        ],
+        "correctness_issues": [
+          "Multiple unwrap() calls in token validation will panic on invalid input"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add password hashing with bcrypt",
+          "description": "Replace plaintext password storage with bcrypt hashing. Use the `bcrypt` crate with cost factor 12. Hash passwords on registration and verify on login using `bcrypt::verify()`.",
+          "priority": "critical",
+          "code_example": "use bcrypt::{hash, verify, DEFAULT_COST};\nlet hashed = hash(password, DEFAULT_COST)?;\n// Later: verify(password, &stored_hash)?",
+          "estimated_effort": "2 hours"
+        },
+        {
+          "title": "Replace unwrap() with proper error handling",
+          "description": "Convert unwrap() calls to use ? operator or match expressions. Return 401 Unauthorized for invalid tokens instead of panicking.",
+          "priority": "high",
+          "code_example": "let auth_header = req.headers()\n    .get(\"Authorization\")\n    .ok_or(AuthError::MissingHeader)?;\nlet token = auth_header\n    .to_str()\n    .map_err(|_| AuthError::InvalidEncoding)?;",
+          "estimated_effort": "1 hour"
+        },
+        {
+          "title": "Implement refresh token flow",
+          "description": "Add refresh tokens with longer expiration (7 days). Store refresh tokens in database. Create /auth/refresh endpoint to exchange refresh token for new access token.",
+          "priority": "medium",
+          "code_example": "// Generate both tokens on login\nlet access_token = generate_jwt(user.id, 15*60)?; // 15 min\nlet refresh_token = generate_jwt(user.id, 7*24*60*60)?; // 7 days\ndb.store_refresh_token(user.id, &refresh_token).await?;",
+          "estimated_effort": "3 hours"
+        }
+      ],
+      "explanation": "Three improvements needed in priority order: (1) Password hashing is critical security requirement - missing this means all user passwords compromised if database leaked. Use bcrypt with appropriate cost factor. (2) Error handling prevents crashes from malformed requests - replace panic points with graceful error responses. (3) Refresh tokens improve UX by reducing re-authentication frequency while maintaining security. Total estimated effort: 6 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "authentication",
+      "notes": "Multiple improvements with different priorities"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Distributed rate limiting (Redis) - current in-memory solution doesn't work across servers",
+          "Monitoring for violations - no alerts for potential attacks"
+        ],
+        "correctness_issues": [
+          "HashMap created per request - counts never persist, rate limiting ineffective"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Fix HashMap scope to persist across requests",
+          "description": "Move HashMap outside request handler using Arc<Mutex<HashMap>> or use DashMap for lock-free concurrent access. This is critical bug - rate limiting currently doesn't work at all.",
+          "priority": "critical",
+          "code_example": "use dashmap::DashMap;\nuse std::sync::Arc;\n\nstatic RATE_LIMITS: LazyLock<Arc<DashMap<String, RateLimitState>>> = \n    LazyLock::new(|| Arc::new(DashMap::new()));",
+          "estimated_effort": "1 hour"
+        },
+        {
+          "title": "Migrate to Redis for distributed rate limiting",
+          "description": "Replace in-memory HashMap with Redis to share rate limit state across multiple servers. Use Redis INCREMENT with EXPIRE for atomic counter operations.",
+          "priority": "high",
+          "code_example": "let key = format!(\"ratelimit:{}:{}\", endpoint, ip);\nlet count: i64 = redis.incr(&key).await?;\nif count == 1 { redis.expire(&key, 60).await?; }\nif count > limit { return TooManyRequests; }",
+          "estimated_effort": "4 hours"
+        },
+        {
+          "title": "Add monitoring and alerting for rate limit violations",
+          "description": "Emit metrics when rate limits hit. Alert when single IP hits limit repeatedly (potential attack indicator). Dashboard showing top rate-limited IPs.",
+          "priority": "high",
+          "code_example": "metrics::counter!(\"rate_limit_exceeded\", \"ip\" => ip, \"endpoint\" => endpoint).increment(1);\nif violations_last_hour > 100 {\n    alert!(\"Potential DDoS from {}\", ip);\n}",
+          "estimated_effort": "2 hours"
+        }
+      ],
+      "explanation": "Critical bug fix first: HashMap scoping means rate limiting is completely non-functional. Fix this immediately (1 hour). Then add Redis for multi-server deployment (4 hours) and monitoring for attack detection (2 hours). Redis migration is high priority for production deployments. Monitoring enables proactive security response. Total: 7 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "rate_limiting",
+      "notes": "Critical bug fix followed by enhancements"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Screen reader testing - no validation with assistive technology",
+          "Accessibility audit - no automated scanning",
+          "Alt text for images - not mentioned"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add alt text to all images",
+          "description": "Audit all <img> tags and add descriptive alt attributes. Decorative images should have empty alt=\"\". Informative images need meaningful descriptions. Use alt text that conveys same information as image.",
+          "priority": "high",
+          "code_example": "<img src=\"logo.png\" alt=\"Acme Corp Logo\" />\n<img src=\"decorative-line.png\" alt=\"\" /> <!-- decorative -->",
+          "estimated_effort": "2 hours"
+        },
+        {
+          "title": "Run automated accessibility audit",
+          "description": "Integrate axe-core or Lighthouse accessibility scanning into CI pipeline. Fix all critical and serious violations. Generate accessibility report.",
+          "priority": "high",
+          "code_example": "// In CI:\nnpm install -g @axe-core/cli\naxe https://staging.example.com --tags wcag2aa --exit",
+          "estimated_effort": "3 hours (setup + fixing issues)"
+        },
+        {
+          "title": "Perform manual screen reader testing",
+          "description": "Test critical user flows with NVDA (Windows) or VoiceOver (Mac). Document navigation paths and any issues. Fix blocking issues where screen reader users cannot complete tasks.",
+          "priority": "medium",
+          "code_example": "// Test checklist:\n// - Login flow\n// - Create new post\n// - Navigate menu\n// - Fill out forms\n// - Error messages announced",
+          "estimated_effort": "4 hours"
+        }
+      ],
+      "explanation": "Three validation steps to prove accessibility works: (1) Add missing alt text (2 hours) - quick win that helps screen reader users. (2) Run automated audit (3 hours) - catches most WCAG violations programmatically. (3) Manual screen reader testing (4 hours) - validates actual user experience. Automated audit is high priority as it finds issues quickly. Manual testing is medium priority for validation. Total: 9 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "accessibility",
+      "notes": "Validation-focused improvements"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "MD5 for password hashing - cryptographically broken",
+          "No salt - rainbow table vulnerability"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "URGENT: Migrate from MD5 to bcrypt for password hashing",
+          "description": "MD5 is completely broken for passwords. All existing passwords are compromised. Migrate to bcrypt immediately. Force password reset for all users on next login. Use cost factor 12 for bcrypt.",
+          "priority": "critical",
+          "code_example": "use bcrypt::{hash, verify, DEFAULT_COST};\n\n// On registration:\nlet password_hash = hash(password, DEFAULT_COST)?;\ndb.store_user(email, &password_hash).await?;\n\n// On login:\nlet user = db.get_user_by_email(email).await?;\nif verify(password, &user.password_hash)? {\n    // Login successful\n}",
+          "estimated_effort": "2 hours (+ user communication about password reset)"
+        },
+        {
+          "title": "Implement password reset flow for security migration",
+          "description": "Create /auth/reset endpoint to force password reset for existing users. Send email notification explaining security improvement. Transition period: accept old MD5 hashes but hash new password with bcrypt on successful login.",
+          "priority": "critical",
+          "code_example": "// Backward compatibility during migration:\nif user.password_hash.starts_with(\"$2\") {\n    // bcrypt hash\n    verify(password, &user.password_hash)?\n} else {\n    // Old MD5 hash - verify and upgrade\n    if md5_verify(password, &user.password_hash) {\n        let new_hash = hash(password, DEFAULT_COST)?;\n        db.update_password_hash(user.id, &new_hash).await?;\n        true\n    } else { false }\n}",
+          "estimated_effort": "3 hours"
+        }
+      ],
+      "explanation": "This is a security emergency. MD5-hashed passwords can be cracked in seconds. All user accounts are compromised. Two-step migration: (1) Update hashing code to use bcrypt (2 hours), (2) Implement migration path for existing users (3 hours). During transition, accept old MD5 hashes but upgrade to bcrypt on successful login. Notify users of security improvement. Total: 5 hours + user communication."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "high",
+      "category": "security_emergency",
+      "notes": "Critical security flaw requiring immediate action"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Code coverage reporting - measured but not enforced in CI"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Integrate code coverage reporting into CI",
+          "description": "Add tarpaulin or cargo-llvm-cov to CI pipeline. Generate coverage report and upload to Codecov or Coveralls. Add coverage badge to README. Set minimum coverage threshold (e.g., 70%).",
+          "priority": "low",
+          "code_example": "# In .github/workflows/ci.yml:\n- name: Generate coverage\n  run: cargo tarpaulin --out Xml --output-dir coverage\n- name: Upload to Codecov\n  uses: codecov/codecov-action@v3\n  with:\n    files: ./coverage/cobertura.xml\n    fail_ci_if_error: true",
+          "estimated_effort": "1 hour"
+        },
+        {
+          "title": "Set coverage threshold in CI",
+          "description": "Configure CI to fail if coverage drops below threshold. This prevents regression. Start with current coverage (82%) minus buffer (e.g., 75% threshold).",
+          "priority": "low",
+          "code_example": "# In ci.yml:\n- run: cargo tarpaulin --fail-under 75",
+          "estimated_effort": "30 minutes"
+        }
+      ],
+      "explanation": "Minor enhancement to prevent coverage regression. Two quick tasks: (1) Add coverage reporting to CI and upload to coverage service (1 hour), (2) Enforce minimum threshold (30 min). Low priority since CI already has tests/linting/security scanning. This adds quality visibility and prevents backsliding. Total: 1.5 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "ci_cd",
+      "notes": "Low-priority quality improvement"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Negative isolation tests - no verification that tenant A cannot access tenant B data"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add negative isolation tests",
+          "description": "Create tests verifying tenant A CANNOT access tenant B's data. These tests are critical for multi-tenant security. Test all CRUD operations with wrong tenant_id. Expect 403 Forbidden or empty results.",
+          "priority": "critical",
+          "code_example": "#[tokio::test]\nasync fn test_tenant_isolation() {\n    let tenant_a_data = create_test_data(\"tenant_a\").await;\n    set_tenant_context(\"tenant_b\"); // Wrong tenant!\n    \n    // Should not find tenant A's data\n    let result = db.get_data(tenant_a_data.id).await;\n    assert!(result.is_err() || result.unwrap().is_none());\n    \n    // Should get 403 when trying to access\n    let response = api.get(&format!(\"/data/{}\", tenant_a_data.id)).await;\n    assert_eq!(response.status(), StatusCode::FORBIDDEN);\n}",
+          "estimated_effort": "4 hours"
+        },
+        {
+          "title": "Add tenant isolation penetration testing",
+          "description": "Test for bypass vulnerabilities in query interceptor. Try to access data by manipulating IDs, removing tenant context, SQL injection. Document findings and fix all vulnerabilities.",
+          "priority": "high",
+          "code_example": "// Test cases:\n// 1. Direct ID access bypassing filter\n// 2. NULL or missing tenant_id\n// 3. SQL injection in tenant context\n// 4. Admin endpoints without tenant filtering\n// 5. Batch operations leaking cross-tenant data",
+          "estimated_effort": "6 hours"
+        },
+        {
+          "title": "Implement database-level row-level security",
+          "description": "Add PostgreSQL row-level security policies as defense-in-depth. Even if application code has bugs, database enforces isolation. Create policies ensuring users only see their tenant's rows.",
+          "priority": "medium",
+          "code_example": "ALTER TABLE posts ENABLE ROW LEVEL SECURITY;\n\nCREATE POLICY tenant_isolation ON posts\n    USING (tenant_id = current_setting('app.current_tenant'));\n\n-- In application:\nSET app.current_tenant = 'tenant_a';",
+          "estimated_effort": "4 hours"
+        }
+      ],
+      "explanation": "Multi-tenant isolation requires proving data CANNOT leak across tenants. Three layers: (1) Negative tests (4 hours) prove current implementation blocks cross-tenant access - critical for compliance. (2) Penetration testing (6 hours) finds bypass vulnerabilities - high priority. (3) Database-level policies (4 hours) add defense-in-depth - medium priority. Total: 14 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "multi_tenancy",
+      "notes": "Security validation for multi-tenant system"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "Fixed filename causes concurrent uploads to overwrite each other",
+          "No file size validation - disk exhaustion DoS"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Generate unique filenames with UUID",
+          "description": "Replace fixed filename with UUID to prevent overwrites. Store original filename in database metadata. Organize files by date/tenant for easier management.",
+          "priority": "high",
+          "code_example": "use uuid::Uuid;\n\nlet file_id = Uuid::new_v4();\nlet extension = Path::new(&original_filename)\n    .extension()\n    .and_then(|s| s.to_str())\n    .unwrap_or(\"bin\");\nlet storage_path = format!(\"/uploads/{}/{}.{}\", \n    tenant_id, file_id, extension);",
+          "estimated_effort": "2 hours"
+        },
+        {
+          "title": "Add file size validation",
+          "description": "Enforce max file size (e.g., 100MB) before accepting upload. Return 413 Payload Too Large if exceeded. Prevents disk exhaustion DoS attacks.",
+          "priority": "high",
+          "code_example": "const MAX_FILE_SIZE: usize = 100 * 1024 * 1024; // 100MB\n\nif content_length > MAX_FILE_SIZE {\n    return Err(Error::PayloadTooLarge);\n}\n// Or stream-based validation:\nlet mut total_size = 0;\nwhile let Some(chunk) = stream.next().await {\n    total_size += chunk.len();\n    if total_size > MAX_FILE_SIZE {\n        return Err(Error::PayloadTooLarge);\n    }\n}",
+          "estimated_effort": "1 hour"
+        },
+        {
+          "title": "Add file type validation",
+          "description": "Validate file type using magic bytes (not just extension). Prevent uploading executables or malware. Allow specific types (images, PDFs) based on requirements.",
+          "priority": "medium",
+          "code_example": "use infer::get_from_path;\n\nlet kind = infer::get_from_path(&temp_path)?;\nmatch kind {\n    Some(k) if k.mime_type().starts_with(\"image/\") => {},\n    Some(k) if k.mime_type() == \"application/pdf\" => {},\n    _ => return Err(Error::InvalidFileType),\n}",
+          "estimated_effort": "2 hours"
+        }
+      ],
+      "explanation": "Three improvements for file upload correctness and security: (1) Unique filenames (2 hours) prevents race conditions and data loss - high priority. (2) Size validation (1 hour) prevents DoS - high priority. (3) Type validation (2 hours) prevents malware uploads - medium priority. All are important for production file uploads. Total: 5 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "file_upload",
+      "notes": "Multiple correctness and security improvements"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Alerting rules - no alerts configured",
+          "PagerDuty integration - no notifications",
+          "Runbooks - no response procedures"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Configure Prometheus alerting rules",
+          "description": "Create alert rules for critical conditions: error rate >5%, p99 latency >1s, service down. Define alert groups and severity levels. Test alerts fire correctly.",
+          "priority": "high",
+          "code_example": "# prometheus/alerts.yml\ngroups:\n  - name: api_alerts\n    rules:\n      - alert: HighErrorRate\n        expr: rate(http_requests_total{status=~\"5..\"}[5m]) > 0.05\n        for: 5m\n        labels:\n          severity: critical\n        annotations:\n          summary: \"High error rate detected\"\n          description: \"Error rate is {{ $value }} errors/sec\"",
+          "estimated_effort": "3 hours"
+        },
+        {
+          "title": "Integrate with PagerDuty for on-call notifications",
+          "description": "Configure Prometheus Alertmanager to send alerts to PagerDuty. Set up escalation policy and on-call rotation. Test alert delivery end-to-end.",
+          "priority": "high",
+          "code_example": "# alertmanager.yml\nreceivers:\n  - name: pagerduty\n    pagerduty_configs:\n      - routing_key: <integration_key>\n        severity: '{{ .GroupLabels.severity }}'\nroute:\n  receiver: pagerduty\n  group_by: ['alertname']\n  group_wait: 10s",
+          "estimated_effort": "2 hours"
+        },
+        {
+          "title": "Create runbooks for common alerts",
+          "description": "Document investigation and resolution steps for each alert. Include: what alert means, how to investigate, common causes, resolution steps. Link runbooks from alert annotations.",
+          "priority": "medium",
+          "code_example": "# runbooks/high_error_rate.md\n## High Error Rate\n**What it means**: API returning >5% errors\n**Investigation**:\n1. Check Grafana dashboard for error breakdown\n2. Review error logs: `kubectl logs -l app=api --tail=100`\n3. Check database connection pool\n**Common causes**:\n- Database connection failures\n- Deployment issues\n- External API timeouts",
+          "estimated_effort": "4 hours"
+        }
+      ],
+      "explanation": "Transform passive monitoring into active alerting: (1) Alert rules (3 hours) define what conditions trigger notifications - high priority. (2) PagerDuty integration (2 hours) ensures team gets notified 24/7 - high priority. (3) Runbooks (4 hours) enable quick incident response - medium priority. Without alerts, monitoring is useless. Total: 9 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "monitoring",
+      "notes": "Converting monitoring to alerting"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "SQL injection in search query - user input concatenated directly"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "URGENT: Fix SQL injection vulnerability with parameterized queries",
+          "description": "Replace string concatenation with parameterized queries immediately. This is critical security vulnerability allowing data theft/deletion. All user input must use query parameters.",
+          "priority": "critical",
+          "code_example": "// BEFORE (vulnerable):\nlet query = format!(\"SELECT * FROM users WHERE name LIKE '%{}%'\", search_term);\n\n// AFTER (secure):\nlet pattern = format!(\"%{}%\", search_term);\nlet query = \"SELECT * FROM users WHERE name LIKE $1\";\nlet users = db.query(query, &[&pattern]).await?;",
+          "estimated_effort": "30 minutes"
+        },
+        {
+          "title": "Audit all database queries for SQL injection",
+          "description": "Search codebase for string formatting in SQL queries. Replace all instances with parameterized queries. This is common vulnerability pattern - likely exists elsewhere.",
+          "priority": "critical",
+          "code_example": "# Search for potential SQL injection:\ngrep -r 'format!(.*SELECT' .\ngrep -r 'format!(.*INSERT' .\ngrep -r 'format!(.*UPDATE' .\ngrep -r 'format!(.*DELETE' .",
+          "estimated_effort": "2 hours"
+        },
+        {
+          "title": "Add SQL injection tests",
+          "description": "Create tests attempting SQL injection attacks. Verify parameterized queries prevent injection. Add to regression test suite.",
+          "priority": "high",
+          "code_example": "#[tokio::test]\nasync fn test_sql_injection_prevention() {\n    let malicious = \"'; DROP TABLE users; --\";\n    let result = search_users(malicious).await;\n    // Should return empty results, not execute DROP\n    assert!(result.is_ok());\n    // Verify users table still exists\n    assert!(db.table_exists(\"users\").await);\n}",
+          "estimated_effort": "1 hour"
+        }
+      ],
+      "explanation": "Critical security emergency requiring immediate action: (1) Fix vulnerable search query (30 min) - deploy ASAP. (2) Audit entire codebase for same pattern (2 hours) - likely more instances. (3) Add tests (1 hour) to prevent regression. SQL injection is OWASP Top 10 vulnerability allowing complete database compromise. Total: 3.5 hours. Deploy fix to production immediately after testing."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "high",
+      "category": "security_critical",
+      "notes": "Critical SQL injection fix with codebase audit"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "RTL layout support - needed for Arabic/Hebrew"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add RTL (right-to-left) layout support",
+          "description": "Implement bidirectional text support for Arabic and Hebrew. Use CSS logical properties (margin-inline-start instead of margin-left). Add dir=\"rtl\" attribute for RTL languages. Test with actual RTL content.",
+          "priority": "low",
+          "code_example": "/* Use logical properties: */\n.sidebar {\n  margin-inline-start: 20px; /* Auto-adjusts for RTL */\n  padding-inline-end: 10px;\n}\n\n/* In React: */\n<html dir={locale.isRTL ? 'rtl' : 'ltr'} lang={locale.code}>\n\n/* Or use i18n library: */\nimport { useTranslation } from 'react-i18next';\nconst { t, i18n } = useTranslation();\nconst isRTL = i18n.dir() === 'rtl';",
+          "estimated_effort": "6 hours"
+        },
+        {
+          "title": "Test with native RTL speakers",
+          "description": "Have Arabic or Hebrew speakers test the UI. Verify text flows naturally, no layout issues, cultural appropriateness of translations. Fix any issues discovered.",
+          "priority": "low",
+          "code_example": "// Test checklist:\n// - Text direction correct\n// - UI elements mirrored appropriately  \n// - Icons/images positioned correctly\n// - Forms flow right-to-left\n// - Navigation works intuitively",
+          "estimated_effort": "4 hours (including coordination)"
+        }
+      ],
+      "explanation": "RTL support is low priority if only targeting left-to-right European markets (German, French, Spanish mentioned in requirements). However, for true internationalization, add RTL support: (1) Implement CSS logical properties and dir attribute (6 hours), (2) Test with native speakers (4 hours). If European-only scope is confirmed, this can be deferred. If global expansion planned, medium priority. Total: 10 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "internationalization",
+      "notes": "Depends on scope - low if European-only"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "Lock held during expensive_operation() blocks concurrent access"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Release lock before expensive operations",
+          "description": "Reduce critical section to minimum necessary. Use block scope to ensure lock drops before expensive_operation(). This prevents blocking other threads unnecessarily.",
+          "priority": "high",
+          "code_example": "fn increment() {\n    // Critical section - lock held only during increment\n    {\n        let mut count = COUNTER.lock().unwrap();\n        *count += 1;\n    } // Lock automatically released here\n    \n    // Expensive operation outside critical section\n    expensive_operation();\n}",
+          "estimated_effort": "30 minutes"
+        },
+        {
+          "title": "Consider using AtomicI32 instead of Mutex",
+          "description": "For simple counter, atomic operations are faster and lock-free. Replace Mutex<i32> with AtomicI32. Use fetch_add() for atomic increment. No locks needed.",
+          "priority": "medium",
+          "code_example": "use std::sync::atomic::{AtomicI32, Ordering};\n\nstatic COUNTER: AtomicI32 = AtomicI32::new(0);\n\nfn increment() {\n    COUNTER.fetch_add(1, Ordering::Relaxed);\n    expensive_operation();\n}",
+          "estimated_effort": "30 minutes"
+        }
+      ],
+      "explanation": "Performance improvement from reducing lock contention: (1) Scope lock correctly (30 min) - quick fix, significant performance gain under load - high priority. (2) Use atomics instead of Mutex (30 min) - further optimization for simple counter - medium priority. For read-heavy workloads, atomics are 10-100x faster than Mutex. Total: 1 hour."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "concurrency",
+      "notes": "Lock contention fix and optimization"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "f64 for currency causes rounding errors"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Replace f64 with integer cents or decimal type",
+          "description": "Use i64 for amount in cents (e.g., $10.50 = 1050 cents) or use rust_decimal crate for exact decimal arithmetic. This is critical for financial applications to avoid rounding errors.",
+          "priority": "critical",
+          "code_example": "// Option 1: Integer cents\n#[derive(Deserialize)]\nstruct Transaction {\n    amount_cents: i64,  // $10.50 = 1050\n    currency: String,\n}\n\n// Option 2: Decimal crate\nuse rust_decimal::Decimal;\n\n#[derive(Deserialize)]\nstruct Transaction {\n    #[serde(with = \"rust_decimal::serde::str\")]\n    amount: Decimal,\n    currency: String,\n}",
+          "estimated_effort": "3 hours"
+        },
+        {
+          "title": "Migrate existing transaction data",
+          "description": "Convert existing f64 amounts to integer cents or Decimal. Verify no precision loss in conversion. Add database migration script. Handle edge cases (very large amounts, multiple decimal places).",
+          "priority": "critical",
+          "code_example": "// Migration:\nfor tx in transactions {\n    // Round to nearest cent\n    let cents = (tx.amount * 100.0).round() as i64;\n    db.execute(\n        \"UPDATE transactions SET amount_cents = $1 WHERE id = $2\",\n        &[&cents, &tx.id]\n    ).await?;\n}",
+          "estimated_effort": "2 hours"
+        },
+        {
+          "title": "Add currency arithmetic tests",
+          "description": "Test that currency operations produce exact results. Verify no rounding errors in addition, subtraction, multiplication. Test edge cases like $0.01 operations.",
+          "priority": "high",
+          "code_example": "#[test]\nfn test_currency_precision() {\n    let a = Money::from_cents(10); // $0.10\n    let b = Money::from_cents(20); // $0.20\n    assert_eq!(a + b, Money::from_cents(30)); // Exactly $0.30\n    \n    // Test repeated addition doesn't accumulate errors\n    let mut sum = Money::from_cents(0);\n    for _ in 0..100 {\n        sum = sum + Money::from_cents(1);\n    }\n    assert_eq!(sum, Money::from_cents(100)); // Exactly $1.00\n}",
+          "estimated_effort": "1 hour"
+        }
+      ],
+      "explanation": "Critical fix for financial correctness: (1) Change amount type to integer cents or Decimal (3 hours) - prevents rounding errors. (2) Migrate existing data (2 hours) - must convert f64 values carefully. (3) Add tests (1 hour) - verify exact arithmetic. Floating-point for money violates accounting principles and can cause real financial discrepancies. Deploy ASAP. Total: 6 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "financial",
+      "notes": "Critical data type fix with migration"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "Panics on empty array in find_max()"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Return Option<i32> to handle empty arrays",
+          "description": "Change return type to Option<i32>. Return None for empty arrays instead of panicking. Calling code can handle empty case gracefully.",
+          "priority": "medium",
+          "code_example": "fn find_max(numbers: &[i32]) -> Option<i32> {\n    numbers.iter().max().copied()\n    // Or manually:\n    // if numbers.is_empty() { return None; }\n    // let mut max = numbers[0];\n    // for &num in &numbers[1..] {\n    //     if num > max { max = num; }\n    // }\n    // Some(max)\n}",
+          "estimated_effort": "15 minutes"
+        },
+        {
+          "title": "Add tests for edge cases",
+          "description": "Test with empty array, single element, all same values, negative numbers, mix of positive/negative. Ensure robust behavior.",
+          "priority": "medium",
+          "code_example": "#[test]\nfn test_find_max_edge_cases() {\n    assert_eq!(find_max(&[]), None);\n    assert_eq!(find_max(&[42]), Some(42));\n    assert_eq!(find_max(&[5, 5, 5]), Some(5));\n    assert_eq!(find_max(&[-10, -5, -20]), Some(-5));\n    assert_eq!(find_max(&[-5, 0, 5]), Some(5));\n}",
+          "estimated_effort": "15 minutes"
+        }
+      ],
+      "explanation": "Simple correctness fix for edge case handling: (1) Return Option<i32> (15 min) - prevents panic on empty arrays. (2) Add edge case tests (15 min) - ensures robust behavior. Medium priority - panic indicates broken invariant but unlikely to cause security issues. Better API ergonomics and safety. Total: 30 minutes."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "edge_cases",
+      "notes": "Simple edge case fix"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "API reference - no comprehensive documentation",
+          "Authentication docs - no auth flow guide",
+          "Error reference - no error code explanations",
+          "Interactive docs - no Swagger/Postman"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Generate OpenAPI/Swagger specification",
+          "description": "Create OpenAPI 3.0 spec documenting all endpoints, parameters, request/response schemas, auth requirements. Use tools like utoipa (Rust) or manually write YAML. Host Swagger UI for interactive docs.",
+          "priority": "high",
+          "code_example": "# openapi.yaml\nopenapi: 3.0.0\ninfo:\n  title: My API\n  version: 1.0.0\npaths:\n  /api/users:\n    get:\n      summary: List users\n      parameters:\n        - name: page\n          in: query\n          schema:\n            type: integer\n      responses:\n        '200':\n          description: Success\n          content:\n            application/json:\n              schema:\n                type: array\n                items:\n                  $ref: '#/components/schemas/User'",
+          "estimated_effort": "8 hours"
+        },
+        {
+          "title": "Document authentication flow",
+          "description": "Create guide explaining how to authenticate: (1) Register/login to get tokens, (2) Include Authorization header in requests, (3) Refresh token flow, (4) Error codes (401, 403). Include code examples in multiple languages.",
+          "priority": "high",
+          "code_example": "# docs/authentication.md\n## Authentication\n\n### 1. Login\n```bash\ncurl -X POST https://api.example.com/auth/login \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"email\":\"user@example.com\",\"password\":\"secret\"}'\n```\nResponse:\n```json\n{\"access_token\": \"eyJ...\", \"refresh_token\": \"...\"}\n```\n\n### 2. Use token\n```bash\ncurl https://api.example.com/api/users \\\n  -H \"Authorization: Bearer eyJ...\"\n```",
+          "estimated_effort": "3 hours"
+        },
+        {
+          "title": "Create Postman collection",
+          "description": "Export Postman collection with example requests for all endpoints. Include environment variables for API URL and auth token. Publish collection for easy import.",
+          "priority": "medium",
+          "code_example": "// In Postman:\n// 1. Create collection\n// 2. Add all endpoints as requests\n// 3. Use {{baseUrl}} and {{authToken}} variables\n// 4. Export as JSON\n// 5. Publish to Postman Public API Network or include in repo",
+          "estimated_effort": "4 hours"
+        }
+      ],
+      "explanation": "Make API accessible to external developers with complete documentation: (1) OpenAPI spec + Swagger UI (8 hours) - comprehensive machine-readable API docs, interactive testing - high priority. (2) Authentication guide (3 hours) - explains auth flow with examples - high priority. (3) Postman collection (4 hours) - easy testing for developers - medium priority. Total: 15 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "documentation",
+      "notes": "Comprehensive API documentation"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "tokio::fs::write() overwrites file - only last log entry saved",
+          "Race condition between concurrent writers"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Use append mode for log file writes",
+          "description": "Replace tokio::fs::write() with OpenOptions in append mode. This appends to file instead of overwriting. Prevents data loss from concurrent writes.",
+          "priority": "high",
+          "code_example": "use tokio::fs::OpenOptions;\nuse tokio::io::AsyncWriteExt;\n\nasync fn write_log(entry: &LogEntry) -> Result<(), Error> {\n    let mut file = OpenOptions::new()\n        .create(true)\n        .append(true)\n        .open(\"/var/log/app.log\")\n        .await?;\n    file.write_all(entry.to_string().as_bytes()).await?;\n    file.write_all(b\"\\n\").await?;\n    Ok(())\n}",
+          "estimated_effort": "1 hour"
+        },
+        {
+          "title": "Add file locking for concurrent writes",
+          "description": "Use file locking (flock) to prevent concurrent writes from interleaving. Ensures atomic log entries even with multiple writers.",
+          "priority": "medium",
+          "code_example": "use fs2::FileExt;\nuse std::fs::File;\n\nlet file = File::options()\n    .create(true)\n    .append(true)\n    .open(\"/var/log/app.log\")?;\nfile.lock_exclusive()?; // Block until lock acquired\nfile.write_all(entry.to_string().as_bytes())?;\nfile.unlock()?;",
+          "estimated_effort": "1 hour"
+        },
+        {
+          "title": "Consider using structured logging library",
+          "description": "Use tracing or slog instead of manual file writes. These libraries handle concurrency, rotation, formatting automatically. Better performance and reliability.",
+          "priority": "low",
+          "code_example": "use tracing_appender::rolling::{RollingFileAppender, Rotation};\n\nlet file_appender = RollingFileAppender::new(\n    Rotation::DAILY,\n    \"/var/log\",\n    \"app.log\"\n);\ntracing::info!(\"Log message\");",
+          "estimated_effort": "2 hours"
+        }
+      ],
+      "explanation": "Fix data loss bug in logging: (1) Use append mode (1 hour) - prevents overwriting, basic fix - high priority. (2) Add file locking (1 hour) - prevents interleaved writes - medium priority. (3) Migrate to structured logging library (2 hours) - best long-term solution with rotation, formatting, performance - low priority for immediate fix. Total: 4 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "file_io",
+      "notes": "File handling correctness fix"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "Only 56% of queries migrated to prepared statements - 44% still vulnerable to SQL injection"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Complete SQL injection migration for remaining 18 queries",
+          "description": "Convert all queries in comments.rs, admin.rs, analytics.rs to prepared statements. This is critical - partial migration leaves system vulnerable. All queries must be migrated for security.",
+          "priority": "critical",
+          "code_example": "// BEFORE (vulnerable):\nlet sql = format!(\"DELETE FROM comments WHERE id = {}\", comment_id);\ndb.execute(&sql).await?;\n\n// AFTER (secure):\ndb.execute(\"DELETE FROM comments WHERE id = $1\", &[&comment_id]).await?;",
+          "estimated_effort": "3 hours"
+        },
+        {
+          "title": "Audit for any missed queries",
+          "description": "Search entire codebase for string formatting in SQL. Use grep or code search to find format!/concat patterns with SQL keywords. Verify all queries use parameterization.",
+          "priority": "critical",
+          "code_example": "# Find potential SQL injection:\nrg 'format!.*(?:SELECT|INSERT|UPDATE|DELETE)' --type rust\nrg '&format!.*\"(?:SELECT|INSERT|UPDATE|DELETE)' --type rust\n\n# Also check for string concatenation:\nrg '\\+.*\"(?:SELECT|INSERT|UPDATE|DELETE)' --type rust",
+          "estimated_effort": "1 hour"
+        },
+        {
+          "title": "Add SQL injection tests for all query functions",
+          "description": "Create comprehensive tests attempting SQL injection on every database function. Verify prepared statements prevent injection. Add to CI to prevent regression.",
+          "priority": "high",
+          "code_example": "#[tokio::test]\nasync fn test_comment_delete_sql_injection() {\n    let malicious_id = \"1; DROP TABLE users; --\";\n    let result = delete_comment(malicious_id).await;\n    // Should safely fail, not execute DROP\n    assert!(result.is_err());\n    assert!(db.table_exists(\"users\").await);\n}",
+          "estimated_effort": "2 hours"
+        }
+      ],
+      "explanation": "Critical security issue requiring immediate completion: (1) Finish migration (3 hours) - convert remaining 18 vulnerable queries. (2) Audit codebase (1 hour) - ensure no queries missed. (3) Add comprehensive tests (2 hours) - prevent future SQL injection. Partial migration creates false sense of security while system remains vulnerable. Deploy immediately. Total: 6 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "security_migration",
+      "notes": "Completing incomplete security migration"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "Cache deleted AFTER database update - race condition window for stale data"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Delete from cache BEFORE database update",
+          "description": "Reverse order: delete cache entry, then update database. This prevents race where another request caches stale data between update and deletion. Smaller inconsistency window.",
+          "priority": "high",
+          "code_example": "async fn update_user(id: i64, data: UserUpdate) -> Result<User, Error> {\n    // Delete cache first\n    cache.delete(format!(\"user:{}\", id)).await.ok(); // Ignore errors\n    \n    // Then update database\n    let user = db.execute_update(id, data).await?;\n    Ok(user)\n}",
+          "estimated_effort": "30 minutes"
+        },
+        {
+          "title": "Add TTL to cache entries as fallback",
+          "description": "Set short TTL (e.g., 5 minutes) on cached data. If invalidation fails, cache will auto-expire. Provides defense-in-depth against stale data.",
+          "priority": "medium",
+          "code_example": "cache.set_with_ttl(\n    format!(\"user:{}\", id),\n    &user,\n    Duration::from_secs(300) // 5 minutes\n).await?;",
+          "estimated_effort": "30 minutes"
+        },
+        {
+          "title": "Make cache errors non-fatal",
+          "description": "Cache is performance optimization, not critical path. Log cache errors but don't propagate to client. Database is source of truth.",
+          "priority": "medium",
+          "code_example": "// Log but don't fail on cache errors\nif let Err(e) = cache.delete(key).await {\n    tracing::warn!(\"Cache deletion failed: {}\", e);\n}",
+          "estimated_effort": "15 minutes"
+        }
+      ],
+      "explanation": "Improve cache consistency: (1) Delete before update (30 min) - reduces race window - high priority. (2) Add TTL (30 min) - ensures stale data eventually expires - medium priority. (3) Non-fatal cache errors (15 min) - cache failures shouldn't break user operations - medium priority. Total: 1 hour 15 minutes."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "cache_consistency",
+      "notes": "Cache invalidation timing fix"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "32-bit session IDs have only 4.2B possible values - brute-forceable",
+          "Birthday paradox: collision likely after 65K sessions"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Use 128-bit or 256-bit session IDs",
+          "description": "Increase session ID entropy from 32 bits to 128+ bits. Use UUIDv4 or hex-encoded random bytes. Prevents brute force and eliminates collision risk.",
+          "priority": "high",
+          "code_example": "use uuid::Uuid;\n\nfn generate_session_id() -> String {\n    Uuid::new_v4().to_string()\n    // Or hex-encoded random:\n    // use rand::Rng;\n    // let mut rng = rand::thread_rng();\n    // format!(\"{:032x}\", rng.gen::<u128>())\n}",
+          "estimated_effort": "1 hour"
+        },
+        {
+          "title": "Invalidate existing short session IDs",
+          "description": "Force logout for users with old 32-bit session IDs. Migrate to new 128-bit IDs. Communicate to users about security improvement.",
+          "priority": "high",
+          "code_example": "// In session validation:\nif session_id.len() < 32 { // Old 8-char hex session\n    return Err(AuthError::SessionExpired);\n}",
+          "estimated_effort": "30 minutes"
+        },
+        {
+          "title": "Add session ID collision detection",
+          "description": "Check for existing session ID before creating new session. Log collision events (should be extremely rare with 128-bit IDs). Regenerate ID if collision detected.",
+          "priority": "low",
+          "code_example": "loop {\n    let session_id = generate_session_id();\n    match db.get_session(&session_id).await {\n        Ok(None) => return Ok(session_id),\n        Ok(Some(_)) => {\n            warn!(\"Session ID collision: {}\", session_id);\n            continue; // Try again\n        }\n        Err(e) => return Err(e),\n    }\n}",
+          "estimated_effort": "30 minutes"
+        }
+      ],
+      "explanation": "Fix session ID security weakness: (1) Increase entropy to 128 bits (1 hour) - eliminates brute force and collision risk - high priority. (2) Invalidate old sessions (30 min) - ensures all active sessions are secure - high priority. (3) Add collision detection (30 min) - defense-in-depth, should never trigger with 128-bit IDs - low priority. Total: 2 hours."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "security",
+      "notes": "Session ID entropy increase"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "No validation on page_size - allows unbounded memory usage",
+          "No ORDER BY - non-deterministic pagination"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add page_size validation and limits",
+          "description": "Enforce maximum page_size (e.g., 100). Return 400 Bad Request if exceeded. Prevents memory exhaustion from large page_size values.",
+          "priority": "high",
+          "code_example": "const MAX_PAGE_SIZE: usize = 100;\nconst DEFAULT_PAGE_SIZE: usize = 20;\n\nlet page_size = req.query_param(\"page_size\")\n    .unwrap_or(DEFAULT_PAGE_SIZE)\n    .min(MAX_PAGE_SIZE);\n\nif page_size > MAX_PAGE_SIZE {\n    return Err(Error::BadRequest(\"page_size exceeds maximum\"));\n}",
+          "estimated_effort": "30 minutes"
+        },
+        {
+          "title": "Add ORDER BY for deterministic results",
+          "description": "Always include ORDER BY in paginated queries. Use created_at DESC or id DESC for consistent ordering. Prevents pages showing duplicate/missing items as data changes.",
+          "priority": "high",
+          "code_example": "let query = \"SELECT * FROM posts ORDER BY created_at DESC, id DESC LIMIT $1 OFFSET $2\";\nlet posts = db.query(query, &[&page_size, &offset]).await?;",
+          "estimated_effort": "30 minutes"
+        },
+        {
+          "title": "Consider cursor-based pagination for large datasets",
+          "description": "For large offsets, use cursor-based pagination (WHERE id > last_id) instead of OFFSET. Much more efficient for deep pagination.",
+          "priority": "low",
+          "code_example": "// Cursor-based:\nlet query = \"SELECT * FROM posts WHERE id < $1 ORDER BY id DESC LIMIT $2\";\nlet posts = db.query(query, &[&cursor, &page_size]).await?;\n\n// Return cursor for next page:\nlet next_cursor = posts.last().map(|p| p.id);",
+          "estimated_effort": "2 hours"
+        }
+      ],
+      "explanation": "Fix pagination correctness and performance: (1) Validate page_size (30 min) - prevents DoS via memory exhaustion - high priority. (2) Add ORDER BY (30 min) - ensures consistent results - high priority. (3) Cursor-based pagination (2 hours) - optimization for large datasets - low priority for now. Total: 3 hours (or 1 hour for just high-priority items)."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "pagination",
+      "notes": "Pagination validation and determinism"
+    }
+  }
+]
