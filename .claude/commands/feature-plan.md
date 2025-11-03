@@ -18,7 +18,42 @@ I will help you create a detailed implementation plan from a feature specificati
    - Parse YAML frontmatter to get spec memory_id
    - Extract user scenarios, requirements, and constraints
 
-2. **Check for existing plan**:
+2. **Validate spec quality**:
+   - Run DSPy validation using optimized v1 ReviewerModule:
+     ```bash
+     cd src/orchestration/dspy_modules
+     uv run python3 specflow_integration.py ../../.mnemosyne/artifacts/specs/<feature-id>.md --json
+     ```
+   - Parse JSON output for:
+     - `completeness_score`: 0.0-1.0 quality score
+     - `is_valid`: Overall validation status
+     - `issues`: List of specific problems
+     - `ambiguities`: Detected vague terms
+   - **Quality gate check**:
+     - If `completeness_score >= 0.8` and `is_valid == true`: Proceed
+     - If `completeness_score < 0.8` or `is_valid == false`:
+       ```
+       ⚠️  Spec quality below recommended threshold (<completeness_score>%)
+
+       Issues found:
+       - <issue 1>
+       - <issue 2>
+
+       Ambiguities detected:
+       - <ambiguity 1>: <question>
+       - <ambiguity 2>: <question>
+
+       Recommended actions:
+       - Run /feature-validate <feature-id> for detailed analysis
+       - Run /feature-clarify <feature-id> to resolve ambiguities
+       - Run /feature-validate <feature-id> --fix for specific fixes
+
+       Continue anyway? (Creating plan from unclear spec may lead to rework)
+       ```
+       - Wait for user confirmation before proceeding
+   - **Fallback**: If DSPy validation fails, warn "DSPy validation unavailable, proceeding without quality check" and continue
+
+3. **Check for existing plan**:
    - Look for `.mnemosyne/artifacts/plans/<feature-id>-plan.md`
    - If exists:
      - Parse version from frontmatter
@@ -26,12 +61,12 @@ I will help you create a detailed implementation plan from a feature specificati
      - If `--update`: Increment version and update
      - Otherwise: Ask if user wants to view, update, or create new version
 
-3. **Load constitution** (if exists):
+4. **Load constitution** (if exists):
    - Read `.mnemosyne/artifacts/constitution/project-constitution.md`
    - Extract architecture decisions, constraints, quality gates
    - Use to guide implementation choices
 
-4. **Gather implementation details**:
+5. **Gather implementation details**:
    Ask user about:
 
    a) **Technical Approach**:
@@ -76,7 +111,7 @@ I will help you create a detailed implementation plan from a feature specificati
    - What could go wrong?
    - How will we handle it?
 
-5. **Format plan as markdown**:
+6. **Format plan as markdown**:
    ```markdown
    ---
    type: implementation_plan
@@ -282,12 +317,12 @@ I will help you create a detailed implementation plan from a feature specificati
    - Clarifications: `.mnemosyne/artifacts/clarifications/<feature-id>-clarifications.md`
    ```
 
-6. **Write plan file**:
+7. **Write plan file**:
    - Create `.mnemosyne/artifacts/plans/<feature-id>-plan.md`
    - Ensure directory exists
    - If updating: Increment version appropriately
 
-7. **Store memory entry**:
+8. **Store memory entry**:
    - Use Mnemosyne CLI: `mnemosyne remember`
    - Arguments:
      - Content: "Implementation plan for <feature-name>: <technical approach summary> ...see .mnemosyne/artifacts/plans/<feature-id>-plan.md for full plan"
@@ -298,13 +333,13 @@ I will help you create a detailed implementation plan from a feature specificati
      - Context: "Implementation plan for <feature-name>"
    - Capture memory_id
 
-8. **Create memory links**:
+9. **Create memory links**:
    - Link plan → spec with relationship "implements"
    - Link plan → constitution with relationship "guided_by"
    - Update plan's `references` field with memory IDs
    - Update plan's `memory_id` field
 
-9. **Display confirmation**:
+10. **Display confirmation**:
    ```
    ✓ Implementation plan created successfully
 
@@ -321,7 +356,7 @@ I will help you create a detailed implementation plan from a feature specificati
    Implementation Timeline: <duration>
 
    Alignment:
-   - Feature Spec: ✓ Covers all P0/P1 scenarios
+   - Feature Spec: ✓ Covers all P0/P1 scenarios (Quality: <completeness_score>%)
    - Constitution: ✓ Follows architecture decisions
    - Clarifications: ✓ Incorporates all resolved decisions
 
@@ -332,8 +367,9 @@ I will help you create a detailed implementation plan from a feature specificati
    - Start implementation
    ```
 
-10. **Error handling**:
+11. **Error handling**:
     - If spec not found: "Error: Feature spec '<feature-id>' not found"
+    - If spec validation fails (from step 2): User already prompted in step 2, proceed with caution
     - If plan exists and no flag: Offer to view/update/create new
     - If technical details too vague: Ask for more specifics
     - If missing critical decisions: Prompt for architecture choices
