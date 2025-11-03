@@ -481,9 +481,9 @@ def main():
         return
 
     try:
-        # Configure DSPy with Claude 3.5 Sonnet (updated model name)
-        dspy.configure(lm=dspy.LM('anthropic/claude-3-5-sonnet-20241022', api_key=api_key))
-        logger.info(f"DSPy configured with claude-3-5-sonnet-20241022")
+        # Configure DSPy with Claude 3.5 Haiku (fast and cost-effective for benchmarking)
+        dspy.configure(lm=dspy.LM('anthropic/claude-3-5-haiku-20241022', api_key=api_key))
+        logger.info(f"DSPy configured with claude-3-5-haiku-20241022")
     except Exception as e:
         logger.error(f"Failed to configure DSPy: {e}")
         return
