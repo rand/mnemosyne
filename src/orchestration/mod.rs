@@ -32,6 +32,8 @@ pub mod dspy_module_loader;
 pub mod dspy_ab_testing;
 #[cfg(feature = "python")]
 pub mod dspy_telemetry;
+#[cfg(feature = "python")]
+pub mod dspy_production_logger;
 pub mod branch_guard;
 pub mod branch_registry;
 pub mod cli;
@@ -74,6 +76,10 @@ pub use dspy_ab_testing::{
 pub use dspy_telemetry::{
     CostCalculator, DSpyEvent, EventType, ModuleMetrics as TelemetryModuleMetrics,
     TelemetryCollector, TokenUsage,
+};
+#[cfg(feature = "python")]
+pub use dspy_production_logger::{
+    InteractionLog, LogConfig, LogSink, LoggerStats, ProductionLogger, TrainingDataEntry,
 };
 pub use branch_coordinator::{
     BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse,
