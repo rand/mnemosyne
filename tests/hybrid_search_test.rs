@@ -87,6 +87,8 @@ async fn test_hybrid_search_with_graph_expansion() {
         strength: 0.8,
         reason: "API uses database".to_string(),
         created_at: chrono::Utc::now(),
+        last_traversed_at: None,
+        user_created: false,
     };
 
     // Update the database memory with the link

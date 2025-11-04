@@ -309,6 +309,13 @@ impl<'a> MemoryPanel<'a> {
                         crate::types::MemoryType::Preference => "Preference",
                         crate::types::MemoryType::Task => "Task",
                         crate::types::MemoryType::AgentEvent => "AgentEvent",
+                        // Specification workflow types
+                        crate::types::MemoryType::Constitution => "Constitution",
+                        crate::types::MemoryType::FeatureSpec => "FeatureSpec",
+                        crate::types::MemoryType::ImplementationPlan => "Plan",
+                        crate::types::MemoryType::TaskBreakdown => "TaskBreakdown",
+                        crate::types::MemoryType::QualityChecklist => "Checklist",
+                        crate::types::MemoryType::Clarification => "Clarification",
                     }
                 });
 
@@ -363,6 +370,13 @@ impl<'a> MemoryPanel<'a> {
                     crate::types::MemoryType::Preference => "Preference",
                     crate::types::MemoryType::Task => "Task",
                     crate::types::MemoryType::AgentEvent => "AgentEvent",
+                    // Specification workflow types
+                    crate::types::MemoryType::Constitution => "Constitution",
+                    crate::types::MemoryType::FeatureSpec => "FeatureSpec",
+                    crate::types::MemoryType::ImplementationPlan => "Plan",
+                    crate::types::MemoryType::TaskBreakdown => "TaskBreakdown",
+                    crate::types::MemoryType::QualityChecklist => "Checklist",
+                    crate::types::MemoryType::Clarification => "Clarification",
                 });
 
         // Format memory details

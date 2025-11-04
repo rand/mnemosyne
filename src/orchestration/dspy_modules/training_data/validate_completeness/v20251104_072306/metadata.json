@@ -1,0 +1,22 @@
+{
+  "version": "20251104_072306",
+  "signature_name": "validate_completeness",
+  "total_examples": 5,
+  "sources": {
+    "synthetic": 5
+  },
+  "difficulty_distribution": {
+    "easy": 2,
+    "medium": 2,
+    "hard": 1
+  },
+  "category_distribution": {
+    "api": 1,
+    "testing": 3,
+    "security": 1
+  },
+  "quality_score_avg": 0.0,
+  "created_at": "2025-11-04T07:23:06.043690",
+  "parent_version": null,
+  "notes": "Initial synthetic data generation test"
+}

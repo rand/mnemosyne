@@ -16,11 +16,13 @@ use crate::{
     },
     LlmService,
 };
+#[cfg(feature = "python")]
+use super::dspy_integration::DSpySemanticBridge;
 use ratatui::style::{Color, Modifier, Style};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 use std::sync::Arc;
-use tracing::warn;
+use tracing::{debug, warn};
 
 /// Type of pragmatic element
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -95,11 +97,13 @@ pub struct PragmaticElement {
     pub confidence: f32,
 }
 
-/// Pragmatics analyzer using Claude API
+/// Pragmatics analyzer using Claude API or DSPy
 #[derive(Clone)]
 pub struct PragmaticsAnalyzer {
     _llm_service: Arc<LlmService>,
     threshold: f32,
+    #[cfg(feature = "python")]
+    dspy_bridge: Option<Arc<DSpySemanticBridge>>,
 }
 
 impl PragmaticsAnalyzer {
@@ -107,6 +111,18 @@ impl PragmaticsAnalyzer {
         Self {
             _llm_service: llm_service,
             threshold: 0.6,
+            #[cfg(feature = "python")]
+            dspy_bridge: None,
+        }
+    }
+
+    /// Create analyzer with DSPy integration
+    #[cfg(feature = "python")]
+    pub fn with_dspy(llm_service: Arc<LlmService>, dspy_bridge: Arc<DSpySemanticBridge>) -> Self {
+        Self {
+            _llm_service: llm_service,
+            threshold: 0.6,
+            dspy_bridge: Some(dspy_bridge),
         }
     }
 
@@ -118,27 +134,26 @@ impl PragmaticsAnalyzer {
 
     /// Analyze pragmatic elements in text
     pub async fn analyze(&self, text: &str) -> Result<Vec<PragmaticElement>> {
-        let prompt = self.build_analysis_prompt(text);
+        // Use DSPy if available (preferred path)
+        #[cfg(feature = "python")]
+        if let Some(bridge) = &self.dspy_bridge {
+            debug!("Using DSPy for pragmatics analysis");
+            let elements = bridge.extract_pragmatics(text).await
+                .map_err(|e| SemanticError::AnalysisFailed(format!("DSPy pragmatics analysis failed: {}", e)))?;
 
-        // Call LLM with timeout
-        let response = tokio::time::timeout(
-            std::time::Duration::from_secs(30),
-            self._llm_service.call_api(&prompt)
-        )
-        .await
-        .map_err(|_| SemanticError::AnalysisFailed("Timeout after 30s".to_string()))?
-        .map_err(|e| SemanticError::AnalysisFailed(format!("LLM API error: {}", e)))?;
+            // Filter by threshold
+            let filtered: Vec<_> = elements.into_iter()
+                .filter(|e| e.confidence >= self.threshold)
+                .collect();
 
-        // Parse JSON response
-        let elements = self.parse_pragmatics_response(&response, text.len())?;
+            return Ok(filtered);
+        }
 
-        // Filter by threshold
-        let filtered = elements
-            .into_iter()
-            .filter(|e| e.confidence >= self.threshold)
-            .collect();
-
-        Ok(filtered)
+        // Fallback: Direct LLM call (not yet implemented)
+        debug!("DSPy not available, using direct LLM call (not implemented yet)");
+        Err(SemanticError::AnalysisFailed(
+            "Pragmatics analysis requires DSPy integration (enable 'python' feature)".to_string()
+        ))
     }
 
     /// Parse pragmatics response from LLM

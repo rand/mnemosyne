@@ -1,0 +1,1459 @@
+[
+  {
+    "inputs": {
+      "implementation": "Added login endpoint POST /api/auth/login accepting email/password. Implemented JWT token generation with RS256 signing. Created middleware for token validation on protected routes. Files: auth.rs (250 lines), middleware.rs (100 lines). Tests: test_auth.rs (15 tests).",
+      "requirements": [
+        "Login endpoint",
+        "JWT token generation",
+        "Token validation middleware",
+        "Password hashing",
+        "Refresh token support"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Password hashing - no evidence of bcrypt or similar password hashing implementation",
+        "Refresh token support - implementation mentions JWT generation but no refresh token mechanism"
+      ],
+      "explanation": "Implementation covers 3 of 5 requirements (login endpoint, JWT generation, token validation middleware). Missing password hashing (critical security requirement) and refresh token support. Without password hashing, user credentials would be stored insecurely. Without refresh tokens, users must re-authenticate frequently, degrading UX."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "authentication",
+      "notes": "Clear case of missing security and UX requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added caching layer using Redis. Implemented cache-aside pattern for GET /api/users/:id and GET /api/posts/:id. Cache TTL set to 5 minutes. Cache invalidation on updates and deletes. Added cache hit/miss metrics. Files: cache.rs (200 lines), redis_config.rs (50 lines). Tests: test_cache.rs (15 tests). Benchmarks show 94% latency improvement.",
+      "requirements": [
+        "Choose caching technology",
+        "Implement caching for frequently accessed endpoints",
+        "Cache invalidation strategy",
+        "Performance metrics"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation addresses all 4 requirements comprehensively. Redis chosen as caching technology, cache-aside pattern for two frequently accessed endpoints, cache invalidation on updates/deletes (proper strategy), performance metrics showing 94% improvement. Cache TTL adds robustness. Complete implementation with testing and benchmarking."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "caching",
+      "notes": "Complete implementation exceeding requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Increased MAX_FILE_SIZE constant from 10MB to 100MB in config.rs. Files: config.rs (1 line change).",
+      "requirements": [
+        "Support file uploads up to 100MB",
+        "Test with actual large files",
+        "Handle memory constraints",
+        "Implement chunked uploads if needed",
+        "Add progress tracking"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Test with actual large files - no testing mentioned, just config change",
+        "Handle memory constraints - no memory management strategy for large files",
+        "Implement chunked uploads if needed - not implemented, may be needed for 100MB files",
+        "Add progress tracking - no progress indication for long uploads"
+      ],
+      "explanation": "Implementation only addresses surface requirement (allow 100MB) by changing a constant. Missing 4 of 5 requirements that ensure large files actually work. No testing means unknown if 100MB uploads succeed. No memory handling may cause OOM errors. No chunked uploads may timeout. No progress leaves users uncertain. Superficial fix, not complete solution."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "file_upload",
+      "notes": "Minimal implementation missing critical supporting requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added env_logger dependency. Configured logging with INFO level in main.rs. Added log statements to all API handlers showing request method, path, and timestamp. Added error logging with stack traces. Implemented structured logging with request_id field. Files: Cargo.toml, main.rs (logger init), handlers/* (log statements throughout). Example logs show proper formatting.",
+      "requirements": [
+        "Configure logging framework",
+        "Log API requests",
+        "Log errors with stack traces",
+        "Structured logging with context",
+        "Log rotation policy",
+        "Exclude sensitive data from logs"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Log rotation policy - no mention of how logs are managed long-term, could fill disk",
+        "Exclude sensitive data from logs - critical security requirement not addressed, passwords/tokens could be logged"
+      ],
+      "explanation": "Implementation covers 4 of 6 requirements (framework configuration, API request logging, error logging with stack traces, structured logging). Missing log rotation means production logs could exhaust disk space. Missing sensitive data filtering is a security vulnerability - user passwords, auth tokens, or personal data could leak into logs. Operational and security gaps make this incomplete."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "logging",
+      "notes": "Good logging basics but missing operational and security requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created PostgreSQL schema matching SQLite. Wrote migration script to transfer data. Updated connection code. Modified SQLite-specific queries. Added connection pooling. Created rollback script. Tested with 5M records. Added indexes and constraints. Updated documentation. Files: migrations/postgres/, scripts/migrate.py, database/postgres_connection.rs, doc/postgres_setup.md. Tests validate schema, data integrity, performance.",
+      "requirements": [
+        "Create PostgreSQL schema",
+        "Migrate existing data",
+        "Update connection code",
+        "Modify SQLite-specific queries",
+        "Test with production-scale data",
+        "Rollback procedure",
+        "Performance optimization"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 7 requirements. PostgreSQL schema created, data migration script with 5M record testing (production-scale), connection code updated, SQLite-specific queries modified, rollback procedure for safety, performance optimizations (connection pooling, indexes, constraints). Documentation ensures team can execute migration. Tests verify correctness. This is a complete, production-ready database migration."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "database_migration",
+      "notes": "Thorough migration covering all aspects"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added semantic HTML (nav, main, article). Added ARIA labels to buttons and links. Ensured 4.5:1 color contrast. Implemented keyboard navigation with focus indicators. Added skip-to-content link. Files: components/*.tsx (semantic HTML, ARIA), styles/accessibility.css (focus, contrast).",
+      "requirements": [
+        "Semantic HTML elements",
+        "ARIA labels for interactive elements",
+        "Color contrast compliance (WCAG AA)",
+        "Keyboard navigation support",
+        "Screen reader testing",
+        "Accessibility audit",
+        "Alt text for images"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Screen reader testing - no validation with NVDA, JAWS, or VoiceOver",
+        "Accessibility audit - no axe-core or Lighthouse scan results",
+        "Alt text for images - not mentioned in implementation"
+      ],
+      "explanation": "Implementation covers 4 of 7 requirements (semantic HTML, ARIA, color contrast, keyboard navigation). Missing testing/validation requirements that prove accessibility actually works. Screen reader testing would catch implementation issues invisible to sighted developers. Accessibility audit would validate WCAG compliance. Missing alt text leaves images inaccessible. Code changes look correct but lack verification."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "accessibility",
+      "notes": "Implementation without validation - common accessibility mistake"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created .github/workflows/ci.yml running on every push/PR. Pipeline runs: cargo test (all tests), cargo clippy (linting), cargo fmt --check (formatting), cargo build --release (compilation), cargo-audit (security scan). Added status badge. Configured branch protection requiring CI pass. Pipeline ~8min. Caches dependencies. Files: .github/workflows/ci.yml, .github/workflows/security-audit.yml. 82% test coverage.",
+      "requirements": [
+        "Run tests on every PR",
+        "Linting checks",
+        "Compilation verification",
+        "Security vulnerability scanning",
+        "Branch protection",
+        "Code coverage reporting"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Code coverage reporting - coverage measured (82%) but not reported/enforced in CI pipeline"
+      ],
+      "explanation": "Implementation covers 5 of 6 requirements excellently (tests, linting, compilation, security scanning, branch protection). Missing coverage reporting in CI means coverage could regress without detection. While coverage is measured, it's not enforced or visible in PR reviews. Small gap but important for maintaining quality standards over time."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "ci_cd",
+      "notes": "Nearly complete, missing only coverage reporting integration"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Implemented token bucket rate limiting. Configured 100 req/min for authenticated users, 20 req/min for IPs. Returns 429 with Retry-After header. Added rate limit headers (X-RateLimit-*). Files: middleware/rate_limit.rs. Tests: 10 tests for limit enforcement.",
+      "requirements": [
+        "Rate limiting algorithm implementation",
+        "Per-user and per-IP limits",
+        "Proper HTTP responses (429, headers)",
+        "Distributed rate limiting (Redis)",
+        "Monitoring for violations",
+        "IP allowlist/blocklist"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Distributed rate limiting (Redis) - uses in-memory storage, doesn't work across multiple servers",
+        "Monitoring for violations - no metrics or alerting for rate limit hits (security blind spot)",
+        "IP allowlist/blocklist - no mechanism for trusted IPs or blocking bad actors"
+      ],
+      "explanation": "Implementation covers 3 of 6 requirements (algorithm, per-user/IP limits, proper HTTP responses). Missing distributed support means rate limits can be bypassed in multi-server deployment. Missing monitoring means DDoS attacks won't be detected. Missing allowlist/blocklist prevents both trusting good actors and blocking bad actors. Functional for single-server but not production-ready for security or scale."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "rate_limiting",
+      "notes": "Basic rate limiting missing production requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Set up Meilisearch and integrated with application. Created indexes for users, posts, comments. Implemented /api/search endpoint with filtering, sorting, pagination. Fuzzy matching (2 char typo tolerance). Title field weighted 2x. <50ms queries for 100K docs. Search analytics. Incremental indexing. Files: search.rs, indexer.rs, handlers/search.rs. Tests: 15 tests for exact/fuzzy match, filtering, pagination, relevance.",
+      "requirements": [
+        "Search technology selection",
+        "Content indexing",
+        "Search endpoint with filtering/sorting",
+        "Fuzzy matching",
+        "Performance optimization",
+        "Index synchronization"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 6 requirements. Meilisearch chosen and integrated, multiple content types indexed (users/posts/comments), search endpoint with filtering/sorting/pagination, fuzzy matching with typo tolerance, <50ms performance (excellent), incremental indexing keeps search synchronized. Relevance tuning and analytics show thoughtful implementation. Complete search solution."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "search",
+      "notes": "Complete search implementation with all features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added tenant_id to all tables. Created tenant_context middleware. Implemented query interceptor adding WHERE tenant_id filter. Tenant management API. Tenant-scoped auth. Files: middleware/tenant_context.rs, database/tenant_filter.rs, models/*, handlers/tenant_admin.rs. Tests: 5 tests for tenant A accessing their data.",
+      "requirements": [
+        "Add tenant_id to all tables",
+        "Tenant context middleware",
+        "Automatic tenant filtering",
+        "Tenant management",
+        "Positive isolation tests (tenant can access own data)",
+        "Negative isolation tests (tenant cannot access other tenant data)",
+        "Audit logging for cross-tenant attempts"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Negative isolation tests - no tests verifying tenant A CANNOT access tenant B data (critical for security)",
+        "Audit logging for cross-tenant attempts - no audit trail for attempted violations"
+      ],
+      "explanation": "Implementation covers 5 of 7 requirements (tenant_id, middleware, filtering, management, positive tests). Missing negative tests is critical security gap - can't prove isolation works without testing the inverse case. Missing audit logging means security violations would go undetected. For multi-tenant systems, proving what users CAN'T access is as important as proving what they CAN access."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "multi_tenancy",
+      "notes": "Multi-tenancy without security validation"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added response compression (gzip for >1KB). Sparse fieldsets via ?fields parameter. Pagination (20 items default). Mobile-specific endpoints. ETag support. Reduced payloads 80% (15KB→3KB). Tested on simulated 3G (60% transfer time improvement). Files: middleware/compression.rs, serialization/sparse_fields.rs, handlers/mobile/*. Tests: network simulation.",
+      "requirements": [
+        "Response compression",
+        "Field filtering",
+        "Pagination",
+        "Mobile-specific endpoints",
+        "Client caching (ETags)",
+        "Network simulation testing"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation addresses all 6 requirements comprehensively. Gzip compression enabled, sparse fieldsets for client-driven optimization, pagination prevents large responses, mobile-specific endpoints for optimized payloads, ETag support for caching, 3G network simulation validates real-world performance. 80% payload reduction and 60% transfer time improvement demonstrate effectiveness. Complete mobile optimization."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "mobile_optimization",
+      "notes": "Thorough mobile optimization with testing"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created README.md with project overview and getting started. Added code comments to handlers. Created examples/curl_samples.sh with 3 sample API calls. Files: README.md (50 lines), examples/curl_samples.sh (20 lines), inline comments.",
+      "requirements": [
+        "API reference (all endpoints, parameters, responses)",
+        "Authentication documentation",
+        "Error code reference",
+        "Usage examples",
+        "Interactive documentation (Swagger/Postman)",
+        "Rate limiting guidelines",
+        "Versioning policy"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "API reference - no comprehensive endpoint documentation",
+        "Authentication documentation - no auth flow or token usage docs",
+        "Error code reference - no explanation of error responses",
+        "Interactive documentation - no Swagger UI or Postman collection",
+        "Rate limiting guidelines - not documented",
+        "Versioning policy - not documented"
+      ],
+      "explanation": "Implementation only covers 1 of 7 requirements (usage examples via curl samples). Missing comprehensive API reference means developers must read source code to understand endpoints. No auth docs means developers don't know how to authenticate. No error reference means developers must guess error meanings. No interactive docs forces manual testing. For external developers, this is insufficient - would require internal team support."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "documentation",
+      "notes": "Minimal docs missing most requirements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Set up Prometheus server scraping /metrics endpoint. Added metrics for request rate, latency (p50/p95/p99), error rate. Added Grafana dashboard. Files: prometheus.yml, metrics.rs, grafana/dashboard.json.",
+      "requirements": [
+        "Metrics collection (request rate, latency, errors)",
+        "Metrics visualization (dashboard)",
+        "Alerting rules for critical conditions",
+        "PagerDuty/Opsgenie integration",
+        "On-call rotation",
+        "Runbooks for common alerts",
+        "Health check monitoring"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Alerting rules - no alerts configured, passive monitoring only",
+        "PagerDuty/Opsgenie integration - no paging system for notifications",
+        "On-call rotation - no on-call schedule or escalation",
+        "Runbooks - no documented response procedures",
+        "Health check monitoring - no uptime validation"
+      ],
+      "explanation": "Implementation covers 2 of 7 requirements (metrics collection, visualization dashboard). Missing alerting completely undermines intent - team won't know about production issues without proactive notifications. Metrics and dashboards are reactive (must be checked), but production monitoring requires proactive alerting. Missing 5 of 7 requirements means this is observability infrastructure without operational monitoring."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "monitoring",
+      "notes": "Metrics without alerting - common incomplete monitoring"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Scheduled daily database backups. Configured S3 storage. Incremental backups. AES-256 encryption. Retention policy (7 daily, 4 weekly, 12 monthly). Regular restoration tests. Monitoring/alerting for failures. Disaster recovery docs. Backup size/timing verification. Checksum integrity verification. Files: backup.rs, scripts/backup.sh, docs/disaster_recovery.md.",
+      "requirements": [
+        "Daily backup schedule",
+        "Remote storage (S3)",
+        "Incremental backups",
+        "Encryption",
+        "Retention policy",
+        "Restoration testing",
+        "Failure monitoring",
+        "DR documentation"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 8 requirements. Daily backups scheduled, S3 for durable off-site storage, incremental backups reduce costs, AES-256 encryption protects sensitive data, comprehensive retention policy, regular restoration testing validates backups work, monitoring/alerting for failures, disaster recovery documentation for team. Backup verification (size/timing/checksums) adds robustness. Complete backup solution."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "backup_recovery",
+      "notes": "Complete backup implementation covering all aspects"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Chose fluent i18n library. Extracted strings to translation files. Locale detection via Accept-Language header. Translation loading/caching. Date/time formatting per locale. Number/currency formatting. Translated to German, French, Spanish. Language switcher UI. Files: i18n/, locales/, translations.rs. Tests with non-ASCII characters.",
+      "requirements": [
+        "i18n library selection",
+        "String extraction",
+        "Locale detection",
+        "Translation loading",
+        "Date/time/number formatting",
+        "RTL layout support",
+        "Target language translations",
+        "Language switcher"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "RTL layout support - no right-to-left support for Arabic, Hebrew (required for true internationalization)"
+      ],
+      "explanation": "Implementation covers 7 of 8 requirements comprehensively (library, extraction, detection, loading, formatting, translations to 3 European languages, language switcher). Missing RTL support limits i18n to left-to-right languages. For 'internationalization support for European markets', RTL might seem unnecessary, but true i18n includes bidirectional text support. However, if only targeting LTR European markets, this could be considered complete for stated scope."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "internationalization",
+      "notes": "Comprehensive i18n missing RTL (may be acceptable for European-only scope)"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Batch job scheduler using cron. Report generation (daily summaries, weekly analytics). Data aggregation queries. Jobs run at 2 AM to avoid peak hours. Retry logic for failures (3 retries with exponential backoff). Job monitoring/alerting. Execution logging/audit trail. Performance optimization. Idempotency for safe retries. Tested with production-scale data. Files: jobs/batch.rs, scheduler.rs, reports/.",
+      "requirements": [
+        "Job scheduler",
+        "Report generation",
+        "Data aggregation",
+        "Off-peak scheduling",
+        "Retry logic",
+        "Monitoring/alerting",
+        "Audit logging",
+        "Performance optimization",
+        "Idempotency"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 9 requirements. Cron scheduler, report generation (daily/weekly), efficient aggregation queries, 2 AM scheduling avoids peak traffic, retry logic with exponential backoff handles transient failures, monitoring/alerting for job failures, audit trail for compliance, performance optimization for time windows, idempotency allows safe retries, testing with production data validates scale. Complete batch processing solution."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "batch_processing",
+      "notes": "Complete batch processing with all reliability features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Audit log schema (who, what, when, where, why). Log all data modifications (create, update, delete). Capture user identity and auth method. Record IP, user agent, metadata. Before/after state for changes. Tamper-proof storage (append-only). 7-year retention. Audit reports. Search/filtering. <5ms performance impact. Integrity tests. Files: audit.rs, audit_log table, reports/audit_report.rs.",
+      "requirements": [
+        "Audit log schema",
+        "Log data modifications",
+        "User identity tracking",
+        "Request metadata",
+        "Before/after state",
+        "Tamper-proof storage",
+        "Compliance retention (7 years)",
+        "Audit reports",
+        "Search capability",
+        "Performance constraints"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 10 requirements. Complete audit schema (who/what/when/where/why), all modifications logged, user identity and auth method captured, request metadata (IP/user agent), before/after state for forensics, append-only storage prevents tampering, 7-year retention for financial compliance, audit reports for reviews, search/filtering for investigations, <5ms performance impact, integrity validation. Production-ready audit system for compliance."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "compliance",
+      "notes": "Complete compliance audit system"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added email format validation using regex. Password length limits (8-100 chars). HTML tag removal from text. Files: validation.rs (100 lines). Tests: 10 tests for format validation.",
+      "requirements": [
+        "Email format validation",
+        "Password strength requirements",
+        "SQL injection prevention",
+        "XSS prevention",
+        "File upload validation",
+        "CSRF protection",
+        "Security testing"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Password strength requirements - only length checked, no complexity (special chars, numbers, uppercase)",
+        "SQL injection prevention - no mention of parameterized queries",
+        "XSS prevention - only basic HTML removal, not comprehensive",
+        "File upload validation - not implemented",
+        "CSRF protection - not mentioned",
+        "Security testing - no penetration testing or fuzzing"
+      ],
+      "explanation": "Implementation covers 1 of 7 requirements (email format validation) and partially addresses 1 more (password validation without strength). Missing 6 critical security requirements. Basic HTML removal is insufficient XSS protection. No SQL injection prevention means database vulnerable. No file upload validation, CSRF protection, or security testing. For 'prevent security vulnerabilities' intent, this is dangerously incomplete."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "security",
+      "notes": "Superficial security missing most protections"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Wrapped database ops in Result types. Added error logging. Retry logic for transient DB errors (exponential backoff). Fallback responses (cached data). Circuit breaker for external APIs. Health check endpoint. Files: error.rs, middleware/recovery.rs, retry.rs, circuit_breaker.rs. Tests: 25 tests for failure scenarios.",
+      "requirements": [
+        "Error handling with Result types",
+        "Error logging",
+        "Retry logic for transient errors",
+        "Fallback strategies",
+        "Circuit breaker pattern",
+        "Health checks",
+        "Panic recovery",
+        "Graceful degradation"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Panic recovery - no mention of panic handling middleware",
+        "Graceful degradation - fallbacks mentioned but unclear if system degrades gracefully vs hard failures"
+      ],
+      "explanation": "Implementation covers 6 of 8 requirements (Result types, logging, retry logic, fallbacks, circuit breaker, health checks). Missing explicit panic recovery means unexpected panics could crash entire process. Graceful degradation mentioned via fallbacks but not comprehensive. For 'prevent application crashes' intent, missing panic recovery is concerning. Otherwise strong error handling infrastructure."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "error_handling",
+      "notes": "Strong error handling missing panic recovery"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Converted 23 of 41 queries (56%) to prepared statements. user.rs and posts.rs migrated. comments.rs, admin.rs, analytics.rs still use string concatenation. Files: user.rs, posts.rs (prepared statements).",
+      "requirements": [
+        "Convert ALL queries to prepared statements",
+        "Eliminate SQL injection vulnerabilities",
+        "Code audit for missed queries",
+        "Automated SQL injection testing"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Convert ALL queries - only 56% migrated, 18 queries still vulnerable",
+        "Eliminate SQL injection vulnerabilities - vulnerabilities remain in 44% of queries",
+        "Code audit - no audit to ensure all queries found",
+        "Automated testing - no SQL injection tests"
+      ],
+      "explanation": "Implementation is incomplete and fails the core requirement 'ALL queries'. 44% of queries still vulnerable to SQL injection. Partial migration is dangerous - creates inconsistent security posture and false sense of safety. Requirement explicitly says 'all' but implementation stops at 56%. Missing audit and testing means more vulnerable queries could exist undetected. Critical security requirement not satisfied."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "security_migration",
+      "notes": "Incomplete security migration leaving critical vulnerabilities"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created REST API v2 endpoints: GET/POST/PUT/DELETE /api/v2/products. Added v2 prefix routing. Old v1 endpoints still active. Files: routes/v2/products.rs (200 lines). Tests: 8 tests for v2 endpoints.",
+      "requirements": [
+        "Create v2 API endpoints with improved schema",
+        "Maintain v1 endpoints for backward compatibility",
+        "Add API versioning strategy documentation",
+        "Implement content negotiation (Accept header)",
+        "Deprecation warnings in v1 responses",
+        "Migration guide for clients",
+        "Version sunset policy"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "API versioning strategy documentation - no docs explaining versioning approach or best practices",
+        "Content negotiation - no Accept header handling for version selection",
+        "Deprecation warnings in v1 responses - v1 endpoints don't warn about deprecation timeline",
+        "Migration guide for clients - no guide helping clients transition from v1 to v2",
+        "Version sunset policy - no documented timeline for v1 retirement"
+      ],
+      "explanation": "Implementation covers 2 of 7 requirements (v2 endpoints created, v1 maintained). Missing 5 requirements that make versioning strategy complete. Without documentation, teams don't understand versioning approach. Without content negotiation, clients can't use Accept headers for version selection (modern best practice). Without deprecation warnings, v1 users won't know to migrate. Without migration guide, v1 users don't know how. Without sunset policy, teams can't plan v1 retirement. Technical implementation exists but strategic requirements missing."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "api_versioning",
+      "notes": "API versioning without strategy and communication"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Wrote 3 database queries using SQLx: get_user_by_id, list_active_users, create_user. Added connection pooling. Files: db/queries.rs (80 lines). Tests: 10 tests with in-memory SQLite.",
+      "requirements": [
+        "Implement user queries (get, list, create, update, delete)",
+        "Add query result caching",
+        "Optimize N+1 query patterns",
+        "Add database indexes for query performance",
+        "Connection pooling",
+        "Query timeout handling",
+        "Prepared statements for all queries"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Implement user queries - only 3 of 5 queries implemented (missing update, delete)",
+        "Query result caching - no caching layer for frequent queries",
+        "Optimize N+1 patterns - not addressed, potential performance issues",
+        "Database indexes - no indexes created for query optimization",
+        "Query timeout handling - no timeout configuration, queries could hang indefinitely"
+      ],
+      "explanation": "Implementation covers 2 of 7 requirements (partial queries, connection pooling). Missing 2 critical queries (update/delete), caching for performance, N+1 optimization that could cause severe performance issues at scale, database indexes that are essential for query speed, and timeout handling that prevents hung queries. SQLx provides prepared statements by default. For production database layer, this is incomplete - missing performance optimizations and critical operations."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "database_orm",
+      "notes": "Basic queries missing performance and completeness"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Converted synchronous file I/O to async using tokio::fs. Updated 5 functions to async/await. Added tokio runtime. Files: file_ops.rs (150 lines). Performance improved from 2.5s to 0.8s for batch operations.",
+      "requirements": [
+        "Convert file I/O to async",
+        "Convert database calls to async",
+        "Convert HTTP clients to async",
+        "Handle async errors properly",
+        "Avoid blocking in async context",
+        "Add async tests",
+        "Document async patterns for team"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Convert database calls to async - not mentioned, likely still blocking",
+        "Convert HTTP clients to async - not mentioned, likely still blocking",
+        "Avoid blocking in async context - no mention of spawn_blocking for CPU-intensive work",
+        "Add async tests - no async tests mentioned",
+        "Document async patterns - no documentation for team async best practices"
+      ],
+      "explanation": "Implementation covers 2 of 7 requirements (file I/O converted to async, errors handled via Result types). Missing database and HTTP async conversion means async benefits limited - blocking calls will tie up async threads. No spawn_blocking means CPU-intensive work could block executor. No async tests means behavior unvalidated. No documentation means team might make mistakes. Partial async adoption creates confusion and performance issues rather than full benefits."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "async_patterns",
+      "notes": "Partial async adoption missing critical conversions"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Implemented GraphQL schema with User and Post types. Added query resolvers for user(id) and posts. Created mutations for createUser and createPost. Added GraphQL playground at /graphql. Used async-graphql crate. Files: schema.rs (200 lines), resolvers.rs (150 lines). Tests: 5 resolver tests.",
+      "requirements": [
+        "GraphQL schema design",
+        "Query resolvers",
+        "Mutation resolvers",
+        "Subscription support for real-time updates",
+        "DataLoader for N+1 query prevention",
+        "Input validation",
+        "Error handling with proper GraphQL errors",
+        "Schema documentation",
+        "Rate limiting per operation complexity"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Subscription support - no WebSocket subscriptions for real-time updates",
+        "DataLoader for N+1 prevention - critical performance optimization missing",
+        "Input validation - no validation mentioned for mutations",
+        "Schema documentation - no descriptions in schema for API users",
+        "Rate limiting per complexity - no protection against expensive queries"
+      ],
+      "explanation": "Implementation covers 4 of 9 requirements (schema, queries, mutations, error handling via Result types). Missing subscriptions limits real-time capabilities. Missing DataLoader will cause N+1 queries when fetching nested data (severe performance issue). Missing input validation is security risk. Missing schema docs makes API hard to use. Missing rate limiting allows query complexity attacks. For production GraphQL API, this is incomplete - missing performance, security, and usability features."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "graphql_api",
+      "notes": "Basic GraphQL missing critical production features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Set up WebSocket server using tokio-tungstenite. Implemented connection handling, JSON message parsing, broadcasting to all connected clients. Added heartbeat pings. Files: websocket.rs (250 lines). Tests: 3 connection tests.",
+      "requirements": [
+        "WebSocket server implementation",
+        "Connection handling",
+        "Message parsing",
+        "Broadcast messaging",
+        "Room/channel support for targeted messaging",
+        "Message ordering guarantees",
+        "Reconnection handling",
+        "Authentication",
+        "Connection limits",
+        "Message size limits"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Room/channel support - no way to target messages to specific groups",
+        "Message ordering guarantees - no sequence numbers or ordering protocol",
+        "Reconnection handling - clients can't resume sessions after disconnect",
+        "Authentication - no auth mechanism, anyone can connect",
+        "Connection limits - no max connections, vulnerable to resource exhaustion",
+        "Message size limits - no size validation, vulnerable to memory attacks"
+      ],
+      "explanation": "Implementation covers 4 of 10 requirements (server, connection handling, parsing, broadcast). Missing room/channel support limits application to global broadcast only. Missing ordering guarantees means messages could arrive out of order in unreliable networks. Missing reconnection means poor mobile experience. Missing auth is critical security gap. Missing connection and message limits makes server vulnerable to DoS. For production real-time features, this is incomplete - missing scalability, security, and reliability."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "websocket_realtime",
+      "notes": "WebSocket server missing production reliability and security"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created Dockerfile with multi-stage build. Base image: rust:1.75-alpine. Copies source, runs cargo build --release, copies binary to final alpine image. Exposes port 8080. Files: Dockerfile (25 lines).",
+      "requirements": [
+        "Multi-stage Dockerfile for size optimization",
+        "Security hardening (non-root user, minimal base image)",
+        "Health check endpoint configuration",
+        "Environment variable configuration",
+        "Docker Compose for local development",
+        "Production-ready logging configuration",
+        "Image size under 50MB",
+        "Build caching optimization"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Security hardening - no non-root user created, running as root (security risk)",
+        "Health check - no HEALTHCHECK directive in Dockerfile",
+        "Environment variable configuration - no ENV directives or .env file handling",
+        "Docker Compose - no docker-compose.yml for local development",
+        "Production logging config - no logging setup mentioned",
+        "Image size - not mentioned, likely >50MB without optimization"
+      ],
+      "explanation": "Implementation covers 2 of 8 requirements (multi-stage build, build caching via layer ordering). Running as root is critical security vulnerability. No health check means orchestrators can't detect service health. No env var config makes deployment inflexible. No Docker Compose hurts developer experience. No logging config means logs might not be captured properly. Image size likely exceeds target. For production container, this is incomplete and insecure."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "container_docker",
+      "notes": "Basic Dockerfile missing security and production features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created config.toml with database URL, server port, log level. Added config loading with serde. Environment variable override via PREFIX_ pattern. Config validation on startup. Files: config.rs (100 lines), config.toml (30 lines). Tests: 5 config loading tests.",
+      "requirements": [
+        "Configuration file format (TOML/YAML)",
+        "Environment variable overrides",
+        "Validation on startup",
+        "Secrets management (not in config files)",
+        "Per-environment configs (dev/staging/prod)",
+        "Hot reload for config changes",
+        "Configuration schema documentation"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Secrets management - config.toml likely contains database passwords (security violation)",
+        "Per-environment configs - no dev.toml, staging.toml, prod.toml or similar",
+        "Hot reload - config changes require restart",
+        "Schema documentation - no documentation of valid config options"
+      ],
+      "explanation": "Implementation covers 3 of 7 requirements (TOML format, env overrides, validation). Secrets in config files is critical security issue - credentials should use secret manager or env vars only. Missing per-environment configs forces manual config swapping or single config for all envs. No hot reload means downtime for config changes. No schema docs means trial-and-error for config options. For production config management, this is incomplete and insecure."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "config_management",
+      "notes": "Config system with critical secrets management gap"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Implemented Redux store with user and posts slices. Connected React components with useSelector and useDispatch. Added actions for login, logout, fetchPosts. Async thunks for API calls. Persistence to localStorage. DevTools integration. Files: store/, slices/, components/*.tsx. Full state management working in dev.",
+      "requirements": [
+        "Redux store setup",
+        "State slices",
+        "Action creators",
+        "Async actions (thunks/sagas)",
+        "React component integration",
+        "State persistence",
+        "Optimistic updates",
+        "Error handling for async actions",
+        "Loading states",
+        "DevTools integration"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 10 requirements. Redux store configured with slices for domain separation, actions for state updates, thunks for async API calls, React integration via hooks, localStorage persistence for session continuity, optimistic updates via immediate state changes, error handling in async actions, loading states for UX, DevTools for debugging. Complete state management solution for production React application. All patterns follow Redux best practices."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "state_management",
+      "notes": "Complete Redux implementation with all features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Implemented binary search tree (BST) with insert and search. Added balanced tree detection. In-order traversal. Files: bst.rs (150 lines). Tests: 10 tests for insert/search/traversal.",
+      "requirements": [
+        "BST implementation (insert, search, delete)",
+        "Self-balancing (AVL or Red-Black tree)",
+        "Iterator support",
+        "Generic type support",
+        "Comprehensive test coverage",
+        "Performance benchmarks",
+        "API documentation with examples"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Delete operation - critical BST operation not implemented",
+        "Self-balancing - tree will degrade to O(n) on sorted input without balancing",
+        "Iterator support - no IntoIterator implementation for idiomatic Rust iteration",
+        "Generic type support - likely hardcoded to specific type, not using generics",
+        "Performance benchmarks - no benchmarks validating O(log n) complexity",
+        "API documentation - no doc comments with examples"
+      ],
+      "explanation": "Implementation covers 1 of 7 requirements (partial BST operations). Missing delete is critical - BST without delete is incomplete data structure. Missing self-balancing is severe performance issue - BST degrades to linked list on sorted input. Missing iterator prevents idiomatic Rust usage. Missing generics limits reusability. Missing benchmarks means performance not validated. Missing docs makes API hard to use. For production data structure, this is incomplete and has performance risks."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "data_structures",
+      "notes": "BST missing critical operations and performance features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Set up Kafka consumer and producer. Implemented stream processor reading from input-topic, transforming messages (JSON parsing, field extraction, enrichment), writing to output-topic. Error messages to error-topic. Offset commits. Processing rate: 5K msg/sec. Files: stream_processor.rs (300 lines), kafka_config.rs. Tests: integration tests with embedded Kafka.",
+      "requirements": [
+        "Kafka consumer/producer setup",
+        "Stream transformation logic",
+        "Error handling and dead letter queue",
+        "Offset management",
+        "Exactly-once semantics",
+        "State management for stateful operations",
+        "Monitoring and metrics",
+        "Backpressure handling",
+        "Graceful shutdown"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Exactly-once semantics - using at-least-once (offset commits), messages could be duplicated",
+        "State management - no state store for stateful aggregations or joins",
+        "Monitoring and metrics - no Prometheus metrics for lag, throughput, errors",
+        "Backpressure handling - no flow control if output topic slower than input",
+        "Graceful shutdown - no mention of flush on shutdown, messages could be lost"
+      ],
+      "explanation": "Implementation covers 4 of 9 requirements (Kafka setup, transformations, error handling via DLQ, offset commits). Missing exactly-once means duplicates possible in network failures. Missing state management prevents aggregations and joins. Missing monitoring means no visibility into stream health. Missing backpressure could cause OOM if processing falls behind. Missing graceful shutdown risks message loss. For production stream processing, this is incomplete - missing reliability and observability features."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "stream_processing",
+      "notes": "Stream processor missing production reliability features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Set up RabbitMQ with 3 queues (tasks, emails, notifications). Implemented producer publishing to queues. Created consumer with acknowledgments. Added dead letter exchange for failures. Connection pooling. Files: rabbitmq.rs (200 lines), consumers/. Tests: 8 integration tests with test containers.",
+      "requirements": [
+        "Message queue setup (RabbitMQ/Kafka)",
+        "Producer implementation",
+        "Consumer with message acknowledgment",
+        "Dead letter queue for failures",
+        "Message persistence",
+        "Priority queues",
+        "Queue monitoring and alerting",
+        "Graceful shutdown with message drain"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Message persistence - no durable queues configured, messages lost on broker restart",
+        "Priority queues - all messages treated equally, no urgency handling",
+        "Queue monitoring - no metrics for queue depth, consumer lag, message age",
+        "Graceful shutdown - consumers don't drain in-flight messages on shutdown"
+      ],
+      "explanation": "Implementation covers 4 of 8 requirements (queue setup, producer, consumer with acks, dead letter exchange). Missing persistence means data loss on crashes. Missing priority queues prevents urgent message handling. Missing monitoring creates operational blind spot for queue backlog. Missing graceful shutdown risks message loss during deploys. For production message queue, this is incomplete - missing reliability and observability."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "message_queue",
+      "notes": "Message queue missing production reliability features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Deployed Istio service mesh. Configured virtual services for traffic routing. Added destination rules for load balancing. Mutual TLS between services. Telemetry collection to Prometheus. Configured retry policies. Files: istio/, k8s/service-mesh/. Tested blue-green deployment.",
+      "requirements": [
+        "Service mesh deployment (Istio/Linkerd)",
+        "Traffic management (routing, load balancing)",
+        "Security (mTLS, authorization policies)",
+        "Observability (metrics, tracing, logging)",
+        "Resilience (retries, timeouts, circuit breaking)",
+        "Rate limiting per service",
+        "Chaos testing",
+        "Service mesh upgrade strategy"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Authorization policies - only mTLS configured, no RBAC or service-to-service auth",
+        "Distributed tracing - no Jaeger/Zipkin integration for request tracing",
+        "Circuit breaking - retry policies but no circuit breaker configuration",
+        "Rate limiting per service - no rate limit policies defined",
+        "Chaos testing - no fault injection or chaos experiments",
+        "Upgrade strategy - no documented mesh upgrade procedure"
+      ],
+      "explanation": "Implementation covers 2 of 8 requirements (deployment, partial traffic management/security). Missing authorization leaves services vulnerable despite encryption. Missing tracing prevents debugging distributed requests. Missing circuit breakers risks cascading failures. Missing rate limiting allows service overload. Missing chaos testing means resilience unvalidated. For production service mesh, this is incomplete - missing security and resilience features."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "service_mesh",
+      "notes": "Service mesh deployment missing security and resilience"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Implemented feature flag system using LaunchDarkly SDK. Added flags for new-ui, beta-features, payment-v2. Flags readable from all services. User targeting by email. Flag evaluation in handlers. Files: feature_flags.rs, config/flags.yml. Tested flag toggles.",
+      "requirements": [
+        "Feature flag service integration",
+        "Flag definition and management",
+        "User targeting and segmentation",
+        "Percentage rollouts",
+        "Flag evaluation performance",
+        "Audit logging for flag changes",
+        "Local development flag overrides",
+        "Flag cleanup strategy (tech debt prevention)"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 8 requirements. LaunchDarkly SDK provides flag management, user targeting by email segments, percentage rollouts via built-in features, fast flag evaluation (<1ms via caching), audit logging of all flag changes, local overrides via config for development, and LaunchDarkly's flag archival prevents long-term tech debt. Complete feature flag solution ready for production gradual rollouts."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "feature_flags",
+      "notes": "Complete feature flag implementation using managed service"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Built A/B test framework. Test configuration in database. User assignment via hashing (userId % 100 < 50 → variant A). Variant tracking in analytics events. Implemented 2 tests: new-checkout-flow (50/50 split), pricing-page-v2 (80/20 split). Results dashboard. Files: ab_testing/, analytics/. ",
+      "requirements": [
+        "Test configuration system",
+        "Consistent user assignment algorithm",
+        "Variant tracking and analytics",
+        "Statistical significance calculation",
+        "Multi-variate testing support",
+        "Targeting rules (geography, user attributes)",
+        "Test duration and sample size planning",
+        "Results reporting and visualization"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Statistical significance calculation - no p-value or confidence interval computation",
+        "Multi-variate testing - only A/B supported, not A/B/C or factorial designs",
+        "Targeting rules - no geography or custom attribute filtering",
+        "Sample size planning - no pre-test power analysis or duration recommendations",
+        "Results reporting - dashboard exists but no statistical analysis or recommendations"
+      ],
+      "explanation": "Implementation covers 3 of 8 requirements (configuration, consistent assignment, variant tracking). Missing statistical significance means can't determine if results are real or random chance. Missing multi-variate limits experiment complexity. Missing targeting prevents region-specific or cohort-specific tests. Missing sample size planning risks underpowered experiments. For data-driven A/B testing, this is incomplete - missing statistical rigor."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "ab_testing",
+      "notes": "A/B testing framework missing statistical rigor"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Integrated AWS Secrets Manager. Secrets fetched on startup: database password, API keys, JWT signing key. Secrets cached in memory. Added rotation for database password (90 days). Automatic retry on fetch failures. Files: secrets.rs, config/. Tested secret rotation workflow.",
+      "requirements": [
+        "Secret storage backend integration (Vault/AWS Secrets Manager)",
+        "Secrets fetching with caching",
+        "Automatic secret rotation",
+        "Secret versioning",
+        "Least privilege access (IAM policies)",
+        "Encryption at rest and in transit",
+        "Audit logging for secret access",
+        "Emergency secret revocation"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Secret versioning - no version pinning, always uses latest (breaks on rotation)",
+        "Least privilege IAM - likely using overly broad permissions",
+        "Audit logging - no CloudTrail analysis or access monitoring",
+        "Emergency revocation - no documented procedure for compromised secrets"
+      ],
+      "explanation": "Implementation covers 4 of 8 requirements (storage backend, fetching with cache, rotation, encryption via AWS). Missing versioning causes downtime during rotation when old/new versions coexist. Missing IAM audit increases blast radius of compromise. Missing access logging prevents detecting breaches. Missing revocation procedure delays incident response. For production secrets management, this is incomplete - missing security operational requirements."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "secrets_management",
+      "notes": "Secrets management missing security operational features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Built CLI using clap. Commands: init, list, create, delete, status. Colored output via colored crate. Interactive prompts for dangerous operations. Config file ~/.myapp/config.toml. Completions for bash/zsh generated. Files: cli/, commands/. Help text for all commands. 25 tests.",
+      "requirements": [
+        "Command structure with subcommands",
+        "Argument parsing and validation",
+        "Interactive prompts for destructive actions",
+        "Progress indicators for long operations",
+        "Configuration file support",
+        "Shell completions",
+        "Comprehensive help text",
+        "Error messages with actionable suggestions",
+        "JSON output mode for scripting"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Progress indicators - no spinners or progress bars for long operations",
+        "Error messages with suggestions - errors shown but no 'did you mean' or fix hints",
+        "JSON output mode - only human-readable output, no machine-parseable format"
+      ],
+      "explanation": "Implementation covers 6 of 9 requirements (commands, arg parsing, prompts, config, completions, help). Missing progress indicators makes long operations feel unresponsive. Missing actionable error messages forces users to guess solutions. Missing JSON output prevents CLI from being used in scripts or automation. For production CLI tool, this is incomplete - missing UX polish and automation support."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "cli_tools",
+      "notes": "CLI tool missing UX polish and automation features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Webhook sender implemented. POST requests to registered URLs on events (user.created, order.completed). Retry logic (3 attempts, exponential backoff). Signature verification using HMAC-SHA256. Webhook registration API. Event log. Files: webhooks/, events/. Tests: 12 tests for delivery and retries.",
+      "requirements": [
+        "Webhook registration and management",
+        "Event triggering and delivery",
+        "Retry logic with exponential backoff",
+        "Signature verification for security",
+        "Delivery status tracking",
+        "Payload schema versioning",
+        "Rate limiting for webhook endpoints",
+        "Dead letter queue for failed webhooks",
+        "Webhook testing/debugging tools"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Delivery status tracking - no dashboard or API to view delivery history and failures",
+        "Payload schema versioning - no version field in payload, breaking changes unmanaged",
+        "Rate limiting - could overwhelm recipient endpoints with event bursts",
+        "Dead letter queue - failed webhooks after retries silently dropped",
+        "Testing tools - no webhook simulator or replay capability for debugging"
+      ],
+      "explanation": "Implementation covers 4 of 9 requirements (registration, delivery, retries, signatures). Missing delivery tracking prevents debugging integration issues. Missing schema versioning breaks clients on payload changes. Missing rate limiting could DDoS recipients. Missing DLQ loses critical events. Missing testing tools makes integration difficult. For production webhooks, this is incomplete - missing reliability and observability."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "webhooks",
+      "notes": "Webhook system missing reliability and debugging features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Integrated Google OAuth 2.0. Added /login/google redirecting to OAuth consent. Callback endpoint exchanges code for tokens. User profile fetched from Google API. JWT issued on success. State parameter for CSRF protection. Files: oauth.rs, handlers/auth/. Tested OAuth flow end-to-end.",
+      "requirements": [
+        "OAuth provider integration (Google/GitHub/etc)",
+        "Authorization flow with PKCE",
+        "State and nonce for CSRF protection",
+        "Token exchange and validation",
+        "User profile fetching",
+        "Account linking for existing users",
+        "Multiple provider support",
+        "Token refresh handling",
+        "Logout and session revocation"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "PKCE (Proof Key for Code Exchange) - vulnerable to authorization code interception",
+        "Account linking - users can't link OAuth to existing email/password account",
+        "Multiple provider support - only Google, no GitHub/Microsoft/etc",
+        "Token refresh - access tokens expire without refresh mechanism",
+        "Logout and revocation - logout doesn't revoke OAuth tokens"
+      ],
+      "explanation": "Implementation covers 4 of 9 requirements (provider integration, auth flow, state/nonce, token exchange, profile fetching). Missing PKCE is security vulnerability for mobile/SPA clients. Missing account linking fragments user identity across providers. Single provider limits user choice. Missing refresh means re-authentication required frequently. Missing revocation leaves zombie sessions active. For production SSO, this is incomplete - missing security and UX features."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "sso_oauth",
+      "notes": "OAuth integration missing security (PKCE) and multi-provider support"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Data migration script from legacy MySQL to new PostgreSQL schema. Migrates users, orders, products. Row-by-row INSERT for each table. Progress logging every 10K rows. Error handling with transaction rollback. Script: migrations/legacy_to_postgres.py. Tested with 100K rows subset. Total dataset: 50M rows.",
+      "requirements": [
+        "Schema mapping between source and target",
+        "Bulk data transfer with batching",
+        "Data transformation and validation",
+        "Incremental migration support",
+        "Zero-downtime migration strategy",
+        "Data consistency verification",
+        "Rollback procedure",
+        "Performance optimization for large datasets"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Bulk transfer with batching - row-by-row INSERT extremely slow for 50M rows (est. weeks)",
+        "Data transformation - basic mapping but no validation or enrichment logic",
+        "Incremental migration - no checkpoint/resume, must restart from beginning on failure",
+        "Zero-downtime strategy - no dual-write or read replica approach",
+        "Consistency verification - no post-migration data validation or diff checking",
+        "Performance optimization - no COPY command, indexes, or parallel processing"
+      ],
+      "explanation": "Implementation covers 2 of 8 requirements (schema mapping, rollback via transactions). Row-by-row inserts will take weeks for 50M rows (should use COPY or bulk inserts). No incremental support means 1-week migration must succeed without failures. No zero-downtime means extended outage. No verification risks data corruption going unnoticed. For production data migration, this is incomplete and infeasible - missing performance and reliability."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "data_migration",
+      "notes": "Data migration script infeasible for production scale"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Added CPU profiling using pprof. Flame graph generation for 60s samples. Memory profiling with heap snapshots. Profiling enabled via --profile flag. Output to /tmp/profile.pb.gz. Integrated with API via /debug/pprof endpoints. Files: profiling.rs, middleware/profiler.rs. Documentation on analyzing profiles.",
+      "requirements": [
+        "CPU profiling",
+        "Memory profiling",
+        "On-demand profiling activation",
+        "Continuous profiling in production",
+        "Profile visualization (flame graphs)",
+        "Baseline performance metrics",
+        "Profiling overhead measurement",
+        "Integration with APM tools"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 8 requirements. CPU and memory profiling via pprof, on-demand activation via flag and /debug/pprof endpoints (common for continuous profiling), flame graph visualization, baseline metrics via repeated profiles, pprof's <5% overhead documented, integration with APM tools via standard pprof format. Complete profiling solution for production performance investigation."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "performance_profiling",
+      "notes": "Complete performance profiling setup with standard tooling"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Set up Nginx load balancer with round-robin algorithm. Configured upstream servers (3 app instances). Health checks every 30s. SSL termination at load balancer. Request logging. Files: nginx.conf, upstreams.conf. Tested with wrk showing even distribution.",
+      "requirements": [
+        "Load balancer setup (Nginx/HAProxy)",
+        "Multiple backend servers configuration",
+        "Health checking",
+        "Load balancing algorithm selection",
+        "SSL/TLS termination",
+        "Session persistence (sticky sessions)",
+        "Connection limits and timeouts",
+        "Monitoring and metrics"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 8 requirements. Nginx load balancer configured with round-robin (algorithm selected), three upstream servers, health checks every 30s, SSL termination for centralized certificate management, request logging for monitoring, session persistence via nginx sticky module (implicit in round-robin for HTTP/1.1 keep-alive), connection limits via worker_connections, timeouts via proxy_timeout directives. Complete production load balancing setup."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "load_balancing",
+      "notes": "Complete load balancer configuration with all production features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Configured DNS A records for api.example.com → 1.2.3.4. Set TTL to 300s. Added CNAME for www → api. Files: Route53 console screenshots. Tested with dig showing correct resolution.",
+      "requirements": [
+        "DNS A records for service endpoints",
+        "CNAME records for aliases",
+        "Appropriate TTL values",
+        "Health check integration for failover",
+        "Geographic routing for global services",
+        "DNSSEC for security",
+        "CAA records for certificate authority authorization",
+        "SPF/DKIM/DMARC for email (if applicable)"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Health check integration - DNS doesn't update on backend failures, single point of failure",
+        "Geographic routing - all traffic goes to single region, poor performance for distant users",
+        "DNSSEC - DNS responses not cryptographically signed, vulnerable to spoofing",
+        "CAA records - no restrictions on certificate issuance, security risk"
+      ],
+      "explanation": "Implementation covers 3 of 8 requirements (A records, CNAME, TTL). Missing health checks means DNS serves dead backends. Missing geo-routing forces all users through single region (high latency). Missing DNSSEC allows DNS spoofing attacks. Missing CAA allows any CA to issue certificates. Email requirements (SPF/DKIM/DMARC) not applicable for API service. For production DNS, this is incomplete - missing reliability and security."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "dns_configuration",
+      "notes": "Basic DNS missing reliability and security features"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Obtained Let's Encrypt SSL certificate using certbot. Configured Nginx with certificate and private key. HTTPS enabled on port 443. HTTP redirects to HTTPS. Certificate auto-renewal via cron. Files: /etc/nginx/ssl/, /etc/letsencrypt/. Tested with SSL Labs showing A rating.",
+      "requirements": [
+        "SSL/TLS certificate provisioning",
+        "Web server SSL configuration",
+        "HTTP to HTTPS redirect",
+        "Certificate auto-renewal",
+        "Strong cipher suites and protocols (TLS 1.2+)",
+        "HSTS headers",
+        "Certificate monitoring and alerting",
+        "Wildcard certificate or multi-domain support"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 8 requirements. Let's Encrypt certificate provisioned via certbot, Nginx configured with certificate/key, HTTP→HTTPS redirect for security, certbot auto-renewal via cron, SSL Labs A rating confirms strong ciphers (TLS 1.2+, modern cipher suites), HSTS headers enforced, certbot monitors expiration, Let's Encrypt supports wildcard and multi-domain certificates. Complete SSL/TLS production setup."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "ssl_tls_setup",
+      "notes": "Complete SSL/TLS setup with modern best practices"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Deployed Traefik reverse proxy. Configured routing rules for 5 services. Automatic service discovery via Docker labels. Let's Encrypt integration for certificates. Access logs. Dashboard enabled. Files: traefik.yml, docker-compose.yml. Tested routing to all services.",
+      "requirements": [
+        "Reverse proxy deployment",
+        "Service routing configuration",
+        "Automatic service discovery",
+        "SSL/TLS termination",
+        "Request/response header manipulation",
+        "Rate limiting and throttling",
+        "Access logging",
+        "Load balancing across service instances"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 8 requirements. Traefik reverse proxy deployed, routing rules for 5 services, Docker label-based service discovery (automatic), Let's Encrypt SSL termination, header manipulation via Traefik middleware, rate limiting via Traefik rate limit middleware, access logs enabled, load balancing across instances via Traefik's built-in LB. Complete reverse proxy solution for microservices."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "reverse_proxy",
+      "notes": "Complete reverse proxy with service discovery and automation"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Integrated Cloudflare CDN. Updated DNS to point to Cloudflare nameservers. Configured caching rules for static assets (images, CSS, JS). Browser cache TTL set to 1 hour. Cloudflare cache TTL 4 hours. Enabled minification. Purge cache API integrated. Files: cloudflare-config/, scripts/purge_cache.sh.",
+      "requirements": [
+        "CDN provider integration",
+        "DNS configuration for CDN",
+        "Cache rules for different content types",
+        "Cache invalidation strategy",
+        "Origin shield for backend protection",
+        "Geographic distribution verification",
+        "Performance monitoring",
+        "DDoS protection configuration"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 8 requirements. Cloudflare CDN integrated, DNS configured with Cloudflare nameservers, cache rules for static assets with appropriate TTLs, purge cache API for invalidation, Cloudflare provides origin shield automatically, global edge network ensures geographic distribution, Cloudflare Analytics provides performance monitoring, DDoS protection enabled by default. Complete CDN integration for production."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "cdn_integration",
+      "notes": "Complete CDN integration with managed service"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created PostgreSQL indexes on users(email), posts(user_id), posts(created_at). B-tree indexes. Analyzed query performance showing 10x speedup on filtered queries. Files: migrations/add_indexes.sql. Tested with EXPLAIN showing index usage.",
+      "requirements": [
+        "Identify slow queries needing indexes",
+        "Create appropriate index types (B-tree, Hash, GiST, GIN)",
+        "Composite indexes for multi-column queries",
+        "Partial indexes for filtered queries",
+        "Index maintenance strategy",
+        "Monitor index usage and bloat",
+        "Balance read performance vs write overhead",
+        "Index-only scans optimization"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Composite indexes - queries filtering on multiple columns not optimized",
+        "Partial indexes - filtered queries (e.g., WHERE status='active') don't use partial indexes",
+        "Index maintenance - no pg_repack or REINDEX strategy for index bloat",
+        "Monitor usage/bloat - no pg_stat_user_indexes monitoring or alerting",
+        "Index-only scans - indexes don't include all columns for covering indexes"
+      ],
+      "explanation": "Implementation covers 3 of 8 requirements (slow query identification, B-tree indexes created, read/write balance via selective indexing). Missing composite indexes for common multi-column queries. Missing partial indexes wastes space on rarely-queried rows. Missing maintenance allows index bloat over time. Missing monitoring means unused indexes waste resources. Missing covering indexes forces table lookups. For production database performance, this is incomplete - indexes exist but not optimized."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "database_indexing",
+      "notes": "Basic indexes missing advanced optimization techniques"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Rewrote 3 N+1 queries to use JOINs. Added database indexes on foreign keys. Query execution time reduced from 500ms to 50ms. Implemented connection pooling (max 20 connections). Added EXPLAIN ANALYZE to CI pipeline. Files: models/, optimized_queries.sql. Benchmarks show 10x improvement.",
+      "requirements": [
+        "Identify slow queries via profiling",
+        "Optimize N+1 queries with eager loading/JOINs",
+        "Add missing indexes",
+        "Rewrite inefficient queries",
+        "Use query result caching where appropriate",
+        "Implement database connection pooling",
+        "Monitor query performance in production",
+        "Set up slow query logging"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 8 requirements. Slow queries identified (implied by rewrite), N+1 queries optimized with JOINs, indexes added on foreign keys, queries rewritten (3 optimized), connection pooling implemented (max 20), EXPLAIN ANALYZE in CI provides ongoing monitoring, slow query logging via PostgreSQL slow_query_log (standard practice), caching not mentioned but connection pooling provides some benefit. Complete query optimization achieving 10x performance improvement."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "query_optimization",
+      "notes": "Complete query optimization with measurable improvements"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Created authentication middleware checking JWT tokens. Middleware extracts user from token, adds to request context. Applied to protected routes. Error handling for invalid/expired tokens. Files: middleware/auth.rs. Tests: 8 tests for various token states.",
+      "requirements": [
+        "Middleware implementation framework integration",
+        "Request/response interception",
+        "Context passing to handlers",
+        "Error handling and propagation",
+        "Middleware ordering/composition",
+        "Performance considerations (async)",
+        "Logging and observability",
+        "Reusability and configuration"
+      ]
+    },
+    "outputs": {
+      "is_complete": true,
+      "missing_requirements": [],
+      "explanation": "Implementation comprehensively addresses all 8 requirements. Middleware integrated with web framework, requests intercepted for JWT validation, user added to context for handlers, error handling for invalid tokens, middleware applied to specific routes (ordering), async middleware for performance, logging implied by error handling, reusable across routes with configuration. Complete middleware implementation following standard patterns."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "middleware_development",
+      "notes": "Complete middleware implementation with proper patterns"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Built plugin system using dynamic library loading. Plugin trait defining init(), execute(), shutdown(). Sample hello-world plugin. Plugin registry loading from plugins/ directory. Files: plugin_api.rs, plugin_loader.rs, plugins/hello_world/. Tested loading and executing plugin.",
+      "requirements": [
+        "Plugin API definition (trait/interface)",
+        "Plugin discovery and loading mechanism",
+        "Plugin lifecycle management (init, run, shutdown)",
+        "Inter-plugin communication",
+        "Plugin configuration",
+        "Version compatibility checking",
+        "Sandboxing for security",
+        "Plugin marketplace/registry"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Inter-plugin communication - no message bus or shared state mechanism",
+        "Plugin configuration - no per-plugin config files or API",
+        "Version compatibility - no ABI version checking, plugins could crash on mismatch",
+        "Sandboxing - plugins run in same process with full access (security risk)",
+        "Plugin marketplace - no discovery or installation mechanism for third-party plugins"
+      ],
+      "explanation": "Implementation covers 3 of 8 requirements (API trait, discovery/loading from directory, lifecycle via init/execute/shutdown). Missing inter-plugin communication prevents plugin cooperation. Missing configuration limits flexibility. Missing version checking risks crashes from ABI incompatibility. Missing sandboxing is critical security issue - malicious plugins have full process access. Missing marketplace limits adoption. For production plugin system, this is incomplete and insecure."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "plugin_architecture",
+      "notes": "Basic plugin system missing security and configuration"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Microservices communicate via HTTP REST APIs. Service A calls Service B via reqwest HTTP client. JSON payloads. Service discovery via hardcoded URLs in config. Retry logic with exponential backoff. Circuit breaker for failures. Timeout 5s. Files: services/, http_client.rs. Integration tests between services.",
+      "requirements": [
+        "Inter-service communication protocol (REST/gRPC/messaging)",
+        "Service discovery mechanism",
+        "Load balancing across instances",
+        "Fault tolerance (retries, circuit breakers, timeouts)",
+        "Request tracing for debugging",
+        "API versioning for compatibility",
+        "Authentication between services",
+        "Performance optimization (connection pooling, caching)"
+      ]
+    },
+    "outputs": {
+      "is_complete": false,
+      "missing_requirements": [
+        "Dynamic service discovery - hardcoded URLs don't support auto-scaling or failover",
+        "Load balancing - no client-side load balancing across multiple instances",
+        "Request tracing - no correlation IDs or distributed tracing (OpenTelemetry/Jaeger)",
+        "API versioning - no version negotiation, breaking changes will fail",
+        "Service authentication - no mutual TLS or service tokens, security risk",
+        "Connection pooling - new connection per request, performance overhead"
+      ],
+      "explanation": "Implementation covers 2 of 8 requirements (HTTP REST protocol, fault tolerance via retries/circuit breaker/timeout). Hardcoded service discovery breaks in dynamic environments. Missing load balancing wastes instances. Missing tracing makes debugging distributed requests impossible. Missing versioning breaks on API changes. Missing auth allows any service to call any other (security issue). Missing connection pooling increases latency. For production microservices, this is incomplete - communication works but lacks reliability and security."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "microservices_communication",
+      "notes": "Basic microservice communication missing production features"
+    }
+  }
+]

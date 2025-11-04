@@ -1,0 +1,15 @@
+[Track] Brief description (50 chars or less)
+
+Detailed explanation (wrap at 72 characters):
+- What changed and why
+- Any breaking changes or notable impacts
+- Testing performed
+
+Track: DSPy|SpecFlow|Integration|Infra
+Tests: passing|added|updated|n/a
+Phase: X.Y (e.g., 4.1 for DSPy Phase 4 Task 1)
+Beads: bd-XXX (optional, if linked to Beads issue)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

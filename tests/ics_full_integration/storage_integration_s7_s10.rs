@@ -99,6 +99,8 @@ async fn s8_memory_link_creation() {
         strength: 0.85,
         reason: "Distributed architecture implemented via event-driven pattern".to_string(),
         created_at: chrono::Utc::now(),
+        last_traversed_at: None,
+        user_created: false,
     };
 
     memory_a.links.push(link.clone());

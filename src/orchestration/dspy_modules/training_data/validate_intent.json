@@ -1,0 +1,554 @@
+[
+  {
+    "inputs": {
+      "user_intent": "Add user authentication",
+      "work_item": "Implement JWT-based authentication system",
+      "implementation": "Added login endpoint POST /api/auth/login accepting email/password. Implemented JWT token generation with RS256 signing. Created middleware for token validation on protected routes. Added refresh token support with 7-day expiration. Files: auth.rs (250 lines), middleware.rs (100 lines), user.rs (updates). Tests: test_auth.rs (15 tests covering happy path, invalid credentials, token expiration).",
+      "requirements": [
+        "Login endpoint",
+        "JWT token generation",
+        "Token validation",
+        "Password hashing"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation fully addresses user intent to add authentication. All core requirements met: login endpoint accepts credentials, JWT tokens generated for authenticated users, middleware validates tokens on protected routes. Additionally includes refresh token support which exceeds base requirements but aligns with authentication best practices. Password hashing implied by security-conscious implementation.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "authentication",
+      "notes": "Clear case where implementation exceeds requirements"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Improve API performance",
+      "work_item": "Optimize database queries",
+      "implementation": "Added indexes on user.email and posts.created_at columns. Reduced N+1 queries in /api/posts endpoint by implementing eager loading. Changed query result limit from unlimited to 100. Files: migrations/001_add_indexes.sql, handlers/posts.rs (query optimization). No performance testing conducted.",
+      "requirements": [
+        "Identify slow queries",
+        "Add database indexes",
+        "Reduce query count",
+        "Measure improvement"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation addresses database optimization (indexes, N+1 reduction) but does not satisfy the broader intent of 'improve API performance'. Missing critical aspect: no performance measurement before/after to confirm improvement actually occurred. User intent implies measurable performance gains, but implementation provides potential improvements without validation.",
+      "missing_aspects": [
+        "Performance benchmarking (before/after metrics)",
+        "Latency targets or goals",
+        "Load testing results",
+        "Verification that changes actually improved performance"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "performance",
+      "notes": "Tests ability to detect missing validation of improvement"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Make the upload feature work with large files",
+      "work_item": "Fix file upload size limitations",
+      "implementation": "Changed MAX_FILE_SIZE from 10MB to 100MB in config.rs. Files: config.rs (1 line change). No testing with actual large files performed.",
+      "requirements": [
+        "Support larger file uploads",
+        "Test with large files"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation partially addresses intent by increasing file size limit, but this is insufficient. Simply increasing a constant doesn't ensure large files actually work - there may be other bottlenecks (memory usage, timeout limits, network buffering). Missing validation that large files can now be uploaded successfully. No evidence of root cause analysis or comprehensive testing.",
+      "missing_aspects": [
+        "Root cause analysis of why large files failed previously",
+        "Testing with actual large files (50MB, 100MB)",
+        "Handling of memory/timeout issues for large uploads",
+        "Chunked upload implementation if needed",
+        "Progress tracking for long uploads"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "bug_fix",
+      "notes": "Tests detection of superficial fix that doesn't address root problem"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add logging to help debug production issues",
+      "work_item": "Implement structured logging",
+      "implementation": "Added env_logger dependency. Configured logging with INFO level. Added log statements to all API handlers showing request method and path. Added error logging with context. Files: Cargo.toml (env_logger=0.11), main.rs (logger init), handlers/* (log statements throughout). Example log output shows structured fields (timestamp, level, target, message, request_id).",
+      "requirements": [
+        "Configure logging framework",
+        "Log API requests",
+        "Log errors with context",
+        "Structured logging output"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation satisfies user intent to add logging for debugging production issues. All requirements met: logging framework configured, API requests logged with relevant fields, errors logged with context for debugging. Structured logging with fields like request_id aids production debugging. Intent explicitly mentions 'debug production issues' and implementation provides necessary observability.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "infrastructure",
+      "notes": "Straightforward case where implementation matches intent well"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add a feature to let users export their data",
+      "work_item": "Implement data export functionality",
+      "implementation": "Added GET /api/users/:id/export endpoint that returns user data as JSON. Includes user profile, posts, comments. Files: handlers/export.rs (new, 80 lines). Tests: test_export.rs (5 tests for JSON format, data completeness). No CSV or other formats supported. No pagination for large datasets. No privacy/security considerations for sensitive data in exports.",
+      "requirements": [
+        "Export endpoint",
+        "Include user data (profile, content)",
+        "Support common export formats",
+        "Handle large datasets"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation provides basic export capability but misses implicit expectations for data export feature. Only supports JSON format (most users expect CSV, PDF, or other common formats). No handling of large datasets (missing pagination or streaming). Missing privacy considerations (sensitive data like passwords, IP addresses should be excluded from exports). Intent 'let users export their data' implies user-friendly, comprehensive solution.",
+      "missing_aspects": [
+        "Support for user-friendly formats (CSV, PDF)",
+        "Pagination or streaming for large datasets",
+        "Privacy filtering (exclude passwords, tokens, IP addresses)",
+        "Email delivery for large exports",
+        "Export format selection UI"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "feature",
+      "notes": "Tests detection of implicit expectations not explicitly stated"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add comprehensive testing for the authentication module",
+      "work_item": "Implement test suite for auth system",
+      "implementation": "Created test_auth.rs with 25 tests covering: login happy path (email/password validation), invalid credentials (wrong password, non-existent user), token generation (RS256 signing, expiration), token validation (valid/invalid/expired tokens), middleware integration (protected routes), edge cases (empty fields, SQL injection attempts, rate limiting). Added integration tests for full auth flow. Added property-based tests for token generation/validation. Files: test_auth.rs (500 lines), fixtures/test_data.rs (test user data). Coverage: 95% of auth.rs code paths.",
+      "requirements": [
+        "Test login endpoint",
+        "Test token generation",
+        "Test token validation",
+        "Test edge cases",
+        "Achieve high code coverage"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation comprehensively addresses intent to add testing for authentication. All major components tested: login, token generation/validation, middleware. Goes beyond basic requirements with property-based tests, integration tests, and edge case coverage (SQL injection, rate limiting). 95% code coverage exceeds typical standards. Clear evidence of thorough testing approach.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "testing",
+      "notes": "Comprehensive testing implementation that exceeds expectations"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add input validation to prevent security vulnerabilities",
+      "work_item": "Implement input validation for user-submitted data",
+      "implementation": "Added validation for email format using regex. Added length limits (email max 255 chars, password 8-100 chars). Added sanitization to remove HTML tags from text fields. Files: validation.rs (100 lines). Tests: test_validation.rs (10 tests for valid/invalid formats). No validation for SQL injection, no validation for special characters in non-email fields, no XSS prevention beyond basic HTML tag removal, no validation for file uploads.",
+      "requirements": [
+        "Validate email format",
+        "Validate password strength",
+        "Prevent injection attacks",
+        "Sanitize user input"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation provides basic validation but fails to address the core security intent. Email/password validation is superficial (no password strength requirements like special characters, numbers). Missing critical security validations: SQL injection prevention (parameterized queries not mentioned), comprehensive XSS prevention (only basic HTML removal), file upload validation. Intent 'prevent security vulnerabilities' requires defense-in-depth, but implementation only scratches surface.",
+      "missing_aspects": [
+        "SQL injection prevention (parameterized queries, ORM usage)",
+        "Password strength requirements (complexity rules)",
+        "Comprehensive XSS prevention (Content-Security-Policy, output encoding)",
+        "File upload validation (type checking, size limits, malware scanning)",
+        "CSRF protection",
+        "Security testing (penetration testing, fuzzing)"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "security",
+      "notes": "Tests detection of superficial security implementation"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Create a REST API for managing user profiles",
+      "work_item": "Implement user profile API endpoints",
+      "implementation": "Added 5 RESTful endpoints: GET /api/users/:id (fetch profile), PUT /api/users/:id (update profile), DELETE /api/users/:id (delete account), GET /api/users (list all users with pagination), POST /api/users/:id/avatar (upload avatar). All endpoints return JSON with proper status codes (200, 201, 404, 400). Added OpenAPI/Swagger documentation. Request/response validation using serde. Authentication required for all endpoints except GET /api/users/:id (public profiles). Files: handlers/users.rs (300 lines), models/user.rs (updates), docs/api.yaml (OpenAPI spec). Tests: test_user_api.rs (20 tests covering CRUD operations, validation, auth).",
+      "requirements": [
+        "GET endpoint for profile retrieval",
+        "PUT endpoint for profile updates",
+        "DELETE endpoint for account deletion",
+        "Proper HTTP status codes",
+        "JSON request/response format",
+        "API documentation"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation fully satisfies intent to create REST API for user profiles. All CRUD operations implemented with proper RESTful design. Exceeds requirements with pagination for list endpoint, avatar upload, OpenAPI documentation. Proper status codes, JSON format, validation, and authentication all present. Tests cover major scenarios. This is a complete, production-ready API implementation.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "api",
+      "notes": "Well-designed API implementation that meets all expectations"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Migrate all database queries to use prepared statements",
+      "work_item": "Refactor queries for SQL injection prevention",
+      "implementation": "Converted 15 queries in user.rs to use prepared statements. Converted 8 queries in posts.rs to prepared statements. Files: user.rs (prepared statements), posts.rs (prepared statements). Remaining files: comments.rs (10 queries still using string concatenation), admin.rs (5 queries using string concatenation), analytics.rs (3 queries using raw SQL). Total: 23/41 queries migrated (56%).",
+      "requirements": [
+        "Convert all queries to prepared statements",
+        "Eliminate SQL injection vulnerabilities"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation is incomplete and leaves system vulnerable. User intent explicitly states 'all database queries' but only 56% migrated. Remaining queries in comments.rs, admin.rs, and analytics.rs still vulnerable to SQL injection. Partial migration creates inconsistent security posture and false sense of safety. Intent requires 100% coverage to eliminate vulnerabilities, but implementation stops halfway.",
+      "missing_aspects": [
+        "Migrate remaining 18 queries in comments.rs, admin.rs, analytics.rs",
+        "Code audit to identify any missed queries",
+        "Automated testing for SQL injection vulnerabilities",
+        "Documentation of migration completion status"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "security",
+      "notes": "Tests detection of incomplete migration leaving vulnerabilities"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add error recovery so the application doesn't crash on failures",
+      "work_item": "Implement graceful error handling",
+      "implementation": "Wrapped all database operations in Result types with proper error propagation. Added error logging for all failures. Implemented retry logic for transient database errors (connection timeouts, deadlocks) with exponential backoff. Added fallback responses for non-critical failures (e.g., return cached data if database unavailable). Implemented circuit breaker pattern for external API calls to prevent cascading failures. Added health check endpoint reporting system status. Files: error.rs (error types), middleware/recovery.rs (panic recovery), retry.rs (retry logic), circuit_breaker.rs (external API protection). Tests: test_recovery.rs (25 tests for various failure scenarios including database errors, API timeouts, panics).",
+      "requirements": [
+        "Handle database failures gracefully",
+        "Prevent application crashes",
+        "Add retry logic for transient errors",
+        "Implement fallback strategies"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation comprehensively addresses intent to prevent crashes and add error recovery. All requirements met: Result types for error propagation, retry logic with exponential backoff, fallback strategies (cached data), circuit breaker for cascade prevention. Goes beyond basic error handling with health checks and extensive testing. System will degrade gracefully rather than crash on failures.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "reliability",
+      "notes": "Comprehensive error recovery implementation with multiple strategies"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add caching to reduce database load and improve response times",
+      "work_item": "Implement Redis caching layer",
+      "implementation": "Added Redis dependency and connection pool. Implemented cache-aside pattern for frequently accessed endpoints (GET /api/users/:id, GET /api/posts/:id). Cache TTL set to 5 minutes. Added cache invalidation on updates/deletes. Implemented cache warming for top 100 users on startup. Added cache hit/miss metrics to monitoring. Files: cache.rs (200 lines), redis_config.rs (50 lines), handlers updates (cache integration). Tests: test_cache.rs (15 tests for hit/miss scenarios, invalidation, TTL expiration). Benchmark results: p99 latency reduced from 250ms to 15ms for cached endpoints (94% improvement), database query load reduced by 75% during peak hours.",
+      "requirements": [
+        "Choose caching technology",
+        "Implement caching for frequently accessed data",
+        "Add cache invalidation strategy",
+        "Measure performance improvement"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation fully addresses intent to reduce database load and improve response times. Redis caching implemented with proper cache-aside pattern, invalidation on updates, and TTL management. Intent explicitly mentions reducing database load (achieved: 75% reduction) and improving response times (achieved: 94% latency improvement). Cache warming for hot data shows thoughtful implementation. Metrics prove cache is working as intended.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "performance",
+      "notes": "Clear success with measurable performance improvements"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Document the API so external developers can integrate with our system",
+      "work_item": "Create API documentation",
+      "implementation": "Created README.md with project overview and getting started guide. Added inline code comments to main API handler functions. Created examples/ directory with 3 sample API calls using curl. Files: README.md (50 lines), examples/curl_samples.sh (20 lines), inline comments in handlers/*.rs. No comprehensive API reference, no authentication documentation, no error code reference, no interactive documentation (Swagger/Postman).",
+      "requirements": [
+        "Document all API endpoints",
+        "Include authentication requirements",
+        "Provide usage examples",
+        "Explain error responses",
+        "Make documentation accessible to external developers"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation provides minimal documentation but fails to meet needs of external developers. Missing comprehensive API reference (endpoints, parameters, response schemas). No authentication documentation (how to obtain/use tokens). No error code reference (what do 400/403/404 mean in context). Curl examples are helpful but limited. Intent 'so external developers can integrate' requires complete, self-service documentation - current state would require contacting internal team for details.",
+      "missing_aspects": [
+        "Comprehensive API reference (all endpoints, methods, parameters)",
+        "Authentication flow documentation (obtaining tokens, using API keys)",
+        "Complete error code reference with meanings and solutions",
+        "Interactive documentation (Swagger UI, Postman collection)",
+        "Rate limiting and usage guidelines",
+        "Versioning and deprecation policy",
+        "SDKs or client libraries in common languages"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "documentation",
+      "notes": "Tests detection of insufficient documentation for external users"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Optimize the API for mobile clients with limited bandwidth",
+      "work_item": "Implement mobile-optimized API responses",
+      "implementation": "Added response compression using gzip (enabled for all endpoints >1KB). Implemented sparse fieldsets allowing clients to request specific fields via ?fields=id,name,email query parameter. Added pagination with default page size of 20 items. Created mobile-specific endpoints with reduced payloads (e.g., /api/mobile/posts returns only essential fields). Added ETag support for client-side caching. Reduced average payload size from 15KB to 3KB for typical list responses. Added integration tests on simulated 3G network (150ms latency, 750Kbps bandwidth) showing 60% reduction in total transfer time. Files: middleware/compression.rs, serialization/sparse_fields.rs, handlers/mobile/*.rs. Tests: test_mobile_api.rs (network simulation tests).",
+      "requirements": [
+        "Reduce API payload sizes",
+        "Add response compression",
+        "Support field filtering",
+        "Test on slow networks"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation comprehensively addresses intent to optimize for mobile/limited bandwidth. All requirements met: payload sizes reduced 80% (15KB→3KB), gzip compression enabled, sparse fieldsets for client-driven optimization, pagination to prevent large responses. Mobile-specific endpoints show thoughtful design. Network simulation testing on 3G demonstrates real-world validation. 60% transfer time improvement directly supports limited bandwidth use case.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "mobile_optimization",
+      "notes": "Thorough mobile optimization with testing on simulated slow networks"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Set up monitoring and alerting so we know when production has issues",
+      "work_item": "Configure Prometheus monitoring",
+      "implementation": "Set up Prometheus server and configured scraping of application metrics endpoint (/metrics). Added metrics for request rate, latency (p50/p95/p99), and error rate. Added Grafana dashboard showing these metrics over time. Files: prometheus.yml (config), metrics.rs (metric definitions), grafana/dashboard.json. No alerting rules configured, no on-call setup, no runbooks for common issues, no integration with paging system (PagerDuty, etc.).",
+      "requirements": [
+        "Collect application metrics",
+        "Visualize metrics in dashboard",
+        "Configure alerts for critical issues",
+        "Set up on-call rotation"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation provides observability (metrics + dashboard) but fails core intent of 'know when production has issues'. Metrics collection and visualization are passive - they require someone to actively check dashboard. User intent 'so we know when production has issues' requires proactive alerting. Missing alerting rules means team won't be notified of high error rates, slow responses, or downtime. Monitoring without alerting means issues may go undetected for hours.",
+      "missing_aspects": [
+        "Alerting rules for critical conditions (error rate >5%, p99 latency >1s, downtime)",
+        "Integration with paging system (PagerDuty, Opsgenie) for on-call notifications",
+        "On-call rotation and escalation policy",
+        "Runbooks documenting response procedures for common alerts",
+        "Health check monitoring for uptime validation"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "observability",
+      "notes": "Tests detection of monitoring without alerting (reactive vs proactive)"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Migrate from SQLite to PostgreSQL for better performance and scalability",
+      "work_item": "Database migration to PostgreSQL",
+      "implementation": "Created PostgreSQL schema matching SQLite structure (15 tables). Wrote migration script (migrate.py) to transfer all existing data with validation. Updated database connection code to use PostgreSQL instead of SQLite. Modified queries using SQLite-specific datetime functions to use PostgreSQL equivalents. Added connection pooling (r2d2-postgres) for better concurrency. Created rollback script to revert to SQLite if migration fails. Performed test migration with production snapshot (5M records) completing in 2 hours with 100% data integrity. Added PostgreSQL-specific indexes and constraints. Updated documentation with new database setup instructions. Files: migrations/postgres/, scripts/migrate.py, database/postgres_connection.rs, doc/postgres_setup.md. Tests: test_postgres_migration.rs (validates schema equivalence, data integrity, query performance).",
+      "requirements": [
+        "Create PostgreSQL schema",
+        "Migrate existing data",
+        "Update database connection code",
+        "Modify SQLite-specific queries",
+        "Test migration with production-like data",
+        "Create rollback procedure"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation fully addresses intent to migrate to PostgreSQL for performance/scalability. All migration steps completed: schema creation, data transfer with validation, connection code updates, query modifications, rollback procedure. Test migration with 5M records proves scalability. Connection pooling adds performance benefit. Intent mentions 'better performance and scalability' - PostgreSQL chosen specifically for these properties, and implementation includes performance optimizations (indexes, pooling). Comprehensive and production-ready migration.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "database_migration",
+      "notes": "Complete database migration with proper testing and rollback"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Make the application accessible to users with disabilities",
+      "work_item": "Implement WCAG 2.1 AA accessibility standards",
+      "implementation": "Added semantic HTML elements (nav, main, article, section) throughout UI. Added ARIA labels to all interactive elements (buttons, links, form inputs). Ensured all images have descriptive alt text. Updated CSS to ensure 4.5:1 color contrast for normal text, 3:1 for large text. Implemented keyboard navigation for all interactive elements with visible focus indicators. Added skip-to-content link. Added ARIA live regions for dynamic content updates. Files: components/*.tsx (semantic HTML, ARIA), styles/accessibility.css (focus indicators, contrast). No testing with actual screen readers, no accessibility audit, no keyboard-only navigation testing.",
+      "requirements": [
+        "Add semantic HTML",
+        "Ensure sufficient color contrast",
+        "Support keyboard navigation",
+        "Add ARIA labels",
+        "Test with assistive technologies"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation adds accessibility features but lacks validation that they actually work for users with disabilities. Code changes appear correct (semantic HTML, ARIA, contrast, keyboard support) but without screen reader testing, may have issues invisible to sighted developers. Intent 'make accessible to users with disabilities' requires verification with actual assistive technology users or testing tools. Current implementation is theoretical accessibility without validation.",
+      "missing_aspects": [
+        "Testing with screen readers (NVDA, JAWS, VoiceOver)",
+        "Automated accessibility scanning (axe-core, Lighthouse)",
+        "Manual keyboard-only navigation testing",
+        "User testing with people who use assistive technology",
+        "Accessibility audit report showing compliance",
+        "Documentation of accessibility features for users"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "accessibility",
+      "notes": "Tests detection of accessibility implementation without validation"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Set up continuous integration to catch bugs before they reach production",
+      "work_item": "Configure GitHub Actions CI pipeline",
+      "implementation": "Created .github/workflows/ci.yml running on every push and pull request. Pipeline runs: cargo test (all tests), cargo clippy (linting), cargo fmt --check (formatting), cargo build --release (compilation check), dependency audit (cargo-audit for known vulnerabilities). Added status badge to README showing build status. Configured branch protection requiring CI pass before merge to main. Pipeline completes in ~8 minutes. Added caching of cargo dependencies to speed up builds. Files: .github/workflows/ci.yml, .github/workflows/security-audit.yml (separate weekly scan). Test coverage: 82% measured by tarpaulin, but coverage not enforced/reported in CI.",
+      "requirements": [
+        "Run tests on every PR",
+        "Run linting checks",
+        "Verify code compiles",
+        "Check for security vulnerabilities",
+        "Enforce CI pass before merge"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation comprehensively addresses intent to catch bugs before production. All major quality gates implemented: tests, linting, formatting, compilation, security scanning. Branch protection ensures nothing reaches main without passing checks. Intent 'catch bugs before production' achieved through automated quality enforcement. 82% test coverage provides good bug-catching capability. Fast pipeline (~8min) encourages frequent integration. Security audit adds proactive vulnerability detection.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "ci_cd",
+      "notes": "Complete CI setup with multiple quality gates"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Implement rate limiting to protect against API abuse and DDoS attacks",
+      "work_item": "Add rate limiting middleware",
+      "implementation": "Implemented token bucket rate limiting algorithm. Configured limits: 100 requests/minute for authenticated users, 20 requests/minute for unauthenticated IPs. Added middleware applying rate limits before authentication. Used in-memory storage (DashMap) for rate limit state. Returns 429 Too Many Requests with Retry-After header when limit exceeded. Added X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset headers to all responses. Files: middleware/rate_limit.rs (150 lines). Tests: test_rate_limit.rs (10 tests for limit enforcement, header correctness). No monitoring of rate limit violations, no alerting for potential attacks, no distributed rate limiting (in-memory state doesn't work across multiple servers).",
+      "requirements": [
+        "Choose rate limiting algorithm",
+        "Configure appropriate limits",
+        "Return proper HTTP responses for rate limited requests",
+        "Monitor for abuse patterns",
+        "Support distributed deployment"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation provides rate limiting mechanics but fails intent to 'protect against API abuse and DDoS attacks'. In-memory storage means limits don't work in distributed deployment (attacker can bypass by spreading requests across servers). No monitoring means ongoing attacks won't be detected. No alerting means security team won't know about DDoS attempts. Intent implies security protection, but implementation only throttles individual clients without broader attack detection/response.",
+      "missing_aspects": [
+        "Distributed rate limiting (Redis for shared state across servers)",
+        "Monitoring and alerting for rate limit violations (potential attack indicator)",
+        "IP allowlist/blocklist for known good/bad actors",
+        "Dynamic rate limiting based on detected abuse patterns",
+        "Integration with DDoS protection service (Cloudflare, AWS Shield)",
+        "Automated IP blocking after repeated violations"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "security",
+      "notes": "Tests detection of rate limiting without distributed support or monitoring"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add search functionality so users can quickly find content",
+      "work_item": "Implement full-text search with Meilisearch",
+      "implementation": "Set up Meilisearch server and integrated with application. Created search indexes for users, posts, and comments. Implemented /api/search endpoint accepting query parameter with support for filtering (by type, date range), sorting (relevance, date), and pagination. Configured fuzzy matching (typo tolerance up to 2 characters). Added search relevance tuning (title field weighted 2x vs body). Search queries complete in <50ms for dataset of 100K documents. Added search analytics tracking popular queries. Implemented incremental indexing on create/update/delete to keep search current. Files: search.rs (Meilisearch client), indexer.rs (incremental updates), handlers/search.rs (API endpoint). Tests: test_search.rs (15 tests for exact match, fuzzy match, filtering, pagination, relevance). Search results ranked by TF-IDF relevance with user query highlighting.",
+      "requirements": [
+        "Choose search technology",
+        "Index searchable content",
+        "Implement search endpoint",
+        "Support fuzzy matching",
+        "Optimize for performance",
+        "Keep index updated"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": true,
+      "explanation": "Implementation comprehensively addresses intent to help users quickly find content. All requirements met: Meilisearch chosen for performance, content indexed (users/posts/comments), search endpoint with filtering/sorting/pagination, fuzzy matching for typo tolerance, <50ms query performance, incremental indexing keeps search current. Relevance tuning and query highlighting enhance user experience. Search analytics for continuous improvement. Intent 'quickly find content' achieved through fast, accurate, user-friendly search implementation.",
+      "missing_aspects": []
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "search",
+      "notes": "Complete search implementation with performance optimization and UX features"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Support multiple tenants with strict data isolation for compliance",
+      "work_item": "Implement multi-tenancy with row-level security",
+      "implementation": "Added tenant_id column to all data tables (users, posts, comments, files, analytics). Created tenant_context middleware extracting tenant_id from subdomain (acme.app.com -> tenant_id='acme'). Implemented database query interceptor automatically adding WHERE tenant_id = $1 filter to all queries. Created tenant management API (create tenant, provision database resources). Added tenant-scoped authentication (users belong to single tenant). Files: middleware/tenant_context.rs, database/tenant_filter.rs, models/* (tenant_id field), handlers/tenant_admin.rs. Tests: test_tenant.rs (5 tests verifying tenant A can access their data). No tests verifying tenant A cannot access tenant B data, no penetration testing for data isolation vulnerabilities, no audit trail for cross-tenant access attempts.",
+      "requirements": [
+        "Add tenant_id to all tables",
+        "Implement tenant context middleware",
+        "Enforce automatic tenant filtering on queries",
+        "Test data isolation between tenants",
+        "Audit cross-tenant access attempts"
+      ]
+    },
+    "outputs": {
+      "intent_satisfied": false,
+      "explanation": "Implementation provides multi-tenancy infrastructure but fails critical 'strict data isolation for compliance' requirement. Only positive tests (tenant can access own data) without negative tests (tenant cannot access other tenant data). For compliance, must prove isolation is bulletproof. Missing penetration testing means potential bugs in query interceptor could leak data across tenants. No audit trail means compliance violations would go undetected. Intent explicitly mentions 'compliance' requiring evidence of strict isolation, not just assumed isolation.",
+      "missing_aspects": [
+        "Negative testing (verify tenant A CANNOT access tenant B data)",
+        "Penetration testing for data isolation vulnerabilities",
+        "Audit logging for all cross-tenant access attempts (even blocked ones)",
+        "Database-level isolation (PostgreSQL row-level security policies)",
+        "Security review of query interceptor for bypass vulnerabilities",
+        "Compliance documentation and certification readiness"
+      ]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "multi_tenancy",
+      "notes": "Tests detection of insufficient isolation testing for compliance requirements"
+    }
+  }
+]

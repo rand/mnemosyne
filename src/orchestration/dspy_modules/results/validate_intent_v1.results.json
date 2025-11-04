@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-11-03T10:22:46.378870",
+  "signature": "validate_intent",
+  "config": {
+    "trials": 25,
+    "test_mode": false
+  },
+  "baseline_score": 1.0,
+  "optimized_score": 1.0,
+  "improvement": 0.0,
+  "pct_improvement": 0.0
+}

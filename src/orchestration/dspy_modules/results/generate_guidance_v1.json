@@ -1,0 +1,56 @@
+{
+  "predictor.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Generate actionable improvement guidance for failed reviews.\n\nProvide specific, prioritized recommendations for fixing issues.\nFocus on \"what to do next\" rather than \"what went wrong\".\n\nGuidance should be:\n- Actionable (specific steps, not vague advice)\n- Prioritized (most critical issues first)\n- Referenced (cite specific code/requirements)\n- Constructive (suggest fixes, not just criticism)",
+      "fields": [
+        {
+          "prefix": "User Intent:",
+          "description": "Original user intent"
+        },
+        {
+          "prefix": "Work Item:",
+          "description": "Work item description"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Implementation summary"
+        },
+        {
+          "prefix": "Failed Gates:",
+          "description": "List of quality gates that failed"
+        },
+        {
+          "prefix": "All Issues:",
+          "description": "Consolidated list of all issues found across gates"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Guidance:",
+          "description": "Actionable improvement guidance with specific steps (str)"
+        },
+        {
+          "prefix": "Priority Fixes:",
+          "description": "List of highest-priority fixes to address first (list[str])"
+        },
+        {
+          "prefix": "Suggestions:",
+          "description": "Additional suggestions for improving quality beyond minimum requirements (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.14",
+      "dspy": "3.0.3",
+      "cloudpickle": "3.1"
+    }
+  }
+}

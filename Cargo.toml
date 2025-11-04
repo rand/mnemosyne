@@ -44,12 +44,12 @@ sqlite-vec = "0.1.1"
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_yaml = "0.9"
 toml = "0.8"
 bincode = "1.3"
 
 # LLM Integration
 reqwest = { version = "0.11", features = ["json", "rustls-tls", "stream"] }
-dspy-rs = "0.7.1"  # DSPy framework for systematic prompt optimization
 
 # Local embeddings with ONNX Runtime (auto-downloads binaries)
 fastembed = { version = "5.2", features = ["ort-download-binaries"] }
@@ -65,6 +65,7 @@ config = "0.13"
 clap = { version = "4.4", features = ["derive"] }
 async-trait = "0.1"
 regex = "1.10"
+rand = "0.8"
 atty = "0.2"  # Terminal detection for ICS
 rustc_version_runtime = "0.3"  # Runtime Rust version for status command
 lru = "0.12"  # LRU cache for semantic highlighting

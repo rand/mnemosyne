@@ -1,0 +1,29 @@
+{
+  "timestamp": "2025-11-03T09:14:50.478999",
+  "config": {
+    "trials": 50,
+    "test_mode": false
+  },
+  "baseline_scores": {
+    "extract_requirements": 0.71,
+    "validate_intent": 1.0,
+    "validate_completeness": 0.75,
+    "validate_correctness": 0.75,
+    "generate_guidance": 0.0
+  },
+  "optimized_scores": {
+    "extract_requirements": 0.71,
+    "validate_intent": 1.0,
+    "validate_completeness": 0.75,
+    "validate_correctness": 0.75,
+    "generate_guidance": 0.0
+  },
+  "improvements": {
+    "extract_requirements": 0.0,
+    "validate_intent": 0.0,
+    "validate_completeness": 0.0,
+    "validate_correctness": 0.0,
+    "generate_guidance": 0.0
+  },
+  "average_improvement": 0.0
+}

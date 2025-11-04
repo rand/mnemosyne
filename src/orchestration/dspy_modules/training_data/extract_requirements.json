@@ -1,0 +1,515 @@
+[
+  {
+    "inputs": {
+      "user_intent": "Implement user authentication with JWT tokens",
+      "context": "Phase: Specification, Agent: Executor, Files: auth.rs, user.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Add login endpoint accepting email and password",
+        "Hash passwords using bcrypt before storage",
+        "Generate JWT access tokens on successful login",
+        "Implement token validation middleware for protected routes",
+        "Add token expiration with configurable lifetime",
+        "Store refresh tokens for session extension"
+      ],
+      "priorities": [10, 9, 10, 9, 8, 7]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "authentication",
+      "notes": "Classic authentication scenario with standard security practices"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add caching to improve API performance",
+      "context": "Phase: Implementation, Agent: Executor, Files: api/handlers.rs, cache.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Identify cacheable API endpoints",
+        "Implement cache layer with TTL support",
+        "Add cache invalidation strategy",
+        "Configure cache storage backend (Redis or in-memory)",
+        "Measure cache hit rate and latency improvement",
+        "Add cache warming for frequently accessed data"
+      ],
+      "priorities": [10, 10, 9, 8, 7, 6]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "performance",
+      "notes": "Requires understanding of caching strategies and trade-offs"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Fix the bug where users can't upload large files",
+      "context": "Phase: Bug Fix, Agent: Executor, Files: upload.rs, config.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Identify root cause of upload failures for large files",
+        "Increase maximum file size limit in configuration",
+        "Add file size validation before upload attempt",
+        "Implement chunked upload for files >10MB",
+        "Add progress tracking for long uploads",
+        "Test with files of various sizes (1MB, 10MB, 50MB, 100MB)"
+      ],
+      "priorities": [10, 9, 8, 9, 7, 8]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "bug_fix",
+      "notes": "Bug fix scenario requiring investigation and multiple changes"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Make the dashboard load faster",
+      "context": "Phase: Optimization, Agent: Executor, Files: dashboard.tsx, api/stats.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Profile dashboard loading performance to identify bottlenecks",
+        "Optimize database queries (add indexes, reduce N+1 queries)",
+        "Implement lazy loading for below-the-fold content",
+        "Add client-side caching for static data",
+        "Paginate or virtualize large data lists",
+        "Set target p95 latency goal (e.g., <500ms)"
+      ],
+      "priorities": [10, 9, 8, 7, 8, 10]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "performance",
+      "notes": "Vague intent requiring clarification of performance targets"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add logging",
+      "context": "Phase: Implementation, Agent: Executor, Files: main.rs, lib.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Define logging levels (ERROR, WARN, INFO, DEBUG)",
+        "Configure logging framework (env_logger, tracing)",
+        "Add structured logging with context fields",
+        "Log request/response for all API endpoints",
+        "Log errors with stack traces",
+        "Configure log output destination (stdout, file, remote)",
+        "Add log rotation policy",
+        "Ensure sensitive data is not logged (passwords, tokens)"
+      ],
+      "priorities": [9, 10, 8, 7, 10, 8, 6, 10]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "infrastructure",
+      "notes": "Intentionally vague to test requirement extraction from minimal intent"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Migrate the database from SQLite to PostgreSQL",
+      "context": "Phase: Refactoring, Agent: Executor, Files: database/*.rs, migrations/"
+    },
+    "outputs": {
+      "requirements": [
+        "Create PostgreSQL schema matching current SQLite schema",
+        "Write data migration script to transfer existing data",
+        "Update database connection configuration",
+        "Modify queries using SQLite-specific features (e.g., datetime functions)",
+        "Add PostgreSQL-specific optimizations (indexes, constraints)",
+        "Test migration process with production-like data volumes",
+        "Create rollback procedure in case of migration failure",
+        "Update documentation with new database requirements"
+      ],
+      "priorities": [10, 10, 9, 9, 7, 10, 9, 6]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "database",
+      "notes": "Complex migration requiring data preservation and compatibility"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add API versioning so we can make breaking changes without affecting existing clients",
+      "context": "Phase: Architecture, Agent: Executor, Files: api/v1/, api/v2/, router.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Design versioning strategy (URL path, header, or query parameter)",
+        "Create API v2 namespace/module structure",
+        "Implement version routing logic",
+        "Maintain v1 API for backward compatibility",
+        "Define deprecation policy for old versions",
+        "Add version negotiation for clients",
+        "Document versioning guidelines for future changes",
+        "Add tests for both v1 and v2 endpoints"
+      ],
+      "priorities": [10, 9, 10, 10, 8, 7, 8, 9]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "api_design",
+      "notes": "Architectural decision with long-term maintenance implications"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Improve error handling across the application",
+      "context": "Phase: Refactoring, Agent: Executor, Files: error.rs, handlers/*.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Define consistent error types for different failure modes",
+        "Add context to errors (stack traces, request IDs, user actions)",
+        "Implement error recovery strategies where possible",
+        "Add user-friendly error messages (not just technical details)",
+        "Log errors with appropriate severity levels",
+        "Return proper HTTP status codes for API errors",
+        "Add error boundaries to prevent cascading failures",
+        "Test error scenarios (network failures, database errors, validation errors)"
+      ],
+      "priorities": [10, 9, 8, 9, 10, 9, 7, 8]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "error_handling",
+      "notes": "Systematic improvement across codebase"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Set up continuous integration",
+      "context": "Phase: Infrastructure, Agent: Executor, Files: .github/workflows/ci.yml, scripts/test.sh"
+    },
+    "outputs": {
+      "requirements": [
+        "Configure CI platform (GitHub Actions, GitLab CI, etc.)",
+        "Run tests on every pull request",
+        "Run linting and formatting checks",
+        "Build project to verify compilation",
+        "Run security vulnerability scans",
+        "Generate and upload code coverage reports",
+        "Add status badges to README",
+        "Configure branch protection rules requiring CI pass"
+      ],
+      "priorities": [10, 10, 9, 9, 8, 7, 5, 9]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "ci_cd",
+      "notes": "Infrastructure setup with multiple integration points"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add support for real-time notifications",
+      "context": "Phase: Feature, Agent: Executor, Files: websocket.rs, notifications.rs, events.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Choose real-time transport mechanism (WebSocket, SSE, polling)",
+        "Implement WebSocket connection handling",
+        "Add authentication for WebSocket connections",
+        "Define notification event schema and types",
+        "Implement pub/sub system for broadcasting notifications",
+        "Add connection state management (reconnection, heartbeat)",
+        "Handle concurrent connections efficiently",
+        "Add rate limiting to prevent notification spam",
+        "Implement notification persistence for offline users",
+        "Test with multiple concurrent connections (load testing)"
+      ],
+      "priorities": [10, 10, 9, 9, 9, 8, 8, 7, 8, 7]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "realtime",
+      "notes": "Complex feature with state management and scalability concerns"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Implement rate limiting to prevent API abuse",
+      "context": "Phase: Security, Agent: Executor, Files: middleware/rate_limit.rs, config.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Define rate limit tiers (per-IP, per-user, per-API-key)",
+        "Choose rate limiting algorithm (token bucket, sliding window)",
+        "Configure limits per endpoint (e.g., 100 req/min for reads, 10 req/min for writes)",
+        "Implement rate limit storage (Redis for distributed, in-memory for single server)",
+        "Add rate limit headers to responses (X-RateLimit-Limit, X-RateLimit-Remaining)",
+        "Return 429 Too Many Requests with Retry-After header when limit exceeded",
+        "Allow allowlist for trusted IPs or API keys",
+        "Add monitoring for rate limit violations",
+        "Test rate limiting under concurrent load"
+      ],
+      "priorities": [10, 9, 10, 9, 8, 10, 7, 8, 9]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "security",
+      "notes": "Security feature with performance implications"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add search functionality so users can find relevant data quickly",
+      "context": "Phase: Feature, Agent: Executor, Files: search.rs, indexer.rs, api/search_handler.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Choose search backend (Elasticsearch, PostgreSQL full-text, Meilisearch, etc.)",
+        "Define searchable fields and schema",
+        "Implement text indexing for new and updated records",
+        "Add search endpoint with query parameter support",
+        "Implement filtering, faceting, and sorting",
+        "Add pagination for search results",
+        "Optimize search queries for performance (<100ms target)",
+        "Support fuzzy matching and typo tolerance",
+        "Add search relevance scoring",
+        "Test with realistic data volumes and query patterns"
+      ],
+      "priorities": [10, 9, 9, 10, 8, 9, 9, 7, 8, 8]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "search",
+      "notes": "Complex feature requiring technology selection and performance tuning"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Set up monitoring so we know when things break in production",
+      "context": "Phase: Observability, Agent: Executor, Files: telemetry.rs, metrics.rs, alerts/"
+    },
+    "outputs": {
+      "requirements": [
+        "Choose monitoring platform (Prometheus, Datadog, New Relic, etc.)",
+        "Add application metrics (request rate, latency, error rate)",
+        "Add system metrics (CPU, memory, disk, network)",
+        "Implement distributed tracing for request flows",
+        "Configure alerting rules for critical conditions (high error rate, slow responses)",
+        "Add health check endpoints (/health, /ready)",
+        "Create monitoring dashboard for key metrics",
+        "Set up on-call rotation and alert escalation",
+        "Add runbook documentation for common alerts"
+      ],
+      "priorities": [10, 10, 9, 8, 10, 9, 8, 7, 8]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "observability",
+      "notes": "Infrastructure requirement with operational concerns"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Support multiple tenants in the same database with data isolation",
+      "context": "Phase: Architecture, Agent: Executor, Files: tenant.rs, database/schema.sql, middleware/tenant_context.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Choose tenant isolation strategy (separate schemas, row-level security, or separate databases)",
+        "Add tenant_id to all data tables",
+        "Implement tenant context middleware to identify current tenant",
+        "Enforce tenant_id filter on all queries automatically",
+        "Add tenant creation and provisioning workflow",
+        "Implement tenant-scoped authentication",
+        "Add tenant usage metrics and billing data",
+        "Test data isolation (tenant A cannot access tenant B data)",
+        "Add tenant migration tools for onboarding/offboarding",
+        "Consider tenant-specific configuration and customization"
+      ],
+      "priorities": [10, 10, 9, 10, 9, 9, 8, 10, 8, 7]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "multi_tenancy",
+      "notes": "Architectural decision with security and compliance implications"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Implement automated backups",
+      "context": "Phase: Reliability, Agent: Executor, Files: backup.rs, scripts/backup.sh, cron.d/backup"
+    },
+    "outputs": {
+      "requirements": [
+        "Schedule daily database backups",
+        "Configure backup storage location (S3, GCS, local disk)",
+        "Implement incremental backups to reduce storage costs",
+        "Add backup encryption for sensitive data",
+        "Set retention policy (e.g., keep daily for 7 days, weekly for 4 weeks, monthly for 1 year)",
+        "Test backup restoration process regularly",
+        "Add monitoring and alerting for backup failures",
+        "Document disaster recovery procedure",
+        "Calculate and verify backup sizes and timing",
+        "Add backup integrity verification (checksums)"
+      ],
+      "priorities": [10, 10, 8, 9, 9, 10, 10, 8, 7, 8]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "disaster_recovery",
+      "notes": "Critical reliability requirement"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add internationalization support for European markets",
+      "context": "Phase: Feature, Agent: Executor, Files: i18n/, locales/, translations.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Choose i18n library/framework (fluent, gettext, etc.)",
+        "Extract all user-facing strings into translation files",
+        "Add locale detection (Accept-Language header, user preference)",
+        "Implement translation loading and caching",
+        "Support date/time formatting per locale",
+        "Support number and currency formatting per locale",
+        "Add RTL (right-to-left) layout support for Arabic, Hebrew",
+        "Translate UI strings for target languages (German, French, Spanish)",
+        "Add language switcher in UI",
+        "Test with non-ASCII characters and long translated strings"
+      ],
+      "priorities": [9, 10, 9, 9, 8, 8, 7, 9, 8, 8]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "internationalization",
+      "notes": "Feature with UI and data formatting implications"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Make the application accessible for screen reader users",
+      "context": "Phase: Accessibility, Agent: Executor, Files: components/*.tsx, styles/accessibility.css"
+    },
+    "outputs": {
+      "requirements": [
+        "Add semantic HTML elements (nav, main, article, aside)",
+        "Add ARIA labels and roles where needed",
+        "Ensure keyboard navigation works for all interactive elements",
+        "Add focus indicators for keyboard users",
+        "Ensure color contrast meets WCAG AA standards",
+        "Add alt text for all images",
+        "Test with screen readers (NVDA, JAWS, VoiceOver)",
+        "Add skip navigation links",
+        "Ensure form inputs have associated labels",
+        "Add live regions for dynamic content updates"
+      ],
+      "priorities": [9, 9, 10, 9, 9, 9, 10, 8, 9, 8]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "accessibility",
+      "notes": "Compliance requirement with UX impact"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Optimize API responses for mobile clients on slow networks",
+      "context": "Phase: Optimization, Agent: Executor, Files: api/mobile/, serialization.rs, compression.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Implement response compression (gzip, brotli)",
+        "Add field filtering (sparse fieldsets) to reduce payload size",
+        "Optimize JSON serialization (remove nulls, minimize whitespace)",
+        "Add pagination with reasonable default page sizes",
+        "Implement GraphQL or similar for client-driven data selection",
+        "Add response caching with ETags",
+        "Support offline-first patterns with sync endpoints",
+        "Test on simulated slow networks (3G, throttled connections)",
+        "Measure payload sizes and optimize largest responses",
+        "Add mobile-specific endpoints with reduced data"
+      ],
+      "priorities": [9, 9, 8, 9, 8, 8, 7, 9, 10, 7]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "mobile_optimization",
+      "notes": "Performance optimization for constrained environments"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Process nightly batch jobs to generate reports and aggregate data",
+      "context": "Phase: Feature, Agent: Executor, Files: jobs/batch.rs, scheduler.rs, reports/"
+    },
+    "outputs": {
+      "requirements": [
+        "Design batch job scheduler (cron, custom queue, or job framework)",
+        "Implement report generation logic (daily summaries, weekly analytics)",
+        "Add data aggregation queries (efficient bulk processing)",
+        "Configure job timing to avoid peak traffic hours",
+        "Add job retry logic for transient failures",
+        "Implement job monitoring and alerting for failures",
+        "Add job execution logging and audit trail",
+        "Optimize job performance to complete within time window",
+        "Add idempotency to allow safe retries",
+        "Test with production-scale data volumes"
+      ],
+      "priorities": [9, 10, 10, 9, 9, 10, 8, 9, 9, 8]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "batch_processing",
+      "notes": "Background processing with reliability requirements"
+    }
+  },
+  {
+    "inputs": {
+      "user_intent": "Add audit trail for compliance with financial regulations",
+      "context": "Phase: Compliance, Agent: Executor, Files: audit.rs, audit_log table, reports/audit_report.rs"
+    },
+    "outputs": {
+      "requirements": [
+        "Design audit log schema (who, what, when, where, why)",
+        "Log all data modifications (create, update, delete)",
+        "Capture user identity and authentication method",
+        "Record IP address, user agent, and request metadata",
+        "Store before/after state for data changes",
+        "Implement tamper-proof log storage (append-only, signed)",
+        "Add audit log retention policy (7 years for financial compliance)",
+        "Create audit reports for compliance reviews",
+        "Add search and filtering for audit investigations",
+        "Ensure performance impact is minimal (<5ms per operation)",
+        "Test audit log integrity and completeness"
+      ],
+      "priorities": [10, 10, 9, 9, 9, 10, 10, 9, 8, 8, 9]
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "compliance",
+      "notes": "Regulatory requirement with security and performance constraints"
+    }
+  }
+]

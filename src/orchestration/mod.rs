@@ -23,6 +23,19 @@
 
 pub mod actors;
 pub mod branch_coordinator;
+
+#[cfg(feature = "python")]
+pub mod dspy_bridge;
+#[cfg(feature = "python")]
+pub mod dspy_module_loader;
+#[cfg(feature = "python")]
+pub mod dspy_ab_testing;
+#[cfg(feature = "python")]
+pub mod dspy_telemetry;
+#[cfg(feature = "python")]
+pub mod dspy_production_logger;
+#[cfg(feature = "python")]
+pub mod dspy_instrumentation;
 pub mod branch_guard;
 pub mod branch_registry;
 pub mod cli;
@@ -52,6 +65,24 @@ mod coordination_tests;
 
 // Re-export key types
 pub use actors::{ExecutorActor, OptimizerActor, OrchestratorActor, ReviewerActor};
+
+#[cfg(feature = "python")]
+pub use dspy_bridge::DSpyBridge;
+#[cfg(feature = "python")]
+pub use dspy_module_loader::{DSpyModuleLoader, ModuleMetadata, ModuleVersion};
+#[cfg(feature = "python")]
+pub use dspy_ab_testing::{
+    ABTestConfig, ABTestMetrics, ABTestRouter, RollbackEvent, RollbackPolicy, VersionMetrics,
+};
+#[cfg(feature = "python")]
+pub use dspy_telemetry::{
+    CostCalculator, DSpyEvent, EventType, ModuleMetrics as TelemetryModuleMetrics,
+    TelemetryCollector, TokenUsage,
+};
+#[cfg(feature = "python")]
+pub use dspy_production_logger::{
+    InteractionLog, LogConfig, LogSink, LoggerStats, ProductionLogger, TrainingDataEntry,
+};
 pub use branch_coordinator::{
     BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse,
 };

@@ -451,6 +451,6 @@ fn create_test_memory(summary: &str, memory_type: MemoryType, tags: Vec<&str>) -
         is_archived: false,
         superseded_by: None,
         embedding: None,
-        embedding_model: "claude-3-5-haiku-20241022".to_string(),
+        embedding_model: "claude-haiku-4-5-20251001".to_string(),
     }
 }

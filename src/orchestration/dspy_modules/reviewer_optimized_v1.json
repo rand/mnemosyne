@@ -1,0 +1,520 @@
+{
+  "extract_reqs.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "user_intent": "Make the dashboard load faster",
+        "context": "Phase: Optimization, Agent: Executor, Files: dashboard.tsx, api/stats.rs",
+        "reasoning": "The user wants to improve dashboard load performance. This is an optimization task in the implementation phase affecting frontend (dashboard.tsx) and backend (api/stats.rs) components. The goal is to reduce time-to-interactive and initial page load time. Key areas to address include: reducing initial data payload, optimizing API responses, implementing lazy loading, caching strategies, and frontend rendering optimizations.",
+        "requirements": "[\"Analyze current dashboard load time and identify bottlenecks\", \"Implement API response pagination or filtering to reduce initial data payload\", \"Add caching layer for frequently accessed stats data\", \"Implement lazy loading for below-the-fold dashboard widgets\", \"Optimize React component rendering with memoization and code splitting\", \"Compress and minify dashboard assets\", \"Add database query optimization for stats endpoints\", \"Implement skeleton loaders for better perceived performance\"]",
+        "priorities": "[10, 9, 9, 8, 8, 7, 9, 7]"
+      },
+      {
+        "user_intent": "Add caching to improve API performance",
+        "context": "Phase: Implementation, Agent: Executor, Files: api/handlers.rs, cache.rs",
+        "requirements": [
+          "Identify cacheable API endpoints",
+          "Implement cache layer with TTL support",
+          "Add cache invalidation strategy",
+          "Configure cache storage backend (Redis or in-memory)",
+          "Measure cache hit rate and latency improvement",
+          "Add cache warming for frequently accessed data"
+        ],
+        "priorities": [
+          10,
+          10,
+          9,
+          8,
+          7,
+          6
+        ]
+      },
+      {
+        "user_intent": "Implement user authentication with JWT tokens",
+        "context": "Phase: Specification, Agent: Executor, Files: auth.rs, user.rs",
+        "requirements": [
+          "Add login endpoint accepting email and password",
+          "Hash passwords using bcrypt before storage",
+          "Generate JWT access tokens on successful login",
+          "Implement token validation middleware for protected routes",
+          "Add token expiration with configurable lifetime",
+          "Store refresh tokens for session extension"
+        ],
+        "priorities": [
+          10,
+          9,
+          10,
+          9,
+          8,
+          7
+        ]
+      },
+      {
+        "user_intent": "Fix the bug where users can't upload large files",
+        "context": "Phase: Bug Fix, Agent: Executor, Files: upload.rs, config.rs",
+        "requirements": [
+          "Identify root cause of upload failures for large files",
+          "Increase maximum file size limit in configuration",
+          "Add file size validation before upload attempt",
+          "Implement chunked upload for files >10MB",
+          "Add progress tracking for long uploads",
+          "Test with files of various sizes (1MB, 10MB, 50MB, 100MB)"
+        ],
+        "priorities": [
+          10,
+          9,
+          8,
+          9,
+          7,
+          8
+        ]
+      }
+    ],
+    "signature": {
+      "instructions": "You are an expert software requirements engineer with deep experience in full-stack development, systems design, and agile project management. Your role is to decompose high-level user intents into precise, actionable requirements that guide implementation teams.\n\nGiven a user's high-level intent and the contextual metadata (development phase, assigned agent type, and affected files), extract all explicit requirements that must be satisfied for successful completion.\n\n**Your approach:**\n1. Analyze the user's intent to identify core objectives and implicit dependencies\n2. Consider the development phase (Specification, Implementation, or Bug Fix) to determine requirement scope and abstraction level\n3. Examine the file scope to understand the technical domain and affected components\n4. Decompose the intent into granular, independent requirements that progress logically from foundational to advanced steps\n5. Assign priority scores (1-10) using this scale:\n   - 9-10: Critical requirements that directly enable core functionality or security\n   - 8-9: Essential requirements for quality, robustness, or production readiness\n   - 6-8: Important validation, testing, or enhancement requirements\n   - 1-5: Nice-to-have optimizations or auxiliary features\n\n**Requirements must be:**\n- **Specific and testable**: Each requirement should have clear acceptance criteria\n- **Independent**: Minimal overlap; each requirement addresses a distinct concern\n- **Complete**: Collectively cover all aspects of the user's intent\n- **Actionable**: Phrased as concrete tasks implementers can execute\n- **Sequenced**: Ordered logically from prerequisite tasks to dependent ones\n\nFirst, provide your reasoning explaining how you derived the requirements from the intent and context. Then list the extracted requirements in order. Finally, provide the corresponding priority scores in the same order.",
+      "fields": [
+        {
+          "prefix": "User Intent:",
+          "description": "User's high-level description of what they want"
+        },
+        {
+          "prefix": "Context:",
+          "description": "Additional context: work item phase, agent, file scope"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Requirements:",
+          "description": "List of explicit, testable requirements extracted from intent (list[str])"
+        },
+        {
+          "prefix": "Priorities:",
+          "description": "Priority scores (1-10) for each requirement, same order as requirements (list[int])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "_validate_intent_cot.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Validate that implementation satisfies original user intent.\n\nSemantic analysis of whether the work done matches what the user requested.\nGoes beyond pattern matching to understand implicit expectations.\n\nChecks:\n- Does implementation address the core problem?\n- Are user expectations met (explicit and implicit)?\n- Is the solution appropriate for the context?",
+      "fields": [
+        {
+          "prefix": "User Intent:",
+          "description": "Original user request describing desired outcome"
+        },
+        {
+          "prefix": "Work Item:",
+          "description": "Description of the work item being validated"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation: code changes, files modified, approach taken"
+        },
+        {
+          "prefix": "Requirements:",
+          "description": "Extracted requirements from intent (may be empty)"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Intent Satisfied:",
+          "description": "True if implementation satisfies user intent, False otherwise (bool)"
+        },
+        {
+          "prefix": "Explanation:",
+          "description": "Explanation of why intent is/isn't satisfied, referencing specific requirements (str)"
+        },
+        {
+          "prefix": "Missing Aspects:",
+          "description": "List of aspects of user intent not addressed by implementation, empty if satisfied (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "_validate_completeness_cot.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Validate implementation completeness.\n\nChecks for:\n- Partial implementations (TODOs, FIXMEs, stubs)\n- Unfilled typed holes (interfaces without implementations)\n- Missing error handling\n- Incomplete test coverage\n- Missing documentation\n\nCompleteness means ready for production, not just \"it compiles\".",
+      "fields": [
+        {
+          "prefix": "Work Item:",
+          "description": "Description of work item being validated"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation with file paths and key changes"
+        },
+        {
+          "prefix": "Requirements:",
+          "description": "Extracted requirements (may be empty)"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Is Complete:",
+          "description": "True if implementation is complete and production-ready (bool)"
+        },
+        {
+          "prefix": "Incomplete Aspects:",
+          "description": "List of incomplete aspects found: TODOs, stubs, missing tests, etc. (list[str])"
+        },
+        {
+          "prefix": "Typed Holes:",
+          "description": "List of typed holes or unfilled interfaces requiring implementation (list[str])"
+        },
+        {
+          "prefix": "Missing Tests:",
+          "description": "List of areas lacking test coverage (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "_validate_correctness_cot.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Validate implementation correctness.\n\nSemantic analysis of logic quality and bug potential.\n\nChecks for:\n- Logic errors (off-by-one, race conditions, etc.)\n- Error handling gaps (uncaught exceptions, missing validation)\n- Edge case handling (empty inputs, overflow, etc.)\n- Type safety issues (implicit conversions, null derefs)\n- Security vulnerabilities\n\nFocus on potential runtime failures, not style or conventions.",
+      "fields": [
+        {
+          "prefix": "Work Item:",
+          "description": "Description of work item"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation with code snippets if available"
+        },
+        {
+          "prefix": "Test Results:",
+          "description": "Test execution results: pass/fail counts, error messages"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Is Correct:",
+          "description": "True if implementation is logically sound and bug-free (bool)"
+        },
+        {
+          "prefix": "Logic Issues:",
+          "description": "List of potential logic errors or bugs found (list[str])"
+        },
+        {
+          "prefix": "Error Handling Gaps:",
+          "description": "List of error handling gaps: missing try/catch, validation, etc. (list[str])"
+        },
+        {
+          "prefix": "Edge Cases:",
+          "description": "List of unhandled edge cases (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "generate_guidance.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Generate actionable improvement guidance for failed reviews.\n\nProvide specific, prioritized recommendations for fixing issues.\nFocus on \"what to do next\" rather than \"what went wrong\".\n\nGuidance should be:\n- Actionable (specific steps, not vague advice)\n- Prioritized (most critical issues first)\n- Referenced (cite specific code/requirements)\n- Constructive (suggest fixes, not just criticism)",
+      "fields": [
+        {
+          "prefix": "User Intent:",
+          "description": "Original user intent"
+        },
+        {
+          "prefix": "Work Item:",
+          "description": "Work item description"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Implementation summary"
+        },
+        {
+          "prefix": "Failed Gates:",
+          "description": "List of quality gates that failed"
+        },
+        {
+          "prefix": "All Issues:",
+          "description": "Consolidated list of all issues found across gates"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Guidance:",
+          "description": "Actionable improvement guidance with specific steps (str)"
+        },
+        {
+          "prefix": "Priority Fixes:",
+          "description": "List of highest-priority fixes to address first (list[str])"
+        },
+        {
+          "prefix": "Suggestions:",
+          "description": "Additional suggestions for improving quality beyond minimum requirements (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "validate_intent.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Validate that implementation satisfies original user intent.\n\nSemantic analysis of whether the work done matches what the user requested.\nGoes beyond pattern matching to understand implicit expectations.\n\nChecks:\n- Does implementation address the core problem?\n- Are user expectations met (explicit and implicit)?\n- Is the solution appropriate for the context?",
+      "fields": [
+        {
+          "prefix": "User Intent:",
+          "description": "Original user request describing desired outcome"
+        },
+        {
+          "prefix": "Work Item:",
+          "description": "Description of the work item being validated"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation: code changes, files modified, approach taken"
+        },
+        {
+          "prefix": "Requirements:",
+          "description": "Extracted requirements from intent (may be empty)"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Intent Satisfied:",
+          "description": "True if implementation satisfies user intent, False otherwise (bool)"
+        },
+        {
+          "prefix": "Explanation:",
+          "description": "Explanation of why intent is/isn't satisfied, referencing specific requirements (str)"
+        },
+        {
+          "prefix": "Missing Aspects:",
+          "description": "List of aspects of user intent not addressed by implementation, empty if satisfied (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "validate_completeness.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "implementation": "Added env_logger dependency. Configured logging with INFO level in main.rs. Added log statements to all API handlers showing request method, path, and timestamp. Added error logging with stack traces. Implemented structured logging with request_id field. Files: Cargo.toml, main.rs (logger init), handlers/* (log statements throughout). Example logs show proper formatting.",
+        "requirements": [
+          "Configure logging framework",
+          "Log API requests",
+          "Log errors with stack traces",
+          "Structured logging with context",
+          "Log rotation policy",
+          "Exclude sensitive data from logs"
+        ],
+        "reasoning": "The implementation covers the core logging functionality with env_logger, request logging, error logging with stack traces, and structured logging with request_id. However, several requirements remain unaddressed: log rotation policy is not mentioned (requirement [5]), and there is no evidence of mechanisms to exclude sensitive data from logs (requirement [6]). The implementation appears functional for basic logging needs but lacks production-ready features for log management and security.",
+        "is_complete": "False",
+        "incomplete_aspects": "- Log rotation policy not implemented (no mention of log file rotation, size limits, or archival strategy)\n- No sensitive data filtering/redaction mechanism (passwords, tokens, PII could be logged)\n- No configuration for log levels per module (all set to INFO globally)\n- No log output destination configuration (file vs stdout vs both)\n- Missing documentation on logging best practices for the codebase",
+        "typed_holes": "- SensitiveDataFilter trait or middleware for redacting sensitive fields\n- LogRotationPolicy configuration interface\n- LoggingConfig struct for flexible runtime configuration",
+        "missing_tests": "- Tests for sensitive data redaction (e.g., password fields, auth tokens)\n- Tests for log rotation behavior under high volume\n- Tests for structured logging format validation\n- Tests for error logging with various error types\n- Tests for request_id propagation across async boundaries\n- Integration tests verifying no sensitive data appears in logs"
+      },
+      {
+        "augmented": true,
+        "implementation": "Added login endpoint POST /api/auth/login accepting email/password. Implemented JWT token generation with RS256 signing. Created middleware for token validation on protected routes. Files: auth.rs (250 lines), middleware.rs (100 lines). Tests: test_auth.rs (15 tests).",
+        "requirements": [
+          "Login endpoint",
+          "JWT token generation",
+          "Token validation middleware",
+          "Password hashing",
+          "Refresh token support"
+        ],
+        "reasoning": "The implementation addresses 3 out of 5 requirements. Login endpoint, JWT token generation, and token validation middleware are implemented with reasonable test coverage (15 tests). However, critical security and functionality gaps exist: password hashing is not mentioned despite being a fundamental security requirement for storing credentials, and refresh token support is completely absent. The implementation appears to handle the happy path but lacks essential production-ready security practices and token lifecycle management.",
+        "is_complete": "False",
+        "incomplete_aspects": "- Password hashing not implemented (security vulnerability - passwords likely stored in plaintext)\n- Refresh token support missing (requirement [5])\n- No token expiration handling mentioned\n- No logout/token revocation mechanism\n- Missing password validation rules (strength requirements)\n- No rate limiting on login attempts\n- Token storage strategy not documented",
+        "typed_holes": "- Password hashing interface/function not implemented\n- Refresh token generation and validation logic missing\n- Token revocation/blacklist mechanism not defined",
+        "missing_tests": "- Password hashing tests\n- Refresh token generation and validation tests\n- Token expiration tests\n- Invalid/expired token rejection tests\n- Rate limiting on failed login attempts\n- Password strength validation tests\n- Concurrent login handling tests"
+      },
+      {
+        "augmented": true,
+        "implementation": "Increased MAX_FILE_SIZE constant from 10MB to 100MB in config.rs. Files: config.rs (1 line change).",
+        "requirements": [
+          "Support file uploads up to 100MB",
+          "Test with actual large files",
+          "Handle memory constraints",
+          "Implement chunked uploads if needed",
+          "Add progress tracking"
+        ],
+        "reasoning": "The implementation only addresses the constant value change but fails to address critical requirements for handling 100MB file uploads. Simply increasing a constant without corresponding infrastructure changes is insufficient for production readiness. The implementation lacks: actual upload handler modifications to support streaming/chunked uploads, memory management for large files, progress tracking mechanism, comprehensive testing with real large files, and error handling for memory constraints. This is a superficial change that does not fulfill the functional requirements.",
+        "is_complete": "False",
+        "incomplete_aspects": "- Only constant changed; no upload handler implementation updated\n- No streaming or chunked upload mechanism implemented\n- No memory constraint handling or buffer management\n- No progress tracking endpoint or WebSocket implementation\n- No testing with actual large files performed\n- Missing error handling for out-of-memory scenarios\n- No documentation on new upload capabilities\n- No validation of file size limits in upload handlers",
+        "typed_holes": "- Upload handler interface needs streaming support\n- Progress tracking API/interface not defined\n- Memory management strategy for large buffers not implemented\n- Chunked upload protocol not specified",
+        "missing_tests": "- Integration tests with 100MB+ files\n- Memory stress tests under concurrent large uploads\n- Progress tracking accuracy tests\n- Error handling tests for memory exhaustion\n- Network interruption recovery tests\n- Timeout handling for large uploads\n- Concurrent upload stress tests"
+      },
+      {
+        "implementation": "Added caching layer using Redis. Implemented cache-aside pattern for GET /api/users/:id and GET /api/posts/:id. Cache TTL set to 5 minutes. Cache invalidation on updates and deletes. Added cache hit/miss metrics. Files: cache.rs (200 lines), redis_config.rs (50 lines). Tests: test_cache.rs (15 tests). Benchmarks show 94% latency improvement.",
+        "requirements": [
+          "Choose caching technology",
+          "Implement caching for frequently accessed endpoints",
+          "Cache invalidation strategy",
+          "Performance metrics"
+        ],
+        "is_complete": true,
+        "missing_requirements": [],
+        "explanation": "Implementation addresses all 4 requirements comprehensively. Redis chosen as caching technology, cache-aside pattern for two frequently accessed endpoints, cache invalidation on updates/deletes (proper strategy), performance metrics showing 94% improvement. Cache TTL adds robustness. Complete implementation with testing and benchmarking."
+      }
+    ],
+    "signature": {
+      "instructions": "Validate implementation completeness.\n\nChecks for:\n- Partial implementations (TODOs, FIXMEs, stubs)\n- Unfilled typed holes (interfaces without implementations)\n- Missing error handling\n- Incomplete test coverage\n- Missing documentation\n\nCompleteness means ready for production, not just \"it compiles\".",
+      "fields": [
+        {
+          "prefix": "Work Item:",
+          "description": "Description of work item being validated"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation with file paths and key changes"
+        },
+        {
+          "prefix": "Requirements:",
+          "description": "Extracted requirements (may be empty)"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Is Complete:",
+          "description": "True if implementation is complete and production-ready (bool)"
+        },
+        {
+          "prefix": "Incomplete Aspects:",
+          "description": "List of incomplete aspects found: TODOs, stubs, missing tests, etc. (list[str])"
+        },
+        {
+          "prefix": "Typed Holes:",
+          "description": "List of typed holes or unfilled interfaces requiring implementation (list[str])"
+        },
+        {
+          "prefix": "Missing Tests:",
+          "description": "List of areas lacking test coverage (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "validate_correctness.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "augmented": true,
+        "implementation": "Database connection pooling. Code: `lazy_static! { static ref DB_POOL: Pool<PostgresConnectionManager> = { let manager = PostgresConnectionManager::new(\"postgresql://user:pass@localhost/db\"); Pool::builder().max_size(10).build(manager).unwrap() }; }` Files: database.rs",
+        "code_sample": "lazy_static! {\n    static ref DB_POOL: Pool<PostgresConnectionManager> = {\n        let manager = PostgresConnectionManager::new(\"postgresql://user:pass@localhost/db\");\n        Pool::builder().max_size(10).build(manager).unwrap()\n    };\n}",
+        "reasoning": "The implementation uses lazy_static to create a database connection pool with a fixed maximum size of 10 connections. The code initializes a PostgresConnectionManager with a hardcoded connection string and builds a pool. However, there are several critical issues: (1) the `.unwrap()` call will panic if pool creation fails, causing the entire application to crash; (2) the connection string is hardcoded with credentials, creating a security vulnerability; (3) there's no error handling for connection failures or pool exhaustion; (4) no timeout configuration is specified for acquiring connections; (5) no validation that connections are actually healthy before use; (6) the pool size is fixed at 10 with no consideration for concurrent request load or graceful degradation.",
+        "is_correct": "False",
+        "logic_issues": "- `.unwrap()` on pool creation will cause panic/crash if initialization fails instead of graceful error handling\n- No connection health checks or validation before returning connections from pool\n- Fixed pool size of 10 may be insufficient for high concurrency or cause connection starvation under load\n- No timeout configuration for acquiring connections from pool, risking indefinite hangs\n- Hardcoded connection string prevents environment-specific configuration (dev/staging/prod)",
+        "error_handling_gaps": "- Missing try-catch or Result handling around `Pool::builder().build()` - uses `.unwrap()` which panics\n- No error handling for connection acquisition failures when pool is exhausted\n- No validation of connection string format or database accessibility at startup\n- Missing error handling for connection drops or network failures during pool lifetime\n- No logging or monitoring of pool exhaustion events",
+        "edge_cases": "- Pool exhaustion: no handling when all 10 connections are in use and new request arrives\n- Database unavailable at startup: `.unwrap()` causes immediate panic rather than retry or graceful degradation\n- Connection timeout: no timeout specified, requests could hang indefinitely waiting for available connection\n- Stale connections: no mechanism to detect or refresh connections that have become invalid\n- Credentials in connection string: exposed in source code, logs, and error messages\n- Zero connections scenario: if max_size is set to 0 or negative, behavior is undefined"
+      },
+      {
+        "augmented": true,
+        "implementation": "Rate limiting using in-memory HashMap tracking request counts per IP. Code: `let mut limits = HashMap::new(); let count = limits.entry(ip).or_insert(0); *count += 1; if *count > 100 { return TooManyRequests; }` Files: middleware/rate_limit.rs",
+        "code_sample": "let mut limits = HashMap::new();\nlet count = limits.entry(ip).or_insert(0);\n*count += 1;\nif *count > 100 { return TooManyRequests; }",
+        "reasoning": "This rate limiting implementation uses an in-memory HashMap to track request counts per IP address. While the basic logic of incrementing counters and checking thresholds appears straightforward, there are several critical issues: (1) no time-window reset mechanism - counters accumulate indefinitely without expiration, (2) no thread-safety considerations for concurrent requests, (3) unbounded memory growth as new IPs are added to the HashMap, (4) no cleanup of stale entries, and (5) the HashMap is likely not protected by synchronization primitives in a multi-threaded web server context.",
+        "is_correct": "False",
+        "logic_issues": "- Counter never resets: counts accumulate indefinitely without time-window expiration, causing legitimate users to be permanently blocked after exceeding threshold once\n- Race condition: multiple concurrent requests from same IP can increment counter simultaneously without synchronization, leading to incorrect counts\n- Unbounded memory growth: HashMap grows without bound as new IPs are encountered, never removing old entries\n- No timestamp tracking: implementation cannot distinguish between old and new requests within a time window\n- Threshold check happens after increment: a request at exactly the limit (101st) gets rejected, but the logic doesn't account for time-based windows",
+        "error_handling_gaps": "- No validation of IP address format or null checks\n- No error handling for HashMap operations (though unlikely to fail, defensive programming is absent)\n- No logging of rate limit violations for monitoring/debugging\n- No graceful degradation if rate limiter fails\n- Missing bounds checking on counter values (potential overflow in long-running processes)",
+        "edge_cases": "- IPv6 addresses may be formatted differently than IPv4, causing same user to appear as different IPs\n- Requests from load balancers/proxies may all appear from same IP, blocking legitimate traffic\n- No handling of IP spoofing or X-Forwarded-For header manipulation\n- Server restart loses all rate limit state (no persistence)\n- Extremely high-traffic scenarios cause HashMap to consume excessive memory\n- No distinction between different endpoints/routes - all requests counted together\n- Time window never expires: after 1 request, user is rate-limited forever if threshold is 100 and no reset occurs"
+      },
+      {
+        "implementation": "JWT token validation middleware extracts token from Authorization header, verifies signature using RS256 public key, checks expiration. Code: `let token = req.headers().get(\"Authorization\").unwrap().to_str().unwrap().trim_start_matches(\"Bearer \");` Files: middleware.rs",
+        "code_sample": "let token = req.headers().get(\"Authorization\").unwrap().to_str().unwrap().trim_start_matches(\"Bearer \");",
+        "is_correct": false,
+        "issues": [
+          "Multiple unwrap() calls will panic if Authorization header missing or malformed",
+          "No error handling - server will crash on invalid input rather than returning 401",
+          "Trim operation assumes 'Bearer ' prefix exists, panics if different auth scheme used"
+        ],
+        "explanation": "Implementation has critical error handling flaw. Three unwrap() calls create panic points: (1) missing Authorization header, (2) non-UTF8 header value, (3) trim operation on potentially empty string. Production code should never panic on user input. Correct approach uses Result/Option with proper error propagation, returning 401 Unauthorized for invalid tokens instead of crashing server."
+      },
+      {
+        "implementation": "Password hashing on registration. Code: `use md5; let hash = md5::compute(password.as_bytes()); let hash_str = format!(\"{:x}\", hash); db.execute(\"INSERT INTO users (email, password_hash) VALUES (?, ?)\", &[email, &hash_str]);` Files: auth.rs",
+        "code_sample": "use md5;\nlet hash = md5::compute(password.as_bytes());\nlet hash_str = format!(\"{:x}\", hash);\ndb.execute(\"INSERT INTO users (email, password_hash) VALUES (?, ?)\", &[email, &hash_str]);",
+        "is_correct": false,
+        "issues": [
+          "MD5 is cryptographically broken and unsuitable for password hashing",
+          "No salt used - identical passwords produce identical hashes (rainbow table vulnerability)",
+          "Fast hash function (MD5) allows brute force attacks at billions of attempts/second",
+          "Critical security flaw that compromises all user passwords"
+        ],
+        "explanation": "Implementation is fundamentally incorrect for password security. MD5 is a fast, unsalted, broken hash function designed for data integrity, not password storage. Correct password hashing requires: (1) slow key derivation function (bcrypt, scrypt, Argon2), (2) unique salt per password, (3) high iteration count. This implementation allows attackers to crack passwords trivially using rainbow tables or brute force. Must use bcrypt or Argon2 with proper salting."
+      }
+    ],
+    "signature": {
+      "instructions": "Validate implementation correctness.\n\nSemantic analysis of logic quality and bug potential.\n\nChecks for:\n- Logic errors (off-by-one, race conditions, etc.)\n- Error handling gaps (uncaught exceptions, missing validation)\n- Edge case handling (empty inputs, overflow, etc.)\n- Type safety issues (implicit conversions, null derefs)\n- Security vulnerabilities\n\nFocus on potential runtime failures, not style or conventions.",
+      "fields": [
+        {
+          "prefix": "Work Item:",
+          "description": "Description of work item"
+        },
+        {
+          "prefix": "Implementation:",
+          "description": "Summary of implementation with code snippets if available"
+        },
+        {
+          "prefix": "Test Results:",
+          "description": "Test execution results: pass/fail counts, error messages"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Is Correct:",
+          "description": "True if implementation is logically sound and bug-free (bool)"
+        },
+        {
+          "prefix": "Logic Issues:",
+          "description": "List of potential logic errors or bugs found (list[str])"
+        },
+        {
+          "prefix": "Error Handling Gaps:",
+          "description": "List of error handling gaps: missing try/catch, validation, etc. (list[str])"
+        },
+        {
+          "prefix": "Edge Cases:",
+          "description": "List of unhandled edge cases (list[str])"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.14",
+      "dspy": "3.0.3",
+      "cloudpickle": "3.1"
+    }
+  }
+}

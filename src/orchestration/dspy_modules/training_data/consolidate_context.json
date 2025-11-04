@@ -1,0 +1,486 @@
+[
+  {
+    "inputs": {
+      "original_intent": "Implement user authentication with JWT tokens",
+      "execution_summaries": "[\"Implemented JWT generation with RS256 signing\", \"Added middleware for token validation\"]",
+      "review_feedback": "[\"Missing tests for token expiration\", \"No error handling for invalid tokens\", \"Documentation incomplete\"]",
+      "suggested_tests": "[\"Test expired token rejection\", \"Test invalid signature handling\", \"Test missing token scenario\"]",
+      "review_attempt": "1",
+      "consolidation_mode": "detailed"
+    },
+    "outputs": {
+      "consolidated_content": "## Work Intent\nImplement user authentication with JWT tokens\n\n## Progress Summary\n- ✅ JWT generation with RS256 signing implemented\n- ✅ Middleware for token validation added\n- ⚠️ Tests incomplete (missing expiration, error cases)\n- ⚠️ Documentation needs completion\n\n## Review Feedback (Attempt 1)\n\n### Critical Issues\n1. **Missing Tests**: No coverage for token expiration scenarios\n2. **Error Handling**: Invalid tokens not properly handled\n3. **Documentation**: API documentation incomplete\n\n### Suggested Test Coverage\n- Expired token rejection test\n- Invalid signature handling test\n- Missing token scenario test\n\n## Next Actions\n1. Add test suite for authentication edge cases\n2. Implement proper error responses (401 for auth failures)\n3. Complete API documentation with auth flow diagrams",
+      "key_issues": "[\"Missing test coverage for token expiration\", \"No error handling for invalid tokens\", \"Incomplete documentation\"]",
+      "strategic_guidance": "Focus on test-driven approach: write failing tests for each edge case first, then implement error handling to make them pass. Document the authentication flow once implementation is complete.",
+      "estimated_tokens": "850"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "authentication",
+      "notes": "First review attempt with detailed mode - preserve all context"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Implement user authentication with JWT tokens",
+      "execution_summaries": "[\"Added tests for token expiration\", \"Implemented error handling for invalid tokens\", \"Started API documentation\"]",
+      "review_feedback": "[\"Test coverage at 65%, need 80%+\", \"Error messages not user-friendly\", \"Documentation missing integration examples\"]",
+      "suggested_tests": "[\"Test concurrent token validation\", \"Test token refresh flow\"]",
+      "review_attempt": "2",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Progress\n✅ Tests added for expiration and invalid tokens\n✅ Error handling implemented\n⚠️ Coverage: 65% (target: 80%+)\n⚠️ Error messages need improvement\n⚠️ Documentation lacks integration examples\n\n## Key Issues\n1. Test coverage gap: 65% → 80%+ needed\n2. Error messages too technical for users\n3. Missing integration examples in docs\n\n## Next Steps\n- Add tests: concurrent validation, refresh flow\n- Improve error message clarity\n- Document integration patterns",
+      "key_issues": "[\"Test coverage below target (65% vs 80%)\", \"User-facing error messages need improvement\", \"Documentation missing integration examples\"]",
+      "strategic_guidance": "Prioritize test coverage (add concurrent + refresh tests), then polish error messages for user experience, finally add integration examples to documentation.",
+      "estimated_tokens": "520"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "authentication",
+      "notes": "Second review attempt with summary mode - focus on key issues and patterns"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Implement user authentication with JWT tokens",
+      "execution_summaries": "[\"Added concurrent validation tests\", \"Improved error messages\", \"Added integration examples to docs\"]",
+      "review_feedback": "[\"Test coverage now 78% (target: 80%)\", \"One flaky test: test_concurrent_validation\", \"Documentation complete but needs review\"]",
+      "suggested_tests": "[\"Stabilize concurrent validation test\"]",
+      "review_attempt": "3",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Status\n✅ Coverage: 78% (target: 80%, almost there)\n⚠️ Flaky test: test_concurrent_validation\n✅ Docs complete, pending review\n\n## Blockers\n1. Test coverage: 78% → 80% (2% gap)\n2. Flaky test causing CI failures\n\n## Resolution\n- Fix flaky test (race condition?)\n- Add 1-2 small tests to reach 80%",
+      "key_issues": "[\"Test coverage 2% below target\", \"Flaky concurrent validation test\"]",
+      "strategic_guidance": "Investigate race condition in concurrent test (likely shared state). Stabilize it, then add edge case tests to reach 80% coverage.",
+      "estimated_tokens": "380"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "authentication",
+      "notes": "Third attempt, nearly complete - summary mode focuses on final issues"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Optimize database query performance for user dashboard",
+      "execution_summaries": "[\"Added indexes on user_id and created_at\", \"Implemented query result caching\", \"Reduced N+1 queries using JOIN\"]",
+      "review_feedback": "[\"Performance improved 40% but target is 70%\", \"Cache invalidation logic incorrect\", \"Missing performance benchmarks\", \"No database migration for indexes\"]",
+      "suggested_tests": "[\"Benchmark query performance under load\", \"Test cache invalidation scenarios\"]",
+      "review_attempt": "1",
+      "consolidation_mode": "detailed"
+    },
+    "outputs": {
+      "consolidated_content": "## Work Intent\nOptimize database query performance for user dashboard\n\n## Progress Summary\n- ✅ Indexes added (user_id, created_at)\n- ✅ Query result caching implemented  \n- ✅ N+1 queries eliminated with JOIN\n- ⚠️ Performance: 40% improvement (target: 70%)\n- ❌ Cache invalidation has bugs\n- ❌ No performance benchmarks\n- ❌ Missing database migration file\n\n## Review Feedback (Attempt 1)\n\n### Critical Issues\n1. **Performance Gap**: Only 40% improvement vs 70% target (need 30% more)\n2. **Cache Invalidation**: Logic incorrect, causing stale data\n3. **Missing Migration**: Indexes added directly to DB without migration\n4. **No Benchmarks**: Can't verify performance claims\n\n### Suggested Testing\n- Load testing to benchmark query performance\n- Cache invalidation scenario tests\n\n## Root Cause Analysis\n- Performance gap likely due to missing indexes on foreign keys\n- Cache invalidation doesn't account for related record updates\n- Migration oversight risks production deployment issues\n\n## Next Actions\n1. Add indexes on remaining foreign keys\n2. Fix cache invalidation for cascading updates\n3. Create migration file for all index changes\n4. Set up load testing with 1000+ concurrent users\n5. Document performance benchmarks",
+      "key_issues": "[\"Performance improvement 30% short of target\", \"Cache invalidation logic broken\", \"No database migration file\", \"Missing performance benchmarks\"]",
+      "strategic_guidance": "Focus on systematic performance optimization: profile queries under load to identify remaining bottlenecks, fix cache invalidation with proper dependency tracking, and create migration before any production deployment.",
+      "estimated_tokens": "920"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "database_performance",
+      "notes": "Complex optimization task with multiple issues - detailed mode"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Optimize database query performance for user dashboard",
+      "execution_summaries": "[\"Added indexes on foreign keys\", \"Fixed cache invalidation\", \"Created migration file\", \"Set up load testing\"]",
+      "review_feedback": "[\"Performance now 65% (target: 70%)\", \"Cache working correctly\", \"Migration needs rollback strategy\", \"Load tests failing at 500+ users\"]",
+      "suggested_tests": "[\"Test migration rollback\", \"Profile queries under 500+ user load\"]",
+      "review_attempt": "2",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Progress\n✅ Foreign key indexes added\n✅ Cache invalidation fixed\n✅ Migration file created\n⚠️ Performance: 65% (target: 70%, 5% gap)\n⚠️ Load tests fail at 500+ users\n⚠️ Migration missing rollback\n\n## Key Issues\n1. Performance: 65% → 70% (5% short)\n2. Scalability: breaks at 500+ concurrent users  \n3. Migration: no rollback strategy\n\n## Next Steps\n- Profile queries at high load (500+ users)\n- Add rollback to migration\n- Optimize bottleneck queries",
+      "key_issues": "[\"Performance 5% below target\", \"Load tests failing at 500+ concurrent users\", \"Migration lacks rollback strategy\"]",
+      "strategic_guidance": "Profile under 500+ user load to find bottleneck (likely connection pool or query lock contention). Add migration rollback. Optimize critical path queries.",
+      "estimated_tokens": "540"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "database_performance",
+      "notes": "Second review with summary mode - getting closer to target"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Refactor authentication module to use dependency injection",
+      "execution_summaries": "[\"Created AuthService interface\", \"Implemented JWTAuthService\", \"Updated controllers to use DI\", \"Added unit tests\"]",
+      "review_feedback": "[\"Interface design too coupled to JWT\", \"DI container configuration hardcoded\", \"Tests still use concrete implementations\", \"No integration tests\", \"Documentation outdated\"]",
+      "suggested_tests": "[\"Test with mock AuthService\", \"Integration tests for DI lifecycle\"]",
+      "review_attempt": "1",
+      "consolidation_mode": "detailed"
+    },
+    "outputs": {
+      "consolidated_content": "## Work Intent\nRefactor authentication module to use dependency injection\n\n## Progress Summary\n- ✅ AuthService interface created\n- ✅ JWTAuthService implementation added\n- ✅ Controllers updated for DI\n- ✅ Unit tests written\n- ❌ Interface tightly coupled to JWT (not generic)\n- ❌ DI configuration hardcoded (not flexible)\n- ❌ Tests use concrete classes (defeats DI purpose)\n- ❌ No integration tests\n- ❌ Documentation not updated\n\n## Review Feedback (Attempt 1)\n\n### Critical Issues\n1. **Interface Design**: AuthService has JWT-specific methods (generateToken, verifyToken) - breaks abstraction\n2. **Hardcoded Configuration**: DI container setup in main.ts, no environment-based config\n3. **Test Quality**: Unit tests import JWTAuthService directly instead of mocking AuthService interface\n4. **Missing Integration Tests**: DI lifecycle not tested (scoping, disposal)\n5. **Stale Documentation**: README still shows old non-DI usage\n\n### Design Recommendations\n- Make AuthService generic: login(), logout(), verifyCredentials() - no JWT specifics\n- Move DI config to separate file, support environment overrides\n- Tests should only import AuthService interface + mocks\n\n## Next Actions\n1. Redesign AuthService interface (remove JWT-specific methods)\n2. Extract DI configuration to config file\n3. Refactor tests to use mocks, not concrete implementations\n4. Add integration tests for DI container lifecycle\n5. Update documentation with DI patterns",
+      "key_issues": "[\"AuthService interface too coupled to JWT implementation\", \"DI configuration hardcoded\", \"Tests don't use mocks\", \"No integration tests\", \"Documentation outdated\"]",
+      "strategic_guidance": "Start with interface redesign (most critical) - make it generic enough to support multiple auth strategies. Then fix tests to properly mock dependencies. Configuration and docs can follow.",
+      "estimated_tokens": "980"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "refactoring",
+      "notes": "Complex refactoring with design issues - detailed mode with recommendations"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Refactor authentication module to use dependency injection",
+      "execution_summaries": "[\"Redesigned AuthService interface (generic methods)\", \"Moved DI config to separate file\", \"Updated tests to use mocks\", \"Added integration tests\"]",
+      "review_feedback": "[\"Interface much better, but logout() signature unclear\", \"Config file works but hard to override\", \"Some tests still import concrete classes\", \"Integration tests passing\", \"Docs updated but missing migration guide\"]",
+      "suggested_tests": "[\"Test logout with different session types\"]",
+      "review_attempt": "2",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Progress\n✅ AuthService interface redesigned (generic)\n✅ DI config extracted\n✅ Most tests use mocks\n✅ Integration tests added and passing\n✅ Documentation updated\n⚠️ logout() signature ambiguous\n⚠️ Config override mechanism unclear\n⚠️ Some tests still use concrete imports\n⚠️ Missing migration guide for existing users\n\n## Key Issues\n1. logout() needs clearer signature (session ID? user ID?)\n2. Config file hard to override (env vars?)\n3. Test cleanup incomplete (3-4 files)\n4. Migration guide missing\n\n## Next Steps\n- Clarify logout() parameters\n- Add env var override support to config\n- Clean up remaining test imports\n- Write migration guide",
+      "key_issues": "[\"logout() signature unclear\", \"Config override mechanism not obvious\", \"Some tests still import concrete classes\", \"Migration guide missing\"]",
+      "strategic_guidance": "Polish phase: clarify logout() signature (breaking change, so decide carefully), make config override explicit with env vars, finish test cleanup, document migration path.",
+      "estimated_tokens": "560"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "refactoring",
+      "notes": "Second review, mostly polish issues - summary mode"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Add real-time notifications using WebSockets",
+      "execution_summaries": "[\"WebSocket server setup complete\", \"Client connection handling implemented\", \"Basic message broadcasting works\"]",
+      "review_feedback": "[\"No authentication on WebSocket connections\", \"Memory leak: connections not cleaned up\", \"No reconnection logic on client\", \"Missing error handling\", \"No tests\", \"Documentation missing\"]",
+      "suggested_tests": "[\"Test connection authentication\", \"Test connection cleanup on disconnect\", \"Test reconnection scenarios\"]",
+      "review_attempt": "1",
+      "consolidation_mode": "detailed"
+    },
+    "outputs": {
+      "consolidated_content": "## Work Intent\nAdd real-time notifications using WebSockets\n\n## Progress Summary\n- ✅ WebSocket server running\n- ✅ Client connections handled\n- ✅ Message broadcasting functional\n- ❌ No WebSocket authentication (security risk)\n- ❌ Memory leak: connections not removed on disconnect\n- ❌ No client reconnection logic\n- ❌ Error handling missing (connection failures, message errors)\n- ❌ Zero test coverage\n- ❌ No documentation\n\n## Review Feedback (Attempt 1)\n\n### Critical Issues (BLOCKERS)\n1. **Security**: WebSocket connections accept unauthenticated clients - anyone can connect\n2. **Memory Leak**: Connection map never removes disconnected clients - will crash under load\n3. **No Error Handling**: Server crashes on malformed messages\n\n### Important Issues\n4. **Client Reconnection**: Network issues cause permanent disconnection - poor UX\n5. **Zero Tests**: No coverage means regressions likely\n6. **No Documentation**: Integration unclear for other developers\n\n### Security Recommendation\n- Add JWT-based WebSocket authentication (validate token in upgrade handshake)\n- Implement connection timeout (disconnect idle clients)\n\n## Next Actions\n1. **CRITICAL**: Add WebSocket authentication (JWT in query param or header)\n2. **CRITICAL**: Fix memory leak (remove from connection map on 'close' event)\n3. **CRITICAL**: Add error handling (try/catch for message parsing, connection errors)\n4. Add client reconnection with exponential backoff\n5. Write test suite (auth, cleanup, error scenarios)\n6. Document WebSocket API and integration patterns",
+      "key_issues": "[\"No WebSocket authentication (security risk)\", \"Memory leak from connection cleanup failure\", \"Missing error handling causes crashes\", \"No client reconnection logic\", \"Zero test coverage\", \"No documentation\"]",
+      "strategic_guidance": "Address critical blockers first: authentication (security), memory leak (stability), error handling (reliability). Then add reconnection for UX, tests for confidence, docs for maintainability.",
+      "estimated_tokens": "1050"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "realtime_websockets",
+      "notes": "Multiple critical security and stability issues - detailed mode with prioritization"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Add real-time notifications using WebSockets",
+      "execution_summaries": "[\"Added JWT WebSocket auth\", \"Fixed connection cleanup\", \"Implemented error handling\", \"Added client reconnection with backoff\"]",
+      "review_feedback": "[\"Auth works but tokens not refreshed\", \"Cleanup works but heartbeat missing\", \"Error handling good\", \"Reconnection sometimes loops infinitely\", \"Still no tests\"]",
+      "suggested_tests": "[\"Test token expiration during connection\", \"Test heartbeat mechanism\", \"Test reconnection backoff limits\"]",
+      "review_attempt": "2",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Progress\n✅ JWT WebSocket auth implemented\n✅ Connection cleanup fixed\n✅ Error handling added\n✅ Client reconnection with backoff\n⚠️ Auth tokens not refreshed (connections drop after 15min)\n⚠️ No heartbeat (missed disconnects)\n⚠️ Reconnection can loop infinitely\n❌ Still no tests\n\n## Key Issues\n1. Token refresh missing (connections die after TTL)\n2. Heartbeat needed to detect zombie connections\n3. Reconnection needs max attempts limit\n4. Test coverage still 0%\n\n## Next Steps\n- Add token refresh mechanism\n- Implement heartbeat (ping/pong)\n- Limit reconnection attempts (max 5)\n- Write test suite",
+      "key_issues": "[\"Auth tokens not refreshed during long connections\", \"Missing heartbeat for zombie connection detection\", \"Reconnection can loop infinitely\", \"Zero test coverage\"]",
+      "strategic_guidance": "Add token refresh (issue new token via message), implement heartbeat (ping every 30s, disconnect if pong timeout), cap reconnection (max 5 attempts), then write tests.",
+      "estimated_tokens": "620"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "realtime_websockets",
+      "notes": "Second review, stability improvements needed - summary mode"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Add real-time notifications using WebSockets",
+      "execution_summaries": "[\"Token refresh mechanism added\", \"Heartbeat implemented (30s ping/pong)\", \"Reconnection capped at 5 attempts\", \"Started writing tests\"]",
+      "review_feedback": "[\"Everything working well\", \"Test coverage at 45% (need 70%)\", \"Documentation still missing\"]",
+      "suggested_tests": "[\"More edge case tests to reach 70% coverage\"]",
+      "review_attempt": "3",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Status\n✅ All core features working\n⚠️ Test coverage: 45% → 70% needed\n⚠️ Documentation missing\n\n## Remaining Work\n1. Add tests for edge cases (25% coverage gap)\n2. Write documentation\n\n## Next Steps\n- Write tests: concurrent connections, message ordering, auth edge cases\n- Document WebSocket API (connection flow, message format, error codes)",
+      "key_issues": "[\"Test coverage 25% below target (45% vs 70%)\", \"Documentation missing\"]",
+      "strategic_guidance": "Final push: add edge case tests (concurrent connections, message ordering, auth failures) to reach 70%, then document the WebSocket API with examples.",
+      "estimated_tokens": "420"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "realtime_websockets",
+      "notes": "Third review, polish phase - summary mode"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Implement caching layer with Redis",
+      "execution_summaries": "[\"Redis client configured\", \"Cache middleware added to API routes\", \"TTL set to 5 minutes for all cached data\"]",
+      "review_feedback": "[\"Cache working but one-size-fits-all TTL inappropriate\", \"No cache invalidation on data updates\", \"Cache keys not namespaced (collision risk)\", \"No cache miss monitoring\", \"Missing tests for cache behavior\"]",
+      "suggested_tests": "[\"Test cache invalidation on update\", \"Test cache key collisions\", \"Test cache miss rate\"]",
+      "review_attempt": "1",
+      "consolidation_mode": "detailed"
+    },
+    "outputs": {
+      "consolidated_content": "## Work Intent\nImplement caching layer with Redis\n\n## Progress Summary\n- ✅ Redis client connected\n- ✅ Cache middleware on API routes\n- ✅ TTL configured (5 minutes)\n- ❌ Fixed 5min TTL for all data (user profiles vs analytics data)\n- ❌ No invalidation on updates (stale data risk)\n- ❌ Cache keys not namespaced (collision between entities)\n- ❌ No monitoring of cache effectiveness\n- ❌ No tests for caching behavior\n\n## Review Feedback (Attempt 1)\n\n### Critical Issues\n1. **Inappropriate TTL**: 5min for everything (user profiles need 1h, analytics 5min, realtime data 10s)\n2. **Stale Data Risk**: Updating user profile doesn't invalidate cache - users see old data for 5min\n3. **Key Collisions**: Cache keys like `user:123` could collide across different data types\n4. **No Visibility**: Can't measure cache hit rate, can't optimize strategy\n\n### Caching Strategy Recommendations\n- Use tiered TTLs: fast-changing (10s-1min), moderate (5-15min), slow (1h+)\n- Implement cache-aside pattern with manual invalidation on writes\n- Namespace keys: `api:v1:users:123:profile`, `api:v1:users:123:settings`\n- Add instrumentation: cache hits, misses, invalidations\n\n## Next Actions\n1. Implement dynamic TTL based on data type\n2. Add cache invalidation on create/update/delete operations\n3. Namespace all cache keys with entity type and version\n4. Add cache metrics (hit rate, miss rate, invalidation count)\n5. Write test suite for cache behavior (hit, miss, invalidation, TTL expiry)",
+      "key_issues": "[\"One-size-fits-all TTL inappropriate for different data types\", \"No cache invalidation causes stale data\", \"Cache keys not namespaced (collision risk)\", \"No monitoring of cache effectiveness\", \"Missing tests\"]",
+      "strategic_guidance": "Redesign caching strategy: categorize data by volatility, implement appropriate TTLs, add invalidation hooks in write paths, namespace keys to prevent collisions, instrument for observability.",
+      "estimated_tokens": "1020"
+    },
+    "metadata": {
+      "source": "real_session",
+      "difficulty": "hard",
+      "category": "caching",
+      "notes": "Common caching antipatterns - needs strategic rethink"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Implement caching layer with Redis",
+      "execution_summaries": "[\"Implemented tiered TTL strategy\", \"Added cache invalidation on writes\", \"Namespaced all cache keys\", \"Added cache metrics\"]",
+      "review_feedback": "[\"TTL strategy working well\", \"Invalidation mostly works but race condition on concurrent updates\", \"Keys properly namespaced\", \"Metrics show 72% hit rate (good)\", \"Tests added but missing load testing\"]",
+      "suggested_tests": "[\"Test concurrent update race conditions\", \"Load test cache under high traffic\"]",
+      "review_attempt": "2",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Progress\n✅ Tiered TTL strategy working\n✅ Cache invalidation on writes\n✅ Namespaced keys\n✅ Metrics showing 72% hit rate\n✅ Tests added\n⚠️ Race condition: concurrent updates can leave stale data\n⚠️ Load testing not done\n\n## Key Issues\n1. Race condition on concurrent updates (update + invalidate not atomic)\n2. Cache performance under load unknown\n\n## Next Steps\n- Fix race condition (use Redis transactions or optimistic locking)\n- Run load tests (1000+ req/s)",
+      "key_issues": "[\"Race condition on concurrent cache updates\", \"No load testing under high traffic\"]",
+      "strategic_guidance": "Use Redis transactions (MULTI/EXEC) or optimistic locking (WATCH) to make update + invalidation atomic. Load test with realistic traffic patterns.",
+      "estimated_tokens": "480"
+    },
+    "metadata": {
+      "source": "real_session",
+      "difficulty": "medium",
+      "category": "caching",
+      "notes": "Second review, concurrency and performance validation needed"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Add pagination to API endpoints",
+      "execution_summaries": "[\"Added page and limit query parameters\", \"Implemented offset-based pagination\", \"Updated API responses with pagination metadata\"]",
+      "review_feedback": "[\"Pagination works but performance degrades on high offsets\", \"No cursor-based option for real-time feeds\", \"Missing totalCount in metadata\", \"No pagination on related resources (nested)\", \"Tests only cover page 1\"]",
+      "suggested_tests": "[\"Test high offset performance\", \"Test totalCount calculation\", \"Test pagination on nested resources\"]",
+      "review_attempt": "1",
+      "consolidation_mode": "detailed"
+    },
+    "outputs": {
+      "consolidated_content": "## Work Intent\nAdd pagination to API endpoints\n\n## Progress Summary\n- ✅ page/limit query params added\n- ✅ Offset-based pagination working\n- ✅ Pagination metadata in responses\n- ❌ Performance degrades at high offsets (page 100+)\n- ❌ No cursor-based pagination for feeds\n- ❌ totalCount missing from metadata\n- ❌ Related resources not paginated\n- ❌ Tests only check first page\n\n## Review Feedback (Attempt 1)\n\n### Critical Issues\n1. **Performance**: Offset pagination slow at page 100+ (SELECT with OFFSET 10000 scans all rows)\n2. **Real-time Feeds**: Offset pagination breaks with insertions (page shifts, duplicates/skips)\n3. **Incomplete Metadata**: Clients can't calculate total pages without totalCount\n\n### Design Issues\n4. **Nested Resources**: GET /users/123/posts returns all posts (could be 10000+)\n5. **Test Coverage**: Only tests page=1, missing edge cases (last page, empty, high offset)\n\n### Pagination Strategy\n- Use cursor-based for feeds (timestamps, IDs) - more stable and performant\n- Keep offset-based for static lists (admin panels, reports)\n- Add totalCount for offset pagination, skip for cursor (not meaningful)\n\n## Next Actions\n1. Implement cursor-based pagination for feed endpoints (/posts, /notifications)\n2. Add totalCount to offset pagination metadata\n3. Apply pagination to nested resources with sensible defaults\n4. Add index on pagination sort fields (created_at, id)\n5. Test edge cases (high offsets, last page, empty results, cursor boundaries)",
+      "key_issues": "[\"Offset pagination performs poorly at high page numbers\", \"No cursor-based pagination for real-time feeds\", \"Missing totalCount in metadata\", \"Nested resources not paginated\", \"Tests only cover first page\"]",
+      "strategic_guidance": "Hybrid approach: cursor-based for feeds (performance + stability), offset for admin/reports (easier navigation). Add totalCount where applicable. Paginate nested resources to prevent large payloads.",
+      "estimated_tokens": "1080"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "api_design",
+      "notes": "Pagination design issues requiring multiple strategies"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Add pagination to API endpoints",
+      "execution_summaries": "[\"Implemented cursor pagination for feeds\", \"Added totalCount to offset pagination\", \"Paginated nested resources\", \"Added indexes on sort fields\"]",
+      "review_feedback": "[\"Cursor pagination working well\", \"totalCount sometimes wrong (race conditions)\", \"Nested pagination has default limit too high (100)\", \"Tests improved but cursor edge cases missing\"]",
+      "suggested_tests": "[\"Test cursor at dataset boundaries\", \"Test totalCount accuracy under concurrent writes\"]",
+      "review_attempt": "2",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Progress\n✅ Cursor pagination for feeds\n✅ totalCount added\n✅ Nested resources paginated\n✅ Indexes on sort fields\n⚠️ totalCount inaccurate during concurrent writes\n⚠️ Nested default limit too high (100 → 20)\n⚠️ Cursor edge case tests missing\n\n## Key Issues\n1. totalCount race conditions\n2. Nested limit too permissive\n3. Cursor boundary tests needed\n\n## Next Steps\n- Add note in docs: totalCount approximate for large datasets\n- Reduce nested default limit to 20\n- Test cursor at first/last item, empty set",
+      "key_issues": "[\"totalCount inaccurate under concurrent writes\", \"Nested resource default limit too high\", \"Missing cursor boundary tests\"]",
+      "strategic_guidance": "Document totalCount as approximate (acceptable trade-off), lower nested default to 20, add cursor edge case tests.",
+      "estimated_tokens": "510"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "api_design",
+      "notes": "Second review, refinements and edge cases"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Implement rate limiting for public API",
+      "execution_summaries": "[\"Token bucket algorithm implemented\", \"Rate limits enforced per API key\", \"Added 429 responses with Retry-After header\"]",
+      "review_feedback": "[\"Rate limiting works but limits too strict (10 req/min)\", \"No distinction between read and write operations\", \"Burst allowance too low\", \"Rate limit state not distributed (breaks with multiple servers)\", \"Missing rate limit info in response headers\"]",
+      "suggested_tests": "[\"Test burst traffic patterns\", \"Test distributed rate limiting across instances\", \"Test read vs write limit differentiation\"]",
+      "review_attempt": "1",
+      "consolidation_mode": "detailed"
+    },
+    "outputs": {
+      "consolidated_content": "## Work Intent\nImplement rate limiting for public API\n\n## Progress Summary\n- ✅ Token bucket algorithm working\n- ✅ Per-API-key limits enforced\n- ✅ 429 responses with Retry-After\n- ❌ Limits too restrictive (10 req/min too low)\n- ❌ Same limits for reads and writes (reads should be higher)\n- ❌ Burst capacity too small (5 tokens)\n- ❌ State in local memory (doesn't work with >1 server)\n- ❌ No X-RateLimit-* headers\n\n## Review Feedback (Attempt 1)\n\n### Critical Issues\n1. **Scalability**: Rate limit state in app memory - second server instance has separate counters (users get 2x limit)\n2. **Limits Too Strict**: 10 req/min kills legitimate usage (analytics dashboards poll every 10s)\n3. **No Read/Write Distinction**: GET /users same limit as POST /users (writes should be more restrictive)\n\n### Configuration Issues\n4. **Insufficient Burst**: 5 tokens too low - legitimate burst traffic (page load = 5-10 requests) hits limit\n5. **Missing Headers**: Clients can't see remaining quota until they hit 429\n\n### Rate Limiting Strategy\n- Tiered limits: Read (60/min), Write (10/min), Admin (1000/min)\n- Generous burst: 20-30 tokens for legitimate page loads\n- Use Redis for distributed state (atomic INCR operations)\n- Add headers: X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset\n\n## Next Actions\n1. **CRITICAL**: Move rate limit state to Redis for distributed tracking\n2. Implement tiered limits (read: 60/min, write: 10/min, admin: 1000/min)\n3. Increase burst capacity to 30 tokens\n4. Add X-RateLimit-* headers to all responses\n5. Test distributed rate limiting across multiple server instances",
+      "key_issues": "[\"Rate limit state not distributed (breaks with multiple servers)\", \"Limits too restrictive for legitimate usage\", \"No read vs write differentiation\", \"Burst capacity too small\", \"Missing rate limit headers\"]",
+      "strategic_guidance": "Fix scalability first (Redis), then adjust limits based on operation type and realistic usage patterns. Add headers for transparency.",
+      "estimated_tokens": "1120"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "api_rate_limiting",
+      "notes": "Distributed systems issue + configuration tuning"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Implement rate limiting for public API",
+      "execution_summaries": "[\"Migrated to Redis-based rate limiting\", \"Implemented tiered limits (read: 60, write: 10, admin: 1000)\", \"Increased burst to 30 tokens\", \"Added X-RateLimit-* headers\"]",
+      "review_feedback": "[\"Redis rate limiting working across instances\", \"Tiered limits good but admin limit not applied to service accounts\", \"Burst capacity better\", \"Headers present\", \"Performance impact: Redis adds 5ms latency per request\"]",
+      "suggested_tests": "[\"Test service account bypass\", \"Load test Redis rate limiting overhead\"]",
+      "review_attempt": "2",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Progress\n✅ Redis-based distributed rate limiting\n✅ Tiered limits (read/write/admin)\n✅ Burst capacity increased to 30\n✅ X-RateLimit-* headers added\n⚠️ Service accounts not getting admin limits\n⚠️ Redis adds 5ms latency overhead\n\n## Key Issues\n1. Service accounts use default limits (need admin tier)\n2. Performance: 5ms Redis latency per request\n\n## Next Steps\n- Add service account detection → admin limits\n- Optimize: pipeline Redis commands, cache limits locally (30s TTL)",
+      "key_issues": "[\"Service accounts not receiving admin tier limits\", \"Redis rate limiting adds 5ms latency per request\"]",
+      "strategic_guidance": "Map service accounts to admin tier. Reduce latency with Redis pipelining and short-lived local cache (trade-off: slight rate limit drift acceptable).",
+      "estimated_tokens": "530"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "api_rate_limiting",
+      "notes": "Second review, configuration fix and performance optimization"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Fix memory leak in background job processor",
+      "execution_summaries": "[\"Profiled application with heap snapshots\", \"Identified leak: event listeners not removed\", \"Added cleanup in job completion handler\"]",
+      "review_feedback": "[\"Memory leak reduced by 80%\", \"Still seeing slow growth over days\", \"Cleanup code only in success path, not error path\", \"No monitoring for future leaks\"]",
+      "suggested_tests": "[\"Test cleanup on job failure\", \"Long-running memory growth test\"]",
+      "review_attempt": "1",
+      "consolidation_mode": "detailed"
+    },
+    "outputs": {
+      "consolidated_content": "## Work Intent\nFix memory leak in background job processor\n\n## Progress Summary\n- ✅ Heap profiling completed\n- ✅ Main leak source identified (event listeners)\n- ✅ Cleanup added to job completion\n- ⚠️ Memory leak reduced 80% (good progress)\n- ❌ Slow growth still present (20% leak remains)\n- ❌ Cleanup only in success path (error path leaks)\n- ❌ No leak monitoring/alerting\n\n## Review Feedback (Attempt 1)\n\n### Critical Issues\n1. **Incomplete Fix**: Cleanup in try block but not in catch - failed jobs leak listeners\n2. **Remaining Leak**: 80% reduction good, but 20% slow leak will crash after days\n3. **No Detection**: Can't tell if leak returns or new leaks appear\n\n### Heap Analysis\n- Main leak fixed: event listeners properly removed in success path\n- Remaining growth likely: \n  - Error path (uncaught listeners)\n  - Circular references in job context\n  - Cache not bounded (grows indefinitely)\n\n## Next Actions\n1. **CRITICAL**: Add cleanup to finally block (runs on both success and error)\n2. Profile again to identify remaining 20% leak source\n3. Check for circular references in job data structures\n4. Add bounded cache (LRU with max size)\n5. Implement memory monitoring (alert if growth exceeds threshold)\n6. Test with long-running job that fails repeatedly",
+      "key_issues": "[\"Cleanup missing from error path (failed jobs leak)\", \"20% slow leak remains unidentified\", \"No monitoring for future memory leaks\"]",
+      "strategic_guidance": "Move cleanup to finally block (guaranteed execution). Profile again to find remaining leak (likely cache or circular refs). Add monitoring to catch regressions early.",
+      "estimated_tokens": "940"
+    },
+    "metadata": {
+      "source": "real_session",
+      "difficulty": "hard",
+      "category": "debugging_memory",
+      "notes": "Partial fix, need deeper analysis and monitoring"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Fix memory leak in background job processor",
+      "execution_summaries": "[\"Moved cleanup to finally block\", \"Profiled again: found unbounded cache\", \"Implemented LRU cache with 1000 entry limit\", \"Added memory monitoring\"]",
+      "review_feedback": "[\"Cleanup now runs on all paths\", \"Cache bounded correctly\", \"Memory stable over 48h test\", \"Monitoring working\", \"Should document the fix for future maintainers\"]",
+      "suggested_tests": "[\"Verify monitoring alerts trigger at threshold\"]",
+      "review_attempt": "2",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Progress\n✅ Cleanup in finally block (all paths)\n✅ LRU cache (1000 entry limit)\n✅ Memory stable over 48h\n✅ Monitoring alerts configured\n⚠️ Fix not documented\n\n## Status\nMemory leak resolved! Just needs documentation.\n\n## Next Step\n- Document leak root causes and fixes in TROUBLESHOOTING.md",
+      "key_issues": "[\"Memory leak fix not documented\"]",
+      "strategic_guidance": "Document the leak (event listeners + unbounded cache), the fix (finally block + LRU), and monitoring setup for future maintainers.",
+      "estimated_tokens": "380"
+    },
+    "metadata": {
+      "source": "real_session",
+      "difficulty": "easy",
+      "category": "debugging_memory",
+      "notes": "Second review, essentially complete - summary mode"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Migrate from REST to GraphQL API",
+      "execution_summaries": "[\"GraphQL server setup with Apollo\", \"Defined schema for User and Post types\", \"Implemented basic queries and mutations\", \"Kept REST endpoints for backward compatibility\"]",
+      "review_feedback": "[\"GraphQL working but N+1 query problem on nested fields\", \"No DataLoader for batching\", \"Schema lacks pagination\", \"Mutations don't validate input\", \"No GraphQL-specific error handling\", \"REST and GraphQL duplicate business logic\"]",
+      "suggested_tests": "[\"Test query complexity limits\", \"Test DataLoader batching\", \"Test input validation on mutations\"]",
+      "review_attempt": "1",
+      "consolidation_mode": "detailed"
+    },
+    "outputs": {
+      "consolidated_content": "## Work Intent\nMigrate from REST to GraphQL API\n\n## Progress Summary\n- ✅ Apollo GraphQL server running\n- ✅ User and Post types defined\n- ✅ Basic queries and mutations work\n- ✅ REST endpoints maintained for compatibility\n- ❌ N+1 query problem (fetches user per post instead of batch)\n- ❌ No DataLoader for request batching\n- ❌ Schema missing pagination (returns all items)\n- ❌ Mutations accept any input (no validation)\n- ❌ GraphQL errors expose internal details\n- ❌ Business logic duplicated in REST and GraphQL resolvers\n\n## Review Feedback (Attempt 1)\n\n### Critical Issues\n1. **N+1 Queries**: Fetching posts.author makes 1 query per post (1000 posts = 1000 queries) - will timeout\n2. **Missing DataLoader**: No batching/caching of database lookups within request\n3. **No Pagination**: Query {posts} returns all posts (could be 100K+) - needs connections\n4. **No Input Validation**: Mutations accept malformed data (missing required fields, wrong types)\n5. **Error Leakage**: GraphQL errors include stack traces and SQL queries (security risk)\n\n### Architecture Issues\n6. **Code Duplication**: REST and GraphQL have separate resolver logic - double maintenance burden\n\n### GraphQL Best Practices\n- Use DataLoader pattern for automatic batching\n- Implement Relay-style connections for pagination\n- Use input types with validation (graphql-scalars, class-validator)\n- Format errors to hide internals (use formatError)\n- Share business logic layer between REST and GraphQL\n\n## Next Actions\n1. **CRITICAL**: Implement DataLoader for User, Post, Comment lookups\n2. **CRITICAL**: Add pagination (connections with edges/nodes/pageInfo)\n3. Add input validation to all mutations (required fields, format checking)\n4. Implement GraphQL error formatting (hide stack traces, generic messages)\n5. Extract business logic to service layer (shared by REST and GraphQL)\n6. Add query complexity limits to prevent abuse",
+      "key_issues": "[\"N+1 query problem causing performance issues\", \"No DataLoader for request batching\", \"Schema lacks pagination\", \"Mutations don't validate input\", \"GraphQL errors expose internals\", \"Business logic duplicated between REST and GraphQL\"]",
+      "strategic_guidance": "Fix N+1 with DataLoader (biggest performance win). Add pagination and input validation for scalability and reliability. Refactor to shared service layer to eliminate duplication.",
+      "estimated_tokens": "1180"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "api_migration",
+      "notes": "Complex migration with multiple GraphQL antipatterns"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Migrate from REST to GraphQL API",
+      "execution_summaries": "[\"Implemented DataLoader for all types\", \"Added Relay-style pagination\", \"Added input validation with class-validator\", \"Formatted GraphQL errors\", \"Extracted service layer\"]",
+      "review_feedback": "[\"DataLoader working, N+1 resolved\", \"Pagination good but default pageSize too high (100)\", \"Input validation works\", \"Errors properly formatted\", \"Service layer shared successfully\", \"Missing: query depth limiting, schema documentation\"]",
+      "suggested_tests": "[\"Test deeply nested queries\", \"Test pagination with large datasets\"]",
+      "review_attempt": "2",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Progress\n✅ DataLoader (N+1 resolved)\n✅ Relay pagination\n✅ Input validation\n✅ Error formatting\n✅ Shared service layer\n⚠️ Default pageSize too high (100 → 20)\n⚠️ No query depth limiting (vulnerable to deep nesting attacks)\n⚠️ Schema not documented\n\n## Key Issues\n1. Default pageSize too permissive\n2. Deep query attacks possible\n3. Schema lacks descriptions\n\n## Next Steps\n- Reduce default pageSize to 20\n- Add query depth limit (max 5 levels)\n- Add descriptions to all schema types/fields",
+      "key_issues": "[\"Default pageSize too high\", \"No query depth limiting\", \"Schema documentation missing\"]",
+      "strategic_guidance": "Lower default pageSize, add depth limiting (graphql-depth-limit), document schema with descriptions for auto-generated docs.",
+      "estimated_tokens": "560"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "api_migration",
+      "notes": "Second review, security and usability improvements"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Add end-to-end encryption for chat messages",
+      "execution_summaries": "[\"Generated keypairs for users on signup\", \"Implemented client-side encryption\", \"Messages encrypted before sending to server\", \"Decryption on client when receiving messages\"]",
+      "review_feedback": "[\"Encryption working but key storage insecure (localStorage)\", \"No key rotation mechanism\", \"Group chats not supported\", \"Encrypted search not possible\", \"No recovery if user loses device\", \"Forward secrecy not implemented\"]",
+      "suggested_tests": "[\"Test key compromise scenarios\", \"Test multi-device key sync\", \"Test group chat encryption\"]",
+      "review_attempt": "1",
+      "consolidation_mode": "detailed"
+    },
+    "outputs": {
+      "consolidated_content": "## Work Intent\nAdd end-to-end encryption for chat messages\n\n## Progress Summary\n- ✅ User keypairs generated on signup\n- ✅ Client-side encryption implemented\n- ✅ Messages encrypted before server storage\n- ✅ Client-side decryption working\n- ❌ Private keys in localStorage (can be stolen by XSS)\n- ❌ No key rotation (compromised keys = all history exposed)\n- ❌ Group chats not supported (1-to-1 only)\n- ❌ Encrypted messages can't be searched\n- ❌ Lost device = lost all messages (no recovery)\n- ❌ No forward secrecy (past messages at risk if key compromised)\n\n## Review Feedback (Attempt 1)\n\n### Critical Security Issues\n1. **Insecure Key Storage**: Private keys in localStorage accessible to any XSS attack\n2. **No Forward Secrecy**: Compromised long-term key decrypts entire message history\n3. **No Key Rotation**: Keys used forever, increasing compromise risk over time\n\n### Feature Gaps\n4. **No Group Chat**: E2EE only works for 1-to-1 (group needs sender keys or MLS)\n5. **Search Broken**: Can't search encrypted messages (need encrypted indexes or client-side search)\n6. **No Device Recovery**: Lose phone = lose all messages (need secure backup/escrow)\n\n### Security Recommendations\n- Use Signal Protocol (Double Ratchet) for forward secrecy\n- Store keys in IndexedDB with Web Crypto API (better than localStorage)\n- Implement key rotation every 30 days\n- Use Sender Keys for group encryption\n- Encrypted search: client-side indexing or searchable encryption\n- Key backup: encrypted backup with recovery key or trusted contacts\n\n## Next Actions\n1. **CRITICAL**: Migrate keys from localStorage to IndexedDB + Web Crypto API\n2. **CRITICAL**: Implement Double Ratchet (Signal Protocol) for forward secrecy\n3. Add automatic key rotation (30-day lifecycle)\n4. Implement Sender Keys for group chat encryption\n5. Build encrypted key backup with recovery codes\n6. Add client-side message search (build index on device)",
+      "key_issues": "[\"Private keys insecurely stored in localStorage\", \"No forward secrecy (compromised key exposes all history)\", \"No key rotation mechanism\", \"Group chats not supported\", \"Search doesn't work on encrypted messages\", \"No device recovery mechanism\"]",
+      "strategic_guidance": "Fix key storage and implement forward secrecy (Signal Protocol) first - these are critical security gaps. Then add group support and recovery features.",
+      "estimated_tokens": "1240"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "security_encryption",
+      "notes": "Complex cryptography with multiple security and UX challenges"
+    }
+  },
+  {
+    "inputs": {
+      "original_intent": "Add end-to-end encryption for chat messages",
+      "execution_summaries": "[\"Migrated to IndexedDB + Web Crypto\", \"Implemented Double Ratchet protocol\", \"Added key rotation (30 days)\", \"Started group chat with Sender Keys\", \"Built recovery code system\"]",
+      "review_feedback": "[\"Key storage much better\", \"Double Ratchet working (forward secrecy achieved)\", \"Key rotation smooth\", \"Group chat encryption working for small groups (<10)\", \"Recovery codes work but UX confusing\", \"Large groups (100+) have performance issues\", \"Still no search\"]",
+      "suggested_tests": "[\"Test large group performance\", \"Test recovery flow UX\", \"Test search alternatives\"]",
+      "review_attempt": "2",
+      "consolidation_mode": "summary"
+    },
+    "outputs": {
+      "consolidated_content": "## Progress\n✅ IndexedDB + Web Crypto storage\n✅ Double Ratchet (forward secrecy)\n✅ 30-day key rotation\n✅ Group chat (Sender Keys)\n✅ Recovery codes\n⚠️ Recovery UX confusing (users don't save codes)\n⚠️ Large groups (100+) slow (key distribution overhead)\n⚠️ Search still not working\n\n## Key Issues\n1. Recovery code UX needs improvement\n2. Large group scalability\n3. Search functionality missing\n\n## Next Steps\n- Improve recovery UX (prompt to save, test recovery flow)\n- Large groups: switch to MLS protocol or limit to 50 users\n- Search: implement client-side FTS index",
+      "key_issues": "[\"Recovery code UX unclear to users\", \"Large group performance issues (100+ members)\", \"Search not implemented\"]",
+      "strategic_guidance": "Improve recovery UX with better prompts and testing. For large groups, either adopt MLS or set reasonable limits. Implement client-side full-text search with encrypted index.",
+      "estimated_tokens": "640"
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "security_encryption",
+      "notes": "Second review, UX and scalability improvements needed"
+    }
+  }
+]

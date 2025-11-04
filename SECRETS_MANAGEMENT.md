@@ -356,10 +356,6 @@ flowchart LR
     CLI --> SM
     SM -->|Encrypt| Age
     Age -->|Write| File
-
-    style User fill:#bbdefb
-    style File fill:#ffe0b2
-    style Age fill:#c8e6c9
 ```
 
 ### Decryption Flow
@@ -382,10 +378,6 @@ flowchart LR
     File --> Age
     Age --> Return
     Check2 -->|No| Error[Error: Not found]
-
-    style App fill:#bbdefb
-    style Return fill:#c8e6c9
-    style Error fill:#ffcdd2
 ```
 
 ### Code Structure
