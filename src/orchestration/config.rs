@@ -29,6 +29,12 @@
 //! mnemosyne_dir = ".mnemosyne"
 //! poll_interval_seconds = 2
 //! heartbeat_timeout_seconds = 30
+//!
+//! [telemetry]
+//! enabled = true
+//! sampling_rate = 0.10
+//! log_file_path = "logs/dspy_production.jsonl"
+//! buffer_size = 100
 //! ```
 
 use crate::error::{MnemosyneError, Result};
@@ -58,6 +64,10 @@ pub struct BranchIsolationConfig {
     /// Cross-process coordination settings
     #[serde(default)]
     pub cross_process: CrossProcessSettings,
+
+    /// DSPy telemetry and production logging settings
+    #[serde(default)]
+    pub telemetry: TelemetrySettings,
 }
 
 
@@ -205,6 +215,37 @@ impl Default for CrossProcessSettings {
     }
 }
 
+/// DSPy telemetry and production logging settings
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TelemetrySettings {
+    /// Enable telemetry sampling
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+
+    /// Sampling rate (0.0-1.0) for production logging
+    #[serde(default = "default_sampling_rate")]
+    pub sampling_rate: f64,
+
+    /// Log file path for production interactions
+    #[serde(default = "default_log_file_path")]
+    pub log_file_path: String,
+
+    /// Buffer size for log writes (number of entries before flush)
+    #[serde(default = "default_buffer_size")]
+    pub buffer_size: usize,
+}
+
+impl Default for TelemetrySettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            sampling_rate: 0.10, // 10%
+            log_file_path: "logs/dspy_production.jsonl".to_string(),
+            buffer_size: 100,
+        }
+    }
+}
+
 // Default value helpers
 fn default_true() -> bool {
     true
@@ -237,6 +278,18 @@ fn default_poll_interval() -> u64 {
 
 fn default_heartbeat_timeout() -> i64 {
     30
+}
+
+fn default_sampling_rate() -> f64 {
+    0.10 // 10%
+}
+
+fn default_log_file_path() -> String {
+    "logs/dspy_production.jsonl".to_string()
+}
+
+fn default_buffer_size() -> usize {
+    100
 }
 
 impl BranchIsolationConfig {
@@ -399,5 +452,32 @@ mod tests {
     fn test_load_nonexistent_returns_default() {
         let config = BranchIsolationConfig::load(Path::new("/nonexistent/config.toml")).unwrap();
         assert!(config.branch_isolation.enabled);
+    }
+
+    #[test]
+    fn test_telemetry_config_defaults() {
+        let config = BranchIsolationConfig::default();
+
+        assert!(config.telemetry.enabled);
+        assert_eq!(config.telemetry.sampling_rate, 0.10);
+        assert_eq!(config.telemetry.log_file_path, "logs/dspy_production.jsonl");
+        assert_eq!(config.telemetry.buffer_size, 100);
+    }
+
+    #[test]
+    fn test_telemetry_config_save_and_load() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config_telemetry.toml");
+
+        let mut config = BranchIsolationConfig::default();
+        config.telemetry.sampling_rate = 0.20;
+        config.telemetry.buffer_size = 200;
+        config.save(&config_path).unwrap();
+
+        let loaded = BranchIsolationConfig::load(&config_path).unwrap();
+
+        assert_eq!(loaded.telemetry.sampling_rate, 0.20);
+        assert_eq!(loaded.telemetry.buffer_size, 200);
+        assert_eq!(loaded.telemetry.log_file_path, "logs/dspy_production.jsonl");
     }
 }
