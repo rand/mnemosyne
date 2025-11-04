@@ -393,6 +393,7 @@ impl ConfigManager {
     }
 
     /// Interactive prompt to set API key (for CLI use)
+    #[cfg(feature = "keyring-fallback")]
     pub fn prompt_and_set_api_key(&self) -> Result<()> {
         println!("\n🔑 Mnemosyne API Key Setup");
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
