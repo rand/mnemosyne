@@ -87,7 +87,7 @@ impl ReviewerDSpyAdapter {
             inputs.insert("context".to_string(), json!(ctx));
         }
 
-        let outputs = self.instrumentation.call_agent_module("Reviewer", inputs).await?;
+        let outputs = self.instrumentation.call_agent_module("reviewer", inputs).await?;
 
         // Extract requirements from output
         let requirements: Vec<String> = outputs
@@ -133,7 +133,7 @@ impl ReviewerDSpyAdapter {
         inputs.insert("implementation".to_string(), json!(implementation));
         inputs.insert("execution_context".to_string(), json!(execution_memories));
 
-        let outputs = self.instrumentation.call_agent_module("Reviewer", inputs).await?;
+        let outputs = self.instrumentation.call_agent_module("reviewer", inputs).await?;
 
         // Extract validation results
         let intent_satisfied = outputs
@@ -187,7 +187,7 @@ impl ReviewerDSpyAdapter {
         inputs.insert("implementation".to_string(), json!(implementation));
         inputs.insert("execution_context".to_string(), json!(execution_memories));
 
-        let outputs = self.instrumentation.call_agent_module("Reviewer", inputs).await?;
+        let outputs = self.instrumentation.call_agent_module("reviewer", inputs).await?;
 
         // Extract validation results
         let complete = outputs
@@ -235,7 +235,7 @@ impl ReviewerDSpyAdapter {
         inputs.insert("implementation".to_string(), json!(implementation));
         inputs.insert("execution_context".to_string(), json!(execution_memories));
 
-        let outputs = self.instrumentation.call_agent_module("Reviewer", inputs).await?;
+        let outputs = self.instrumentation.call_agent_module("reviewer", inputs).await?;
 
         // Extract validation results
         let correct = outputs

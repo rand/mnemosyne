@@ -33,25 +33,36 @@
 //! # }
 //! ```
 
+// Guard entire module behind python feature flag to support builds without PyO3
+#[cfg(feature = "python")]
 use crate::error::{MnemosyneError, Result};
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
+#[cfg(feature = "python")]
 use pyo3::types::{PyDict, PyList};
+#[cfg(feature = "python")]
 use serde_json::Value;
+#[cfg(feature = "python")]
 use std::collections::HashMap;
+#[cfg(feature = "python")]
 use std::sync::Arc;
+#[cfg(feature = "python")]
 use tokio::sync::Mutex;
+#[cfg(feature = "python")]
 use tracing::{debug, error, info, warn};
 
 /// PyO3 bridge to DSPy agent modules
 ///
 /// Manages the Python interpreter and provides async-friendly interface
 /// to DSPy modules. Thread-safe via Arc<Mutex<>> for GIL management.
+#[cfg(feature = "python")]
 #[derive(Clone)]
 pub struct DSpyBridge {
     /// Python DSPy service instance (holds GIL when accessed)
     service: Arc<Mutex<Py<PyAny>>>,
 }
 
+#[cfg(feature = "python")]
 impl DSpyBridge {
     /// Create a new DSPy bridge
     ///
@@ -236,6 +247,7 @@ impl DSpyBridge {
 }
 
 /// Convert serde_json::Value to Python object
+#[cfg(feature = "python")]
 fn json_to_python(py: Python, value: &Value) -> Result<PyObject> {
     match value {
         Value::Null => Ok(py.None()),
@@ -274,6 +286,7 @@ fn json_to_python(py: Python, value: &Value) -> Result<PyObject> {
 }
 
 /// Extract outputs from DSPy Prediction object
+#[cfg(feature = "python")]
 fn extract_dspy_outputs(_py: Python, prediction: &Bound<PyAny>) -> Result<HashMap<String, Value>> {
     let mut outputs = HashMap::new();
 
@@ -305,6 +318,7 @@ fn extract_dspy_outputs(_py: Python, prediction: &Bound<PyAny>) -> Result<HashMa
 }
 
 /// Convert Python object to serde_json::Value
+#[cfg(feature = "python")]
 fn python_to_json(obj: &Bound<PyAny>) -> Result<Value> {
     if obj.is_none() {
         Ok(Value::Null)
