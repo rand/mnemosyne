@@ -578,9 +578,15 @@ impl LibsqlStorage {
             SchemaType::StandardSQLite => vec![
                 "001_initial_schema.sql",
                 "002_add_indexes.sql",
+                "003_fix_fts_triggers.sql",
+                // 007_evolution.sql is obsolete (columns already in 001_initial_schema.sql)
+                "011_work_items.sql",
+                "012_requirement_tracking.sql",
+                "013_add_task_and_agent_event_types.sql",
+                "014_add_specification_workflow_types.sql",
+                "015_fix_audit_log_schema.sql",
                 // Note: SQLite schema uses separate memory_embeddings table
                 // 003_add_vector_search.sql is disabled (requires sqlite-vec extension)
-                // 007_evolution.sql is obsolete (columns already in 001_initial_schema.sql)
             ],
         };
 
