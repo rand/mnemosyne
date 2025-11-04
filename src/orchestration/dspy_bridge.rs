@@ -410,4 +410,119 @@ mod tests {
             assert_eq!(str_val, Value::String("test".to_string()));
         });
     }
+
+    #[test]
+    fn test_json_to_python_nested_structures() {
+        Python::with_gil(|py| {
+            // Test nested object
+            let mut inner_obj = serde_json::Map::new();
+            inner_obj.insert("nested_key".to_string(), Value::String("nested_value".to_string()));
+
+            let mut outer_obj = serde_json::Map::new();
+            outer_obj.insert("inner".to_string(), Value::Object(inner_obj));
+            outer_obj.insert("number".to_string(), Value::Number(42.into()));
+
+            let nested_val = json_to_python(py, &Value::Object(outer_obj)).unwrap();
+            let py_dict: &Bound<PyDict> = nested_val.downcast_bound(py).unwrap();
+
+            // Verify outer dict has both keys
+            assert!(py_dict.contains("inner").unwrap());
+            assert!(py_dict.contains("number").unwrap());
+
+            // Verify nested structure
+            let inner_dict = py_dict.get_item("inner").unwrap().unwrap();
+            let inner_py_dict: &Bound<PyDict> = inner_dict.downcast().unwrap();
+            assert!(inner_py_dict.contains("nested_key").unwrap());
+        });
+    }
+
+    #[test]
+    fn test_python_to_json_nested_structures() {
+        Python::with_gil(|py| {
+            // Create nested Python dict
+            let outer_dict = PyDict::new_bound(py);
+            let inner_dict = PyDict::new_bound(py);
+
+            inner_dict.set_item("nested_key", "nested_value").unwrap();
+            outer_dict.set_item("inner", inner_dict).unwrap();
+            outer_dict.set_item("number", 42).unwrap();
+
+            let json_val = python_to_json(&outer_dict).unwrap();
+
+            // Verify JSON structure
+            assert!(json_val.is_object());
+            let obj = json_val.as_object().unwrap();
+            assert_eq!(obj.len(), 2);
+            assert!(obj.contains_key("inner"));
+            assert!(obj.contains_key("number"));
+
+            // Verify nested object
+            let inner_json = obj.get("inner").unwrap();
+            assert!(inner_json.is_object());
+            let inner_obj = inner_json.as_object().unwrap();
+            assert_eq!(inner_obj.get("nested_key").unwrap().as_str().unwrap(), "nested_value");
+        });
+    }
+
+    #[test]
+    fn test_json_to_python_array_conversion() {
+        Python::with_gil(|py| {
+            let json_array = Value::Array(vec![
+                Value::String("item1".to_string()),
+                Value::Number(2.into()),
+                Value::Bool(true),
+            ]);
+
+            let py_list = json_to_python(py, &json_array).unwrap();
+            let py_list_bound: &Bound<PyList> = py_list.downcast_bound(py).unwrap();
+
+            assert_eq!(py_list_bound.len(), 3);
+            assert_eq!(py_list_bound.get_item(0).unwrap().extract::<String>().unwrap(), "item1");
+            assert_eq!(py_list_bound.get_item(1).unwrap().extract::<i64>().unwrap(), 2);
+            assert_eq!(py_list_bound.get_item(2).unwrap().extract::<bool>().unwrap(), true);
+        });
+    }
+
+    #[test]
+    fn test_python_to_json_array_conversion() {
+        Python::with_gil(|py| {
+            let py_list = PyList::new_bound(py, &["item1", "item2", "item3"]);
+
+            let json_val = python_to_json(&py_list).unwrap();
+
+            assert!(json_val.is_array());
+            let arr = json_val.as_array().unwrap();
+            assert_eq!(arr.len(), 3);
+            assert_eq!(arr[0].as_str().unwrap(), "item1");
+            assert_eq!(arr[1].as_str().unwrap(), "item2");
+            assert_eq!(arr[2].as_str().unwrap(), "item3");
+        });
+    }
+
+    #[test]
+    fn test_json_numbers() {
+        Python::with_gil(|py| {
+            // Test integer
+            let int_val = json_to_python(py, &Value::Number(42.into())).unwrap();
+            assert_eq!(int_val.extract::<i64>(py).unwrap(), 42);
+
+            // Test float
+            let float_json = serde_json::Number::from_f64(3.14).unwrap();
+            let float_val = json_to_python(py, &Value::Number(float_json)).unwrap();
+            let extracted_float = float_val.extract::<f64>(py).unwrap();
+            assert!((extracted_float - 3.14).abs() < 0.001);
+        });
+    }
+
+    #[test]
+    fn test_dspy_bridge_clone() {
+        // Test that DSpyBridge can be cloned (important for Arc sharing)
+        let bridge = DSpyBridge::new().unwrap();
+        let bridge_clone = bridge.clone();
+
+        // Both should work independently
+        // This validates the Clone implementation works correctly
+        drop(bridge);
+        drop(bridge_clone);
+    }
 }
