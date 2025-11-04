@@ -20,11 +20,11 @@
 //! ## Usage Example
 //!
 //! ```rust,no_run
-//! use mnemosyne::orchestration::dspy_bridge::DSpyBridge;
+//! use mnemosyne::orchestration::dspy_instrumentation::DSpyInstrumentation;
 //! use mnemosyne::orchestration::actors::reviewer_dspy_adapter::ReviewerDSpyAdapter;
 //!
-//! let bridge = DSpyBridge::new(dspy_service)?;
-//! let adapter = ReviewerDSpyAdapter::new(bridge);
+//! let instrumentation = DSpyInstrumentation::new(...)?;
+//! let adapter = ReviewerDSpyAdapter::new(instrumentation);
 //!
 //! // Extract requirements from intent
 //! let requirements = adapter.extract_requirements(
@@ -42,7 +42,7 @@
 
 use crate::{
     error::{MnemosyneError, Result},
-    orchestration::dspy_bridge::DSpyBridge,
+    orchestration::dspy_instrumentation::DSpyInstrumentation,
 };
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -51,16 +51,17 @@ use tracing::{debug, error, warn};
 
 /// Type-safe adapter for Reviewer DSPy operations
 ///
-/// Wraps DSpyBridge generic interface with strongly-typed methods
-/// matching the ReviewerModule's signature.
+/// Wraps DSpyInstrumentation with strongly-typed methods
+/// matching the ReviewerModule's signature. Uses instrumentation
+/// layer for 10% sampling and production telemetry.
 pub struct ReviewerDSpyAdapter {
-    bridge: Arc<DSpyBridge>,
+    instrumentation: Arc<DSpyInstrumentation>,
 }
 
 impl ReviewerDSpyAdapter {
-    /// Create new adapter from DSpyBridge
-    pub fn new(bridge: Arc<DSpyBridge>) -> Self {
-        Self { bridge }
+    /// Create new adapter from DSpyInstrumentation
+    pub fn new(instrumentation: Arc<DSpyInstrumentation>) -> Self {
+        Self { instrumentation }
     }
 
     /// Extract structured requirements from user intent
@@ -86,7 +87,7 @@ impl ReviewerDSpyAdapter {
             inputs.insert("context".to_string(), json!(ctx));
         }
 
-        let outputs = self.bridge.call_agent_module("Reviewer", inputs).await?;
+        let outputs = self.instrumentation.call_agent_module("Reviewer", inputs).await?;
 
         // Extract requirements from output
         let requirements: Vec<String> = outputs
@@ -132,7 +133,7 @@ impl ReviewerDSpyAdapter {
         inputs.insert("implementation".to_string(), json!(implementation));
         inputs.insert("execution_context".to_string(), json!(execution_memories));
 
-        let outputs = self.bridge.call_agent_module("Reviewer", inputs).await?;
+        let outputs = self.instrumentation.call_agent_module("Reviewer", inputs).await?;
 
         // Extract validation results
         let intent_satisfied = outputs
@@ -186,7 +187,7 @@ impl ReviewerDSpyAdapter {
         inputs.insert("implementation".to_string(), json!(implementation));
         inputs.insert("execution_context".to_string(), json!(execution_memories));
 
-        let outputs = self.bridge.call_agent_module("Reviewer", inputs).await?;
+        let outputs = self.instrumentation.call_agent_module("Reviewer", inputs).await?;
 
         // Extract validation results
         let complete = outputs
@@ -234,7 +235,7 @@ impl ReviewerDSpyAdapter {
         inputs.insert("implementation".to_string(), json!(implementation));
         inputs.insert("execution_context".to_string(), json!(execution_memories));
 
-        let outputs = self.bridge.call_agent_module("Reviewer", inputs).await?;
+        let outputs = self.instrumentation.call_agent_module("Reviewer", inputs).await?;
 
         // Extract validation results
         let correct = outputs

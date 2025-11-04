@@ -8,7 +8,7 @@
 //! All operations use async spawn_blocking for non-blocking Python GIL access.
 
 use crate::error::{MnemosyneError, Result};
-use crate::orchestration::dspy_bridge::DSpyBridge;
+use crate::orchestration::dspy_instrumentation::DSpyInstrumentation;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -17,14 +17,18 @@ use std::sync::Arc;
 use pyo3::Python;
 
 /// Type-safe adapter for Optimizer DSPy operations
+///
+/// Wraps DSpyInstrumentation with strongly-typed methods matching the
+/// OptimizerModule signatures. Uses instrumentation layer for 10%
+/// sampling and production telemetry.
 pub struct OptimizerDSpyAdapter {
-    bridge: Arc<DSpyBridge>,
+    instrumentation: Arc<DSpyInstrumentation>,
 }
 
 impl OptimizerDSpyAdapter {
-    /// Create new optimizer adapter wrapping generic DSPy bridge
-    pub fn new(bridge: Arc<DSpyBridge>) -> Self {
-        Self { bridge }
+    /// Create new optimizer adapter wrapping DSpyInstrumentation
+    pub fn new(instrumentation: Arc<DSpyInstrumentation>) -> Self {
+        Self { instrumentation }
     }
 
     /// Consolidate work item context using DSPy
@@ -70,7 +74,7 @@ impl OptimizerDSpyAdapter {
         );
 
         let outputs = self
-            .bridge
+            .instrumentation
             .call_agent_module("optimizer", inputs)
             .await?;
 
@@ -163,7 +167,7 @@ impl OptimizerDSpyAdapter {
         );
 
         let outputs = self
-            .bridge
+            .instrumentation
             .call_agent_module("optimizer", inputs)
             .await?;
 
@@ -248,7 +252,7 @@ impl OptimizerDSpyAdapter {
         inputs.insert("work_priority".to_string(), json!(work_priority));
 
         let outputs = self
-            .bridge
+            .instrumentation
             .call_agent_module("optimizer", inputs)
             .await?;
 
