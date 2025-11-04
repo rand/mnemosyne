@@ -10,6 +10,7 @@ use crate::types::{MemoryId, MemoryLink, MemoryNote, Namespace, SearchResult};
 use async_trait::async_trait;
 use chrono::Utc;
 use libsql::{params, Builder, Connection, Database};
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
@@ -73,6 +74,7 @@ pub struct LibsqlStorage {
     embedding_service: Option<Arc<LocalEmbeddingService>>,
     search_config: crate::config::SearchConfig,
     schema_type: SchemaType,
+    db_path: String,
 }
 
 /// Database connection mode
@@ -373,11 +375,20 @@ impl LibsqlStorage {
             }
         };
 
+        // Extract database path for health checks
+        let db_path = match &mode {
+            ConnectionMode::Local(path) | ConnectionMode::LocalReadOnly(path) => path.clone(),
+            ConnectionMode::EmbeddedReplica { path, .. } => path.clone(),
+            ConnectionMode::InMemory => ":memory:".to_string(),
+            ConnectionMode::Remote { url, .. } => url.clone(),
+        };
+
         let storage = Self {
             db,
             embedding_service: None,
             search_config: crate::config::SearchConfig::default(),
             schema_type,
+            db_path,
         };
 
         // Verify database health and run migrations (skip for read-only databases)
@@ -487,6 +498,7 @@ impl LibsqlStorage {
             embedding_service: None,
             search_config: crate::config::SearchConfig::default(),
             schema_type: SchemaType::StandardSQLite, // Default for tests
+            db_path: ":memory:".to_string(), // Test databases typically use in-memory
         }
     }
 
@@ -785,7 +797,7 @@ impl LibsqlStorage {
 
     /// Get the database file path
     pub fn db_path(&self) -> PathBuf {
-        PathBuf::from(self.db_url.trim_start_matches("file:"))
+        PathBuf::from(&self.db_path)
     }
 
     /// Check database integrity using PRAGMA integrity_check
@@ -844,32 +856,6 @@ impl LibsqlStorage {
         Ok(migrations)
     }
 
-    /// Count total memories, optionally filtered by namespace
-    pub async fn count_memories(&self, namespace: Option<&str>) -> Result<usize> {
-        let conn = self.get_conn()?;
-
-        let (query, params): (&str, Vec<String>) = if let Some(ns) = namespace {
-            (
-                "SELECT COUNT(*) FROM memories WHERE namespace LIKE ? AND archived_at IS NULL",
-                vec![format!("%{}%", ns)],
-            )
-        } else {
-            ("SELECT COUNT(*) FROM memories WHERE archived_at IS NULL", Vec::new())
-        };
-
-        let mut rows = if params.is_empty() {
-            conn.query(query, ()).await?
-        } else {
-            conn.query(query, libsql::params_from_iter(params)).await?
-        };
-
-        if let Some(row) = rows.next().await? {
-            let count: i64 = row.get(0)?;
-            Ok(count as usize)
-        } else {
-            Ok(0)
-        }
-    }
 
     /// Get importance distribution as a HashMap<importance_level, count>
     pub async fn get_importance_distribution(&self) -> Result<std::collections::HashMap<u8, usize>> {

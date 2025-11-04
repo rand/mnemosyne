@@ -8,12 +8,14 @@
 //! - Performance benchmarks
 //! - Actor health monitoring
 
-use crate::error::{MnemosyneError, Result};
-use crate::storage::LibsqlStorage;
+use crate::error::Result;
+use crate::storage::libsql::LibsqlStorage;
+use crate::storage::StorageBackend;
+use crate::types::Namespace;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Instant;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Health check status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -140,8 +142,8 @@ pub async fn run_health_checks(
 /// Check database health (file exists, readable, not corrupted)
 async fn check_database_health(
     storage: &LibsqlStorage,
-    verbose: bool,
-    fix: bool,
+    _verbose: bool,
+    _fix: bool,
 ) -> Result<Vec<CheckResult>> {
     debug!("Checking database health...");
     let mut results = Vec::new();
@@ -188,8 +190,8 @@ async fn check_database_health(
 /// Check schema validation (tables exist, correct structure)
 async fn check_schema_validation(
     storage: &LibsqlStorage,
-    verbose: bool,
-    fix: bool,
+    _verbose: bool,
+    _fix: bool,
 ) -> Result<Vec<CheckResult>> {
     debug!("Checking schema validation...");
     let mut results = Vec::new();
@@ -235,8 +237,8 @@ async fn check_schema_validation(
 /// Check migration consistency
 async fn check_migration_consistency(
     storage: &LibsqlStorage,
-    verbose: bool,
-    fix: bool,
+    _verbose: bool,
+    _fix: bool,
 ) -> Result<Vec<CheckResult>> {
     debug!("Checking migration consistency...");
     let mut results = Vec::new();
@@ -270,7 +272,7 @@ async fn check_migration_consistency(
 }
 
 /// Check hook system status
-async fn check_hook_system(verbose: bool, fix: bool) -> Result<Vec<CheckResult>> {
+async fn check_hook_system(_verbose: bool, fix: bool) -> Result<Vec<CheckResult>> {
     debug!("Checking hook system...");
     let mut results = Vec::new();
 
@@ -386,13 +388,13 @@ async fn check_hook_system(verbose: bool, fix: bool) -> Result<Vec<CheckResult>>
 /// Check memory statistics
 async fn check_memory_statistics(
     storage: &LibsqlStorage,
-    verbose: bool,
+    _verbose: bool,
 ) -> Result<Vec<CheckResult>> {
     debug!("Checking memory statistics...");
     let mut results = Vec::new();
 
     // Get total memory count
-    match storage.count_memories(None).await {
+    match StorageBackend::count_memories(storage, None).await {
         Ok(count) => {
             results.push(
                 CheckResult::pass("memory_count", format!("Total memories: {}", count))
@@ -443,16 +445,13 @@ async fn check_memory_statistics(
 }
 
 /// Check performance benchmarks
-async fn check_performance(storage: &LibsqlStorage, verbose: bool) -> Result<Vec<CheckResult>> {
+async fn check_performance(storage: &LibsqlStorage, _verbose: bool) -> Result<Vec<CheckResult>> {
     debug!("Checking performance...");
     let mut results = Vec::new();
 
-    // Benchmark recall performance
+    // Benchmark keyword search performance
     let start = Instant::now();
-    match storage
-        .recall("test", None, Some(5), None, None, None)
-        .await
-    {
+    match storage.keyword_search("test", None).await {
         Ok(_) => {
             let elapsed = start.elapsed();
             let elapsed_ms = elapsed.as_millis();
@@ -460,8 +459,8 @@ async fn check_performance(storage: &LibsqlStorage, verbose: bool) -> Result<Vec
             if elapsed_ms < 100 {
                 results.push(
                     CheckResult::pass(
-                        "recall_performance",
-                        format!("Recall performance: {}ms (target: <100ms)", elapsed_ms),
+                        "search_performance",
+                        format!("Search performance: {}ms (target: <100ms)", elapsed_ms),
                     )
                     .with_details(serde_json::json!({
                         "elapsed_ms": elapsed_ms,
@@ -472,8 +471,8 @@ async fn check_performance(storage: &LibsqlStorage, verbose: bool) -> Result<Vec
             } else {
                 results.push(
                     CheckResult::warn(
-                        "recall_performance",
-                        format!("Recall performance: {}ms (exceeds 100ms target)", elapsed_ms),
+                        "search_performance",
+                        format!("Search performance: {}ms (exceeds 100ms target)", elapsed_ms),
                     )
                     .with_details(serde_json::json!({
                         "elapsed_ms": elapsed_ms,
@@ -484,7 +483,7 @@ async fn check_performance(storage: &LibsqlStorage, verbose: bool) -> Result<Vec
         }
         Err(e) => {
             results.push(
-                CheckResult::fail("recall_performance", "Failed to benchmark recall")
+                CheckResult::fail("search_performance", "Failed to benchmark search")
                     .with_details(serde_json::json!({ "error": e.to_string() })),
             );
         }
