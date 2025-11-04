@@ -253,9 +253,10 @@ impl ToolHandler {
 
     /// Execute a tool call
     pub async fn execute(&self, tool_name: &str, params: Value) -> Result<Value> {
-        debug!("Executing tool: {}", tool_name);
+        info!("🔧 MCP tool called: {} (external process)", tool_name);
+        debug!("MCP tool params: {:?}", params);
 
-        match tool_name {
+        let result = match tool_name {
             "mnemosyne.recall" => self.recall(params).await,
             "mnemosyne.list" => self.list(params).await,
             "mnemosyne.graph" => self.graph(params).await,
@@ -265,12 +266,19 @@ impl ToolHandler {
             "mnemosyne.update" => self.update(params).await,
             "mnemosyne.delete" => self.delete(params).await,
             _ => {
-                warn!("Unknown tool: {}", tool_name);
+                warn!("❌ Unknown MCP tool: {}", tool_name);
                 Ok(serde_json::json!({
                     "error": format!("Unknown tool: {}", tool_name)
                 }))
             }
+        };
+
+        match &result {
+            Ok(_) => info!("✅ MCP tool {} completed successfully", tool_name),
+            Err(e) => warn!("❌ MCP tool {} failed: {}", tool_name, e),
         }
+
+        result
     }
 
     // === Validation Helpers ===
@@ -447,6 +455,13 @@ impl ToolHandler {
                 debug!("Failed to broadcast memory recalled event: {}", e);
             }
         }
+
+        info!(
+            "📝 MCP recall: found {} memories for query '{}' (namespace: {:?})",
+            results.len(),
+            params.query,
+            params.namespace
+        );
 
         Ok(serde_json::json!({
             "results": results,
@@ -655,6 +670,13 @@ impl ToolHandler {
                 debug!("Failed to broadcast memory stored event: {}", e);
             }
         }
+
+        info!(
+            "💾 MCP remember: stored memory '{}' (importance: {}, tags: {:?})",
+            memory.summary.chars().take(60).collect::<String>(),
+            memory.importance,
+            memory.tags
+        );
 
         Ok(serde_json::json!({
             "memory_id": memory.id.to_string(),
