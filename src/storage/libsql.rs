@@ -584,7 +584,8 @@ impl LibsqlStorage {
                 "012_requirement_tracking.sql",
                 "013_add_task_and_agent_event_types.sql",
                 "014_add_specification_workflow_types.sql",
-                "015_fix_audit_log_schema.sql",
+                // 015_fix_audit_log_schema.sql is only for production databases affected by ghost migration 003
+                // Fresh databases from 001_initial_schema.sql already have correct audit_log schema
                 // Note: SQLite schema uses separate memory_embeddings table
                 // 003_add_vector_search.sql is disabled (requires sqlite-vec extension)
             ],
