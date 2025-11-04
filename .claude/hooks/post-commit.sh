@@ -35,7 +35,7 @@ echo "📁 Files changed: $FILES_CHANGED" >&2
 
 # Check if this commit relates to architectural decisions
 # Keywords that suggest architectural significance
-if echo "$COMMIT_MSG $COMMIT_BODY" | grep -qiE "(architecture|implement|refactor|migrate|design|pattern|decision|integrate|add.*system|remove.*system)"; then
+if echo "$COMMIT_MSG $COMMIT_BODY" | grep -qiE "(architecture|implement|refactor|migrate|design|pattern|decision|integrate|add|remove|fix|update|create|improve|enhance|complete|wire|establish)"; then
     echo "🏗️  Architectural commit detected" >&2
 
     # Create memory linking commit to decision
