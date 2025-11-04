@@ -23,4 +23,4 @@
 -- Since we modified the initial schema before production deployment,
 -- this migration serves as documentation only.
 
-SELECT 'Migration 014: specification workflow types added to schema' AS note;
+-- SELECT 'Migration 014: specification workflow types added to schema' AS note;

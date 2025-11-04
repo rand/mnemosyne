@@ -19,4 +19,4 @@
 -- Since we modified the initial schema before production deployment,
 -- this migration serves as documentation only.
 
-SELECT 'Migration 013: task and agent_event types added to schema' AS note;
+-- SELECT 'Migration 013: task and agent_event types added to schema' AS note;
