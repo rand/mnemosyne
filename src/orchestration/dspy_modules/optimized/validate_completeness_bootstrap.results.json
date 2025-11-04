@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-11-04T06:00:16.411507",
+  "signature": "validate_completeness",
+  "optimizer": "BootstrapFewShot",
+  "tier": 2,
+  "config": {
+    "max_bootstrapped_demos": 8,
+    "max_labeled_demos": 4,
+    "test_mode": false
+  },
+  "baseline_score": 0.675,
+  "optimized_score": 0.775,
+  "improvement": 0.09999999999999998,
+  "pct_improvement": 14.814814814814811
+}

@@ -824,5 +824,943 @@
       "category": "resilience",
       "notes": "Retry logic, timeouts, and circuit breaker for external dependencies"
     }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "API versioning",
+          "Rate limiting headers"
+        ],
+        "correctness_issues": [
+          "400 Bad Request used for everything"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add API versioning",
+          "description": "Use /v1/ in URL path or Accept header. Version at major breaking changes.",
+          "priority": "high",
+          "code_example": "app.get('/v1/users', ...)",
+          "estimated_effort": "1h"
+        },
+        {
+          "title": "Use correct status codes",
+          "description": "401 for auth, 403 for forbidden, 404 for not found, 422 for validation",
+          "priority": "medium",
+          "code_example": "if !authorized { return 403 }",
+          "estimated_effort": "30min"
+        }
+      ],
+      "explanation": "API design fundamentals. Versioning enables evolution without breaking clients. Correct status codes help clients handle errors properly."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "api_design_guidance",
+      "notes": "REST API best practices"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Foreign keys",
+          "Indexes on query columns"
+        ],
+        "correctness_issues": [
+          "VARCHAR(MAX) for all text",
+          "No normalization"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add foreign keys",
+          "description": "FK constraints prevent orphaned records and enable cascades",
+          "priority": "critical",
+          "code_example": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+          "estimated_effort": "2h"
+        },
+        {
+          "title": "Right-size VARCHAR",
+          "description": "Use appropriate lengths. email: 255, name: 100, slug: 50",
+          "priority": "medium",
+          "code_example": "email VARCHAR(255), name VARCHAR(100)",
+          "estimated_effort": "1h"
+        }
+      ],
+      "explanation": "Database schema design. FK integrity critical for data consistency. Right-sized columns improve performance and catch bugs."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "database_schema_design",
+      "notes": "Schema design fundamentals"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Backpressure handling",
+          "Circuit breakers"
+        ],
+        "correctness_issues": [
+          "Unbounded concurrency",
+          "No timeout"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add semaphore for concurrency",
+          "description": "Limit concurrent tasks to prevent overwhelming downstream",
+          "priority": "critical",
+          "code_example": "let sem = Arc::new(Semaphore::new(100));",
+          "estimated_effort": "2h"
+        },
+        {
+          "title": "Add timeouts",
+          "description": "Timeout all async operations to prevent hanging",
+          "priority": "high",
+          "code_example": "timeout(Duration::from_secs(30), fetch()).await?",
+          "estimated_effort": "1h"
+        }
+      ],
+      "explanation": "Async architecture guidance. Unbounded concurrency causes resource exhaustion. Timeouts prevent cascade failures."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "async_architecture_guidance",
+      "notes": "Async patterns"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Input validation",
+          "Pagination"
+        ],
+        "correctness_issues": [
+          "N+1 queries"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Use DataLoader",
+          "description": "Batch N+1 queries with dataloader pattern",
+          "priority": "high",
+          "code_example": "let loader = DataLoader::new(batch_fn);",
+          "estimated_effort": "3h"
+        },
+        {
+          "title": "Add cursor pagination",
+          "description": "Cursor-based pagination for large datasets",
+          "priority": "medium",
+          "code_example": "after: String, first: Int",
+          "estimated_effort": "2h"
+        }
+      ],
+      "explanation": "GraphQL schema guidance. DataLoader critical for performance. Cursor pagination scales better than offset."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "graphql_schema_guidance",
+      "notes": "GraphQL patterns"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Message ordering",
+          "Reconnection"
+        ],
+        "correctness_issues": [
+          "No heartbeat",
+          "Lost messages"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add sequence numbers",
+          "description": "Track message order with seq IDs, detect gaps",
+          "priority": "critical",
+          "code_example": "{ seq: 123, data: {...} }",
+          "estimated_effort": "4h"
+        },
+        {
+          "title": "Heartbeat ping/pong",
+          "description": "Detect dead connections with periodic pings",
+          "priority": "high",
+          "code_example": "setInterval(() => ws.ping(), 30000)",
+          "estimated_effort": "1h"
+        }
+      ],
+      "explanation": "Real-time architecture. Sequence numbers ensure ordering. Heartbeats detect stale connections early."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "realtime_architecture",
+      "notes": "WebSocket reliability"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Multi-stage build"
+        ],
+        "correctness_issues": [
+          "Running as root",
+          "Includes source code"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Multi-stage Dockerfile",
+          "description": "Separate build and runtime stages to reduce size",
+          "priority": "medium",
+          "code_example": "FROM node:18 AS build\\nFROM node:18-slim AS runtime",
+          "estimated_effort": "30min"
+        },
+        {
+          "title": "Run as non-root",
+          "description": "Create user and switch with USER directive",
+          "priority": "high",
+          "code_example": "RUN adduser --disabled-password app\\nUSER app",
+          "estimated_effort": "15min"
+        }
+      ],
+      "explanation": "Container optimization. Multi-stage reduces image size. Non-root improves security posture."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "container_optimization",
+      "notes": "Docker best practices"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Environment-specific configs",
+          "Secret management"
+        ],
+        "correctness_issues": [
+          "Secrets in code",
+          "No validation"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Use env vars for secrets",
+          "description": "Load secrets from environment, never commit",
+          "priority": "critical",
+          "code_example": "let api_key = env::var(\"API_KEY\")?;",
+          "estimated_effort": "1h"
+        },
+        {
+          "title": "Validate config on startup",
+          "description": "Fail fast if required config missing",
+          "priority": "high",
+          "code_example": "config.validate().expect(\"invalid config\")",
+          "estimated_effort": "30min"
+        }
+      ],
+      "explanation": "Config best practices. Environment variables for secrets prevent leaks. Early validation prevents runtime surprises."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "config_best_practices",
+      "notes": "Configuration management"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Optimistic updates",
+          "Error rollback"
+        ],
+        "correctness_issues": [
+          "Props drilling 5 levels deep"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Use Context for shared state",
+          "description": "Replace props drilling with React Context",
+          "priority": "high",
+          "code_example": "const StateContext = createContext();",
+          "estimated_effort": "2h"
+        },
+        {
+          "title": "Add optimistic updates",
+          "description": "Update UI immediately, rollback on error",
+          "priority": "medium",
+          "code_example": "setState(newValue); try { await api.save() } catch { setState(oldValue) }",
+          "estimated_effort": "3h"
+        }
+      ],
+      "explanation": "State management patterns. Context reduces coupling. Optimistic updates improve perceived performance."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "state_management_patterns",
+      "notes": "React state patterns"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "Using bubble sort for 10k items"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Replace with quicksort",
+          "description": "Bubble sort O(n\u00b2), quicksort O(n log n). Use built-in sort().",
+          "priority": "medium",
+          "code_example": "items.sort((a, b) => a - b)",
+          "estimated_effort": "5min"
+        }
+      ],
+      "explanation": "Algorithm selection. For n=10k, bubble sort ~100M operations vs quicksort ~130k. Use language built-ins."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "algorithm_selection",
+      "notes": "Simple algorithm fix"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "Using array for frequent lookups"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Use HashMap for lookups",
+          "description": "Array lookup O(n), HashMap O(1). Critical for hot paths.",
+          "priority": "high",
+          "code_example": "let map = new Map(); // O(1) lookup",
+          "estimated_effort": "30min"
+        }
+      ],
+      "explanation": "Data structure choice. Linear search in array vs constant-time hash lookup. For 1000 items, 1000x speedup."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "data_structure_choices",
+      "notes": "Simple data structure fix"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Message queue processing"
+        ],
+        "correctness_issues": [
+          "No ack until after processing - message loss on crash"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Ack messages after successful processing",
+          "description": "Move ack() call to after successful processing. Ensures at-least-once delivery.",
+          "priority": "high",
+          "code_example": "msg = queue.receive()\nprocess(msg)\nqueue.ack(msg)",
+          "estimated_effort": "30min"
+        }
+      ],
+      "explanation": "Message queue pattern. Ack before processing causes message loss on crash. Ack after ensures retry on failure."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "message_queue_patterns",
+      "notes": "Simple message queue fix"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Service mesh observability"
+        ],
+        "correctness_issues": [
+          "No distributed tracing"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add Jaeger tracing",
+          "description": "Instrument with OpenTelemetry for distributed tracing across services",
+          "priority": "medium",
+          "code_example": "use opentelemetry_jaeger;\nlet tracer = jaeger::new_pipeline().install_simple()?;",
+          "estimated_effort": "4h"
+        }
+      ],
+      "explanation": "Service mesh observability. Distributed tracing critical for debugging microservice issues."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "service_mesh_config",
+      "notes": "Service mesh tracing"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "Feature flag checked in tight loop"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Cache feature flag value",
+          "description": "Check flag once outside loop, cache result",
+          "priority": "high",
+          "code_example": "let enabled = flags.is_enabled(\"new_algo\");\nfor item in items { if enabled { ... } }",
+          "estimated_effort": "5min"
+        }
+      ],
+      "explanation": "Feature flag performance. Don't check flags in hot paths. Cache at request/session level."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "feature_flag_strategies",
+      "notes": "Simple performance fix"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "A/B test statistical significance"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add sample size calculator",
+          "description": "Calculate required sample size for statistical power. Don't stop test early.",
+          "priority": "medium",
+          "code_example": "# Need ~385 per variant for 95% confidence, 80% power, 5% effect",
+          "estimated_effort": "2h"
+        }
+      ],
+      "explanation": "A/B testing rigor. Need sufficient sample size for valid results. Stopping early causes false positives."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "ab_testing_setup",
+      "notes": "Statistical rigor"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "API keys in environment vars not rotated"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Implement secret rotation",
+          "description": "Use secret manager with automatic rotation. Dual-write during rotation window.",
+          "priority": "high",
+          "code_example": "# Check both old and new keys during rotation\nif not verify(new_key) { verify(old_key) }",
+          "estimated_effort": "6h"
+        }
+      ],
+      "explanation": "Secrets rotation. Need rotation procedure for compromised keys. Dual-write prevents downtime."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "secrets_rotation_procedures",
+      "notes": "Zero-downtime rotation"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Progress indicators"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add progress bar for long operations",
+          "description": "Use progress bar lib. Show estimated time remaining.",
+          "priority": "low",
+          "code_example": "from tqdm import tqdm\nfor item in tqdm(items, desc='Processing'): ...",
+          "estimated_effort": "30min"
+        }
+      ],
+      "explanation": "CLI UX improvement. Progress feedback reduces perceived wait time. Low priority enhancement."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "cli_ux_improvements",
+      "notes": "UX polish"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Webhook retry logic"
+        ],
+        "correctness_issues": [
+          "No idempotency key"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add idempotency keys to webhooks",
+          "description": "Generate UUID per event, include in webhook payload. Receiver dedupes.",
+          "priority": "critical",
+          "code_example": "{\"id\": \"evt_123\", \"type\": \"payment.success\", \"data\": {...}}",
+          "estimated_effort": "2h"
+        }
+      ],
+      "explanation": "Webhook reliability. Retries without idempotency cause duplicate processing. ID enables receiver-side dedup."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "webhook_reliability",
+      "notes": "Idempotency pattern"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "PKCE for mobile OAuth"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Implement PKCE flow",
+          "description": "Use Proof Key for Code Exchange for mobile apps. Prevents authorization code interception.",
+          "priority": "critical",
+          "code_example": "code_verifier = random()\ncode_challenge = SHA256(code_verifier)\n# Send challenge in auth request, verifier in token request",
+          "estimated_effort": "4h"
+        }
+      ],
+      "explanation": "OAuth security for mobile. PKCE prevents interception attacks on mobile where client_secret can't be protected."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "oauth_flow_guidance",
+      "notes": "Mobile OAuth security"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "Blue-green deployment manually coordinated"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Automate blue-green cutover",
+          "description": "Use load balancer weight shifting. Gradual cutover with monitoring.",
+          "priority": "medium",
+          "code_example": "# Shift traffic gradually\nfor weight in [10, 25, 50, 100]:\n    lb.set_weights(blue=100-weight, green=weight)\n    sleep(5min)\n    check_error_rate()",
+          "estimated_effort": "6h"
+        }
+      ],
+      "explanation": "Deployment automation. Gradual cutover reduces risk. Automated rollback on error spike."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "migration_strategies",
+      "notes": "Automated deployment"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "No CPU profiling in production"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Enable continuous profiling",
+          "description": "Use pprof/perf for always-on profiling. Low overhead (<1%). Catch regressions early.",
+          "priority": "low",
+          "code_example": "import _ \"net/http/pprof\"\ngo func() { http.ListenAndServe(\":6060\", nil) }()",
+          "estimated_effort": "2h"
+        }
+      ],
+      "explanation": "Profiling in production. Continuous profiling catches performance regressions. Low priority unless performance-critical."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "profiling_techniques",
+      "notes": "Production profiling"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Load balancing algorithm"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Configure load balancing",
+          "description": "Use round-robin for even distribution. Consider least-connections for variable request times.",
+          "priority": "medium",
+          "code_example": "upstream backend { least_conn; server s1; server s2; }",
+          "estimated_effort": "1h"
+        }
+      ],
+      "explanation": "Load balancing strategy. Round-robin for uniform requests, least-connections for variable load."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "load_balancing_strategies",
+      "notes": "Simple LB config"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "Hardcoded DNS server IPs"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Use system DNS resolver",
+          "description": "Use system's configured resolvers instead of hardcoding IPs.",
+          "priority": "medium",
+          "code_example": "# Use /etc/resolv.conf\nresolver = socket.getaddrinfo()",
+          "estimated_effort": "30min"
+        }
+      ],
+      "explanation": "DNS configuration. System resolvers adapt to network changes. Hardcoded IPs break on network changes."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "dns_optimization",
+      "notes": "Use system DNS"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "TLS 1.3"
+        ],
+        "correctness_issues": [
+          "TLS 1.0 enabled"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Upgrade to TLS 1.3",
+          "description": "Disable TLS 1.0/1.1, enable TLS 1.2+ with 1.3 preferred.",
+          "priority": "high",
+          "code_example": "ssl_protocols TLSv1.2 TLSv1.3;\nssl_prefer_server_ciphers off;",
+          "estimated_effort": "1h"
+        }
+      ],
+      "explanation": "TLS security. TLS 1.0/1.1 deprecated, vulnerable. Use 1.2 minimum, prefer 1.3 for performance."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "tls_configuration",
+      "notes": "TLS upgrade"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Reverse proxy caching"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add Nginx caching",
+          "description": "Cache static assets and cacheable API responses in Nginx.",
+          "priority": "medium",
+          "code_example": "proxy_cache_path /cache levels=1:2 keys_zone=api:10m;\nproxy_cache api;",
+          "estimated_effort": "2h"
+        }
+      ],
+      "explanation": "Reverse proxy optimization. Nginx cache reduces backend load. Cache static assets and GET requests with Cache-Control."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "reverse_proxy_optimization",
+      "notes": "Nginx caching"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "No CDN for static assets"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Use CDN for static assets",
+          "description": "Move JS/CSS/images to CDN. Reduces latency and origin load.",
+          "priority": "high",
+          "code_example": "<script src=\"https://cdn.example.com/app.js\">",
+          "estimated_effort": "4h"
+        }
+      ],
+      "explanation": "CDN strategy. Edge caching reduces latency globally. Configure origin with proper Cache-Control headers."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "cdn_strategies",
+      "notes": "CDN integration"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Composite indexes"
+        ],
+        "correctness_issues": [
+          "Index on single column for multi-column WHERE"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add composite index",
+          "description": "Index on (tenant_id, created_at) for WHERE tenant_id = ? AND created_at > ?",
+          "priority": "high",
+          "code_example": "CREATE INDEX idx_tenant_created ON posts(tenant_id, created_at DESC);",
+          "estimated_effort": "30min"
+        }
+      ],
+      "explanation": "Index design. Composite indexes for multi-column queries. Order by selectivity (most selective first) or query pattern."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "index_design",
+      "notes": "Composite index"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [],
+        "correctness_issues": [
+          "N+1 query from ORM"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Add eager loading",
+          "description": "Use select_related/prefetch_related to load relations in single query.",
+          "priority": "high",
+          "code_example": "Post.objects.select_related('author').prefetch_related('comments')",
+          "estimated_effort": "1h"
+        }
+      ],
+      "explanation": "Query optimization. Eager loading prevents N+1 queries. Use select_related for FK, prefetch_related for M2M."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "query_rewriting",
+      "notes": "ORM eager loading"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Middleware ordering"
+        ],
+        "correctness_issues": []
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Order middleware correctly",
+          "description": "Auth before rate limiting, logging first, error handling last.",
+          "priority": "medium",
+          "code_example": "app.use(logger, auth, rateLimit, routes, errorHandler)",
+          "estimated_effort": "30min"
+        }
+      ],
+      "explanation": "Middleware patterns. Order matters: logging first (catch all), auth before business logic, error handling last (catch errors)."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "middleware_patterns",
+      "notes": "Middleware ordering"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Plugin versioning"
+        ],
+        "correctness_issues": [
+          "Breaking changes in plugins"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Version plugin API",
+          "description": "Use semantic versioning for plugin API. Deprecation policy for breaking changes.",
+          "priority": "high",
+          "code_example": "interface PluginV1 { ... }\ninterface PluginV2 extends PluginV1 { ... }",
+          "estimated_effort": "6h"
+        }
+      ],
+      "explanation": "Plugin API design. Version API to allow graceful evolution. Support N-1 version during transitions."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "plugin_api_design",
+      "notes": "API versioning"
+    }
+  },
+  {
+    "inputs": {
+      "review_findings": {
+        "missing_requirements": [
+          "Service boundaries"
+        ],
+        "correctness_issues": [
+          "Tightly coupled services"
+        ]
+      }
+    },
+    "outputs": {
+      "guidance": [
+        {
+          "title": "Define service boundaries",
+          "description": "Use domain-driven design to identify bounded contexts. Services own their data.",
+          "priority": "critical",
+          "code_example": "# Orders service owns orders DB\n# Users service owns users DB\n# Cross-service via API/events",
+          "estimated_effort": "8h"
+        }
+      ],
+      "explanation": "Microservice boundaries. DDD bounded contexts define service boundaries. No shared databases. Communicate via APIs/events."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "microservice_boundaries",
+      "notes": "Service design"
+    }
   }
 ]

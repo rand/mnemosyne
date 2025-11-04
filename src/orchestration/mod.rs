@@ -34,6 +34,8 @@ pub mod dspy_ab_testing;
 pub mod dspy_telemetry;
 #[cfg(feature = "python")]
 pub mod dspy_production_logger;
+#[cfg(feature = "python")]
+pub mod dspy_instrumentation;
 pub mod branch_guard;
 pub mod branch_registry;
 pub mod cli;

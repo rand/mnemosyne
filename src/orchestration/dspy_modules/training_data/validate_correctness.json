@@ -267,7 +267,7 @@
       "is_correct": false,
       "issues": [
         "32-bit session ID (8 hex chars) has only 4.2 billion possible values - brute-forceable",
-        "Birthday paradox: collision likely after ~65K sessions (√4.2B ≈ 65K)",
+        "Birthday paradox: collision likely after ~65K sessions (\u221a4.2B \u2248 65K)",
         "Predictable if attacker can observe multiple session IDs (only 32 bits of entropy)",
         "Security vulnerability: session hijacking via brute force or collision"
       ],
@@ -416,6 +416,620 @@
       "difficulty": "medium",
       "category": "file_io",
       "notes": "Incorrect API usage - write instead of append"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "REST API GET /users/:id returns user. No 404 check, returns array not object, no error handling, SELECT *. Files: routes/users.js",
+      "code_sample": "app.get('/users/:id', async (req,res) => { const user = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]); res.json(user); });"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Always 200 even if not found (need 404)",
+        "Returns array not object",
+        "No error handling",
+        "SELECT * exposes sensitive fields"
+      ],
+      "explanation": "API violates REST - missing 404, wrong response shape, no error handling, exposes password_hash. Fix: check length, return user[0] or 404, try/catch, select only public fields."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "api_correctness",
+      "notes": "API design issues"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Money transfer: check balance, deduct, credit. No transaction, race condition, silent failure on insufficient funds. Files: banking.rs",
+      "code_sample": "let bal = db.query_one('SELECT balance FROM accounts WHERE id = $1', &[&from]).await?; if bal.get::<_, f64>(0) >= amount { db.execute('UPDATE accounts SET balance = balance - $1 WHERE id = $2', &[&amount, &from]).await?; db.execute('UPDATE accounts SET balance = balance + $1 WHERE id = $2', &[&amount, &to]).await?; }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "No transaction - money vanishes if second UPDATE fails",
+        "Race condition - concurrent transfers overdraft",
+        "Silent OK when insufficient funds",
+        "f64 for money has rounding errors"
+      ],
+      "explanation": "Critical transaction bugs. No BEGIN/COMMIT allows partial transfers. Race allows overdraft. Use transaction, SELECT FOR UPDATE, return Err on insufficient funds, DECIMAL not f64."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "database_transactions",
+      "notes": "Transaction atomicity bug"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Async file upload: tokio::spawn with std::fs::write (blocking). May be cancelled mid-write. Files: upload.rs",
+      "code_sample": "tokio::spawn(async move { std::fs::write(&path, file.data)?; cleanup_temp_files().await; Ok(path) }).await?"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Blocking std::fs::write in async context deadlocks thread pool",
+        "Task cancellation leaves partial file",
+        "cleanup race deletes just-written file"
+      ],
+      "explanation": "Async/await misuse. Blocking I/O in async blocks workers causing deadlock. Use tokio::fs::write, await JoinHandle, ensure cleanup after write."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "async_correctness",
+      "notes": "Blocking I/O in async"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Image processing: load, resize, encode. Processes 10K images in loop. Files: image_processor.rs",
+      "code_sample": "fn process_image(data: Vec<u8>) -> Result<Vec<u8>> { let img = image::load_from_memory(&data)?; let resized = img.resize(800, 600, FilterType::Lanczos3); let mut output = Vec::new(); resized.write_to(&mut output, ImageFormat::Png)?; Ok(output) }"
+    },
+    "outputs": {
+      "is_correct": true,
+      "issues": [],
+      "explanation": "Correct - all Vec<u8> properly owned and dropped. No leaks. May have performance issues but functionally correct."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "memory_leaks",
+      "notes": "Correct - no leaks"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Unsafe unchecked array access for performance. User-controlled index from API. Files: utils.rs",
+      "code_sample": "fn get_unchecked(data: &[u8], index: usize) -> u8 { unsafe { *data.as_ptr().add(index) } }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Undefined behavior when index >= len",
+        "User-controlled allows arbitrary memory read",
+        "Bypasses Rust safety"
+      ],
+      "explanation": "Critical safety violation. Out-of-bounds reads are UB, may segfault or leak memory. User input makes this exploitable. Use safe data[index] or bounds check."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "type_violations",
+      "notes": "Unsafe misuse"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "String slice function returns first word. Files: text.rs",
+      "code_sample": "fn first_word(s: &str) -> &str { let bytes = s.as_bytes(); for (i, &byte) in bytes.iter().enumerate() { if byte == b' ' { return &s[0..i]; } } &s[..] }"
+    },
+    "outputs": {
+      "is_correct": true,
+      "issues": [],
+      "explanation": "Correct lifetimes - elided lifetime ties return to input. Returned slice borrows from s. No dangling references."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "lifetime_issues",
+      "notes": "Correct lifetimes"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Auth test depends on database, hardcoded credentials, weak assertion. Files: tests/auth_test.rs",
+      "code_sample": "#[test] fn test_login() { let token = login('user@example.com', 'password123').unwrap(); assert!(token.len() > 0); }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Depends on external DB state",
+        "Not deterministic",
+        "Weak assertion - doesn't verify JWT",
+        "No teardown"
+      ],
+      "explanation": "Testing antipattern - non-isolated, non-repeatable. Use mocks, fixtures, verify JWT structure, clean up."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "testing_antipatterns",
+      "notes": "Non-isolated tests"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "GraphQL resolver fetches posts per user. N+1 queries, no depth limit, no DataLoader. Files: graphql/resolvers.rs",
+      "code_sample": "async fn user_posts(user: &User) -> Vec<Post> { db.query('SELECT * FROM posts WHERE user_id = $1', &[&user.id]).await.unwrap() }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "N+1 query problem",
+        "No depth limiting - exponential explosion",
+        "unwrap panics on errors",
+        "No pagination"
+      ],
+      "explanation": "GraphQL catastrophic performance. N+1 makes separate query per user. Deep nesting causes millions of queries. Use DataLoader, depth limits, pagination."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "graphql_correctness",
+      "notes": "N+1 and depth explosion"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "WebSocket broadcast holds lock during slow sends. Sequential iteration. Files: websocket.rs",
+      "code_sample": "let mut subs = subscribers.lock().await; for sub in subs.iter() { sub.send(msg.clone()).await; }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Lock held during sends blocks everything",
+        "Sequential sends - 100 clients \u00d7 100ms = 10s",
+        "Head-of-line blocking",
+        "No error handling per-subscriber"
+      ],
+      "explanation": "Lock contention disaster. Holding lock for 10s blocks all operations. Slow client delays all others. Release lock, spawn concurrent sends, handle errors."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "websocket_ordering",
+      "notes": "Lock contention"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Config parser: TOML string '100' to integer field. No validation, no defaults. Files: config.rs",
+      "code_sample": "let config_str = std::fs::read_to_string('config.toml')?; let config: Config = toml::from_str(&config_str)?; app.set_max_connections(config.max_connections);"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Type mismatch - string vs integer",
+        "No validation - allows negative/zero",
+        "No defaults for missing fields"
+      ],
+      "explanation": "Config parsing issues. String doesn't deserialize to int. No validation allows invalid values. Use serde defaults, validate ranges."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "config_parsing",
+      "notes": "Type and validation issues"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "JSON serialization: serialize struct with Option<DateTime> field. No timezone handling. Files: models/user.rs",
+      "code_sample": "#[derive(Serialize)] struct User { last_login: Option<DateTime<Utc>> }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Serializes to different formats based on timezone",
+        "None vs null inconsistency",
+        "Loses timezone on deserialization"
+      ],
+      "explanation": "Serialization bug - DateTime serialization varies by timezone, causing client confusion. Use RFC3339 format with serde attributes for consistency."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "serialization_bugs",
+      "notes": "DateTime serialization issues"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Scheduling: runs task daily at midnight UTC. No DST handling. Files: scheduler.rs",
+      "code_sample": "let next_run = Utc::today().and_hms(0, 0, 0) + Duration::days(1);"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "DST transitions cause double/skipped runs",
+        "Leap seconds ignored",
+        "Timezone changes break schedule"
+      ],
+      "explanation": "Time handling bug - DST and timezone changes break scheduling. Use chrono-tz with proper DST handling and test transitions."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "time_handling",
+      "notes": "DST and timezone bugs"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Username validation: checks length <= 20 chars. Files: validation.rs",
+      "code_sample": "fn valid_username(name: &str) -> bool { name.len() <= 20 }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Uses bytes not graphemes - emoji count wrong",
+        "Allows zero-width characters",
+        "RTL text breaks layout"
+      ],
+      "explanation": "Unicode bug - len() counts bytes not graphemes. Emoji '\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\u200d\ud83d\udc66' is 25 bytes but 1 grapheme. Use unicode-segmentation crate for proper counting."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "unicode_handling",
+      "notes": "Byte vs grapheme counting"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Phone validation regex: ^\\d{10}$. Files: validation.rs",
+      "code_sample": "let regex = Regex::new(r\"^\\d{10}$\").unwrap();"
+    },
+    "outputs": {
+      "is_correct": true,
+      "issues": [],
+      "explanation": "Correct for basic 10-digit validation. Regex properly anchored with ^ and $. Matches exactly 10 digits. For international support would need country codes, but current implementation correct for stated purpose."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "regex_correctness",
+      "notes": "Correct regex"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "HTTP client: retry on any error. No exponential backoff, infinite retries. Files: http_client.rs",
+      "code_sample": "loop { match client.get(url).send().await { Ok(r) => return Ok(r), Err(_) => continue } }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Infinite retry loop on permanent errors (404, 401)",
+        "No backoff - hammers server",
+        "Retries non-idempotent requests"
+      ],
+      "explanation": "Network error handling bug. Retries 404/401 forever. No backoff causes server overload. Only retry transient errors (5xx, timeout) with exponential backoff and max attempts."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "networking_errors",
+      "notes": "Infinite retry loop"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "API handler: catches all errors, returns 500. Files: handlers.rs",
+      "code_sample": "async fn handler() -> Response { match do_work().await { Ok(r) => Response::ok(r), Err(_) => Response::status(500).body(\"Error\") } }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "All errors return 500 (validation should be 400)",
+        "No error details to client",
+        "Swallows error context"
+      ],
+      "explanation": "Error propagation bug. Returns 500 for client errors (validation = 400, not found = 404, auth = 401). Loses error details. Map error types to correct status codes."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "error_propagation",
+      "notes": "Wrong status codes"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Request logging: logs user email and IP. Files: middleware.rs",
+      "code_sample": "log::info!(\"Request from {} at {}\", user.email, req.ip());"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "PII leakage - emails in logs",
+        "GDPR violation",
+        "No log scrubbing"
+      ],
+      "explanation": "Logging bug - logs PII (email). GDPR requires scrubbing. Log user_id not email. Implement PII scrubber for logs."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "logging_correctness",
+      "notes": "PII in logs"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Request duration metric: measures handler time only, not full request. Files: metrics.rs",
+      "code_sample": "let start = Instant::now(); let result = handler().await; metrics.record_duration(start.elapsed());"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Excludes middleware time",
+        "Misses queue wait time",
+        "Doesn't capture full latency"
+      ],
+      "explanation": "Metrics bug - only measures handler, misses middleware and queue time. Move timing to request start for accurate end-to-end latency."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "metrics_accuracy",
+      "notes": "Incomplete latency measurement"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Circuit breaker: opens after 5 failures, closes after 1 success. Files: circuit_breaker.rs",
+      "code_sample": "if failures >= 5 { state = Open } if state == Open && success { state = Closed }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "No half-open state - all-or-nothing",
+        "Single success closes - flapping",
+        "No timeout - stays open forever"
+      ],
+      "explanation": "Circuit breaker bug. Needs half-open state (limited requests), timeout to retry, multiple successes before fully closing. Current impl causes flapping."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "circuit_breaker",
+      "notes": "Missing half-open state"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Message queue consumer: acks after successful processing. Files: queue.rs",
+      "code_sample": "let msg = queue.receive().await?; process(msg).await?; queue.ack(msg).await?;"
+    },
+    "outputs": {
+      "is_correct": true,
+      "issues": [],
+      "explanation": "Correct queue pattern - receive, process, then ack. Ensures at-least-once delivery. If process fails, message stays in queue for retry."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "queue_processing",
+      "notes": "Correct ack pattern"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "State machine for order lifecycle. States: Draft, Pending, Confirmed, Shipped, Delivered. Transitions on events. Files: order_state.rs",
+      "code_sample": "match (current, event) { (Draft, Submit) => Pending, (Pending, Confirm) => Confirmed, (Confirmed, Ship) => Shipped, _ => current }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Missing transition: Pending \u2192 Draft (customer cancels)",
+        "No validation: Can ship before confirm",
+        "No terminal state: Delivered can transition",
+        "No error handling: Invalid transitions silent"
+      ],
+      "explanation": "State machine incomplete. Missing cancel transitions, no validation preventing invalid flows, Delivered should be terminal, no error for bad transitions."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "state_machine_correctness",
+      "notes": "Missing transitions and validation"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Binary search. Files: search.py",
+      "code_sample": "def binary_search(arr, x):\n  l, r = 0, len(arr)\n  while l < r:\n    m = (l + r) // 2\n    if arr[m] == x: return m\n    elif arr[m] < x: l = m\n    else: r = m\n  return -1"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Infinite loop: l = m never advances when arr[m] < x and l+1 == r",
+        "Off-by-one: r = len(arr) accesses out of bounds when r never decreases"
+      ],
+      "explanation": "Classic binary search bug. When arr[m] < x, should be l = m + 1 (not m). When arr[m] >= x, r = m is correct. Initial r should be len(arr) - 1 or adjust termination."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "algorithm_correctness",
+      "notes": "Off-by-one causing infinite loop"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Binary heap maintains min-heap property. insert() and extract_min(). Files: heap.cpp",
+      "code_sample": "void sift_up(int i) { while (i > 0 && arr[i] < arr[parent(i)]) { swap(arr[i], arr[parent(i)]); i = parent(i); } }"
+    },
+    "outputs": {
+      "is_correct": true,
+      "issues": [],
+      "explanation": "Sift-up correct: compares with parent, swaps if child smaller, continues until root or heap property restored. Maintains min-heap invariant where parent <= children."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "data_structure_invariants",
+      "notes": "Correct heap sift-up"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Batch job processes records in chunks of 1000. Commits after each chunk. On error, rolls back chunk and continues. Files: batch_processor.go",
+      "code_sample": "for chunk := range chunks {\n  tx.Begin()\n  for record := range chunk { process(record) }\n  if err := tx.Commit(); err != nil { tx.Rollback(); continue }\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Silent failure: Error records not logged or retried",
+        "No idempotency: Re-running processes duplicates",
+        "Lost data: continue skips failed chunks forever",
+        "No progress tracking: Can't resume after crash"
+      ],
+      "explanation": "Batch processing bugs. Failed chunks should be logged and queued for retry, need idempotency keys to prevent duplicates, progress should be tracked in DB to enable resume."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "batch_job_correctness",
+      "notes": "Error handling and idempotency issues"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Event sourcing: append events to log, rebuild state by replaying. Files: event_store.rs",
+      "code_sample": "fn rebuild(id: &str) -> State {\n  let events = load_events(id);\n  let mut state = State::default();\n  for e in events { state.apply(e); }\n  state\n}"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "No snapshot optimization: Full replay on every read (slow)",
+        "No event versioning: Schema changes break replay",
+        "Race condition: Events added during rebuild not seen"
+      ],
+      "explanation": "Event sourcing bugs. Should snapshot state periodically and replay from snapshot. Events need version field for schema evolution. Rebuild should lock or use consistent read timestamp."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "event_sourcing_bugs",
+      "notes": "Missing optimizations and versioning"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "CQRS: write to command DB, async sync to read DB. Files: sync_worker.py",
+      "code_sample": "while True:\n  events = poll_command_db()\n  for e in events:\n    apply_to_read_db(e)\n    mark_processed(e.id)"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Out-of-order: Events applied without ordering guarantees",
+        "Duplicate application: No idempotency check",
+        "Lost updates: mark_processed() can fail after apply",
+        "No eventual consistency guarantee: Polling gap window"
+      ],
+      "explanation": "CQRS sync bugs. Need sequence numbers to ensure ordering, idempotency checks (processed_events table), atomic mark+apply transaction, change data capture instead of polling."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "hard",
+      "category": "cqrs_synchronization",
+      "notes": "Ordering and idempotency issues"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Distributed transaction: two-phase commit across services A and B. Coordinator sends prepare, waits for votes, sends commit/abort. Files: coordinator.go",
+      "code_sample": "votes := [prepare(A), prepare(B)]\nif all(votes) { commit(A); commit(B) } else { abort(A); abort(B) }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Coordinator crash after prepare: Participants blocked forever (no timeout)",
+        "Network partition: commit(A) succeeds but commit(B) unreachable (split brain)",
+        "No persistent log: Coordinator restart loses transaction state"
+      ],
+      "explanation": "2PC bugs. Need timeout on prepare phase to unblock, participant logging for recovery, consensus protocol (Paxos/Raft) for coordinator HA, compensation/saga pattern for long transactions."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "distributed_transactions",
+      "notes": "Coordinator failure and partition handling"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Eventually consistent cache: write to DB, invalidate cache, cache repopulates on read. Files: cache_writer.rb",
+      "code_sample": "def update(key, val)\n  db.write(key, val)\n  cache.delete(key)\nend"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Race: Read between write and delete sees stale cache",
+        "Race: Concurrent write+read can cache old value after delete",
+        "No ordering: delete before write leaves window for stale read"
+      ],
+      "explanation": "Cache consistency bug. Should: (1) delete first, (2) write to DB, (3) wait for propagation delay before allowing reads, or use cache versioning/TTL. Current code has read-after-write inconsistency window."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "medium",
+      "category": "eventual_consistency",
+      "notes": "Cache invalidation race condition"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Webhook delivery: send POST, retry on failure up to 3 times. Files: webhook.js",
+      "code_sample": "async function deliver(url, payload) {\n  for (let i = 0; i < 3; i++) {\n    try { await axios.post(url, payload); return; }\n    catch (e) { if (i == 2) throw e; }\n  }\n}"
+    },
+    "outputs": {
+      "is_correct": true,
+      "issues": [],
+      "explanation": "Idempotent by design: webhooks are POST requests. Server should be idempotent (check request ID). This code correctly retries on failure. For true idempotency, add idempotency key in payload."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "idempotency_violations",
+      "notes": "Actually correct with idempotent receiver"
+    }
+  },
+  {
+    "inputs": {
+      "implementation": "Graceful degradation: if primary DB fails, serve from read-replica with warning. Files: db_fallback.scala",
+      "code_sample": "try { query(primaryDB) } catch { case _: DBException => query(readReplica) }"
+    },
+    "outputs": {
+      "is_correct": false,
+      "issues": [
+        "Write fallback: Writes fail silently if primary down (should reject writes)",
+        "Replication lag: Read-replica may be seconds behind (stale reads)",
+        "No circuit breaker: Keeps hitting primary on every request (slow)",
+        "No health check: Primary might be slow, not dead (timeout needed)"
+      ],
+      "explanation": "Degradation bugs. Should: (1) reject writes or queue them, (2) warn users about staleness, (3) circuit breaker to stop trying primary, (4) timeout on primary query before fallback."
+    },
+    "metadata": {
+      "source": "synthetic",
+      "difficulty": "easy",
+      "category": "graceful_degradation",
+      "notes": "Missing write handling and circuit breaker"
     }
   }
 ]

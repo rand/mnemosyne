@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-11-03T10:57:16.237114",
+  "aggregation_method": "per-signature",
+  "modules_aggregated": [
+    "extract_requirements",
+    "validate_intent",
+    "validate_completeness",
+    "validate_correctness",
+    "generate_guidance"
+  ],
+  "improvements": {}
+}

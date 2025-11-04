@@ -106,7 +106,7 @@ use std::sync::Arc;
 #[cfg(feature = "python")]
 use crate::orchestration::actors::reviewer_dspy_adapter::ReviewerDSpyAdapter;
 #[cfg(feature = "python")]
-use crate::orchestration::dspy_bridge::DSpyBridge;
+use crate::orchestration::dspy_instrumentation::DSpyInstrumentation;
 #[cfg(feature = "python")]
 use crate::python_bindings::{collect_implementation_from_memories, execution_memories_to_python_format};
 
@@ -245,13 +245,13 @@ impl ReviewerState {
         self.orchestrator = Some(orchestrator);
     }
 
-    /// Register DSPy bridge for LLM-based validation
+    /// Register DSPy instrumentation layer for LLM-based validation with telemetry
     #[cfg(feature = "python")]
-    pub fn register_dspy_bridge(&mut self, bridge: Arc<DSpyBridge>) {
-        self.reviewer_adapter = Some(Arc::new(ReviewerDSpyAdapter::new(bridge)));
+    pub fn register_dspy_bridge(&mut self, instrumentation: Arc<DSpyInstrumentation>) {
+        self.reviewer_adapter = Some(Arc::new(ReviewerDSpyAdapter::new(instrumentation)));
         self.config.enable_llm_validation = true;
         tracing::info!(
-            "DSPy reviewer bridge registered with model {} (timeout: {}s, max retries: {})",
+            "DSPy reviewer instrumentation registered with model {} (timeout: {}s, max retries: {})",
             self.config.llm_model,
             self.config.llm_timeout_secs,
             self.config.max_llm_retries
