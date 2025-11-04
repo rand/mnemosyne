@@ -597,6 +597,7 @@ mod tests {
             tokens: TokenUsage {
                 input_tokens: 450,
                 output_tokens: 120,
+                total_tokens: 570,
             },
             cost_usd: 0.0042,
             model: "claude-sonnet-4".to_string(),
@@ -642,6 +643,7 @@ mod tests {
             tokens: TokenUsage {
                 input_tokens: 450,
                 output_tokens: 120,
+                total_tokens: 570,
             },
             cost_usd: 0.0042,
             model: "claude-sonnet-4".to_string(),
@@ -687,6 +689,7 @@ mod tests {
             tokens: TokenUsage {
                 input_tokens: 450,
                 output_tokens: 120,
+                total_tokens: 570,
             },
             cost_usd: 0.0042,
             model: "claude-sonnet-4".to_string(),
