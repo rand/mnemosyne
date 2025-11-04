@@ -250,9 +250,61 @@ class OptimizationOrchestrator:
             except subprocess.CalledProcessError as e:
                 logger.warning(f"Synthetic generation failed: {e}")
 
-        # 3. Telemetry sampling (future)
+        # 3. Telemetry aggregation
         if self.config.telemetry_target > 0:
-            logger.info("Telemetry sampling not yet implemented (requires production integration)")
+            logger.info(f"Aggregating production telemetry (target: {self.config.telemetry_target} examples)...")
+            try:
+                # Read telemetry config to get log file path
+                config_path = Path(self.config.base_dir) / "src" / "orchestration" / "monitoring_config.json"
+                if not config_path.exists():
+                    logger.warning("monitoring_config.json not found, using default log path")
+                    log_file = "logs/dspy_production.jsonl"
+                else:
+                    with open(config_path, 'r') as f:
+                        telemetry_config = json.load(f)
+                        log_file = telemetry_config.get('telemetry', {}).get('log_file_path', 'logs/dspy_production.jsonl')
+
+                # Run telemetry aggregator
+                output_dir = Path(self.config.output_dir) / f"telemetry_{self.run_id}"
+                output_dir.mkdir(parents=True, exist_ok=True)
+
+                cmd = [
+                    "uv", "run", "python3",
+                    "data_collection/telemetry_aggregator.py",
+                    "--log-file", log_file,
+                    "--output-dir", str(output_dir),
+                    "--min-quality-score", "0.70"
+                ]
+                subprocess.run(cmd, check=True, cwd=self.config.base_dir)
+
+                # Collect output files from versioned datasets
+                # TelemetryAggregator writes to training_data/<signature>/v<version>/dataset.json
+                training_data_path = Path(self.config.base_dir) / self.config.training_data_dir
+                for sig in self.config.signatures:
+                    sig_dir = training_data_path / sig
+                    if sig_dir.exists():
+                        # Get latest version with telemetry provenance
+                        latest_link = sig_dir / "latest"
+                        if latest_link.exists() and latest_link.is_symlink():
+                            version_dir = latest_link.resolve()
+                            provenance_file = version_dir / "provenance.jsonl"
+
+                            # Check if this version includes telemetry data
+                            if provenance_file.exists():
+                                with open(provenance_file, 'r') as f:
+                                    for line in f:
+                                        entry = json.loads(line)
+                                        if entry.get('source') == 'telemetry':
+                                            dataset_file = version_dir / "dataset.json"
+                                            if dataset_file.exists():
+                                                collected[sig].append(str(dataset_file))
+                                                logger.info(f"  ✓ {sig}: telemetry data collected")
+                                            break
+
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"Telemetry aggregation failed: {e}")
+            except Exception as e:
+                logger.warning(f"Telemetry aggregation error: {e}")
 
         return collected
 
