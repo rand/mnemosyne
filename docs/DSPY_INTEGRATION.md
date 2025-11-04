@@ -1211,12 +1211,21 @@ See [CONTINUOUS_IMPROVEMENT.md](../src/orchestration/dspy_modules/CONTINUOUS_IMP
   - Integrated with consolidation.rs
   - Cluster consolidation, importance recalibration, archival detection
 
+- ✅ **Phase 1.3**: Production Telemetry Sampling (Nov 4, 2025)
+  - DSpyInstrumentation: 10% hash-based sampling, 180 LOC Rust
+  - telemetry_aggregator.py: Log-to-training-data pipeline, 350 LOC Python
+  - Quality filtering (success, latency, cost) + SHA256 deduplication
+  - Integrated with monthly optimization orchestrator
+  - Provenance tracking for data lineage
+  - Comprehensive tests (145+ test cases)
+  - Documentation: TELEMETRY.md (400+ lines)
+
 - ✅ Comprehensive test coverage (Python + Rust)
 - ✅ Progressive consolidation modes
 - ✅ Type-safe Rust adapters
 - ✅ Graceful fallback mechanisms
 
-**Total Implementation**: ~1,470 LOC Python, ~1,056 LOC Rust adapters, 13 DSPy signatures, 660 tests passing
+**Total Implementation**: ~1,820 LOC Python, ~1,236 LOC Rust, 13 DSPy signatures, 805+ tests passing
 
 ### What's Next (Phase 4)
 
