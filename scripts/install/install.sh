@@ -317,34 +317,75 @@ build_binary() {
 
 # Install binary
 install_binary() {
-    print_header "Installing binary to ${BIN_DIR}"
+    print_header "Installing binary"
 
-    # Create bin directory if it doesn't exist
-    if [ ! -d "$BIN_DIR" ]; then
-        mkdir -p "$BIN_DIR"
-        print_success "Created directory: $BIN_DIR"
+    echo ""
+    echo "Using 'cargo install' to properly handle dependencies..."
+    echo ""
+
+    # Determine install root based on BIN_DIR
+    # If BIN_DIR is ~/.local/bin, install to ~/.local (cargo adds /bin)
+    # If BIN_DIR is ~/.cargo/bin or default, let cargo use its default (~/.cargo)
+    # Otherwise, use parent of BIN_DIR
+    local install_root=""
+    if [ "$BIN_DIR" = "${HOME}/.local/bin" ]; then
+        install_root="${HOME}/.local"
+    elif [ "$BIN_DIR" = "${HOME}/.cargo/bin" ] || [ "$BIN_DIR" = "$DEFAULT_BIN_DIR" ]; then
+        # Let cargo use default location
+        install_root=""
+    else
+        # Custom directory - use parent as root
+        install_root="$(dirname "$BIN_DIR")"
     fi
 
-    # Copy binary
-    if ! cp -f "${PROJECT_ROOT}/target/release/mnemosyne" "${BIN_DIR}/mnemosyne"; then
-        print_error "Failed to copy binary to $BIN_DIR"
-        exit 1
-    fi
-
-    # Make executable
-    chmod +x "${BIN_DIR}/mnemosyne"
-
-    # On macOS, clear extended attributes and re-sign to avoid SIGKILL issues
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        xattr -c "${BIN_DIR}/mnemosyne" 2>/dev/null || true
-        codesign --force --sign - "${BIN_DIR}/mnemosyne" 2>/dev/null || {
-            print_warning "Could not re-sign binary (codesign failed)"
-            echo "  Binary may not run correctly. If you get 'Killed: 9' errors:"
-            echo "  Run: codesign --force --sign - ${BIN_DIR}/mnemosyne"
-        }
+    # Run cargo install with appropriate options
+    cd "$PROJECT_ROOT"
+    if [ -n "$install_root" ]; then
+        echo "Installing to: ${install_root}/bin"
+        if ! cargo install --path . --locked --force --root "$install_root"; then
+            print_error "Failed to install binary"
+            exit 1
+        fi
+        BIN_DIR="${install_root}/bin"
+    else
+        echo "Installing to: ${HOME}/.cargo/bin (default)"
+        if ! cargo install --path . --locked --force; then
+            print_error "Failed to install binary"
+            exit 1
+        fi
+        BIN_DIR="${HOME}/.cargo/bin"
     fi
 
     print_success "Installed to ${BIN_DIR}/mnemosyne"
+
+    # Verify binary is executable
+    if [ ! -x "${BIN_DIR}/mnemosyne" ]; then
+        print_error "Binary not executable after installation"
+        exit 1
+    fi
+
+    # Test that binary actually runs
+    echo ""
+    echo "Verifying binary executes..."
+    if ! timeout 5 "${BIN_DIR}/mnemosyne" --version &>/dev/null; then
+        print_error "Binary won't execute (possible SIGKILL or dependency issue)"
+        echo ""
+        echo "Diagnostics:"
+        echo "  Binary location: ${BIN_DIR}/mnemosyne"
+        echo "  Binary type:"
+        file "${BIN_DIR}/mnemosyne" 2>&1 | sed 's/^/    /'
+        echo ""
+        echo "  Library dependencies:"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            otool -L "${BIN_DIR}/mnemosyne" 2>&1 | sed 's/^/    /'
+        else
+            ldd "${BIN_DIR}/mnemosyne" 2>&1 | sed 's/^/    /'
+        fi
+        echo ""
+        echo "See TROUBLESHOOTING.md for more help"
+        exit 1
+    fi
+    print_success "Binary executes successfully"
 
     # Check if bin directory is in PATH
     if [[ ":$PATH:" != *":${BIN_DIR}:"* ]]; then

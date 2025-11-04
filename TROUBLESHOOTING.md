@@ -207,6 +207,59 @@ cat ~/.claude/mcp_config.json | jq '.mcpServers.mnemosyne.command'
 # Should show full path or "mnemosyne" if in PATH
 ```
 
+### "zsh: killed mnemosyne" or Exit Code 137
+
+**Symptoms**: Binary immediately killed when run, no output, exit code 137 or 9
+
+**Cause**:
+- Shared library dependency missing (binary was copied manually without dependencies)
+- Code signing issue (macOS)
+- Compilation error resulted in broken binary
+
+**Solution**:
+```bash
+# Method 1: Reinstall properly using cargo install
+cd /path/to/mnemosyne
+cargo install --path . --locked --force
+
+# Verify installation
+mnemosyne --version
+
+# Method 2: Verify build is working (run from project directory)
+cd /path/to/mnemosyne
+./target/release/mnemosyne --version
+
+# If Method 2 works but Method 1 doesn't, check library dependencies
+# macOS:
+otool -L $(which mnemosyne)
+# Linux:
+ldd $(which mnemosyne)
+
+# Look for missing .dylib (macOS) or .so (Linux) files
+```
+
+**Why this happens**:
+- Mnemosyne uses a shared library (`libmnemosyne_core.dylib` on macOS, `.so` on Linux) for its Python bindings (PyO3)
+- Manually copying the binary with `cp target/release/mnemosyne` breaks the library linkage
+- The operating system kills the process (SIGKILL) when it can't find required shared libraries
+- `cargo install` properly handles RPATH/RUNPATH so the binary can locate its dependencies
+
+**Prevention**:
+Always use `cargo install --path .` instead of manually copying binaries. The install script has been updated to use this method automatically.
+
+**Advanced diagnostics** (macOS):
+```bash
+# Check for crash reports
+ls -lt ~/Library/Logs/DiagnosticReports/mnemosyne* | head -5
+
+# Check code signing
+codesign -dv $(which mnemosyne)
+
+# Verify architecture matches system
+file $(which mnemosyne)
+uname -m
+```
+
 ---
 
 ## Runtime Issues

@@ -216,26 +216,26 @@ cargo check
 
 ### Step 2: Install Binary
 
-**Option A: Cargo install (recommended)**
+**Use cargo install (REQUIRED)**
 ```bash
-cargo install --path .
+cargo install --path . --locked --force
 
 # Installs to: ~/.cargo/bin/mnemosyne
 # Usually already in PATH
 ```
 
-**Option B: Manual copy**
+**⚠️ WARNING: Do NOT manually copy the binary**
+
+The manual copy method (`cp target/release/mnemosyne ~/.local/bin/`) will **NOT work** because:
+- Mnemosyne uses shared library dependencies (`libmnemosyne_core.dylib` on macOS, `.so` on Linux)
+- Manual copying breaks these dependencies, causing "Killed: 9" or "zsh: killed" errors
+- `cargo install` properly handles all dependencies and linking
+
+**If ~/.cargo/bin is not in PATH**:
 ```bash
-# To user bin directory
-mkdir -p ~/.local/bin
-cp target/release/mnemosyne ~/.local/bin/
-
-# Ensure ~/.local/bin is in PATH
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-
-# Or to system bin directory (requires sudo)
-sudo cp target/release/mnemosyne /usr/local/bin/
+# Add to ~/.bashrc or ~/.zshrc:
+export PATH="$HOME/.cargo/bin:$PATH"
+source ~/.bashrc  # or source ~/.zshrc
 ```
 
 **Verify binary is accessible:**
@@ -635,14 +635,52 @@ mnemosyne recall --query "installation" --format json
 **Solution:**
 ```bash
 # Check if binary exists
-ls -la ~/.local/bin/mnemosyne
+ls -la ~/.cargo/bin/mnemosyne
 
 # If exists, add to PATH
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 
 # If missing, reinstall
 ./scripts/install/install.sh
+```
+
+#### "zsh: killed mnemosyne" or "Killed: 9"
+
+**Cause:** Shared library dependency issue or binary was copied manually instead of using `cargo install`
+
+**Solution:**
+```bash
+# Remove any manually copied binaries
+rm ~/.local/bin/mnemosyne 2>/dev/null
+rm /usr/local/bin/mnemosyne 2>/dev/null
+
+# Reinstall using cargo install (proper method)
+cd /path/to/mnemosyne
+cargo install --path . --locked --force
+
+# Verify it works
+mnemosyne --version
+
+# If still fails on macOS, check for crash logs
+ls -lt ~/Library/Logs/DiagnosticReports/mnemosyne* 2>/dev/null | head -5
+```
+
+**Why this happens:**
+- The binary has shared library dependencies due to its architecture (`libmnemosyne_core.dylib` on macOS, `.so` on Linux)
+- Manually copying the binary breaks this linkage
+- `cargo install` properly sets up RPATH/RUNPATH so the binary can find its dependencies
+- Always use `cargo install --path .` instead of copying binaries manually
+
+**Technical details:**
+```bash
+# Check library dependencies (macOS)
+otool -L $(which mnemosyne)
+
+# Check library dependencies (Linux)
+ldd $(which mnemosyne)
+
+# Look for missing .dylib or .so files
 ```
 
 #### Build fails with "linker `cc` not found"
