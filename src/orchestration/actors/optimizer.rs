@@ -225,15 +225,25 @@ impl OptimizerActor {
         let total_used = critical_used + skills_used + project_used + general_used;
         state.context_usage = total_used as f32 / state.context_budget as f32;
 
-        tracing::debug!(
-            "Context usage: {:.1}% ({}/{})",
+        tracing::info!(
+            "📊 Context usage: {:.1}% ({}/{}) | Skills: {} | Memories: {} | Critical: {} | Threshold: {}%",
             state.context_usage * 100.0,
             total_used,
-            state.context_budget
+            state.context_budget,
+            state.loaded_skills,
+            state.loaded_memories.len(),
+            critical_used,
+            (CONTEXT_THRESHOLD * 100.0) as u32
         );
 
         // Check threshold
         if state.context_usage >= CONTEXT_THRESHOLD {
+            tracing::warn!(
+                "⚠️  Context threshold reached: {:.1}% >= {:.1}% - Notifying orchestrator",
+                state.context_usage * 100.0,
+                CONTEXT_THRESHOLD * 100.0
+            );
+
             if let Some(ref orchestrator) = state.orchestrator {
                 let _ = orchestrator
                     .cast(OrchestratorMessage::ContextThresholdReached {
