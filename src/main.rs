@@ -542,6 +542,21 @@ enum Commands {
         #[command(subcommand)]
         command: ArtifactCommands,
     },
+
+    /// Run health checks on the mnemosyne system
+    Doctor {
+        /// Show detailed diagnostics
+        #[arg(short, long)]
+        verbose: bool,
+
+        /// Attempt to fix issues automatically
+        #[arg(short, long)]
+        fix: bool,
+
+        /// Output in JSON format
+        #[arg(short, long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -2576,6 +2591,34 @@ For more information, see: docs/specs/specification-artifacts.md
 
                     Ok(())
                 }
+            }
+        }
+        Some(Commands::Doctor { verbose, fix, json }) => {
+            use mnemosyne_core::health::{run_health_checks, print_health_summary};
+
+            debug!("Running health checks...");
+
+            // Get database path
+            let db_path = get_db_path(cli.db_path);
+
+            // Create storage instance
+            let storage = LibsqlStorage::from_path(&db_path).await?;
+
+            // Run health checks
+            let summary = run_health_checks(&storage, verbose, fix).await?;
+
+            // Output results
+            if json {
+                println!("{}", serde_json::to_string_pretty(&summary)?);
+            } else {
+                print_health_summary(&summary, verbose);
+            }
+
+            // Exit with appropriate code
+            match summary.status {
+                mnemosyne_core::health::CheckStatus::Pass => std::process::exit(0),
+                mnemosyne_core::health::CheckStatus::Warn => std::process::exit(1),
+                mnemosyne_core::health::CheckStatus::Fail => std::process::exit(2),
             }
         }
         None => {

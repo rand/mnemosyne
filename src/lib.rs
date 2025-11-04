@@ -51,6 +51,7 @@ pub mod embeddings;
 pub mod error;
 pub mod evaluation;
 pub mod evolution;
+pub mod health; // Health check system
 pub mod ics; // Integrated Context Studio
 pub mod launcher;
 pub mod mcp;

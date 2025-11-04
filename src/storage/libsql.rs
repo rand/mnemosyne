@@ -783,6 +783,120 @@ impl LibsqlStorage {
         }
     }
 
+    /// Get the database file path
+    pub fn db_path(&self) -> PathBuf {
+        PathBuf::from(self.db_url.trim_start_matches("file:"))
+    }
+
+    /// Check database integrity using PRAGMA integrity_check
+    pub async fn check_integrity(&self) -> Result<bool> {
+        let conn = self.get_conn()?;
+
+        match conn.query("PRAGMA integrity_check", ()).await {
+            Ok(mut rows) => {
+                if let Some(row) = rows.next().await? {
+                    let result: String = row.get(0)?;
+                    Ok(result == "ok")
+                } else {
+                    Ok(false)
+                }
+            }
+            Err(e) => Err(MnemosyneError::Database(format!(
+                "Integrity check failed: {}",
+                e
+            ))),
+        }
+    }
+
+    /// Check if a table exists in the database
+    pub async fn table_exists(&self, table_name: &str) -> Result<bool> {
+        let conn = self.get_conn()?;
+
+        let query = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?";
+        let mut rows = conn.query(query, [table_name]).await?;
+
+        if let Some(row) = rows.next().await? {
+            let count: i64 = row.get(0)?;
+            Ok(count > 0)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Get list of applied migrations from _migrations_applied table
+    pub async fn get_applied_migrations(&self) -> Result<Vec<String>> {
+        let conn = self.get_conn()?;
+
+        // Check if migrations table exists first
+        if !self.table_exists("_migrations_applied").await? {
+            return Ok(Vec::new());
+        }
+
+        let query = "SELECT name FROM _migrations_applied ORDER BY applied_at";
+        let mut rows = conn.query(query, ()).await?;
+
+        let mut migrations = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let name: String = row.get(0)?;
+            migrations.push(name);
+        }
+
+        Ok(migrations)
+    }
+
+    /// Count total memories, optionally filtered by namespace
+    pub async fn count_memories(&self, namespace: Option<&str>) -> Result<usize> {
+        let conn = self.get_conn()?;
+
+        let (query, params): (&str, Vec<String>) = if let Some(ns) = namespace {
+            (
+                "SELECT COUNT(*) FROM memories WHERE namespace LIKE ? AND archived_at IS NULL",
+                vec![format!("%{}%", ns)],
+            )
+        } else {
+            ("SELECT COUNT(*) FROM memories WHERE archived_at IS NULL", Vec::new())
+        };
+
+        let mut rows = if params.is_empty() {
+            conn.query(query, ()).await?
+        } else {
+            conn.query(query, libsql::params_from_iter(params)).await?
+        };
+
+        if let Some(row) = rows.next().await? {
+            let count: i64 = row.get(0)?;
+            Ok(count as usize)
+        } else {
+            Ok(0)
+        }
+    }
+
+    /// Get importance distribution as a HashMap<importance_level, count>
+    pub async fn get_importance_distribution(&self) -> Result<std::collections::HashMap<u8, usize>> {
+        let conn = self.get_conn()?;
+
+        let query = r#"
+            SELECT
+                CAST(importance AS INTEGER) as imp_level,
+                COUNT(*) as count
+            FROM memories
+            WHERE archived_at IS NULL
+            GROUP BY imp_level
+            ORDER BY imp_level
+        "#;
+
+        let mut rows = conn.query(query, ()).await?;
+        let mut distribution = std::collections::HashMap::new();
+
+        while let Some(row) = rows.next().await? {
+            let importance: i64 = row.get(0)?;
+            let count: i64 = row.get(1)?;
+            distribution.insert(importance as u8, count as usize);
+        }
+
+        Ok(distribution)
+    }
+
     /// Convert a libsql row to a MemoryNote
     async fn row_to_memory(&self, row: &libsql::Row) -> Result<MemoryNote> {
         // Extract all fields from row
