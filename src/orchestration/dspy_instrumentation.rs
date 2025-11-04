@@ -568,4 +568,249 @@ mod tests {
         assert!(tokens.output_tokens >= 190 && tokens.output_tokens <= 210);
         assert_eq!(tokens.total_tokens, tokens.input_tokens + tokens.output_tokens);
     }
+
+    #[tokio::test]
+    async fn test_config_update_and_get() {
+        let bridge = Arc::new(DSpyBridge::new().unwrap());
+        let logger = Arc::new(
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
+            .unwrap(),
+        );
+        let telemetry = Arc::new(TelemetryCollector::new());
+
+        let initial_config = InstrumentationConfig {
+            sampling_rate: 0.10,
+            enabled: true,
+        };
+        let inst = DSpyInstrumentation::new(bridge, logger, telemetry, initial_config.clone());
+
+        // Verify initial config
+        let config = inst.get_config().await;
+        assert_eq!(config.sampling_rate, 0.10);
+        assert!(config.enabled);
+
+        // Update config
+        let new_config = InstrumentationConfig {
+            sampling_rate: 0.25,
+            enabled: false,
+        };
+        inst.update_config(new_config.clone()).await;
+
+        // Verify updated config
+        let updated = inst.get_config().await;
+        assert_eq!(updated.sampling_rate, 0.25);
+        assert!(!updated.enabled);
+    }
+
+    #[tokio::test]
+    async fn test_config_disabled_bypasses_instrumentation() {
+        let bridge = Arc::new(DSpyBridge::new().unwrap());
+        let logger = Arc::new(
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
+            .unwrap(),
+        );
+        let telemetry = Arc::new(TelemetryCollector::new());
+
+        let config = InstrumentationConfig {
+            sampling_rate: 1.0, // 100% sampling
+            enabled: false,     // But disabled
+        };
+        let inst = DSpyInstrumentation::new(bridge, logger, telemetry, config);
+
+        // With instrumentation disabled, should bypass sampling logic entirely
+        // This would normally call the bridge directly (which would fail without Python setup)
+        // but we can't test the full flow without mocking the bridge
+        let config_check = inst.get_config().await;
+        assert!(!config_check.enabled);
+    }
+
+    #[test]
+    fn test_telemetry_accessor() {
+        let bridge = Arc::new(DSpyBridge::new().unwrap());
+        let logger = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async {
+                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                    buffer_size: 1,
+                    enable_telemetry: false,
+                })
+                .await
+                .unwrap()
+            });
+        let telemetry = Arc::new(TelemetryCollector::new());
+
+        let config = InstrumentationConfig::default();
+        let inst = DSpyInstrumentation::new(bridge, Arc::new(logger), telemetry.clone(), config);
+
+        // Verify telemetry accessor returns same instance
+        let retrieved_telemetry = inst.telemetry();
+        assert!(Arc::ptr_eq(&telemetry, retrieved_telemetry));
+    }
+
+    #[test]
+    fn test_logger_accessor() {
+        let bridge = Arc::new(DSpyBridge::new().unwrap());
+        let logger = Arc::new(
+            tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(async {
+                    ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                        sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                        buffer_size: 1,
+                        enable_telemetry: false,
+                    })
+                    .await
+                    .unwrap()
+                }),
+        );
+        let telemetry = Arc::new(TelemetryCollector::new());
+
+        let config = InstrumentationConfig::default();
+        let inst = DSpyInstrumentation::new(bridge, logger.clone(), telemetry, config);
+
+        // Verify logger accessor returns same instance
+        let retrieved_logger = inst.logger();
+        assert!(Arc::ptr_eq(&logger, retrieved_logger));
+    }
+
+    #[test]
+    fn test_default_config() {
+        let config = InstrumentationConfig::default();
+        assert_eq!(config.sampling_rate, 0.10);
+        assert!(config.enabled);
+    }
+
+    #[test]
+    fn test_sampling_hash_distribution() {
+        let bridge = Arc::new(DSpyBridge::new().unwrap());
+        let logger = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async {
+                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                    buffer_size: 1,
+                    enable_telemetry: false,
+                })
+                .await
+                .unwrap()
+            });
+        let telemetry = Arc::new(TelemetryCollector::new());
+
+        let config = InstrumentationConfig {
+            sampling_rate: 0.50,
+            enabled: true,
+        };
+        let inst = DSpyInstrumentation::new(bridge, Arc::new(logger), telemetry, config);
+
+        // Test that different request IDs produce different sampling decisions
+        let mut sampled_count = 0;
+        let mut not_sampled_count = 0;
+
+        for i in 0..100 {
+            let request_id = format!("test-{}", i);
+            if inst.should_sample(&request_id, 0.50) {
+                sampled_count += 1;
+            } else {
+                not_sampled_count += 1;
+            }
+        }
+
+        // With 50% sampling over 100 requests, should have both sampled and not sampled
+        assert!(sampled_count > 0, "Expected some requests to be sampled");
+        assert!(
+            not_sampled_count > 0,
+            "Expected some requests to not be sampled"
+        );
+
+        // Should be approximately 50% (±10% tolerance for 100 samples)
+        let actual_rate = sampled_count as f64 / 100.0;
+        assert!(
+            actual_rate >= 0.40 && actual_rate <= 0.60,
+            "Sampling rate {} outside expected range [0.40, 0.60]",
+            actual_rate
+        );
+    }
+
+    #[test]
+    fn test_token_estimation_empty_inputs() {
+        let bridge = Arc::new(DSpyBridge::new().unwrap());
+        let logger = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async {
+                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                    buffer_size: 1,
+                    enable_telemetry: false,
+                })
+                .await
+                .unwrap()
+            });
+        let telemetry = Arc::new(TelemetryCollector::new());
+
+        let config = InstrumentationConfig::default();
+        let inst = DSpyInstrumentation::new(bridge, Arc::new(logger), telemetry, config);
+
+        let inputs = HashMap::new();
+        let outputs = HashMap::new();
+
+        let tokens = inst.estimate_token_usage(&inputs, &outputs);
+
+        // Empty inputs/outputs should result in minimal tokens
+        assert!(tokens.input_tokens < 10);
+        assert!(tokens.output_tokens < 10);
+        assert_eq!(tokens.total_tokens, tokens.input_tokens + tokens.output_tokens);
+    }
+
+    #[test]
+    fn test_token_estimation_complex_json() {
+        let bridge = Arc::new(DSpyBridge::new().unwrap());
+        let logger = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(async {
+                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                    buffer_size: 1,
+                    enable_telemetry: false,
+                })
+                .await
+                .unwrap()
+            });
+        let telemetry = Arc::new(TelemetryCollector::new());
+
+        let config = InstrumentationConfig::default();
+        let inst = DSpyInstrumentation::new(bridge, Arc::new(logger), telemetry, config);
+
+        let mut inputs = HashMap::new();
+        inputs.insert(
+            "nested".to_string(),
+            serde_json::json!({
+                "field1": "value1",
+                "field2": ["item1", "item2", "item3"],
+                "field3": {
+                    "nested_field": "nested_value"
+                }
+            }),
+        );
+
+        let mut outputs = HashMap::new();
+        outputs.insert("result".to_string(), Value::String("output".to_string()));
+
+        let tokens = inst.estimate_token_usage(&inputs, &outputs);
+
+        // Complex JSON should result in reasonable token count
+        assert!(tokens.input_tokens > 10);
+        assert!(tokens.output_tokens > 0);
+        assert_eq!(tokens.total_tokens, tokens.input_tokens + tokens.output_tokens);
+    }
 }
