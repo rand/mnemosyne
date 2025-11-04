@@ -1,0 +1,23 @@
+{
+  "orchestration_failure_threshold": 2,
+  "ab_test_rollback_alert": true,
+  "dataset_quality_drop_threshold": 0.10,
+  "optimization_no_improvement_threshold": 3,
+  "email_enabled": false,
+  "email_smtp_server": "smtp.gmail.com",
+  "email_smtp_port": 587,
+  "email_from": "dspy-monitoring@example.com",
+  "email_to": [
+    "team@example.com"
+  ],
+  "email_username": "your-email@gmail.com",
+  "email_password": "your-app-password",
+  "slack_enabled": false,
+  "slack_webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+  "file_alerts_enabled": true,
+  "file_alerts_dir": "/tmp/dspy_alerts",
+  "orchestration_output_dir": "/tmp/optimization_runs",
+  "ab_experiments_dir": ".ab_experiments",
+  "training_data_dir": "training_data",
+  "state_file": ".monitoring_state.json"
+}
