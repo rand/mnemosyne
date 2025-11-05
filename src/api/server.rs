@@ -326,7 +326,8 @@ mod tests {
     async fn test_server_creation() {
         let config = ApiServerConfig::default();
         let server = ApiServer::new(config);
-        assert_eq!(server.broadcaster().subscriber_count(), 0);
+        // StateManager subscribes to event stream on creation
+        assert_eq!(server.broadcaster().subscriber_count(), 1);
     }
 
     #[tokio::test]
