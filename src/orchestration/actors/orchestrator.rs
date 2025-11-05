@@ -74,13 +74,26 @@ impl OrchestratorState {
     }
 
     /// Register event broadcaster for real-time observability
-    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, storage: Arc<dyn StorageBackend>, namespace: Namespace) {
+    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, storage: Arc<dyn StorageBackend>, namespace: Namespace, agent_id: String) {
         // Reconstruct EventPersistence with broadcaster
         self.events = EventPersistence::new_with_broadcaster(
             storage,
-            namespace,
-            Some(broadcaster),
+            namespace.clone(),
+            Some(broadcaster.clone()),
         );
+
+        // Spawn heartbeat task (30s interval)
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+            loop {
+                interval.tick().await;
+                let event = crate::api::Event::heartbeat(agent_id.clone());
+                if let Err(e) = broadcaster.broadcast(event) {
+                    tracing::warn!("Failed to broadcast heartbeat for {}: {}", agent_id, e);
+                }
+            }
+        });
+        tracing::info!("Heartbeat task spawned for {}", agent_id);
     }
 }
 
@@ -704,7 +717,8 @@ impl Actor for OrchestratorActor {
             }
             OrchestratorMessage::RegisterEventBroadcaster(broadcaster) => {
                 tracing::debug!("Registering event broadcaster with Orchestrator");
-                state.register_event_broadcaster(broadcaster, self.storage.clone(), self.namespace.clone());
+                let agent_id = format!("{}-orchestrator", self.namespace);
+                state.register_event_broadcaster(broadcaster, self.storage.clone(), self.namespace.clone(), agent_id);
                 tracing::info!("Event broadcaster registered with Orchestrator - events will now be broadcast");
             }
             OrchestratorMessage::SubmitWork(item) => {

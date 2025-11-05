@@ -246,13 +246,26 @@ impl ReviewerState {
     }
 
     /// Register event broadcaster for real-time observability
-    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, namespace: Namespace) {
+    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, namespace: Namespace, agent_id: String) {
         // Reconstruct EventPersistence with broadcaster
         self.events = EventPersistence::new_with_broadcaster(
             self.storage.clone(),
-            namespace,
-            Some(broadcaster),
+            namespace.clone(),
+            Some(broadcaster.clone()),
         );
+
+        // Spawn heartbeat task (30s interval)
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+            loop {
+                interval.tick().await;
+                let event = crate::api::Event::heartbeat(agent_id.clone());
+                if let Err(e) = broadcaster.broadcast(event) {
+                    tracing::warn!("Failed to broadcast heartbeat for {}: {}", agent_id, e);
+                }
+            }
+        });
+        tracing::info!("Heartbeat task spawned for {}", agent_id);
     }
 
     /// Register DSPy instrumentation layer for LLM-based validation with telemetry
@@ -1274,7 +1287,8 @@ impl Actor for ReviewerActor {
             }
             ReviewerMessage::RegisterEventBroadcaster(broadcaster) => {
                 tracing::debug!("Registering event broadcaster with Reviewer");
-                state.register_event_broadcaster(broadcaster, self.namespace.clone());
+                let agent_id = format!("{}-reviewer", self.namespace);
+                state.register_event_broadcaster(broadcaster, self.namespace.clone(), agent_id);
                 tracing::info!("Event broadcaster registered with Reviewer - events will now be broadcast");
             }
             ReviewerMessage::ReviewWork {

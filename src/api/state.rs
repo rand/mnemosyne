@@ -139,6 +139,118 @@ impl StateManager {
             context_files: files.len(),
         }
     }
+
+    /// Subscribe to event stream and automatically update state
+    ///
+    /// This creates a single source of truth: events drive state updates.
+    /// Spawns a background task that receives events and projects them to state.
+    pub fn subscribe_to_events(&self, mut event_rx: tokio::sync::broadcast::Receiver<crate::api::Event>) {
+        let agents = self.agents.clone();
+        let context_files = self.context_files.clone();
+
+        tokio::spawn(async move {
+            tracing::info!("StateManager subscribed to event stream");
+
+            while let Ok(event) = event_rx.recv().await {
+                if let Err(e) = Self::apply_event_static(event, &agents, &context_files).await {
+                    tracing::warn!("Failed to apply event to state: {}", e);
+                }
+            }
+
+            tracing::warn!("StateManager event subscription ended");
+        });
+    }
+
+    /// Apply event to state (static version for spawned task)
+    async fn apply_event_static(
+        event: crate::api::Event,
+        agents: &Arc<RwLock<HashMap<String, AgentInfo>>>,
+        context_files: &Arc<RwLock<HashMap<String, ContextFile>>>,
+    ) -> Result<(), String> {
+        use crate::api::EventType;
+
+        match event.event_type {
+            EventType::AgentStarted { agent_id } => {
+                let mut agents_map = agents.write().await;
+                agents_map.insert(
+                    agent_id.clone(),
+                    AgentInfo {
+                        id: agent_id,
+                        state: AgentState::Idle,
+                        updated_at: Utc::now(),
+                        metadata: HashMap::new(),
+                    },
+                );
+                tracing::debug!("State updated: agent started");
+            }
+            EventType::AgentCompleted { agent_id, result } => {
+                let mut agents_map = agents.write().await;
+                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                    agent.state = AgentState::Completed { result };
+                    agent.updated_at = Utc::now();
+                    tracing::debug!("State updated: agent completed");
+                }
+            }
+            EventType::AgentFailed { agent_id, error } => {
+                let mut agents_map = agents.write().await;
+                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                    agent.state = AgentState::Failed { error };
+                    agent.updated_at = Utc::now();
+                    tracing::debug!("State updated: agent failed");
+                }
+            }
+            EventType::Heartbeat { agent_id } => {
+                let mut agents_map = agents.write().await;
+                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                    agent.updated_at = Utc::now();
+                    tracing::trace!("State updated: heartbeat from {}", agent_id);
+                }
+            }
+            EventType::MemoryStored { .. } => {
+                // Context activity - could track this as metadata in the future
+                tracing::trace!("Memory stored event received");
+            }
+            EventType::MemoryRecalled { .. } => {
+                // Context activity
+                tracing::trace!("Memory recalled event received");
+            }
+            EventType::ContextModified { file_path } => {
+                let mut files_map = context_files.write().await;
+                files_map.insert(
+                    file_path.clone(),
+                    ContextFile {
+                        path: file_path,
+                        modified_at: Utc::now(),
+                        errors: vec![],
+                    },
+                );
+                tracing::debug!("State updated: context file modified");
+            }
+            EventType::ContextValidated { file_path, errors } => {
+                let mut files_map = context_files.write().await;
+                if let Some(file) = files_map.get_mut(&file_path) {
+                    file.errors = errors;
+                    file.modified_at = Utc::now();
+                } else {
+                    files_map.insert(
+                        file_path.clone(),
+                        ContextFile {
+                            path: file_path,
+                            modified_at: Utc::now(),
+                            errors,
+                        },
+                    );
+                }
+                tracing::debug!("State updated: context file validated");
+            }
+            EventType::HealthUpdate { .. } | EventType::SessionStarted { .. } => {
+                // System-level events, no state update needed
+                tracing::trace!("System event received (no state update)");
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for StateManager {

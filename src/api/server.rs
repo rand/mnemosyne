@@ -64,6 +64,12 @@ impl ApiServer {
         let state = Arc::new(StateManager::new());
         let instance_id = uuid::Uuid::new_v4().to_string()[..8].to_string();
 
+        // Subscribe StateManager to event stream for automatic state updates
+        // This creates a single source of truth: events drive state
+        let event_rx = events.subscribe();
+        state.subscribe_to_events(event_rx);
+        info!("StateManager subscribed to event stream - state will update automatically");
+
         Self {
             config,
             events,
