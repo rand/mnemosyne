@@ -844,7 +844,7 @@ impl LibsqlStorage {
             return Ok(Vec::new());
         }
 
-        let query = "SELECT name FROM _migrations_applied ORDER BY applied_at";
+        let query = "SELECT migration_name FROM _migrations_applied ORDER BY applied_at";
         let mut rows = conn.query(query, ()).await?;
 
         let mut migrations = Vec::new();
@@ -861,15 +861,43 @@ impl LibsqlStorage {
     pub async fn get_importance_distribution(&self) -> Result<std::collections::HashMap<u8, usize>> {
         let conn = self.get_conn()?;
 
-        let query = r#"
-            SELECT
-                CAST(importance AS INTEGER) as imp_level,
-                COUNT(*) as count
-            FROM memories
-            WHERE archived_at IS NULL
-            GROUP BY imp_level
-            ORDER BY imp_level
-        "#;
+        // Check if archived_at column exists (added in later migrations)
+        // If it doesn't exist, just get all memories
+        let has_archived = match conn.query(
+            "SELECT COUNT(*) FROM pragma_table_info('memories') WHERE name='archived_at'",
+            ()
+        ).await {
+            Ok(mut rows) => {
+                if let Some(row) = rows.next().await? {
+                    let count: i64 = row.get(0)?;
+                    count > 0
+                } else {
+                    false
+                }
+            }
+            Err(_) => false,
+        };
+
+        let query = if has_archived {
+            r#"
+                SELECT
+                    CAST(importance AS INTEGER) as imp_level,
+                    COUNT(*) as count
+                FROM memories
+                WHERE archived_at IS NULL
+                GROUP BY imp_level
+                ORDER BY imp_level
+            "#
+        } else {
+            r#"
+                SELECT
+                    CAST(importance AS INTEGER) as imp_level,
+                    COUNT(*) as count
+                FROM memories
+                GROUP BY imp_level
+                ORDER BY imp_level
+            "#
+        };
 
         let mut rows = conn.query(query, ()).await?;
         let mut distribution = std::collections::HashMap::new();
