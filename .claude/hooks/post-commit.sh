@@ -30,13 +30,13 @@ COMMIT_MSG=$(git log -1 --format=%s)
 COMMIT_BODY=$(git log -1 --format=%b)
 FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD | wc -l | tr -d ' ')
 
-echo "📝 Commit: $COMMIT_HASH - $COMMIT_MSG" >&2
-echo "📁 Files changed: $FILES_CHANGED" >&2
+echo "[*] Commit: $COMMIT_HASH - $COMMIT_MSG" >&2
+echo "[~] Files changed: $FILES_CHANGED" >&2
 
 # Check if this commit relates to architectural decisions
 # Keywords that suggest architectural significance
 if echo "$COMMIT_MSG $COMMIT_BODY" | grep -qiE "(architecture|implement|refactor|migrate|design|pattern|decision|integrate|add|remove|fix|update|create|improve|enhance|complete|wire|establish)"; then
-    echo "🏗️  Architectural commit detected" >&2
+    echo "[#] Architectural commit detected" >&2
 
     # Create memory linking commit to decision
     MEMORY_CONTENT="Git commit $COMMIT_HASH: $COMMIT_MSG
@@ -59,7 +59,7 @@ $COMMIT_BODY
         IMPORTANCE=7
     fi
 
-    echo "💾 Saving commit memory (importance: $IMPORTANCE)" >&2
+    echo "[+] Saving commit memory (importance: $IMPORTANCE)" >&2
 
     "$MNEMOSYNE_BIN" remember \
         --content "$MEMORY_CONTENT" \
@@ -68,11 +68,11 @@ $COMMIT_BODY
         --context "Git commit $COMMIT_HASH" \
         --tags "commit,${COMMIT_HASH}" \
         --format json >/dev/null 2>&1 || {
-            echo "⚠️  Failed to save commit memory" >&2
+            echo "[!] Failed to save commit memory" >&2
         }
 
     # Try to link to related memories
-    echo "🔍 Searching for related memories..." >&2
+    echo "[?] Searching for related memories..." >&2
 
     RELATED=$("$MNEMOSYNE_BIN" recall \
         --query "$COMMIT_MSG" \
@@ -83,7 +83,7 @@ $COMMIT_BODY
     RELATED_COUNT=$(echo "$RELATED" | jq -r '.results | length' 2>/dev/null || echo "0")
 
     if [ "$RELATED_COUNT" -gt 0 ]; then
-        echo "✅ Found $RELATED_COUNT related memories" >&2
+        echo "[✓] Found $RELATED_COUNT related memories" >&2
     fi
 fi
 
