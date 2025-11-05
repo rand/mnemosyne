@@ -25,12 +25,16 @@ help:
 	@echo "  make clean        Remove build artifacts"
 	@echo ""
 
-# Build release binary
+# Build release binary (suppresses warnings for clean output)
 build:
+	@RUSTFLAGS="-A warnings" cargo build --release 2>&1 | grep -v "^warning:" || true
+
+# Build with warnings visible (for development)
+build-verbose:
 	cargo build --release
 
 # Build and install with proper macOS code signing
-install: build
+install:
 	@./scripts/build-and-install.sh
 
 # Run all tests

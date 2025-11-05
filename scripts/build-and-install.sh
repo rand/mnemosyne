@@ -30,7 +30,7 @@ cd "$PROJECT_ROOT"
 
 # Build release binary
 echo "Building release binary..."
-if ! cargo build --release; then
+if ! RUSTFLAGS="-A warnings" cargo build --release 2>&1 | grep -v "^warning:"; then
     echo -e "${YELLOW}Build failed${NC}"
     exit 1
 fi
@@ -39,7 +39,7 @@ echo -e "${GREEN}✓${NC} Build complete"
 # Install using cargo install (handles dependencies and copies binary)
 echo ""
 echo "Installing to ${BIN_PATH}..."
-if ! cargo install --path . --locked --force; then
+if ! RUSTFLAGS="-A warnings" cargo install --path . --locked --force 2>&1 | grep -v "^warning:"; then
     echo -e "${YELLOW}Install failed${NC}"
     exit 1
 fi

@@ -149,8 +149,9 @@ monitor_cargo_build() {
     local temp_output=$(mktemp)
 
     # Run cargo with stderr+stdout merged, tee to temp file
+    # Suppress warnings for clean user-facing output
     {
-        cargo build --release 2>&1 | while IFS= read -r line; do
+        RUSTFLAGS="-A warnings" cargo build --release 2>&1 | while IFS= read -r line; do
             # Stream output to user
             echo "$line"
 
@@ -286,7 +287,7 @@ build_binary() {
     # Run build with progress monitoring
     if ! monitor_cargo_build; then
         # Build failed - capture error output for diagnosis
-        local error_output=$(cargo build --release 2>&1)
+        local error_output=$(RUSTFLAGS="-A warnings" cargo build --release 2>&1)
         show_build_error "$error_output"
         exit 1
     fi
