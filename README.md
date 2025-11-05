@@ -513,6 +513,34 @@ cargo tarpaulin --lib --out Html
 
 ---
 
+## Troubleshooting
+
+### macOS "killed" Error
+
+If you see `zsh: killed  mnemosyne` when trying to run the binary:
+
+**Quick Fix**:
+```bash
+xattr -d com.apple.provenance ~/.cargo/bin/mnemosyne
+codesign --force --sign - ~/.cargo/bin/mnemosyne
+```
+
+**Root Cause**: macOS Gatekeeper invalidates code signatures when binaries are relocated (e.g., by `cargo install`). The binary in `target/release/` works fine, but the installed copy in `~/.cargo/bin/` gets killed by taskgated.
+
+**Permanent Fix**: Always use the install script, which handles re-signing automatically:
+```bash
+./scripts/install/install.sh
+```
+
+**Quick rebuild during development**:
+```bash
+./scripts/build-and-install.sh
+```
+
+For more troubleshooting help, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+---
+
 ## Performance
 
 **Storage Operations** (PyO3 vs subprocess):

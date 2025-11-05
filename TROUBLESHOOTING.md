@@ -15,6 +15,60 @@ This guide covers common issues and their solutions when installing, configuring
 
 ## Installation Issues
 
+### macOS "zsh: killed mnemosyne" Error
+
+**Symptoms**:
+- Running `mnemosyne` results in `zsh: killed  mnemosyne` with no other output
+- Crash reports appear in `~/Library/Logs/DiagnosticReports/mnemosyne-*.ips`
+- Binary in `target/release/mnemosyne` works fine, but `~/.cargo/bin/mnemosyne` fails
+- Crash reports show: `"SIGKILL (Code Signature Invalid)"` and `"Taskgated Invalid Signature"`
+
+**Root Cause**:
+macOS Gatekeeper invalidates adhoc code signatures when binaries are relocated. When `cargo install` copies the binary from `target/release/` to `~/.cargo/bin/`, macOS treats it as a "relocated binary" and the signature becomes invalid. The taskgated daemon kills the process on launch.
+
+**Immediate Fix** (for already-installed binary):
+```bash
+# Remove provenance attribute and re-sign
+xattr -d com.apple.provenance ~/.cargo/bin/mnemosyne
+codesign --force --sign - ~/.cargo/bin/mnemosyne
+
+# Verify it works
+mnemosyne --version
+```
+
+**Permanent Fix** (use install script):
+The install script now handles this automatically:
+```bash
+./scripts/install/install.sh
+```
+
+**Quick rebuild during development**:
+```bash
+# Builds, installs, and re-signs in one command
+./scripts/build-and-install.sh
+```
+
+**Why `target/release/mnemosyne` works**:
+- Binaries in build directories (`target/`) have development exemptions
+- macOS doesn't apply strict Gatekeeper checks to builds in source trees
+- Only relocated binaries (like those in `~/.cargo/bin/`) trigger the issue
+
+**Verification**:
+```bash
+# Check if binary has provenance attribute (causes issues)
+xattr -l ~/.cargo/bin/mnemosyne
+
+# Check code signature status
+codesign -dvvv ~/.cargo/bin/mnemosyne
+
+# Check for crash reports
+ls -lt ~/Library/Logs/DiagnosticReports/mnemosyne-* | head -5
+```
+
+**Related**: This is a macOS 13+ (Ventura and later) security feature. Earlier macOS versions may not exhibit this behavior.
+
+---
+
 ### "mnemosyne: command not found"
 
 **Cause**: Binary not in PATH or not installed correctly.

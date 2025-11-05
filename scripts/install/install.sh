@@ -387,6 +387,29 @@ install_binary() {
     fi
     print_success "Binary executes successfully"
 
+    # Re-sign binary after installation to fix macOS Gatekeeper issues
+    echo ""
+    echo "Re-signing binary for macOS compatibility..."
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # Strip com.apple.provenance attribute that causes Gatekeeper to reject relocated binaries
+        xattr -d com.apple.provenance "${BIN_DIR}/mnemosyne" 2>/dev/null || true
+
+        # Force re-sign with adhoc signature
+        if ! codesign --force --sign - "${BIN_DIR}/mnemosyne" 2>/dev/null; then
+            print_warning "Failed to re-sign binary"
+            echo "You may encounter 'zsh: killed' errors on macOS"
+            echo ""
+            echo "To fix manually:"
+            echo "  xattr -d com.apple.provenance ${BIN_DIR}/mnemosyne"
+            echo "  codesign --force --sign - ${BIN_DIR}/mnemosyne"
+            echo ""
+        else
+            print_success "Binary re-signed for macOS (prevents 'zsh: killed' errors)"
+        fi
+    else
+        print_success "Binary ready (code signing not needed on ${OSTYPE})"
+    fi
+
     # Check if bin directory is in PATH
     if [[ ":$PATH:" != *":${BIN_DIR}:"* ]]; then
         print_warning "$BIN_DIR is not in your PATH"
