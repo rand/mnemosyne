@@ -142,6 +142,9 @@ pub struct OrchestrationEngine {
 
     /// Optional event broadcaster for real-time API updates
     event_broadcaster: Option<crate::api::EventBroadcaster>,
+
+    /// Optional state manager for dashboard state tracking
+    state_manager: Option<Arc<crate::api::StateManager>>,
 }
 
 impl OrchestrationEngine {
@@ -159,17 +162,35 @@ impl OrchestrationEngine {
         config: SupervisionConfig,
         event_broadcaster: Option<crate::api::EventBroadcaster>,
     ) -> Result<Self> {
+        Self::new_with_state(storage, config, event_broadcaster, None).await
+    }
+
+    /// Create a new orchestration engine with event broadcasting and state management
+    pub async fn new_with_state(
+        storage: Arc<dyn crate::storage::StorageBackend>,
+        config: SupervisionConfig,
+        event_broadcaster: Option<crate::api::EventBroadcaster>,
+        state_manager: Option<Arc<crate::api::StateManager>>,
+    ) -> Result<Self> {
         // Initialize network layer
         let network = Arc::new(network::NetworkLayer::new().await?);
 
-        // Create supervision tree
-        let supervision = SupervisionTree::new(config, storage.clone(), network.clone()).await?;
+        // Create supervision tree with state management
+        let supervision = SupervisionTree::new_with_state(
+            config,
+            storage.clone(),
+            network.clone(),
+            event_broadcaster.clone(),
+            state_manager.clone(),
+        )
+        .await?;
 
         Ok(Self {
             supervision,
             network,
             storage,
             event_broadcaster,
+            state_manager,
         })
     }
 
@@ -189,15 +210,28 @@ impl OrchestrationEngine {
         namespace: crate::types::Namespace,
         event_broadcaster: Option<crate::api::EventBroadcaster>,
     ) -> Result<Self> {
+        Self::new_with_namespace_and_state(storage, config, namespace, event_broadcaster, None).await
+    }
+
+    /// Create a new orchestration engine with explicit namespace, event broadcasting, and state management
+    pub async fn new_with_namespace_and_state(
+        storage: Arc<dyn crate::storage::StorageBackend>,
+        config: SupervisionConfig,
+        namespace: crate::types::Namespace,
+        event_broadcaster: Option<crate::api::EventBroadcaster>,
+        state_manager: Option<Arc<crate::api::StateManager>>,
+    ) -> Result<Self> {
         // Initialize network layer
         let network = Arc::new(network::NetworkLayer::new().await?);
 
-        // Create supervision tree with explicit namespace
-        let supervision = SupervisionTree::new_with_namespace(
+        // Create supervision tree with explicit namespace and state management
+        let supervision = SupervisionTree::new_with_namespace_and_state(
             config,
             storage.clone(),
             network.clone(),
             namespace,
+            event_broadcaster.clone(),
+            state_manager.clone(),
         )
         .await?;
 
@@ -206,6 +240,7 @@ impl OrchestrationEngine {
             network,
             storage,
             event_broadcaster,
+            state_manager,
         })
     }
 
