@@ -45,6 +45,8 @@ struct AppState {
     events: EventBroadcaster,
     /// State manager
     state: Arc<StateManager>,
+    /// Instance ID
+    instance_id: String,
 }
 
 /// API server
@@ -52,6 +54,7 @@ pub struct ApiServer {
     config: ApiServerConfig,
     events: EventBroadcaster,
     state: Arc<StateManager>,
+    instance_id: String,
 }
 
 impl ApiServer {
@@ -59,11 +62,13 @@ impl ApiServer {
     pub fn new(config: ApiServerConfig) -> Self {
         let events = EventBroadcaster::new(config.event_capacity);
         let state = Arc::new(StateManager::new());
+        let instance_id = uuid::Uuid::new_v4().to_string()[..8].to_string();
 
         Self {
             config,
             events,
             state,
+            instance_id,
         }
     }
 
@@ -75,6 +80,11 @@ impl ApiServer {
     /// Get state manager
     pub fn state_manager(&self) -> &Arc<StateManager> {
         &self.state
+    }
+
+    /// Get instance ID
+    pub fn instance_id(&self) -> &str {
+        &self.instance_id
     }
 
     /// Build router
@@ -97,21 +107,75 @@ impl ApiServer {
             .layer(TraceLayer::new_for_http())
     }
 
-    /// Start serving
+    /// Start serving with dynamic port allocation
+    ///
+    /// Tries the configured address first, then attempts alternative ports
+    /// if the primary port is unavailable (e.g., when multiple instances are running).
     pub async fn serve(self) -> anyhow::Result<()> {
         let state = AppState {
             events: self.events.clone(),
             state: self.state.clone(),
+            instance_id: self.instance_id.clone(),
         };
 
         let router = Self::build_router(state);
 
-        info!("Starting API server on {}", self.config.addr);
+        // Try configured address first
+        match tokio::net::TcpListener::bind(self.config.addr).await {
+            Ok(listener) => {
+                info!(
+                    "API server [{}] listening on http://{}",
+                    self.instance_id, self.config.addr
+                );
+                info!(
+                    "Dashboard: mnemosyne-dash --api http://{}",
+                    self.config.addr
+                );
+                axum::serve(listener, router).await?;
+                return Ok(());
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                debug!(
+                    "Port {} in use, trying alternative ports...",
+                    self.config.addr.port()
+                );
+            }
+            Err(e) => return Err(e.into()),
+        }
 
-        let listener = tokio::net::TcpListener::bind(self.config.addr).await?;
-        axum::serve(listener, router).await?;
+        // Try alternative ports (3001-3010)
+        let base_port = self.config.addr.port();
+        for offset in 1..=10 {
+            let alt_port = base_port + offset;
+            let alt_addr = SocketAddr::new(self.config.addr.ip(), alt_port);
 
-        Ok(())
+            match tokio::net::TcpListener::bind(alt_addr).await {
+                Ok(listener) => {
+                    info!(
+                        "API server [{}] listening on http://{}",
+                        self.instance_id, alt_addr
+                    );
+                    info!(
+                        "Dashboard: mnemosyne-dash --api http://{}",
+                        alt_addr
+                    );
+                    axum::serve(listener, router).await?;
+                    return Ok(());
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                    continue;
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+
+        Err(anyhow::anyhow!(
+            "All ports ({}–{}) are in use. API server unavailable for instance {}. \
+             Core functionality not affected.",
+            base_port,
+            base_port + 10,
+            self.instance_id
+        ))
     }
 }
 
@@ -198,6 +262,7 @@ async fn stats_handler(State(state): State<AppState>) -> impl IntoResponse {
 struct HealthResponse {
     status: String,
     version: String,
+    instance_id: String,
     subscribers: usize,
 }
 
@@ -205,6 +270,7 @@ async fn health_handler(State(state): State<AppState>) -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
+        instance_id: state.instance_id.clone(),
         subscribers: state.events.subscriber_count(),
     })
 }
@@ -225,9 +291,11 @@ mod tests {
         let state = AppState {
             events: EventBroadcaster::default(),
             state: Arc::new(StateManager::new()),
+            instance_id: "test-instance".to_string(),
         };
 
         let response = health_handler(State(state)).await;
         assert_eq!(response.0.status, "ok");
+        assert_eq!(response.0.instance_id, "test-instance");
     }
 }

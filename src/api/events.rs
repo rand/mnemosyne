@@ -61,6 +61,9 @@ pub enum EventType {
 pub struct Event {
     /// Event ID (for deduplication)
     pub id: String,
+    /// Instance ID (for multi-instance coordination)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub instance_id: Option<String>,
     /// Event payload
     #[serde(flatten)]
     pub event_type: EventType,
@@ -71,6 +74,16 @@ impl Event {
     pub fn new(event_type: EventType) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
+            instance_id: None,
+            event_type,
+        }
+    }
+
+    /// Create new event with instance ID
+    pub fn new_with_instance(event_type: EventType, instance_id: String) -> Self {
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            instance_id: Some(instance_id),
             event_type,
         }
     }

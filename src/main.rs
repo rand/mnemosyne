@@ -282,20 +282,24 @@ async fn start_mcp_server_with_api(
     // Create MCP server
     let mcp_server = McpServer::new(tool_handler);
 
-    // Run both servers concurrently with graceful shutdown on signals
+    // Spawn API server in background (non-critical)
+    let _api_handle = tokio::spawn(async move {
+        if let Err(e) = api_server.serve().await {
+            warn!("{}", e);
+        }
+    });
+
+    // Run MCP server (critical) with graceful shutdown on signals
     tokio::select! {
         result = mcp_server.run() => {
             result?;
         }
-        result = api_server.serve() => {
-            result?;
-        }
         _ = tokio::signal::ctrl_c() => {
-            info!("Received shutdown signal, stopping MCP server and API server gracefully...");
+            info!("Received shutdown signal, stopping MCP server gracefully...");
         }
     }
 
-    info!("MCP server and API server shut down complete");
+    info!("Shutdown complete");
     Ok(())
 }
 
