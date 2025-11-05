@@ -433,6 +433,19 @@ impl ClaudeCodeLauncher {
             agent_id, current_branch
         );
 
+        // Check if we're in the main worktree on the target branch
+        // If .git is a directory (not a file), we're in the main worktree
+        let git_dir = repo_root.join(".git");
+        let is_main_worktree = git_dir.is_dir();
+
+        if is_main_worktree {
+            debug!(
+                "Already in main worktree on branch '{}', skipping worktree isolation",
+                current_branch
+            );
+            return Ok(None);
+        }
+
         // Create worktree
         match manager.create_worktree(&agent_id, &current_branch) {
             Ok(worktree_path) => {

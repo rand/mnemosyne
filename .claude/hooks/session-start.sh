@@ -60,53 +60,63 @@ if [ "$MEMORY_COUNT" -gt 0 ]; then
     # Visible status line (stderr)
     echo "🧠 Mnemosyne: Loaded $MEMORY_COUNT memories (≥7 importance, $HIGH_IMPORTANCE_COUNT critical) • Session: ${SESSION_ID:0:8}" >&2
 
-    # Hidden context for Claude (stdout, wrapped in XML tags)
-    cat <<EOF
-<session-start-hook># Project Context: $PROJECT_NAME
+    # Build context string for Claude
+    CRITICAL_MEMORIES=$(echo "$MEMORIES" | jq -r '.results[] | select(.importance >= 8) | "**\(.summary)** — \(.memory_type) — \(.tags | join(", "))\n\(.content)\n\n---\n"' 2>/dev/null)
+    IMPORTANT_MEMORIES=$(echo "$MEMORIES" | jq -r '.results[] | select(.importance == 7) | "- **\(.summary)** (\(.memory_type))"' 2>/dev/null)
+    LINK_COUNT=$(echo "$MEMORIES" | jq -r '[.results[].related_memories // [] | length] | add // 0' 2>/dev/null || echo "0")
+
+    # Build full context
+    CONTEXT="# Project Context: $PROJECT_NAME
 
 ## Critical Memories (Importance ≥ 8)
 
-EOF
-    echo "$MEMORIES" | jq -r '.results[] | select(.importance >= 8) | "**\(.summary)** — \(.memory_type) — \(.tags | join(", "))\n\(.content)\n\n---\n"' 2>/dev/null
-
-    cat <<EOF
+$CRITICAL_MEMORIES
 
 ## Important Memories (Importance 7)
 
-EOF
-    echo "$MEMORIES" | jq -r '.results[] | select(.importance == 7) | "- **\(.summary)** (\(.memory_type))"' 2>/dev/null
-
-    cat <<EOF
+$IMPORTANT_MEMORIES
 
 ## Knowledge Graph
-EOF
-    # Count semantic connections (links between memories)
-    LINK_COUNT=$(echo "$MEMORIES" | jq -r '[.results[].related_memories // [] | length] | add // 0' 2>/dev/null || echo "0")
-    echo "$LINK_COUNT semantic connections across $MEMORY_COUNT memories"
-
-    cat <<EOF
+$LINK_COUNT semantic connections across $MEMORY_COUNT memories
 
 ---
-*Context from Mnemosyne • $MEMORY_COUNT memories loaded*
-</session-start-hook>
-EOF
+*Context from Mnemosyne • $MEMORY_COUNT memories loaded*"
+
+    # Output JSON with suppressOutput to hide from terminal
+    jq -n \
+        --arg context "$CONTEXT" \
+        '{
+            "hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "additionalContext": $context
+            },
+            "suppressOutput": true
+        }'
 else
     # Visible status line (stderr)
     echo "🧠 Mnemosyne: No memories found (building context) • Session: ${SESSION_ID:0:8}" >&2
 
-    # Hidden context for Claude (stdout, wrapped in XML tags)
-    cat <<EOF
-<session-start-hook># Project Context: $PROJECT_NAME
+    # Build context for starting project
+    CONTEXT="# Project Context: $PROJECT_NAME
 
 No important memories found for this project yet.
 
 **Start building project memory**:
 \`\`\`bash
-mnemosyne remember -c "Your insight or decision" \\
-  -n "$NAMESPACE" -i 7-10 -t "architecture,decision"
+mnemosyne remember -c \"Your insight or decision\" \\
+  -n \"$NAMESPACE\" -i 7-10 -t \"architecture,decision\"
 \`\`\`
 
-Memory enforcement is active. Store memories to avoid blocking later.
-</session-start-hook>
-EOF
+Memory enforcement is active. Store memories to avoid blocking later."
+
+    # Output JSON with suppressOutput
+    jq -n \
+        --arg context "$CONTEXT" \
+        '{
+            "hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "additionalContext": $context
+            },
+            "suppressOutput": true
+        }'
 fi
