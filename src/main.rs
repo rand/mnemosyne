@@ -2622,14 +2622,35 @@ For more information, see: docs/specs/specification-artifacts.md
             }
         }
         None => {
-            // Default: launch orchestrated Claude Code session
-            debug!("Launching orchestrated Claude Code session...");
+            use mnemosyne_core::api::{ApiServer, ApiServerConfig};
+            use std::net::SocketAddr;
+
+            // Default: launch orchestrated Claude Code session with API server
+            debug!("Launching orchestrated Claude Code session with API monitoring...");
 
             // Get database path
             let db_path = get_db_path(cli.db_path);
 
             // Define agent names
             let agent_names = ["Orchestrator", "Optimizer", "Reviewer", "Executor"];
+
+            // Create API server for dashboard connectivity
+            let socket_addr: SocketAddr = "127.0.0.1:3000"
+                .parse()
+                .expect("Invalid default API address");
+            let api_config = ApiServerConfig {
+                addr: socket_addr,
+                event_capacity: 1000,
+            };
+            let api_server = ApiServer::new(api_config);
+            let event_broadcaster = api_server.broadcaster().clone();
+
+            // Spawn API server in background
+            let api_handle = tokio::spawn(async move {
+                if let Err(e) = api_server.serve().await {
+                    warn!("API server error: {}", e);
+                }
+            });
 
             // Show clean launch UI with banner
             launcher::ui::show_launch_header(
@@ -2638,12 +2659,21 @@ For more information, see: docs/specs/specification-artifacts.md
                 &agent_names,
             );
 
+            // Show dashboard availability
+            info!("Dashboard available at: http://{}", socket_addr);
+            info!("Run 'mnemosyne-dash' in another terminal to monitor activity");
+
             // Show playful loading messages cycling
             let progress = launcher::ui::LaunchProgress::new();
             progress.cycle_loading_messages(4);
 
-            // Launch orchestrated session
-            let result = launcher::launch_orchestrated_session(Some(db_path), None, None).await;
+            // Launch orchestrated session with event broadcasting
+            let result = launcher::launch_orchestrated_session(
+                Some(db_path),
+                None,
+                Some(event_broadcaster),
+            )
+            .await;
 
             // Show completion or error
             if result.is_ok() {
@@ -2652,6 +2682,10 @@ For more information, see: docs/specs/specification-artifacts.md
             } else if let Err(ref e) = result {
                 progress.show_error(&format!("{}", e));
             }
+
+            // Clean up API server
+            api_handle.abort();
+            debug!("API server shut down");
 
             result
         }
