@@ -103,8 +103,9 @@ impl SupervisionTree {
         // Emit event if broadcaster is available
         if let Some(broadcaster) = &self.event_broadcaster {
             let event = crate::api::Event::agent_started(agent_id.to_string());
-            if let Err(e) = broadcaster.broadcast(event) {
-                tracing::warn!("Failed to broadcast agent started event for {}: {}", agent_name, e);
+            if let Err(_e) = broadcaster.broadcast(event) {
+                // Expected when no dashboard is connected - not an error
+                tracing::debug!("No subscribers for agent started event ({})", agent_name);
             } else {
                 tracing::debug!("Broadcasted agent started event for {}", agent_name);
             }
