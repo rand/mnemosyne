@@ -96,7 +96,10 @@ cd mnemosyne
 # - Initialize database
 # - Configure MCP server
 # - Optionally set up API keys
+# - Detect and optionally install Nerd Fonts for icon support
 ```
+
+**Icon System**: Mnemosyne uses Nerd Font icons (Font Awesome) for a polished CLI experience with automatic fallback to ASCII. For best results, install [JetBrainsMono Nerd Font](https://www.nerdfonts.com/). See [docs/ICONS.md](docs/ICONS.md) for details.
 
 **Manual Installation**:
 ```bash

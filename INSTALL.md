@@ -49,6 +49,15 @@ cd mnemosyne
 
 **What the installer does:**
 
+1. Builds the release binary (`cargo build --release`)
+2. Installs to `~/.local/bin/mnemosyne`
+3. Initializes the database at `~/.local/share/mnemosyne/mnemosyne.db`
+4. Configures MCP integration for Claude Code
+5. Optionally sets up Anthropic API key
+6. Detects and optionally installs Nerd Fonts for icon support
+
+**Icon System**: For the best CLI experience with colorful icons, install [JetBrainsMono Nerd Font](https://www.nerdfonts.com/). Mnemosyne will automatically detect and use Nerd Font icons, with graceful fallback to ASCII if not installed. See [docs/ICONS.md](docs/ICONS.md) for details.
+
 1. ✅ Builds Rust binary (`cargo build --release`)
 2. ✅ Installs to `~/.local/bin/mnemosyne`
 3. ✅ Creates database directory (`~/.local/share/mnemosyne/`)
