@@ -335,7 +335,7 @@ impl ToolHandler {
             "mnemosyne.update" => self.update(params).await,
             "mnemosyne.delete" => self.delete(params).await,
             _ => {
-                warn!("❌ Unknown MCP tool: {}", tool_name);
+                warn!("{} Unknown MCP tool: {}", crate::icons::status::error(), tool_name);
                 Ok(serde_json::json!({
                     "error": format!("Unknown tool: {}", tool_name)
                 }))
@@ -343,8 +343,8 @@ impl ToolHandler {
         };
 
         match &result {
-            Ok(_) => info!("✅ MCP tool {} completed successfully", tool_name),
-            Err(e) => warn!("❌ MCP tool {} failed: {}", tool_name, e),
+            Ok(_) => info!("{} MCP tool {} completed successfully", crate::icons::status::success(), tool_name),
+            Err(e) => warn!("{} MCP tool {} failed: {}", crate::icons::status::error(), tool_name, e),
         }
 
         result
@@ -524,7 +524,8 @@ impl ToolHandler {
         }
 
         info!(
-            "📝 MCP recall: found {} memories for query '{}' (namespace: {:?})",
+            "{} MCP recall: found {} memories for query '{}' (namespace: {:?})",
+            crate::icons::action::search(),
             results.len(),
             params.query,
             params.namespace
@@ -737,7 +738,8 @@ impl ToolHandler {
         }
 
         info!(
-            "💾 MCP remember: stored memory '{}' (importance: {}, tags: {:?})",
+            "{} MCP remember: stored memory '{}' (importance: {}, tags: {:?})",
+            crate::icons::action::save(),
             memory.summary.chars().take(60).collect::<String>(),
             memory.importance,
             memory.tags
