@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::{convert::Infallible, net::SocketAddr, sync::Arc};
 use tokio_stream::{wrappers::BroadcastStream, StreamExt as _};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// API server configuration
 #[derive(Debug, Clone)]
@@ -213,9 +213,10 @@ async fn emit_event_handler(
             debug!("Event broadcast successful");
             StatusCode::ACCEPTED
         }
-        Err(e) => {
-            warn!("Failed to broadcast forwarded event: {}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
+        Err(_) => {
+            // No subscribers - expected when dashboard not connected
+            debug!("No subscribers for forwarded event (dashboard not connected)");
+            StatusCode::ACCEPTED
         }
     }
 }
