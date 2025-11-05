@@ -625,7 +625,16 @@ See LICENSE file for details.
 
 ## Status
 
-**Current Version**: 2.1.0
+**Current Version**: 2.1.1
+
+**v2.1.1 Release (2025-11-05)** - Stability and Reliability Fixes:
+- ✅ **File descriptor leak prevention** in hook subprocess calls (87b7a33)
+- ✅ **Robust process management** tooling with graceful shutdown (048f26d)
+- ✅ **Terminal corruption prevention** from hook stderr output (eec1a33)
+- ✅ **Hook noise elimination** with CC_HOOK_DEBUG flag (9712c0c)
+- ✅ **Comprehensive test validation**: 689 passing unit tests, 12 FD safety tests
+- ✅ **Complete documentation**: CRASH_RECOVERY.md and FD_LEAK_FIX_TEST_RESULTS.md
+- ✅ **Production-ready**: All stability issues resolved, no regressions
 
 **Completed (v2.1.0)**:
 - ✅ Core storage and memory system with LibSQL vector search

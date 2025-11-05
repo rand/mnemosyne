@@ -1,7 +1,7 @@
 # Mnemosyne Agent Guide
 
 **Last Updated**: 2025-11-02
-**Version**: 2.1.0+
+**Version**: 2.1.1
 **For**: Agents working in the Mnemosyne codebase
 
 ---
@@ -33,7 +33,7 @@ Mnemosyne is a **high-performance agentic memory system** for Claude Code's mult
 - **MCP Server**: 8 OODA-aligned tools via JSON-RPC over stdio
 
 ### Current Status
-- **Version**: 2.1.0+ (unreleased changes on main)
+- **Version**: 2.1.1 (stable release)
 - **Test Status**: 610 tests passing, 10 known failures (storage backend tests)
 - **Build Time**: ~2m 46s clean build, ~3-4s incremental
 - **Language**: Rust 1.75+, Python 3.10-3.13 (via PyO3)

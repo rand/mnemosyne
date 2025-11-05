@@ -1453,6 +1453,6 @@ mnemosyne/
 
 ---
 
-**Version**: 2.1.0
+**Version**: 2.1.1
 **Last Updated**: 2025-11-02
 **Status**: Phase 2 Complete - Composable Tools Architecture + Documentation Reorganization

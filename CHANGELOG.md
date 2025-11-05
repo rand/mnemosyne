@@ -7,7 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2025-11-05
+
+### Fixed
+
+**Stability and Reliability Improvements**
+- Fixed file descriptor leak in hook subprocess calls causing EIO errors (87b7a33)
+- Added stdin protection (`< /dev/null`) to all subprocess invocations in hooks
+- Fixed subprocess fd inheritance issues in session-start, post-tool-use, and on-stop hooks
+- Prevented terminal corruption from hook stderr output (eec1a33)
+- Added CC_HOOK_DEBUG flag for controlled hook verbosity
+
+**Process Management**
+- Added robust process management and cleanup tooling (048f26d)
+- Implemented graceful shutdown with SIGTERM → SIGKILL fallback
+- Added PID validation before kill attempts to prevent stale PID errors
+- Created comprehensive cleanup script (`scripts/cleanup-processes.sh`)
+- Enhanced test-server.sh with proper port and PID validation
+
+**Hook System**
+- Eliminated hook noise with debug flag (9712c0c)
+- Hooks now silent by default in production mode
+- Debug output only shown when CC_HOOK_DEBUG=1
+- Improved user experience with cleaner terminal output
+
 ### Added
+
+**Documentation**
+- Added comprehensive test validation report: `docs/FD_LEAK_FIX_TEST_RESULTS.md`
+- Enhanced `docs/CRASH_RECOVERY.md` with complete resolution documentation
+- Documented all stability fixes with root cause analysis
+- Production sign-off with 689 passing unit tests and 12 FD safety tests
+
+**Testing**
+- Added specialized FD safety test suite (`/tmp/test-fd-safety.sh`)
+- Validated hook execution under realistic load (180+ invocations)
+- Tested concurrent execution (5 parallel processes)
+- Confirmed no fd leaks or terminal corruption
+
+### Added (From Previous Unreleased)
 
 **Documentation Reorganization**
 - Created comprehensive agent guide: `AGENT_GUIDE.md` (500+ lines)
