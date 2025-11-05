@@ -42,11 +42,12 @@ fi
 # Load recent memories for this project
 NAMESPACE="project:${PROJECT_NAME}"
 
-# Get recent important memories using semantic search
-# Don't use --namespace flag (it requires exact match, but memories use JSON format)
-# Instead, include project name in semantic query to find relevant memories
+# Get recent important memories with proper namespace isolation
+# Query syntax: Space-separated keywords (NOT "OR" operators)
+# Namespace format: "project:name" gets parsed to {"type":"project","name":"name"}
 MEMORIES=$("$MNEMOSYNE_BIN" recall \
-    --query "$PROJECT_NAME project architecture implementation decisions" \
+    --query "$PROJECT_NAME project architecture implementation decisions hooks" \
+    --namespace "$NAMESPACE" \
     --limit 10 \
     --min-importance 7 \
     --format json 2>/dev/null || echo '{"results": []}')
