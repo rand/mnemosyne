@@ -399,32 +399,7 @@ async fn main() -> Result<()> {
             cli::artifact::handle(command, cli.db_path.clone()).await
         }
         Some(Commands::Doctor { verbose, fix, json }) => {
-            use mnemosyne_core::health::{run_health_checks, print_health_summary};
-
-            debug!("Running health checks...");
-
-            // Get database path
-            let db_path = get_db_path(cli.db_path);
-
-            // Create storage instance
-            let storage = LibsqlStorage::from_path(&db_path).await?;
-
-            // Run health checks
-            let summary = run_health_checks(&storage, verbose, fix).await?;
-
-            // Output results
-            if json {
-                println!("{}", serde_json::to_string_pretty(&summary)?);
-            } else {
-                print_health_summary(&summary, verbose);
-            }
-
-            // Exit with appropriate code
-            match summary.status {
-                mnemosyne_core::health::CheckStatus::Pass => std::process::exit(0),
-                mnemosyne_core::health::CheckStatus::Warn => std::process::exit(1),
-                mnemosyne_core::health::CheckStatus::Fail => std::process::exit(2),
-            }
+            cli::doctor::handle(verbose, fix, json, cli.db_path.clone()).await
         }
         None => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};
