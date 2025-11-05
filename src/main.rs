@@ -6,6 +6,7 @@
 use clap::{Parser, Subcommand};
 use mnemosyne_core::{
     error::{MnemosyneError, Result},
+    icons,
     launcher,
     storage::MemorySortOrder,
     ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig, LlmService, McpServer, StorageBackend,
@@ -1221,9 +1222,13 @@ async fn main() -> Result<()> {
                 "N/A".to_string()
             };
 
-            println!("📊 Database");
+            println!("{} Database", icons::data::database());
             println!("   Path:   {}", db_path);
-            println!("   Status: {}", if db_exists { "✓ exists" } else { "✗ not initialized" });
+            println!("   Status: {}", if db_exists {
+                format!("{} exists", icons::status::success())
+            } else {
+                format!("{} not initialized", icons::status::error())
+            });
             if db_exists {
                 println!("   Size:   {}", db_size);
 
@@ -1240,35 +1245,35 @@ async fn main() -> Result<()> {
                         }
                     }
                     Err(e) => {
-                        println!("   Health:  ✗ {}", e);
+                        println!("   Health:  {} {}", icons::status::error(), e);
                     }
                 }
             }
             println!();
 
             // Check API key
-            println!("🔑 Configuration");
+            println!("{} Configuration", icons::system::gear());
             let config = ConfigManager::new()?;
             match config.get_api_key() {
-                Ok(_) => println!("   API Key: ✓ configured"),
-                Err(_) => println!("   API Key: ✗ not configured (set with: mnemosyne config set-key)"),
+                Ok(_) => println!("   API Key: {} configured", icons::status::success()),
+                Err(_) => println!("   API Key: {} not configured (set with: mnemosyne config set-key)", icons::status::error()),
             }
 
             // Check if env var is set
             if std::env::var("ANTHROPIC_API_KEY").is_ok() {
-                println!("   Env Var: ✓ ANTHROPIC_API_KEY set");
+                println!("   Env Var: {} ANTHROPIC_API_KEY set", icons::status::success());
             }
             println!();
 
             // System info
-            println!("⚙️  System");
+            println!("{}  System", icons::system::gear());
             println!("   Rust:    {}", rustc_version_runtime::version());
             println!("   OS:      {}", std::env::consts::OS);
             println!("   Arch:    {}", std::env::consts::ARCH);
             println!();
 
             if !db_exists {
-                println!("💡 Next steps:");
+                println!("{} Next steps:", icons::system::lightbulb());
                 println!("   Initialize database: mnemosyne init");
                 println!();
             }
@@ -1363,7 +1368,7 @@ async fn main() -> Result<()> {
 
             // Show launch banner
             println!();
-            println!("🎨 ICS - Integrated Context Studio");
+            println!("{} ICS - Integrated Context Studio", icons::system::palette());
             println!("   AI-assisted context engineering for Claude Code");
             println!();
             println!("   Shortcuts:");
@@ -1398,34 +1403,34 @@ async fn main() -> Result<()> {
         Some(Commands::Tui { with_ics: _, no_dashboard: _ }) => {
             // TUI wrapper mode is deprecated due to TUI-in-TUI conflicts
             eprintln!();
-            eprintln!("⚠️  DEPRECATED: 'mnemosyne tui' is no longer supported");
+            eprintln!("{}  DEPRECATED: 'mnemosyne tui' is no longer supported", icons::status::warning());
             eprintln!();
             eprintln!("   The PTY wrapper mode has been removed due to terminal conflicts");
             eprintln!("   when wrapping Claude Code's TUI interface.");
             eprintln!();
-            eprintln!("   📚 New Architecture: Composable Tools");
+            eprintln!("   {} New Architecture: Composable Tools", icons::data::folder());
             eprintln!();
             eprintln!("   Instead of wrapping Claude Code, Mnemosyne now provides");
             eprintln!("   standalone tools that work alongside it:");
             eprintln!();
-            eprintln!("   1️⃣  Edit Context:");
+            eprintln!("   1.  Edit Context:");
             eprintln!("      mnemosyne-ics context.md");
             eprintln!("      (Full-featured context editor with semantic highlighting)");
             eprintln!();
-            eprintln!("   2️⃣  Chat with Claude:");
+            eprintln!("   2.  Chat with Claude:");
             eprintln!("      claude");
             eprintln!("      (Memory integration happens automatically via MCP)");
             eprintln!();
-            eprintln!("   3️⃣  Monitor Activity:");
+            eprintln!("   3.  Monitor Activity:");
             eprintln!("      mnemosyne dash");
             eprintln!("      (Real-time dashboard - coming soon)");
             eprintln!();
-            eprintln!("   💡 Tip: Use tmux/screen to see all tools at once:");
+            eprintln!("   {} Tip: Use tmux/screen to see all tools at once:", icons::system::lightbulb());
             eprintln!("      tmux split-window -h 'mnemosyne-ics context.md'");
             eprintln!("      tmux split-window -v 'mnemosyne dash'");
             eprintln!("      claude");
             eprintln!();
-            eprintln!("   📖 Migration Guide:");
+            eprintln!("   {} Migration Guide:", icons::data::folder());
             eprintln!("      https://github.com/rand/mnemosyne/blob/main/docs/MIGRATION.md");
             eprintln!();
 
@@ -1529,7 +1534,8 @@ async fn main() -> Result<()> {
                 SecretsCommand::Init => {
                     if secrets.is_initialized() {
                         println!(
-                            "⚠️  Secrets already initialized at: {}",
+                            "{}  Secrets already initialized at: {}",
+                            icons::status::warning(),
                             secrets.secrets_file().display()
                         );
                         print!("Reinitialize? This will overwrite existing secrets. [y/N]: ");
@@ -1667,25 +1673,25 @@ async fn main() -> Result<()> {
                 debug!("Plan: {:?}", plan_json);
 
                 // Process structured work plan
-                println!("📋 Structured work plan detected:");
+                println!("{} Structured work plan detected:", icons::data::chart());
                 println!();
                 process_structured_plan(&plan_json);
                 println!();
             } else {
                 debug!("Treating plan as plain text prompt");
-                println!("📝 Prompt-based orchestration:");
+                println!("{} Prompt-based orchestration:", icons::action::edit());
                 println!("   {}", plan);
                 println!();
             }
 
             // Launch orchestrated session
-            println!("🚀 Starting orchestration engine...");
+            println!("{} Starting orchestration engine...", icons::action::launch());
             println!();
 
             launcher::launch_orchestrated_session(Some(db_path), Some(plan), None, None).await?;
 
             println!();
-            println!("✨ Orchestration session complete");
+            println!("{} Orchestration session complete", icons::status::ready());
             Ok(())
         }
         Some(Commands::Remember {
@@ -1881,7 +1887,7 @@ async fn main() -> Result<()> {
                     })
                 );
             } else {
-                println!("✅ Memory saved");
+                println!("{} Memory saved", icons::status::success());
                 println!("ID: {}", memory.id);
                 println!("Summary: {}", memory.summary);
                 println!("Importance: {}/10", memory.importance);
@@ -2512,7 +2518,7 @@ async fn main() -> Result<()> {
                     // Save constitution
                     let memory_id = workflow.save_constitution(&mut constitution, ns).await?;
 
-                    println!("✅ Constitution saved!");
+                    println!("{} Constitution saved!", icons::status::success());
                     println!("   Memory ID: {}", memory_id);
                     println!("   File: {}", constitution.file_path().display());
                     println!();
@@ -2585,7 +2591,7 @@ async fn main() -> Result<()> {
                     // Save feature spec
                     let memory_id = workflow.save_feature_spec(&mut spec, ns, constitution_id).await?;
 
-                    println!("✅ Feature spec saved!");
+                    println!("{} Feature spec saved!", icons::status::success());
                     println!("   Memory ID: {}", memory_id);
                     println!("   File: {}", spec.file_path().display());
                     if let Some(ref const_id) = spec.metadata().references.first() {
