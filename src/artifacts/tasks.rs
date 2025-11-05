@@ -1,12 +1,12 @@
 //! Task breakdown artifact
 #![allow(clippy::useless_format, clippy::single_char_add_str)]
 
-use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use super::storage::{parse_frontmatter, serialize_frontmatter};
+use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use crate::error::{MnemosyneError, Result};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use regex::Regex;
 
 /// Parse task phases from markdown
 ///
@@ -108,12 +108,15 @@ fn parse_task_line(line: &str) -> Option<Task> {
     // Task ID regex: [T001] or [TXXXX]
     let id_regex = Regex::new(r"^\[([T][^\]]+)\]").ok()?;
     let id_match = id_regex.find(rest)?;
-    let task_id = id_match.as_str().trim_matches(|c| c == '[' || c == ']').to_string();
+    let task_id = id_match
+        .as_str()
+        .trim_matches(|c| c == '[' || c == ']')
+        .to_string();
     let after_id = &rest[id_match.end()..].trim();
 
     // Check for [P] marker
-    let (parallelizable, after_parallel) = if after_id.starts_with("[P]") {
-        (true, after_id.strip_prefix("[P]").unwrap().trim())
+    let (parallelizable, after_parallel) = if let Some(stripped) = after_id.strip_prefix("[P]") {
+        (true, stripped.trim())
     } else {
         (false, *after_id)
     };
@@ -121,7 +124,10 @@ fn parse_task_line(line: &str) -> Option<Task> {
     // Check for story marker [story-name]
     let story_regex = Regex::new(r"^\[([^\]]+)\]").ok()?;
     let (story, description) = if let Some(story_match) = story_regex.find(after_parallel) {
-        let story_name = story_match.as_str().trim_matches(|c| c == '[' || c == ']').to_string();
+        let story_name = story_match
+            .as_str()
+            .trim_matches(|c| c == '[' || c == ']')
+            .to_string();
         let after_story = &after_parallel[story_match.end()..].trim();
         (Some(story_name), after_story.to_string())
     } else {
@@ -253,10 +259,7 @@ impl Artifact for TaskBreakdown {
                     ));
 
                     if !task.depends_on.is_empty() {
-                        md.push_str(&format!(
-                            "  - Depends on: {}\n",
-                            task.depends_on.join(", ")
-                        ));
+                        md.push_str(&format!("  - Depends on: {}\n", task.depends_on.join(", ")));
                     }
                 }
                 md.push_str("\n");
@@ -302,10 +305,7 @@ mod tests {
 
     #[test]
     fn test_task_breakdown_creation() {
-        let tasks = TaskBreakdown::new(
-            "user-auth".to_string(),
-            "User Auth Tasks".to_string(),
-        );
+        let tasks = TaskBreakdown::new("user-auth".to_string(), "User Auth Tasks".to_string());
 
         assert_eq!(tasks.feature_id, "user-auth");
     }
@@ -313,23 +313,19 @@ mod tests {
     #[test]
     fn test_task_round_trip_simple() {
         // Create simple task breakdown
-        let mut original = TaskBreakdown::new(
-            "test-feature".to_string(),
-            "Test Feature Tasks".to_string(),
-        );
+        let mut original =
+            TaskBreakdown::new("test-feature".to_string(), "Test Feature Tasks".to_string());
 
         original.add_phase(TaskPhase {
             name: "Setup".to_string(),
-            tasks: vec![
-                Task {
-                    id: "T001".to_string(),
-                    description: "Initialize project".to_string(),
-                    parallelizable: false,
-                    story: None,
-                    completed: true,
-                    depends_on: vec![],
-                },
-            ],
+            tasks: vec![Task {
+                id: "T001".to_string(),
+                description: "Initialize project".to_string(),
+                parallelizable: false,
+                story: None,
+                completed: true,
+                depends_on: vec![],
+            }],
         });
 
         // Serialize to markdown
@@ -432,9 +428,15 @@ mod tests {
 
         // Verify T003 with all markers
         assert_eq!(loaded.phases[1].tasks[0].id, "T003");
-        assert_eq!(loaded.phases[1].tasks[0].description, "Implement token generation");
+        assert_eq!(
+            loaded.phases[1].tasks[0].description,
+            "Implement token generation"
+        );
         assert!(loaded.phases[1].tasks[0].parallelizable);
-        assert_eq!(loaded.phases[1].tasks[0].story, Some("user-login".to_string()));
+        assert_eq!(
+            loaded.phases[1].tasks[0].story,
+            Some("user-login".to_string())
+        );
         assert!(!loaded.phases[1].tasks[0].completed);
         assert_eq!(loaded.phases[1].tasks[0].depends_on, vec!["T001"]);
 
