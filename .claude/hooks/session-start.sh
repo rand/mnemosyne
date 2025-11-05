@@ -24,9 +24,7 @@ cat > "$STATE_FILE" <<EOF
 }
 EOF
 
-# Log hook execution
-echo "🧠 Mnemosyne: Loading memory context for $PROJECT_NAME" >&2
-echo "📊 Session ID: $SESSION_ID" >&2
+# Will output single status line after memory loading
 
 # Get mnemosyne binary path
 # Try installed binary first, fall back to local build
@@ -44,63 +42,60 @@ fi
 # Load recent memories for this project
 NAMESPACE="project:${PROJECT_NAME}"
 
-# Get recent important memories
-# Use broad query to find any important memories
+# Get recent important memories using semantic search
+# Don't use --namespace flag (it requires exact match, but memories use JSON format)
+# Instead, include project name in semantic query to find relevant memories
 MEMORIES=$("$MNEMOSYNE_BIN" recall \
-    --query "memory OR project OR architecture OR implementation" \
-    --namespace "$NAMESPACE" \
-    --limit 5 \
+    --query "$PROJECT_NAME project architecture implementation decisions" \
+    --limit 10 \
     --min-importance 7 \
     --format json 2>/dev/null || echo '{"results": []}')
 
 # Count memories
 MEMORY_COUNT=$(echo "$MEMORIES" | jq -r '.results | length' 2>/dev/null || echo "0")
+HIGH_IMPORTANCE_COUNT=$(echo "$MEMORIES" | jq -r '[.results[] | select(.importance >= 8)] | length' 2>/dev/null || echo "0")
 
 if [ "$MEMORY_COUNT" -gt 0 ]; then
-    echo "📚 Loaded $MEMORY_COUNT important memories from $NAMESPACE" >&2
+    # Visible status line (stderr)
+    echo "🧠 Mnemosyne: Loaded $MEMORY_COUNT memories (≥7 importance, $HIGH_IMPORTANCE_COUNT critical) • Session: ${SESSION_ID:0:8}" >&2
 
-    # Format memories as prominent context
+    # Hidden context for Claude (stdout, wrapped in XML tags)
     cat <<EOF
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Project Context: $PROJECT_NAME
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**Namespace**: $NAMESPACE
-**Important Memories Loaded**: $MEMORY_COUNT (importance ≥ 7)
-**Session**: $SESSION_ID
+<session-start-hook># Project Context: $PROJECT_NAME
 
 ## Critical Memories (Importance ≥ 8)
 
 EOF
-    echo "$MEMORIES" | jq -r '.results[] | select(.importance >= 8) | "### \(.summary)\n**Importance**: \(.importance)/10 | **Type**: \(.memory_type) | **Tags**: \(.tags | join(", "))\n\n\(.content)\n\n---\n"' 2>/dev/null
+    echo "$MEMORIES" | jq -r '.results[] | select(.importance >= 8) | "**\(.summary)** — \(.memory_type) — \(.tags | join(", "))\n\(.content)\n\n---\n"' 2>/dev/null
 
     cat <<EOF
 
 ## Important Memories (Importance 7)
 
 EOF
-    echo "$MEMORIES" | jq -r '.results[] | select(.importance == 7) | "- **\(.summary)** (\(.memory_type))" ' 2>/dev/null
+    echo "$MEMORIES" | jq -r '.results[] | select(.importance == 7) | "- **\(.summary)** (\(.memory_type))"' 2>/dev/null
 
     cat <<EOF
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+## Knowledge Graph
+EOF
+    # Count semantic connections (links between memories)
+    LINK_COUNT=$(echo "$MEMORIES" | jq -r '[.results[].related_memories // [] | length] | add // 0' 2>/dev/null || echo "0")
+    echo "$LINK_COUNT semantic connections across $MEMORY_COUNT memories"
 
-**Memory Enforcement**: Active
-- Memory debt tracking: Enabled
-- Automatic prompts after 3 events
-- Blocking on git push if debt > 0
+    cat <<EOF
 
-Use \`mnemosyne recall -q "query"\` to search for specific memories.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
+*Context from Mnemosyne • $MEMORY_COUNT memories loaded*
+</session-start-hook>
 EOF
 else
-    echo "ℹ️  No important memories found for $NAMESPACE" >&2
-    cat <<EOF
+    # Visible status line (stderr)
+    echo "🧠 Mnemosyne: No memories found (building context) • Session: ${SESSION_ID:0:8}" >&2
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Project Context: $PROJECT_NAME
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # Hidden context for Claude (stdout, wrapped in XML tags)
+    cat <<EOF
+<session-start-hook># Project Context: $PROJECT_NAME
 
 No important memories found for this project yet.
 
@@ -111,6 +106,6 @@ mnemosyne remember -c "Your insight or decision" \\
 \`\`\`
 
 Memory enforcement is active. Store memories to avoid blocking later.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+</session-start-hook>
 EOF
 fi
