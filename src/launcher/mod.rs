@@ -165,11 +165,13 @@ impl ClaudeCodeLauncher {
         };
 
         // STEP 1.25: Setup git worktree for branch isolation (if in git repo)
-        let worktree_path = self.setup_worktree_isolation()?;
-        if let Some(ref path) = worktree_path {
-            debug!("Using git worktree for isolation: {}", path.display());
+        let worktree_info = self.setup_worktree_isolation()?;
+        if let Some((ref agent_id, ref worktree_path, ref repo_root)) = worktree_info {
+            debug!("Using git worktree for isolation: {}", worktree_path.display());
             // Change directory to worktree
-            std::env::set_current_dir(path).map_err(|e| {
+            std::env::set_current_dir(worktree_path).map_err(|e| {
+                // Cleanup worktree if we fail to change directory
+                self.cleanup_worktree(agent_id, repo_root);
                 MnemosyneError::Io(std::io::Error::new(
                     e.kind(),
                     format!("Failed to change to worktree directory: {}", e),
@@ -265,6 +267,11 @@ impl ClaudeCodeLauncher {
             if let Err(e) = engine.stop().await {
                 warn!("Error during orchestration shutdown: {}", e);
             }
+        }
+
+        // STEP 7: Cleanup worktree (if we created one)
+        if let Some((agent_id, _, repo_root)) = worktree_info {
+            self.cleanup_worktree(&agent_id, &repo_root);
         }
 
         if !status.success() {
@@ -377,7 +384,9 @@ impl ClaudeCodeLauncher {
     }
 
     /// Setup git worktree for branch isolation
-    fn setup_worktree_isolation(&self) -> Result<Option<PathBuf>> {
+    ///
+    /// Returns (agent_id, worktree_path, repo_root) for cleanup, or None if not in git repo
+    fn setup_worktree_isolation(&self) -> Result<Option<(crate::orchestration::AgentId, PathBuf, PathBuf)>> {
         use crate::orchestration::{identity::AgentId, WorktreeManager};
 
         // Check if we're in a git repository
@@ -420,7 +429,7 @@ impl ClaudeCodeLauncher {
             .unwrap_or_else(|| "main".to_string());
 
         debug!(
-            "Creating worktree for agent {} on branch {}",
+            "Creating worktree for session {} on branch {}",
             agent_id, current_branch
         );
 
@@ -428,12 +437,33 @@ impl ClaudeCodeLauncher {
         match manager.create_worktree(&agent_id, &current_branch) {
             Ok(worktree_path) => {
                 debug!("Created worktree at: {}", worktree_path.display());
-                Ok(Some(worktree_path))
+                Ok(Some((agent_id, worktree_path, repo_root)))
             }
             Err(e) => {
                 warn!("Failed to create worktree: {}", e);
                 warn!("Continuing without worktree isolation");
                 Ok(None)
+            }
+        }
+    }
+
+    /// Cleanup worktree for this session
+    fn cleanup_worktree(&self, agent_id: &crate::orchestration::AgentId, repo_root: &PathBuf) {
+        use crate::orchestration::WorktreeManager;
+
+        debug!("Cleaning up worktree for session {}", agent_id);
+
+        match WorktreeManager::new(repo_root.clone()) {
+            Ok(manager) => {
+                if let Err(e) = manager.remove_worktree(agent_id) {
+                    warn!("Failed to cleanup worktree: {}", e);
+                    warn!("You may need to run 'mnemosyne doctor --fix' to clean up manually");
+                } else {
+                    debug!("Successfully cleaned up worktree");
+                }
+            }
+            Err(e) => {
+                warn!("Failed to initialize worktree manager for cleanup: {}", e);
             }
         }
     }
