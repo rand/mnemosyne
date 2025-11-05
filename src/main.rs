@@ -1167,57 +1167,7 @@ async fn main() -> Result<()> {
             polling_interval: _,
             max_concurrent,
         }) => {
-            debug!("Launching multi-agent orchestration system...");
-
-            let db_path = get_db_path(database);
-
-            println!("🤖 Mnemosyne Multi-Agent Orchestration");
-            println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            println!("Configuration:");
-            println!("  Database: {}", db_path);
-            println!("  Max concurrent agents: {}", max_concurrent);
-            println!(
-                "  Dashboard: {}",
-                if dashboard {
-                    "enabled (future)"
-                } else {
-                    "disabled"
-                }
-            );
-            println!("  Work plan: {}", plan);
-            println!();
-
-            // Create launcher configuration
-            let mut config = launcher::LauncherConfig::default();
-            config.mnemosyne_db_path = Some(db_path.clone());
-            config.max_concurrent_agents = max_concurrent as u8;
-
-            // Parse plan as JSON or treat as prompt
-            if let Ok(plan_json) = serde_json::from_str::<serde_json::Value>(&plan) {
-                debug!("Parsed work plan as JSON");
-                debug!("Plan: {:?}", plan_json);
-
-                // Process structured work plan
-                println!("{} Structured work plan detected:", icons::data::chart());
-                println!();
-                process_structured_plan(&plan_json);
-                println!();
-            } else {
-                debug!("Treating plan as plain text prompt");
-                println!("{} Prompt-based orchestration:", icons::action::edit());
-                println!("   {}", plan);
-                println!();
-            }
-
-            // Launch orchestrated session
-            println!("{} Starting orchestration engine...", icons::action::launch());
-            println!();
-
-            launcher::launch_orchestrated_session(Some(db_path), Some(plan), None, None).await?;
-
-            println!();
-            println!("{} Orchestration session complete", icons::status::ready());
-            Ok(())
+            cli::orchestrate::handle(plan, database, dashboard, max_concurrent).await
         }
         Some(Commands::Remember {
             content,
