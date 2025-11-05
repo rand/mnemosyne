@@ -38,7 +38,11 @@ Mnemosyne provides persistent semantic memory with sub-millisecond retrieval, bu
 - **Relevance Scoring**: Context-aware ranking with learned weights
 
 ### Interactive Collaborative Space (ICS)
+**Integrated context editor accessible via `mnemosyne edit` or `/ics` slash command**
+
 - **CRDT Editing**: Automerge-based collaborative text editor
+- **Template System**: 5 built-in templates (API, Architecture, Bugfix, Feature, Refactor)
+- **Panels**: Memory browser, diagnostics, proposals, typed holes
 - **Syntax Highlighting**: Tree-sitter 0.23 based highlighting for 13 languages (Rust, Python, Go, TypeScript, JavaScript, JSON, TOML, YAML, Markdown, Bash, C, C++, Zig)
 - **Semantic Highlighting (3-Tier System)**:
   - **Tier 1: Structural** (<5ms real-time) - XML tags, RFC 2119 constraints, modality/hedging, ambiguity detection, domain patterns
@@ -47,26 +51,29 @@ Mnemosyne provides persistent semantic memory with sub-millisecond retrieval, bu
 - **ICS Patterns**: `#file`, `@symbol`, `?hole` with color-coded highlighting
 - **Hybrid Highlighting**: Combines tree-sitter syntax with semantic pattern detection (3-layer priority system)
 - **Vim Mode**: Complete vi/vim keybindings with modal editing (14 movement commands: w/b/e, f/F/t/T, PageUp/Down, gg/G)
-- **Panels**: Memory browser, agent status, attribution, diagnostics
 - **Semantic Analysis**: Real-time triple extraction, typed hole detection, dependency graphs
 - **Undo/Redo**: Transaction-based history with Automerge
+- **Claude Code Integration**: Seamless handoff via file-based coordination protocol
 
-### Composable Tools Architecture
-- **mnemosyne-ics**: Standalone context editor binary with full terminal ownership (no conflicts)
+**Usage**:
+```bash
+# From Claude Code session
+/ics context.md
+/ics --template feature new-feature.md
+/ics --panel memory --template api auth.md
+
+# Command-line
+mnemosyne edit context.md
+mnemosyne edit --template architecture decision.md
+mnemosyne ics --readonly --panel diagnostics review.md
+```
+
+See [docs/guides/ICS_INTEGRATION.md](docs/guides/ICS_INTEGRATION.md) for complete guide.
+
+### Dashboard & Monitoring
 - **mnemosyne-dash**: Real-time monitoring dashboard with SSE event streaming
 - **HTTP API Server** (`:3000`): Optional REST API with `mnemosyne serve --with-api`
-- **Unix Philosophy**: Each tool owns its terminal completely, zero conflicts
-- **File-Based Handoff**: Context exchange via `.claude/*.md` files
 - **Event Streaming**: Real-time coordination via SSE for monitoring
-
-### TUI Wrapper Mode (Deprecated in v2.1.0)
-⚠️ **Deprecated**: Use `mnemosyne-ics` + `mnemosyne-dash` instead. See [docs/guides/migration.md](docs/guides/migration.md).
-
-- **Command Palette**: Helix-style fuzzy command selector with type-ahead filtering
-- **Context-Aware Help**: Modal help overlay (?) with mode-specific shortcuts
-- **Status Bar**: Dynamic action hints based on current mode (ICS/Chat)
-- **Layout**: Split view with chat, ICS editor, and agent dashboard
-- **Keyboard-First**: Complete keyboard navigation with discoverable shortcuts
 
 ---
 
