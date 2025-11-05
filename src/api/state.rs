@@ -170,7 +170,7 @@ impl StateManager {
         use crate::api::EventType;
 
         match event.event_type {
-            EventType::AgentStarted { agent_id } => {
+            EventType::AgentStarted { agent_id, .. } => {
                 let mut agents_map = agents.write().await;
                 agents_map.insert(
                     agent_id.clone(),
@@ -183,7 +183,7 @@ impl StateManager {
                 );
                 tracing::debug!("State updated: agent started");
             }
-            EventType::AgentCompleted { agent_id, result } => {
+            EventType::AgentCompleted { agent_id, result, .. } => {
                 let mut agents_map = agents.write().await;
                 if let Some(agent) = agents_map.get_mut(&agent_id) {
                     agent.state = AgentState::Completed { result };
@@ -191,7 +191,7 @@ impl StateManager {
                     tracing::debug!("State updated: agent completed");
                 }
             }
-            EventType::AgentFailed { agent_id, error } => {
+            EventType::AgentFailed { agent_id, error, .. } => {
                 let mut agents_map = agents.write().await;
                 if let Some(agent) = agents_map.get_mut(&agent_id) {
                     agent.state = AgentState::Failed { error };
@@ -199,11 +199,11 @@ impl StateManager {
                     tracing::debug!("State updated: agent failed");
                 }
             }
-            EventType::Heartbeat { agent_id } => {
+            EventType::Heartbeat { instance_id, .. } => {
                 let mut agents_map = agents.write().await;
-                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                if let Some(agent) = agents_map.get_mut(&instance_id) {
                     agent.updated_at = Utc::now();
-                    tracing::trace!("State updated: heartbeat from {}", agent_id);
+                    tracing::trace!("State updated: heartbeat from {}", instance_id);
                 }
             }
             EventType::MemoryStored { .. } => {
@@ -214,28 +214,28 @@ impl StateManager {
                 // Context activity
                 tracing::trace!("Memory recalled event received");
             }
-            EventType::ContextModified { file_path } => {
+            EventType::ContextModified { file, .. } => {
                 let mut files_map = context_files.write().await;
                 files_map.insert(
-                    file_path.clone(),
+                    file.clone(),
                     ContextFile {
-                        path: file_path,
+                        path: file,
                         modified_at: Utc::now(),
                         errors: vec![],
                     },
                 );
                 tracing::debug!("State updated: context file modified");
             }
-            EventType::ContextValidated { file_path, errors } => {
+            EventType::ContextValidated { file, errors, .. } => {
                 let mut files_map = context_files.write().await;
-                if let Some(file) = files_map.get_mut(&file_path) {
-                    file.errors = errors;
-                    file.modified_at = Utc::now();
+                if let Some(context_file) = files_map.get_mut(&file) {
+                    context_file.errors = errors;
+                    context_file.modified_at = Utc::now();
                 } else {
                     files_map.insert(
-                        file_path.clone(),
+                        file.clone(),
                         ContextFile {
-                            path: file_path,
+                            path: file,
                             modified_at: Utc::now(),
                             errors,
                         },

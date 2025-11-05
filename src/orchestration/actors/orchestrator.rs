@@ -82,14 +82,17 @@ impl OrchestratorState {
             Some(broadcaster.clone()),
         );
 
+        // Clone agent_id for the spawn task
+        let agent_id_clone = agent_id.clone();
+
         // Spawn heartbeat task (30s interval)
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
             loop {
                 interval.tick().await;
-                let event = crate::api::Event::heartbeat(agent_id.clone());
+                let event = crate::api::Event::heartbeat(agent_id_clone.clone());
                 if let Err(e) = broadcaster.broadcast(event) {
-                    tracing::warn!("Failed to broadcast heartbeat for {}: {}", agent_id, e);
+                    tracing::warn!("Failed to broadcast heartbeat for {}: {}", agent_id_clone, e);
                 }
             }
         });
