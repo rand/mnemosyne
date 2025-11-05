@@ -2,33 +2,92 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": ".*",
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/rand/src/mnemosyne/.claude/hooks/session-start.sh"
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/rand/src/mnemosyne/.claude/hooks/pre-compact.sh"
+            "command": ".claude/hooks/session-start.sh"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "^Bash\\(git commit.*",
+        "matcher": "Edit(*)",
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/rand/src/mnemosyne/.claude/hooks/post-commit.sh"
+            "command": ".claude/hooks/post-tool-use.sh Edit"
+          }
+        ]
+      },
+      {
+        "matcher": "Write(*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-tool-use.sh Write"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git commit:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-commit.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-tool-use.sh 'Bash(commit)'"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(mnemosyne remember:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-memory-store.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash(git push:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-destructive.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(gh pr create:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-destructive.sh"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-compact.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/on-stop.sh"
           }
         ]
       }
