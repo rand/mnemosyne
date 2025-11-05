@@ -49,10 +49,14 @@ repo/                          # Main worktree
 - **Automatic Cleanup**: Stale worktrees removed by `mnemosyne doctor --fix`
 
 **Automatic Behavior:**
-1. On startup, if in a git repo, create dedicated worktree for this instance
-2. Change to worktree directory for all operations
-3. On shutdown, cleanup worktree (if implemented)
-4. Track worktree path in process registration
+1. On startup, if in a git repo:
+   - If in main working directory (not already in a worktree), skip worktree creation
+   - If in a worktree, create dedicated worktree for this instance
+2. Change to worktree directory for all operations (if worktree created)
+3. On shutdown, cleanup worktree (if created)
+4. Track worktree path in process registration (if applicable)
+
+**Note**: When launching from the main working directory on the current branch, worktree isolation is skipped to avoid the error "Branch 'X' is already used by another worktree". Worktree isolation is primarily useful when multiple instances need to work on different branches simultaneously.
 
 #### Cleanup Stale Worktrees
 
