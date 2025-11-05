@@ -14,6 +14,7 @@ __pycache__/
 *.db-wal
 *.db-shm
 .mnemosyne/
+.mnemosyne/worktrees/
 
 # Test artifacts
 test_output*.log

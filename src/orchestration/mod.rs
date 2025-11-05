@@ -47,6 +47,7 @@ pub mod events;
 pub mod file_tracker;
 pub mod git_state;
 pub mod git_wrapper;
+pub mod worktree_manager;
 pub mod identity;
 pub mod integrations;
 pub mod messages;
@@ -109,6 +110,7 @@ pub use events::{AgentEvent, EventPersistence, EventReplay};
 pub use file_tracker::{ActiveConflict, FileModification, FileTracker, ModificationType};
 pub use git_state::{GitState, GitStateTracker};
 pub use git_wrapper::{GitAuditEntry, GitOperationType, GitWrapper};
+pub use worktree_manager::{WorktreeInfo, WorktreeManager};
 pub use identity::{AgentId, AgentIdentity};
 pub use messages::{
     AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage,

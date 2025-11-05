@@ -24,6 +24,60 @@ Each instance has:
 - **Dedicated API Port**: Dynamically allocated from 3000-3010
 - **Process Registration**: PID tracking with heartbeat monitoring
 - **Shared Database**: Concurrent read/write via LibSQL
+- **Git Worktree**: Isolated working directory for branch-specific work (if in git repo)
+
+### Git Worktree Isolation
+
+When running in a git repository, Mnemosyne automatically creates isolated worktrees for true branch isolation:
+
+#### How It Works
+
+```
+repo/                          # Main worktree
+├── .git/
+├── .mnemosyne/
+│   └── worktrees/            # Agent worktrees
+│       ├── a1b2c3d4/         # Instance 1 worktree
+│       └── e5f6g7h8/         # Instance 2 worktree
+└── src/
+```
+
+**Benefits:**
+- **True Physical Isolation**: Each instance has its own working directory and HEAD pointer
+- **Independent Branches**: Instances can work on different branches without conflicts
+- **Shared Object Database**: Efficient storage - git objects shared between worktrees
+- **Automatic Cleanup**: Stale worktrees removed by `mnemosyne doctor --fix`
+
+**Automatic Behavior:**
+1. On startup, if in a git repo, create dedicated worktree for this instance
+2. Change to worktree directory for all operations
+3. On shutdown, cleanup worktree (if implemented)
+4. Track worktree path in process registration
+
+#### Cleanup Stale Worktrees
+
+If an instance crashes, its worktree may remain. Use doctor command:
+
+```bash
+# Check for stale worktrees
+mnemosyne doctor
+
+# Cleanup all stale worktrees
+mnemosyne doctor --fix
+```
+
+#### Manual Worktree Management
+
+```bash
+# List all worktrees
+git worktree list
+
+# Remove specific worktree
+git worktree remove .mnemosyne/worktrees/<instance-id>
+
+# Prune stale worktree references
+git worktree prune
+```
 
 ### Dynamic Port Allocation
 

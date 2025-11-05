@@ -164,6 +164,19 @@ impl ClaudeCodeLauncher {
             }
         };
 
+        // STEP 1.25: Setup git worktree for branch isolation (if in git repo)
+        let worktree_path = self.setup_worktree_isolation()?;
+        if let Some(ref path) = worktree_path {
+            debug!("Using git worktree for isolation: {}", path.display());
+            // Change directory to worktree
+            std::env::set_current_dir(path).map_err(|e| {
+                MnemosyneError::Io(std::io::Error::new(
+                    e.kind(),
+                    format!("Failed to change to worktree directory: {}", e),
+                ))
+            })?;
+        }
+
         // STEP 1.5: Initialize OrchestrationEngine
         let orchestration_config = crate::orchestration::SupervisionConfig {
             max_restarts: 3,
@@ -361,6 +374,68 @@ impl ClaudeCodeLauncher {
         }
 
         args
+    }
+
+    /// Setup git worktree for branch isolation
+    fn setup_worktree_isolation(&self) -> Result<Option<PathBuf>> {
+        use crate::orchestration::{identity::AgentId, WorktreeManager};
+
+        // Check if we're in a git repository
+        if !Command::new("git")
+            .args(["rev-parse", "--git-dir"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+        {
+            debug!("Not in a git repository, skipping worktree isolation");
+            return Ok(None);
+        }
+
+        // Get current directory as repo root
+        let repo_root = std::env::current_dir().map_err(|e| {
+            MnemosyneError::Io(std::io::Error::new(
+                e.kind(),
+                format!("Failed to get current directory: {}", e),
+            ))
+        })?;
+
+        // Initialize worktree manager
+        let manager = WorktreeManager::new(repo_root.clone())?;
+
+        // Generate unique agent ID for this session
+        let agent_id = AgentId::new();
+
+        // Get current branch
+        let current_branch = Command::new("git")
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .output()
+            .ok()
+            .and_then(|o| {
+                if o.status.success() {
+                    String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| "main".to_string());
+
+        debug!(
+            "Creating worktree for agent {} on branch {}",
+            agent_id, current_branch
+        );
+
+        // Create worktree
+        match manager.create_worktree(&agent_id, &current_branch) {
+            Ok(worktree_path) => {
+                debug!("Created worktree at: {}", worktree_path.display());
+                Ok(Some(worktree_path))
+            }
+            Err(e) => {
+                warn!("Failed to create worktree: {}", e);
+                warn!("Continuing without worktree isolation");
+                Ok(None)
+            }
+        }
     }
 }
 

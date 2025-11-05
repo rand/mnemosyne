@@ -84,6 +84,10 @@ pub struct ProcessRegistration {
     /// HMAC signature (prevents PID spoofing)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
+
+    /// Worktree path for this process (if using git worktrees for isolation)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub worktree_path: Option<PathBuf>,
 }
 
 /// Cross-process coordinator
@@ -183,6 +187,7 @@ impl CrossProcessCoordinator {
             registered_at: Utc::now(),
             last_heartbeat: Utc::now(),
             signature: None, // Will be set below
+            worktree_path: None, // Will be set by launcher if using worktrees
         };
 
         let mut coordinator = Self {
@@ -218,6 +223,14 @@ impl CrossProcessCoordinator {
     pub fn heartbeat(&mut self) -> Result<()> {
         self.current_process.last_heartbeat = Utc::now();
         // Note: register() will re-sign with updated timestamp
+        self.register()?;
+        Ok(())
+    }
+
+    /// Update worktree path for this process
+    pub fn set_worktree_path(&mut self, worktree_path: PathBuf) -> Result<()> {
+        self.current_process.worktree_path = Some(worktree_path);
+        // Re-register with updated worktree path
         self.register()?;
         Ok(())
     }

@@ -114,6 +114,9 @@ pub async fn run_health_checks(
     // Phase 6: Performance (MEDIUM)
     checks.extend(check_performance(storage, verbose).await?);
 
+    // Phase 7: Worktree Cleanup (LOW)
+    checks.extend(check_worktree_cleanup(verbose, fix).await?);
+
     // Calculate summary
     let passed = checks.iter().filter(|c| c.status == CheckStatus::Pass).count();
     let warnings = checks.iter().filter(|c| c.status == CheckStatus::Warn).count();
@@ -487,6 +490,128 @@ async fn check_performance(storage: &LibsqlStorage, _verbose: bool) -> Result<Ve
                     .with_details(serde_json::json!({ "error": e.to_string() })),
             );
         }
+    }
+
+    Ok(results)
+}
+
+/// Check and cleanup stale git worktrees
+async fn check_worktree_cleanup(_verbose: bool, fix: bool) -> Result<Vec<CheckResult>> {
+    debug!("Checking worktree status...");
+    let mut results = Vec::new();
+
+    // Check if we're in a git repository
+    let is_git_repo = std::process::Command::new("git")
+        .args(["rev-parse", "--git-dir"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if !is_git_repo {
+        results.push(CheckResult::pass(
+            "worktree_check",
+            "Not in git repository, worktree cleanup not applicable",
+        ));
+        return Ok(results);
+    }
+
+    // Get repository root
+    let repo_root = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(e) => {
+            results.push(
+                CheckResult::fail("worktree_check", "Failed to get current directory")
+                    .with_details(serde_json::json!({ "error": e.to_string() })),
+            );
+            return Ok(results);
+        }
+    };
+
+    // Initialize worktree manager
+    use crate::orchestration::WorktreeManager;
+    let manager = match WorktreeManager::new(repo_root) {
+        Ok(m) => m,
+        Err(e) => {
+            results.push(
+                CheckResult::fail("worktree_check", "Failed to initialize worktree manager")
+                    .with_details(serde_json::json!({ "error": e.to_string() })),
+            );
+            return Ok(results);
+        }
+    };
+
+    // List all worktrees
+    let worktrees = match manager.list_worktrees() {
+        Ok(wt) => wt,
+        Err(e) => {
+            results.push(
+                CheckResult::fail("worktree_check", "Failed to list worktrees")
+                    .with_details(serde_json::json!({ "error": e.to_string() })),
+            );
+            return Ok(results);
+        }
+    };
+
+    // Count non-main worktrees (potential stale worktrees)
+    let agent_worktrees: Vec<_> = worktrees.iter().filter(|wt| !wt.is_main).collect();
+
+    if agent_worktrees.is_empty() {
+        results.push(CheckResult::pass(
+            "worktree_check",
+            "No agent worktrees found",
+        ));
+        return Ok(results);
+    }
+
+    // If fix mode, cleanup all stale worktrees (no active agents)
+    if fix {
+        let cleaned = match manager.cleanup_stale(&[]) {
+            Ok(cleaned) => cleaned,
+            Err(e) => {
+                results.push(
+                    CheckResult::fail("worktree_cleanup", "Failed to cleanup worktrees")
+                        .with_details(serde_json::json!({ "error": e.to_string() })),
+                );
+                return Ok(results);
+            }
+        };
+
+        if cleaned.is_empty() {
+            results.push(CheckResult::pass(
+                "worktree_cleanup",
+                "No stale worktrees to clean",
+            ));
+        } else {
+            results.push(
+                CheckResult::pass(
+                    "worktree_cleanup",
+                    format!("Cleaned {} stale worktree(s)", cleaned.len()),
+                )
+                .with_details(serde_json::json!({
+                    "cleaned_count": cleaned.len(),
+                })),
+            );
+        }
+    } else {
+        // Just report status
+        results.push(
+            CheckResult::warn(
+                "worktree_check",
+                format!(
+                    "Found {} agent worktree(s) - run with --fix to clean up stale worktrees",
+                    agent_worktrees.len()
+                ),
+            )
+            .with_details(serde_json::json!({
+                "worktree_count": agent_worktrees.len(),
+                "worktrees": agent_worktrees.iter().map(|wt| {
+                    serde_json::json!({
+                        "path": wt.path.display().to_string(),
+                        "branch": wt.branch,
+                    })
+                }).collect::<Vec<_>>(),
+            })),
+        );
     }
 
     Ok(results)
