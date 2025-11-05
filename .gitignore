@@ -39,3 +39,4 @@ tests/e2e/results/*/
 # Logs
 *.log
 .beads/daemon.log
+.claude/memory-state.json
