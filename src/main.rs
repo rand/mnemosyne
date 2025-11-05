@@ -3,6 +3,8 @@
 //! This is the main entry point for the Mnemosyne MCP server, which provides
 //! persistent semantic memory capabilities to Claude Code's multi-agent system.
 
+mod cli;
+
 use clap::{Parser, Subcommand};
 use mnemosyne_core::{
     error::{MnemosyneError, Result},
