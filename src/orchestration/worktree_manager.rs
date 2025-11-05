@@ -99,10 +99,18 @@ impl WorktreeManager {
     /// the specified branch. The agent should then change its working directory to
     /// this path for isolated operation.
     ///
+    /// # Edge Case Handling
+    ///
+    /// - **Branch doesn't exist**: Creates branch from HEAD automatically
+    /// - **Worktree already exists**: Cleans up and recreates
+    /// - **Stale git reference**: Prunes stale references before creation
+    /// - **Permission errors**: Provides clear error messages
+    /// - **Disk space**: Detects and reports disk space issues
+    ///
     /// # Arguments
     ///
     /// * `agent_id` - Agent that will own this worktree
-    /// * `branch` - Branch to checkout (must exist)
+    /// * `branch` - Branch to checkout (will be created if it doesn't exist)
     ///
     /// # Returns
     ///
@@ -110,23 +118,49 @@ impl WorktreeManager {
     pub fn create_worktree(&self, agent_id: &AgentId, branch: &str) -> Result<PathBuf> {
         // Ensure worktree base directory exists
         std::fs::create_dir_all(&self.worktree_base).map_err(|e| {
-            MnemosyneError::Io(std::io::Error::new(
-                e.kind(),
-                format!("Failed to create worktree base directory: {}", e),
-            ))
+            // Enhanced error message for permission/disk space issues
+            match e.kind() {
+                std::io::ErrorKind::PermissionDenied => {
+                    MnemosyneError::Io(std::io::Error::new(
+                        e.kind(),
+                        format!(
+                            "Permission denied creating worktree directory: {}. Check file permissions.",
+                            self.worktree_base.display()
+                        ),
+                    ))
+                }
+                _ => MnemosyneError::Io(std::io::Error::new(
+                    e.kind(),
+                    format!(
+                        "Failed to create worktree base directory {}: {}. Check disk space and permissions.",
+                        self.worktree_base.display(),
+                        e
+                    ),
+                )),
+            }
         })?;
 
         // Worktree path: .mnemosyne/worktrees/<agent-id>/
         let worktree_path = self.worktree_base.join(agent_id.to_string());
 
-        // Check if worktree already exists
+        // Edge case: Check if worktree already exists (stale from previous crash)
         if worktree_path.exists() {
-            return Err(MnemosyneError::Other(format!(
-                "Worktree already exists for agent {}: {}",
-                agent_id,
-                worktree_path.display()
-            )));
+            tracing::warn!(
+                "Worktree already exists for agent {}, cleaning up before recreating",
+                agent_id
+            );
+            // Attempt to remove existing worktree
+            if let Err(e) = self.remove_worktree(agent_id) {
+                tracing::warn!("Failed to cleanup existing worktree: {}", e);
+                // Continue anyway - git might handle it
+            }
         }
+
+        // Edge case: Prune stale git worktree references
+        self.prune_stale_references()?;
+
+        // Edge case: Check if branch exists, create if needed
+        self.ensure_branch_exists(branch)?;
 
         // Create worktree using git
         let output = Command::new("git")
@@ -137,15 +171,36 @@ impl WorktreeManager {
             .current_dir(&self.repo_root)
             .output()
             .map_err(|e| {
-                MnemosyneError::Other(format!("Failed to execute git worktree add: {}", e))
+                MnemosyneError::Other(format!(
+                    "Failed to execute git worktree add: {}. Ensure git is installed.",
+                    e
+                ))
             })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(MnemosyneError::Other(format!(
-                "git worktree add failed: {}",
-                stderr
-            )));
+
+            // Provide contextual error messages
+            let error_msg = if stderr.contains("not a valid") {
+                format!(
+                    "Branch '{}' is not valid. Error: {}",
+                    branch, stderr
+                )
+            } else if stderr.contains("already used") {
+                format!(
+                    "Branch '{}' is already used by another worktree. Error: {}",
+                    branch, stderr
+                )
+            } else if stderr.contains("No space left") {
+                format!(
+                    "Insufficient disk space to create worktree. Error: {}",
+                    stderr
+                )
+            } else {
+                format!("git worktree add failed: {}", stderr)
+            };
+
+            return Err(MnemosyneError::Other(error_msg));
         }
 
         tracing::info!(
@@ -156,6 +211,64 @@ impl WorktreeManager {
         );
 
         Ok(worktree_path)
+    }
+
+    /// Ensure a branch exists, creating it if necessary
+    fn ensure_branch_exists(&self, branch: &str) -> Result<()> {
+        // Check if branch exists
+        let output = Command::new("git")
+            .args(["rev-parse", "--verify", &format!("refs/heads/{}", branch)])
+            .current_dir(&self.repo_root)
+            .output()
+            .map_err(|e| {
+                MnemosyneError::Other(format!("Failed to check if branch exists: {}", e))
+            })?;
+
+        if output.status.success() {
+            // Branch exists
+            return Ok(());
+        }
+
+        // Branch doesn't exist, create it from HEAD
+        tracing::info!("Branch '{}' doesn't exist, creating from HEAD", branch);
+
+        let output = Command::new("git")
+            .args(["branch", branch])
+            .current_dir(&self.repo_root)
+            .output()
+            .map_err(|e| {
+                MnemosyneError::Other(format!("Failed to create branch: {}", e))
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(MnemosyneError::Other(format!(
+                "Failed to create branch '{}': {}",
+                branch, stderr
+            )));
+        }
+
+        tracing::info!("Created branch '{}'", branch);
+        Ok(())
+    }
+
+    /// Prune stale git worktree references
+    fn prune_stale_references(&self) -> Result<()> {
+        let output = Command::new("git")
+            .args(["worktree", "prune"])
+            .current_dir(&self.repo_root)
+            .output()
+            .map_err(|e| {
+                MnemosyneError::Other(format!("Failed to prune worktrees: {}", e))
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            tracing::warn!("git worktree prune had errors: {}", stderr);
+            // Don't fail on prune errors - not critical
+        }
+
+        Ok(())
     }
 
     /// Remove a worktree

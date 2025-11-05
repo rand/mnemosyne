@@ -437,12 +437,39 @@ impl ClaudeCodeLauncher {
         match manager.create_worktree(&agent_id, &current_branch) {
             Ok(worktree_path) => {
                 debug!("Created worktree at: {}", worktree_path.display());
+
+                // Register worktree with process coordinator for tracking
+                self.register_worktree(&agent_id, &worktree_path, &repo_root);
+
                 Ok(Some((agent_id, worktree_path, repo_root)))
             }
             Err(e) => {
                 warn!("Failed to create worktree: {}", e);
                 warn!("Continuing without worktree isolation");
                 Ok(None)
+            }
+        }
+    }
+
+    /// Register worktree with process coordinator for active session tracking
+    fn register_worktree(&self, agent_id: &crate::orchestration::AgentId, worktree_path: &PathBuf, repo_root: &PathBuf) {
+        use crate::orchestration::CrossProcessCoordinator;
+
+        let mnemosyne_dir = repo_root.join(".mnemosyne");
+
+        // Attempt registration (best-effort, don't fail if it doesn't work)
+        match CrossProcessCoordinator::new(&mnemosyne_dir, agent_id.clone()) {
+            Ok(mut coordinator) => {
+                // Set worktree path in registration
+                if let Err(e) = coordinator.set_worktree_path(worktree_path.clone()) {
+                    warn!("Failed to register worktree path: {}", e);
+                } else {
+                    debug!("Registered worktree {} with process coordinator", agent_id);
+                }
+            }
+            Err(e) => {
+                // Non-critical error - coordination is optional
+                debug!("Could not initialize process coordinator: {}", e);
             }
         }
     }
