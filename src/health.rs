@@ -1,4 +1,5 @@
 //! Health check system for mnemosyne
+#![allow(clippy::collapsible_else_if)]
 //!
 //! Provides comprehensive health diagnostics including:
 //! - Database integrity and schema validation

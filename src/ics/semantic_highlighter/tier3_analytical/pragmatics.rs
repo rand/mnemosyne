@@ -9,6 +9,8 @@
 //!
 //! Uses Claude API for nuanced pragmatic understanding.
 
+#![allow(dead_code)]
+
 use crate::{
     ics::semantic_highlighter::{
         visualization::{HighlightSpan, HighlightSource, AnnotationType, Annotation},

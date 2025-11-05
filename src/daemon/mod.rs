@@ -1,4 +1,5 @@
 //! Daemon Mode for MCP Server
+#![allow(clippy::field_reassign_with_default)]
 //!
 //! Provides functionality to run the Mnemosyne MCP server in background (daemon) mode.
 //!

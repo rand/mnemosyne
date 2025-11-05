@@ -1,5 +1,7 @@
 //! File storage and YAML parsing for artifacts
 
+#![allow(clippy::unnecessary_map_or)]
+
 use crate::error::{MnemosyneError, Result};
 use std::path::{Path, PathBuf};
 use tokio::fs;

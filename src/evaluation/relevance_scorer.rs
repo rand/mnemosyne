@@ -1,4 +1,5 @@
 //! Relevance scoring with online learning and hierarchical weight management.
+#![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 //!
 //! Implements an adaptive scoring system that learns from feedback signals

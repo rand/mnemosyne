@@ -1259,6 +1259,7 @@ impl Actor for ReviewerActor {
             #[cfg(feature = "python")]
             ReviewerMessage::RegisterPythonReviewer { py_reviewer } => {
                 tracing::info!("Registering Python reviewer for LLM validation");
+                #[allow(deprecated)]
                 state.register_py_reviewer(py_reviewer);
             }
             ReviewerMessage::ReviewWork {

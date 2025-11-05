@@ -1,4 +1,5 @@
 //! Smart completions for context documents
+#![allow(clippy::if_same_then_else)]
 //!
 //! Provides intelligent, non-intrusive completions:
 //! - Symbol completion (functions, variables, types)

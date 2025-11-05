@@ -144,6 +144,7 @@ pub struct OrchestrationEngine {
     event_broadcaster: Option<crate::api::EventBroadcaster>,
 
     /// Optional state manager for dashboard state tracking
+    #[allow(dead_code)]
     state_manager: Option<Arc<crate::api::StateManager>>,
 }
 

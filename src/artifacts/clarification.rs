@@ -1,4 +1,5 @@
 //! Clarification artifact for resolving ambiguities
+#![allow(clippy::useless_format, clippy::single_char_add_str)]
 
 use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use super::storage::{parse_frontmatter, serialize_frontmatter};

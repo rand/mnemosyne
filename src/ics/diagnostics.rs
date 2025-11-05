@@ -1,4 +1,5 @@
 //! Beautiful Terminal Diagnostics with Ariadne
+#![allow(clippy::explicit_counter_loop)]
 //!
 //! Provides ariadne/miette-style diagnostic rendering for:
 //! - Validation errors and warnings

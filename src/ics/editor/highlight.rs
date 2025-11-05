@@ -1,4 +1,5 @@
 //! Subtle syntax highlighting for context documents
+#![allow(clippy::only_used_in_recursion)]
 //!
 //! Provides gentle, non-distracting syntax highlighting using tree-sitter
 //! with a calm color palette that recedes into the background.

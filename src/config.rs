@@ -228,6 +228,7 @@ impl EmbeddingConfig {
 
 /// Service name for keyring storage
 const KEYRING_SERVICE: &str = "mnemosyne-memory-system";
+#[cfg(test)]
 const KEYRING_SERVICE_TEST: &str = "mnemosyne-memory-system-test";
 const KEYRING_USER: &str = "anthropic-api-key";
 

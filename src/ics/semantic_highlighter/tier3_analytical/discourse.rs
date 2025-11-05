@@ -8,6 +8,8 @@
 //!
 //! Uses Claude API for deep semantic understanding.
 
+#![allow(dead_code)]
+
 use crate::{
     ics::semantic_highlighter::{
         visualization::{HighlightSpan, HighlightSource, Connection, ConnectionType},

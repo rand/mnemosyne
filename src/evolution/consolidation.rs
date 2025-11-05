@@ -1,4 +1,5 @@
 // Periodic Consolidation Job
+#![allow(clippy::format_in_format_args)]
 #![allow(dead_code)]
 //
 // Detects and consolidates duplicate/similar memories using:
