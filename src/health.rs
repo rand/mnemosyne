@@ -11,7 +11,6 @@
 use crate::error::Result;
 use crate::storage::libsql::LibsqlStorage;
 use crate::storage::StorageBackend;
-use crate::types::Namespace;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Instant;

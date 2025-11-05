@@ -244,10 +244,31 @@ impl ConfigManager {
         Self::new_with_service(KEYRING_SERVICE)
     }
 
-    /// Create a new configuration manager for testing (uses separate keyring entry)
+    /// Create a new configuration manager for testing (uses separate keyring entry and temp secrets)
     #[cfg(test)]
     pub fn new_for_testing() -> Result<Self> {
-        Self::new_with_service(KEYRING_SERVICE_TEST)
+        // Use a temporary directory for test secrets (isolated from real user config)
+        let test_config_dir = std::env::temp_dir().join("mnemosyne-test-secrets");
+        let secrets = SecretsManager::new_with_config_dir(test_config_dir).map_err(|e| {
+            MnemosyneError::Config(config::ConfigError::Message(format!(
+                "Failed to initialize test secrets manager: {}",
+                e
+            )))
+        })?;
+
+        #[cfg(feature = "keyring-fallback")]
+        let keyring_entry = Entry::new(KEYRING_SERVICE_TEST, KEYRING_USER).map_err(|e| {
+            MnemosyneError::Config(config::ConfigError::Message(format!(
+                "Failed to access keyring: {}",
+                e
+            )))
+        })?;
+
+        Ok(Self {
+            secrets,
+            #[cfg(feature = "keyring-fallback")]
+            keyring_entry,
+        })
     }
 
     /// Create a new configuration manager with custom service name

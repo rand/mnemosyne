@@ -13,9 +13,6 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-#[cfg(feature = "python")]
-use pyo3::Python;
-
 /// Type-safe adapter for Optimizer DSPy operations
 ///
 /// Wraps DSpyInstrumentation with strongly-typed methods matching the

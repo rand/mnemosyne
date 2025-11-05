@@ -563,8 +563,6 @@ impl ArtifactWorkflow {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_workflow_coordinator_creation() {
         // Basic creation test

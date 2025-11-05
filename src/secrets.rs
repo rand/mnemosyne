@@ -41,6 +41,11 @@ impl SecretsManager {
             .context("Failed to determine config directory")?;
 
         let config_dir = dirs.config_dir().to_path_buf();
+        Self::new_with_config_dir(config_dir)
+    }
+
+    /// Initialize secrets manager with custom config directory (for testing)
+    pub fn new_with_config_dir(config_dir: PathBuf) -> Result<Self> {
         let identity_file = config_dir.join("identity.key");
         let secrets_file = config_dir.join("secrets.age");
 

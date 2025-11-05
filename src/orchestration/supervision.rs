@@ -522,8 +522,8 @@ mod tests {
         use std::time::Duration;
 
         // Setup
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
-        let namespace = Namespace::Session {
+        let _storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let _namespace = Namespace::Session {
             project: "test-e2e".to_string(),
             session_id: "retry-test".to_string(),
         };

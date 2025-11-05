@@ -39,7 +39,7 @@
 use super::{Contradiction, ContradictionType, DiscourseRelation, DiscourseSegment, PragmaticElement, PragmaticType, SpeechActType};
 use crate::error::{MnemosyneError, Result};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::PyList;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::Mutex;

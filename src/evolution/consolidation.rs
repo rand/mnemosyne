@@ -20,7 +20,7 @@ use std::time::Instant;
 
 #[cfg(feature = "python")]
 use crate::evolution::memory_evolution_dspy_adapter::{
-    ArchivalConfig, MemoryCluster as DSpyMemoryCluster, MemoryEvolutionDSpyAdapter,
+    MemoryCluster as DSpyMemoryCluster, MemoryEvolutionDSpyAdapter,
 };
 
 /// Consolidation job - detects and merges duplicate memories

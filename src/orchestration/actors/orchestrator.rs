@@ -816,7 +816,7 @@ mod tests {
         // Setup
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let storage = Arc::new(
+        let _storage = Arc::new(
             LibsqlStorage::new_with_validation(
                 crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
                 true,
@@ -825,7 +825,7 @@ mod tests {
             .expect("Failed to create test storage"),
         );
 
-        let namespace = Namespace::Session {
+        let _namespace = Namespace::Session {
             project: "test".to_string(),
             session_id: "test-session".to_string(),
         };
@@ -868,7 +868,7 @@ mod tests {
         // Setup
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let storage = Arc::new(
+        let _storage = Arc::new(
             LibsqlStorage::new_with_validation(
                 crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
                 true,
@@ -877,7 +877,7 @@ mod tests {
             .expect("Failed to create test storage"),
         );
 
-        let namespace = Namespace::Session {
+        let _namespace = Namespace::Session {
             project: "test".to_string(),
             session_id: "test-session".to_string(),
         };
@@ -919,7 +919,7 @@ mod tests {
         // Setup
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let storage = Arc::new(
+        let _storage = Arc::new(
             LibsqlStorage::new_with_validation(
                 crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
                 true,
@@ -928,7 +928,7 @@ mod tests {
             .expect("Failed to create test storage"),
         );
 
-        let namespace = Namespace::Session {
+        let _namespace = Namespace::Session {
             project: "test".to_string(),
             session_id: "test-session".to_string(),
         };
@@ -968,7 +968,7 @@ mod tests {
         // Setup
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
-        let storage = Arc::new(
+        let _storage = Arc::new(
             LibsqlStorage::new_with_validation(
                 crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
                 true,
@@ -977,7 +977,7 @@ mod tests {
             .expect("Failed to create test storage"),
         );
 
-        let namespace = Namespace::Session {
+        let _namespace = Namespace::Session {
             project: "test".to_string(),
             session_id: "test-session".to_string(),
         };

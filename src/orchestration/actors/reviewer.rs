@@ -445,7 +445,7 @@ impl ReviewerActor {
             .await?;
 
         // Track requirement satisfaction
-        let extracted_requirements = work_item.requirements.clone();
+        let _extracted_requirements = work_item.requirements.clone();
         let mut satisfied_requirements = std::collections::HashMap::new();
         let mut unsatisfied_requirements = Vec::new();
 
@@ -1440,7 +1440,7 @@ mod tests {
             session_id: "test-session".to_string(),
         };
 
-        let state = ReviewerState::new(storage.clone(), namespace);
+        let _state = ReviewerState::new(storage.clone(), namespace);
 
         // Create work item with requirements
         let mut work_item = crate::orchestration::state::WorkItem::new(
@@ -1465,7 +1465,7 @@ mod tests {
         let completeness_passed = true;
 
         // Track requirement satisfaction
-        let extracted_requirements = work_item.requirements.clone();
+        let _extracted_requirements = work_item.requirements.clone();
         let mut satisfied_requirements = std::collections::HashMap::new();
         let mut unsatisfied_requirements = Vec::new();
 
@@ -1530,7 +1530,7 @@ mod tests {
         let completeness_passed = false;
 
         // Track requirement satisfaction
-        let extracted_requirements = work_item.requirements.clone();
+        let _extracted_requirements = work_item.requirements.clone();
         let mut satisfied_requirements = std::collections::HashMap::new();
         let mut unsatisfied_requirements = Vec::new();
 
@@ -1587,7 +1587,7 @@ mod tests {
         );
 
         // Track requirement satisfaction
-        let extracted_requirements = work_item.requirements.clone();
+        let _extracted_requirements = work_item.requirements.clone();
         let mut satisfied_requirements = std::collections::HashMap::new();
         let mut unsatisfied_requirements = Vec::new();
 
@@ -1745,7 +1745,7 @@ mod tests {
             .await
             .expect("Failed to store memory");
 
-        let state = ReviewerState::new(storage.clone(), namespace);
+        let _state = ReviewerState::new(storage.clone(), namespace);
 
         // Create work result with the memory
         let work_item = crate::orchestration::state::WorkItem::new(

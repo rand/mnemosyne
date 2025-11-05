@@ -48,7 +48,7 @@
 //! # }
 //! ```
 
-use crate::error::{MnemosyneError, Result};
+use crate::error::Result;
 use crate::orchestration::dspy_bridge::DSpyBridge;
 use crate::orchestration::dspy_module_loader::ModuleVersion;
 use crate::orchestration::dspy_production_logger::{InteractionLog, ProductionLogger};
@@ -63,7 +63,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// Instrumentation configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

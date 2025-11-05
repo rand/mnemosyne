@@ -64,8 +64,6 @@ impl MemoryLinker {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_memory_linker_creation() {
         // Basic struct creation test

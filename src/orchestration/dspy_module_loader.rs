@@ -253,7 +253,7 @@ impl DSpyModuleLoader {
     ) -> Result<()> {
         let module_name = module_name.to_string();
         let json_content = json_content.to_string();
-        let bridge = self.bridge.clone();
+        let _bridge = self.bridge.clone();
 
         tokio::task::spawn_blocking(move || {
             Python::with_gil(|py| {

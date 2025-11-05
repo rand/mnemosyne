@@ -265,8 +265,6 @@ impl ReviewerDSpyAdapter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_adapter_construction() {
         // Test that adapter can be constructed (actual DSPy calls require Python runtime)

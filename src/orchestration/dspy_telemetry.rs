@@ -40,9 +40,9 @@ use crate::orchestration::dspy_module_loader::ModuleVersion;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn, Span};
+use tracing::{debug, info};
 
 /// DSPy telemetry event
 ///
@@ -443,7 +443,7 @@ impl TelemetryCollector {
         // Request count
         output.push_str("# HELP dspy_requests_total Total number of DSPy requests\n");
         output.push_str("# TYPE dspy_requests_total counter\n");
-        for (key, m) in metrics.iter() {
+        for m in metrics.values() {
             output.push_str(&format!(
                 "dspy_requests_total{{module=\"{}\",version=\"{}\"}} {}\n",
                 m.module_name, m.module_version, m.request_count
@@ -453,7 +453,7 @@ impl TelemetryCollector {
         // Success count
         output.push_str("# HELP dspy_success_total Total number of successful DSPy responses\n");
         output.push_str("# TYPE dspy_success_total counter\n");
-        for (key, m) in metrics.iter() {
+        for m in metrics.values() {
             output.push_str(&format!(
                 "dspy_success_total{{module=\"{}\",version=\"{}\"}} {}\n",
                 m.module_name, m.module_version, m.success_count
@@ -463,7 +463,7 @@ impl TelemetryCollector {
         // Error count
         output.push_str("# HELP dspy_errors_total Total number of DSPy errors\n");
         output.push_str("# TYPE dspy_errors_total counter\n");
-        for (key, m) in metrics.iter() {
+        for m in metrics.values() {
             output.push_str(&format!(
                 "dspy_errors_total{{module=\"{}\",version=\"{}\"}} {}\n",
                 m.module_name, m.module_version, m.error_count
@@ -473,7 +473,7 @@ impl TelemetryCollector {
         // Latency metrics
         output.push_str("# HELP dspy_latency_ms_avg Average latency in milliseconds\n");
         output.push_str("# TYPE dspy_latency_ms_avg gauge\n");
-        for (key, m) in metrics.iter() {
+        for m in metrics.values() {
             output.push_str(&format!(
                 "dspy_latency_ms_avg{{module=\"{}\",version=\"{}\"}} {}\n",
                 m.module_name, m.module_version, m.avg_latency_ms
@@ -482,7 +482,7 @@ impl TelemetryCollector {
 
         output.push_str("# HELP dspy_latency_ms_p95 p95 latency in milliseconds\n");
         output.push_str("# TYPE dspy_latency_ms_p95 gauge\n");
-        for (key, m) in metrics.iter() {
+        for m in metrics.values() {
             output.push_str(&format!(
                 "dspy_latency_ms_p95{{module=\"{}\",version=\"{}\"}} {}\n",
                 m.module_name, m.module_version, m.p95_latency_ms
@@ -492,7 +492,7 @@ impl TelemetryCollector {
         // Cost metrics
         output.push_str("# HELP dspy_cost_usd_total Total cost in USD\n");
         output.push_str("# TYPE dspy_cost_usd_total counter\n");
-        for (key, m) in metrics.iter() {
+        for m in metrics.values() {
             output.push_str(&format!(
                 "dspy_cost_usd_total{{module=\"{}\",version=\"{}\"}} {}\n",
                 m.module_name, m.module_version, m.total_cost_usd
@@ -502,7 +502,7 @@ impl TelemetryCollector {
         // Token metrics
         output.push_str("# HELP dspy_tokens_total Total tokens consumed\n");
         output.push_str("# TYPE dspy_tokens_total counter\n");
-        for (key, m) in metrics.iter() {
+        for m in metrics.values() {
             output.push_str(&format!(
                 "dspy_tokens_total{{module=\"{}\",version=\"{}\"}} {}\n",
                 m.module_name, m.module_version, m.total_tokens
@@ -512,7 +512,7 @@ impl TelemetryCollector {
         // Error rate
         output.push_str("# HELP dspy_error_rate Error rate (0.0-1.0)\n");
         output.push_str("# TYPE dspy_error_rate gauge\n");
-        for (key, m) in metrics.iter() {
+        for m in metrics.values() {
             output.push_str(&format!(
                 "dspy_error_rate{{module=\"{}\",version=\"{}\"}} {}\n",
                 m.module_name, m.module_version, m.error_rate

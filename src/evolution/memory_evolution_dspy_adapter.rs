@@ -9,13 +9,10 @@
 
 use crate::error::{MnemosyneError, Result};
 use crate::orchestration::dspy_bridge::DSpyBridge;
-use crate::types::{MemoryId, MemoryNote, MemoryType};
+use crate::types::{MemoryId, MemoryNote};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
-
-#[cfg(feature = "python")]
-use pyo3::Python;
 
 /// Type-safe adapter for Memory Evolution DSPy operations
 pub struct MemoryEvolutionDSpyAdapter {
@@ -167,8 +164,8 @@ impl MemoryEvolutionDSpyAdapter {
         memory: &MemoryNote,
     ) -> Result<ImportanceRecalibration> {
         let now = chrono::Utc::now();
-        let days_since_created = (now - memory.created_at).num_days() as i64;
-        let days_since_accessed = (now - memory.last_accessed_at).num_days() as i64;
+        let days_since_created = (now - memory.created_at).num_days();
+        let days_since_accessed = (now - memory.last_accessed_at).num_days();
 
         let mut inputs = HashMap::new();
         inputs.insert("memory_id".to_string(), json!(memory.id.to_string()));
