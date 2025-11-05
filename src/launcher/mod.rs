@@ -69,6 +69,9 @@ pub struct LauncherConfig {
 
     /// Optional event broadcaster for real-time API updates
     pub event_broadcaster: Option<crate::api::EventBroadcaster>,
+
+    /// Optional state manager for dashboard state tracking
+    pub state_manager: Option<std::sync::Arc<crate::api::StateManager>>,
 }
 
 impl Default for LauncherConfig {
@@ -86,6 +89,7 @@ impl Default for LauncherConfig {
             enable_hooks: true,
             initial_prompt: None,
             event_broadcaster: None,
+            state_manager: None,
         }
     }
 }
@@ -105,6 +109,7 @@ impl std::fmt::Debug for LauncherConfig {
             .field("enable_hooks", &self.enable_hooks)
             .field("initial_prompt", &self.initial_prompt)
             .field("event_broadcaster", &self.event_broadcaster.is_some())
+            .field("state_manager", &self.state_manager.is_some())
             .finish()
     }
 }
@@ -167,10 +172,11 @@ impl ClaudeCodeLauncher {
             max_concurrent_agents: self.config.max_concurrent_agents as usize,
         };
 
-        let orchestration_engine = match crate::orchestration::OrchestrationEngine::new_with_events(
+        let orchestration_engine = match crate::orchestration::OrchestrationEngine::new_with_state(
             storage.clone(),
             orchestration_config,
             self.config.event_broadcaster.clone(),
+            self.config.state_manager.clone(),
         )
         .await
         {
@@ -459,11 +465,13 @@ pub async fn launch_orchestrated_session(
     db_path: Option<String>,
     initial_prompt: Option<String>,
     event_broadcaster: Option<crate::api::EventBroadcaster>,
+    state_manager: Option<std::sync::Arc<crate::api::StateManager>>,
 ) -> Result<()> {
     let mut config = LauncherConfig::default();
     config.mnemosyne_db_path = db_path;
     config.initial_prompt = initial_prompt;
     config.event_broadcaster = event_broadcaster;
+    config.state_manager = state_manager;
 
     let launcher = ClaudeCodeLauncher::with_config(config)?;
     launcher.launch().await

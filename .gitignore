@@ -25,6 +25,7 @@ tests/e2e/results/*/
 
 # Backup files
 .claude/mcp_config.json.backup.*
+.claude/context-snapshots/
 *.bak
 *.swp
 *.swo

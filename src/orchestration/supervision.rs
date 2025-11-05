@@ -78,6 +78,12 @@ pub struct SupervisionTree {
     /// Proposal queue for agent-to-ICS communication
     proposal_queue: ProposalQueue,
 
+    /// Optional event broadcaster for real-time API updates
+    event_broadcaster: Option<crate::api::EventBroadcaster>,
+
+    /// Optional state manager for dashboard state tracking
+    state_manager: Option<Arc<crate::api::StateManager>>,
+
     /// Orchestrator actor
     orchestrator: Option<ActorRef<OrchestratorMessage>>,
 
@@ -92,11 +98,47 @@ pub struct SupervisionTree {
 }
 
 impl SupervisionTree {
+    /// Helper to emit agent started event and update state
+    async fn notify_agent_started(&self, agent_id: &str, agent_name: &str) {
+        // Emit event if broadcaster is available
+        if let Some(broadcaster) = &self.event_broadcaster {
+            let event = crate::api::Event::agent_started(agent_id.to_string());
+            if let Err(e) = broadcaster.broadcast(event) {
+                tracing::warn!("Failed to broadcast agent started event for {}: {}", agent_name, e);
+            } else {
+                tracing::debug!("Broadcasted agent started event for {}", agent_name);
+            }
+        }
+
+        // Update state if state manager is available
+        if let Some(state_manager) = &self.state_manager {
+            let agent_info = crate::api::state::AgentInfo {
+                id: agent_id.to_string(),
+                state: crate::api::state::AgentState::Idle,
+                updated_at: chrono::Utc::now(),
+                metadata: std::collections::HashMap::new(),
+            };
+            state_manager.update_agent(agent_info).await;
+            tracing::debug!("Updated state manager for {}", agent_name);
+        }
+    }
+
     /// Create a new supervision tree
     pub async fn new(
         config: SupervisionConfig,
         storage: Arc<dyn StorageBackend>,
         network: Arc<network::NetworkLayer>,
+    ) -> Result<Self> {
+        Self::new_with_state(config, storage, network, None, None).await
+    }
+
+    /// Create a new supervision tree with event broadcasting and state management
+    pub async fn new_with_state(
+        config: SupervisionConfig,
+        storage: Arc<dyn StorageBackend>,
+        network: Arc<network::NetworkLayer>,
+        event_broadcaster: Option<crate::api::EventBroadcaster>,
+        state_manager: Option<Arc<crate::api::StateManager>>,
     ) -> Result<Self> {
         // Detect namespace
         let namespace = Namespace::Session {
@@ -111,6 +153,8 @@ impl SupervisionTree {
             namespace,
             registry: AgentRegistry::new(),
             proposal_queue: ProposalQueue::new(),
+            event_broadcaster,
+            state_manager,
             orchestrator: None,
             optimizer: None,
             reviewer: None,
@@ -125,6 +169,18 @@ impl SupervisionTree {
         network: Arc<network::NetworkLayer>,
         namespace: Namespace,
     ) -> Result<Self> {
+        Self::new_with_namespace_and_state(config, storage, network, namespace, None, None).await
+    }
+
+    /// Create a new supervision tree with explicit namespace, event broadcasting, and state management
+    pub async fn new_with_namespace_and_state(
+        config: SupervisionConfig,
+        storage: Arc<dyn StorageBackend>,
+        network: Arc<network::NetworkLayer>,
+        namespace: Namespace,
+        event_broadcaster: Option<crate::api::EventBroadcaster>,
+        state_manager: Option<Arc<crate::api::StateManager>>,
+    ) -> Result<Self> {
         Ok(Self {
             config,
             storage,
@@ -132,6 +188,8 @@ impl SupervisionTree {
             namespace,
             registry: AgentRegistry::new(),
             proposal_queue: ProposalQueue::new(),
+            event_broadcaster,
+            state_manager,
             orchestrator: None,
             optimizer: None,
             reviewer: None,
@@ -170,6 +228,9 @@ impl SupervisionTree {
             )
             .await;
 
+        // Notify dashboard about agent startup
+        self.notify_agent_started(&optimizer_id, "Optimizer").await;
+
         self.optimizer = Some(optimizer_ref);
 
         // Spawn Reviewer
@@ -194,6 +255,9 @@ impl SupervisionTree {
                 AgentRole::Reviewer,
             )
             .await;
+
+        // Notify dashboard about agent startup
+        self.notify_agent_started(&reviewer_id, "Reviewer").await;
 
         self.reviewer = Some(reviewer_ref.clone());
 
@@ -238,6 +302,9 @@ impl SupervisionTree {
             )
             .await;
 
+        // Notify dashboard about agent startup
+        self.notify_agent_started(&executor_id, "Executor").await;
+
         self.executor = Some(executor_ref);
 
         // Spawn Orchestrator (root supervisor)
@@ -262,6 +329,9 @@ impl SupervisionTree {
                 AgentRole::Orchestrator,
             )
             .await;
+
+        // Notify dashboard about agent startup
+        self.notify_agent_started(&orchestrator_id, "Orchestrator").await;
 
         self.orchestrator = Some(orchestrator_ref.clone());
 
