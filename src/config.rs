@@ -228,6 +228,7 @@ impl EmbeddingConfig {
 
 /// Service name for keyring storage
 const KEYRING_SERVICE: &str = "mnemosyne-memory-system";
+const KEYRING_SERVICE_TEST: &str = "mnemosyne-memory-system-test";
 const KEYRING_USER: &str = "anthropic-api-key";
 
 /// Configuration manager for Mnemosyne
@@ -240,6 +241,17 @@ pub struct ConfigManager {
 impl ConfigManager {
     /// Create a new configuration manager
     pub fn new() -> Result<Self> {
+        Self::new_with_service(KEYRING_SERVICE)
+    }
+
+    /// Create a new configuration manager for testing (uses separate keyring entry)
+    #[cfg(test)]
+    pub fn new_for_testing() -> Result<Self> {
+        Self::new_with_service(KEYRING_SERVICE_TEST)
+    }
+
+    /// Create a new configuration manager with custom service name
+    fn new_with_service(service_name: &str) -> Result<Self> {
         let secrets = SecretsManager::new().map_err(|e| {
             MnemosyneError::Config(config::ConfigError::Message(format!(
                 "Failed to initialize secrets manager: {}",
@@ -248,7 +260,7 @@ impl ConfigManager {
         })?;
 
         #[cfg(feature = "keyring-fallback")]
-        let keyring_entry = Entry::new(KEYRING_SERVICE, KEYRING_USER).map_err(|e| {
+        let keyring_entry = Entry::new(service_name, KEYRING_USER).map_err(|e| {
             MnemosyneError::Config(config::ConfigError::Message(format!(
                 "Failed to access keyring: {}",
                 e
@@ -447,7 +459,7 @@ mod tests {
     #[serial]
     #[cfg(feature = "keyring-fallback")]
     fn test_set_and_get_api_key() {
-        let manager = ConfigManager::new().unwrap();
+        let manager = ConfigManager::new_for_testing().unwrap();
 
         // Clean up first
         let _ = manager.delete_api_key();
@@ -471,7 +483,7 @@ mod tests {
         // Clean up first to avoid interference from other tests
         env::remove_var("ANTHROPIC_API_KEY");
 
-        let manager = ConfigManager::new().unwrap();
+        let manager = ConfigManager::new_for_testing().unwrap();
 
         #[cfg(feature = "keyring-fallback")]
         {
@@ -500,7 +512,7 @@ mod tests {
     fn test_has_api_key() {
         env::remove_var("ANTHROPIC_API_KEY");
 
-        let manager = ConfigManager::new().unwrap();
+        let manager = ConfigManager::new_for_testing().unwrap();
 
         #[cfg(feature = "keyring-fallback")]
         {

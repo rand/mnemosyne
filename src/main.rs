@@ -148,6 +148,22 @@ fn extract_task_description(task: &serde_json::Value) -> Option<String> {
     None
 }
 
+/// Detect if an API server is already running on ports 3000-3010
+async fn detect_api_server() -> Option<String> {
+    for port in 3000..=3010 {
+        let url = format!("http://127.0.0.1:{}/health", port);
+        match reqwest::get(&url).await {
+            Ok(response) if response.status().is_success() => {
+                debug!("Found API server at port {}", port);
+                return Some(format!("http://127.0.0.1:{}", port));
+            }
+            _ => continue,
+        }
+    }
+    debug!("No API server found on ports 3000-3010");
+    None
+}
+
 /// Start MCP server in stdio mode
 async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
     debug!("Starting MCP server...");
@@ -195,19 +211,82 @@ async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
         Arc::new(EmbeddingService::new(config.api_key.clone(), config))
     };
 
-    // Initialize tool handler
-    let tool_handler = ToolHandler::new(Arc::new(storage), llm, embeddings);
+    // Try to start API server for dashboard connectivity
+    use mnemosyne_core::api::{ApiServer, ApiServerConfig};
+    use std::net::SocketAddr;
+    use mnemosyne_core::mcp::tools::EventSink;
 
-    // Create and run server
-    let server = McpServer::new(tool_handler);
+    let socket_addr: SocketAddr = "127.0.0.1:3000".parse()?;
+    let api_config = ApiServerConfig {
+        addr: socket_addr,
+        event_capacity: 1000,
+    };
 
-    // Run server with graceful shutdown on signals
-    tokio::select! {
-        result = server.run() => {
-            result?;
+    // Try to bind port 3000 (owner mode) or connect to existing server (client mode)
+    let (event_sink, api_server_task) = match tokio::net::TcpListener::bind(socket_addr).await {
+        Ok(listener) => {
+            // Owner mode: We successfully bound port 3000, start API server
+            drop(listener); // Release the listener, ApiServer will rebind
+
+            let api_server = ApiServer::new(api_config);
+            let event_broadcaster = api_server.broadcaster().clone();
+
+            info!("API server starting on port 3000 (owner mode)");
+            info!("Dashboard: mnemosyne-dash --api http://127.0.0.1:3000");
+
+            let api_task = tokio::spawn(async move {
+                if let Err(e) = api_server.serve().await {
+                    warn!("API server error: {}", e);
+                }
+            });
+
+            (EventSink::Local(event_broadcaster), Some(api_task))
         }
-        _ = tokio::signal::ctrl_c() => {
-            info!("Received shutdown signal, stopping MCP server gracefully...");
+        Err(_) => {
+            // Port taken, try to connect to existing API server (client mode)
+            if let Some(api_url) = detect_api_server().await {
+                info!("Connecting to existing API server at {} (client mode)", api_url);
+                let client = reqwest::Client::new();
+                (EventSink::Remote { client, api_url }, None)
+            } else {
+                warn!("Port 3000 in use but no API server found - events will not be broadcast");
+                warn!("Dashboard may not show activity from this MCP server");
+                (EventSink::None, None)
+            }
+        }
+    };
+
+    // Initialize tool handler with event sink
+    let tool_handler = ToolHandler::new_with_event_sink(Arc::new(storage), llm, embeddings, event_sink);
+
+    // Create and run MCP server
+    let mcp_server = McpServer::new(tool_handler);
+
+    // Run MCP server (and API server if owner mode) with graceful shutdown
+    if let Some(api_task) = api_server_task {
+        // Owner mode: Run both MCP and API server
+        tokio::select! {
+            result = mcp_server.run() => {
+                result?;
+            }
+            result = api_task => {
+                if let Err(e) = result {
+                    warn!("API server task failed: {}", e);
+                }
+            }
+            _ = tokio::signal::ctrl_c() => {
+                info!("Received shutdown signal, stopping servers gracefully...");
+            }
+        }
+    } else {
+        // Client mode: Run only MCP server
+        tokio::select! {
+            result = mcp_server.run() => {
+                result?;
+            }
+            _ = tokio::signal::ctrl_c() => {
+                info!("Received shutdown signal, stopping MCP server gracefully...");
+            }
         }
     }
 
@@ -448,20 +527,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Start MCP server (stdio mode)
-    Serve {
-        /// Also start HTTP API server for monitoring
-        #[arg(long)]
-        with_api: bool,
-
-        /// API server address (when --with-api is enabled)
-        #[arg(long, default_value = "127.0.0.1:3000")]
-        api_addr: String,
-
-        /// API event channel capacity
-        #[arg(long, default_value = "1000")]
-        api_capacity: usize,
-    },
+    /// Start MCP server (stdio mode with automatic API server)
+    ///
+    /// Automatically starts API server on port 3000 (owner mode) or connects
+    /// to existing API server (client mode) for dashboard observability.
+    Serve,
 
     /// Start HTTP API server for event streaming and state coordination
     ApiServer {
@@ -910,18 +980,9 @@ async fn main() -> Result<()> {
     }
 
     match cli.command {
-        Some(Commands::Serve {
-            with_api,
-            api_addr,
-            api_capacity,
-        }) => {
-            if with_api {
-                // Start both MCP server and API server
-                start_mcp_server_with_api(cli.db_path, api_addr, api_capacity).await
-            } else {
-                // Start MCP server only
-                start_mcp_server(cli.db_path).await
-            }
+        Some(Commands::Serve) => {
+            // Start MCP server (automatically handles API server startup)
+            start_mcp_server(cli.db_path).await
         }
         Some(Commands::ApiServer { addr, capacity }) => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};

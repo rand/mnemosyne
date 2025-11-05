@@ -15,6 +15,55 @@ use serde_json::Value;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
+/// Event sink for routing events to dashboard
+#[derive(Clone)]
+pub enum EventSink {
+    /// Direct broadcaster (this process owns the API server)
+    Local(crate::api::EventBroadcaster),
+    /// HTTP forwarder (remote API server exists)
+    Remote {
+        client: reqwest::Client,
+        api_url: String,
+    },
+    /// No event broadcasting available
+    None,
+}
+
+impl EventSink {
+    /// Emit an event (async, non-blocking)
+    pub async fn emit(&self, event: crate::api::Event) -> Result<()> {
+        match self {
+            Self::Local(broadcaster) => {
+                if let Err(e) = broadcaster.broadcast(event) {
+                    debug!("Failed to broadcast event locally: {}", e);
+                }
+            }
+            Self::Remote { client, api_url } => {
+                let url = format!("{}/events/emit", api_url);
+                // Fire and forget with short timeout (don't block MCP operations)
+                let client = client.clone();
+                let event_clone = event.clone();
+                tokio::spawn(async move {
+                    match tokio::time::timeout(
+                        std::time::Duration::from_millis(100),
+                        client.post(&url).json(&event_clone).send(),
+                    )
+                    .await
+                    {
+                        Ok(Ok(_)) => debug!("Event forwarded to remote API server"),
+                        Ok(Err(e)) => debug!("Failed to forward event: {}", e),
+                        Err(_) => debug!("Event forwarding timed out"),
+                    }
+                });
+            }
+            Self::None => {
+                debug!("Event sink unavailable: {:?}", event.event_type);
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Tool schema definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tool {
@@ -33,11 +82,11 @@ pub struct ToolHandler {
     storage: Arc<dyn StorageBackend>,
     llm: Arc<LlmService>,
     embeddings: Arc<EmbeddingService>,
-    event_broadcaster: Option<crate::api::EventBroadcaster>,
+    event_sink: EventSink,
 }
 
 impl ToolHandler {
-    /// Create a new tool handler
+    /// Create a new tool handler (no event broadcasting)
     pub fn new(
         storage: Arc<dyn StorageBackend>,
         llm: Arc<LlmService>,
@@ -47,22 +96,42 @@ impl ToolHandler {
             storage,
             llm,
             embeddings,
-            event_broadcaster: None,
+            event_sink: EventSink::None,
         }
     }
 
-    /// Create a new tool handler with event broadcasting
+    /// Create a new tool handler with event sink
+    pub fn new_with_event_sink(
+        storage: Arc<dyn StorageBackend>,
+        llm: Arc<LlmService>,
+        embeddings: Arc<EmbeddingService>,
+        event_sink: EventSink,
+    ) -> Self {
+        Self {
+            storage,
+            llm,
+            embeddings,
+            event_sink,
+        }
+    }
+
+    /// Create a new tool handler with event broadcasting (deprecated - use new_with_event_sink)
+    #[deprecated(note = "Use new_with_event_sink instead")]
     pub fn new_with_events(
         storage: Arc<dyn StorageBackend>,
         llm: Arc<LlmService>,
         embeddings: Arc<EmbeddingService>,
         event_broadcaster: Option<crate::api::EventBroadcaster>,
     ) -> Self {
+        let event_sink = match event_broadcaster {
+            Some(broadcaster) => EventSink::Local(broadcaster),
+            None => EventSink::None,
+        };
         Self {
             storage,
             llm,
             embeddings,
-            event_broadcaster,
+            event_sink,
         }
     }
 
@@ -448,12 +517,10 @@ impl ToolHandler {
             }
         }
 
-        // Emit event if broadcaster available
-        if let Some(broadcaster) = &self.event_broadcaster {
-            let event = crate::api::Event::memory_recalled(params.query.clone(), results.len());
-            if let Err(e) = broadcaster.broadcast(event) {
-                debug!("Failed to broadcast memory recalled event: {}", e);
-            }
+        // Emit event through event sink
+        let event = crate::api::Event::memory_recalled(params.query.clone(), results.len());
+        if let Err(e) = self.event_sink.emit(event).await {
+            warn!("Failed to emit memory recalled event: {}", e);
         }
 
         info!(
@@ -660,15 +727,13 @@ impl ToolHandler {
         // Store memory (with embedding)
         self.storage.store_memory(&memory).await?;
 
-        // Emit event if broadcaster available
-        if let Some(broadcaster) = &self.event_broadcaster {
-            let event = crate::api::Event::memory_stored(
-                memory.id.to_string(),
-                memory.summary.clone(),
-            );
-            if let Err(e) = broadcaster.broadcast(event) {
-                debug!("Failed to broadcast memory stored event: {}", e);
-            }
+        // Emit event through event sink
+        let event = crate::api::Event::memory_stored(
+            memory.id.to_string(),
+            memory.summary.clone(),
+        );
+        if let Err(e) = self.event_sink.emit(event).await {
+            warn!("Failed to emit memory stored event: {}", e);
         }
 
         info!(

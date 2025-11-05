@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::{convert::Infallible, net::SocketAddr, sync::Arc};
 use tokio_stream::{wrappers::BroadcastStream, StreamExt as _};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 /// API server configuration
 #[derive(Debug, Clone)]
@@ -92,6 +92,7 @@ impl ApiServer {
         Router::new()
             // Event streaming
             .route("/events", get(events_handler))
+            .route("/events/emit", post(emit_event_handler))
             // State endpoints
             .route("/state/agents", get(list_agents_handler))
             .route("/state/agents", post(update_agent_handler))
@@ -198,6 +199,25 @@ async fn events_handler(
     });
 
     Sse::new(event_stream).keep_alive(KeepAlive::default())
+}
+
+/// Emit event handler (for remote MCP servers to forward events)
+async fn emit_event_handler(
+    State(state): State<AppState>,
+    Json(event): Json<Event>,
+) -> StatusCode {
+    debug!("Received event from remote MCP server: {:?}", event.event_type);
+
+    match state.events.broadcast(event) {
+        Ok(_) => {
+            debug!("Event broadcast successful");
+            StatusCode::ACCEPTED
+        }
+        Err(e) => {
+            warn!("Failed to broadcast forwarded event: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        }
+    }
 }
 
 /// List agents handler
