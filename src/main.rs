@@ -604,43 +604,7 @@ async fn main() -> Result<()> {
             start_mcp_server(cli.db_path).await
         }
         Some(Commands::ApiServer { addr, capacity }) => {
-            use mnemosyne_core::api::{ApiServer, ApiServerConfig};
-            use std::net::SocketAddr;
-
-            debug!("Starting HTTP API server...");
-
-            let socket_addr: SocketAddr = addr
-                .parse()
-                .map_err(|e| anyhow::anyhow!("Invalid address '{}': {}", addr, e))?;
-            let config = ApiServerConfig {
-                addr: socket_addr,
-                event_capacity: capacity,
-            };
-
-            println!();
-            println!("🌐 Mnemosyne API Server");
-            println!("   Real-time event streaming and state coordination");
-            println!();
-            println!("   Address: http://{}", socket_addr);
-            println!("   Event capacity: {}", capacity);
-            println!();
-            println!("   Endpoints:");
-            println!("   • GET  /events - Server-Sent Events stream");
-            println!("   • GET  /state/agents - List active agents");
-            println!("   • POST /state/agents - Update agent state");
-            println!("   • GET  /state/context-files - List context files");
-            println!("   • POST /state/context-files - Update context file");
-            println!("   • GET  /state/stats - System statistics");
-            println!("   • GET  /health - Health check");
-            println!();
-            println!("   Dashboard:");
-            println!("   mnemosyne-dash --api http://{}", socket_addr);
-            println!();
-
-            let server = ApiServer::new(config);
-            server.serve().await?;
-
-            Ok(())
+            cli::api_server::handle(addr, capacity).await
         }
         Some(Commands::Init { database }) => {
             cli::init::handle(database, cli.db_path.clone()).await
