@@ -326,11 +326,11 @@ async fn run_app<B: ratatui::backend::Backend>(
 
             // Header
             let title = if app.connected {
-                "🎨 Mnemosyne Dashboard [Connected]"
+                format!("{} Mnemosyne Dashboard [Connected]", mnemosyne_core::icons::system::palette())
             } else {
-                "🎨 Mnemosyne Dashboard [Disconnected]"
+                format!("{} Mnemosyne Dashboard [Disconnected]", mnemosyne_core::icons::system::palette())
             };
-            let header = Paragraph::new(title)
+            let header = Paragraph::new(title.as_str())
                 .style(Style::default().fg(if app.connected {
                     Color::Green
                 } else {

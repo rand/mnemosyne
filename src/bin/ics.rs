@@ -274,7 +274,7 @@ async fn main() -> Result<()> {
 
     // Show launch banner
     println!();
-    println!("🎨 ICS - Integrated Context Studio");
+    println!("{} ICS - Integrated Context Studio", mnemosyne_core::icons::system::palette());
     println!("   AI-assisted context engineering for Claude Code");
     println!();
     println!("   Shortcuts:");

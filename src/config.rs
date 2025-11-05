@@ -429,7 +429,7 @@ impl ConfigManager {
     /// Interactive prompt to set API key (for CLI use)
     #[cfg(feature = "keyring-fallback")]
     pub fn prompt_and_set_api_key(&self) -> Result<()> {
-        println!("\n🔑 Mnemosyne API Key Setup");
+        println!("\n{} Mnemosyne API Key Setup", crate::icons::system::gear());
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         println!("\nMnemosyne uses Claude Haiku for memory intelligence.");
         println!("You need an Anthropic API key to use this feature.\n");
@@ -454,7 +454,7 @@ impl ConfigManager {
         }
 
         self.set_api_key(key)?;
-        println!("✓ API key securely saved!\n");
+        println!("{} API key securely saved!\n", crate::icons::status::success());
 
         Ok(())
     }

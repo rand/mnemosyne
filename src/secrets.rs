@@ -100,7 +100,8 @@ impl SecretsManager {
 
         info!("Encryption key generated and saved");
         println!(
-            "✓ Encryption key saved to: {}",
+            "{} Encryption key saved to: {}",
+            crate::icons::status::success(),
             self.identity_file.display()
         );
 
@@ -147,8 +148,8 @@ impl SecretsManager {
         // Encrypt and save secrets
         self.save_secrets(&secrets, &recipient)?;
 
-        println!("\n✓ Secrets encrypted and saved!");
-        println!("✓ Location: {}", self.secrets_file.display());
+        println!("\n{} Secrets encrypted and saved!", crate::icons::status::success());
+        println!("{} Location: {}", crate::icons::status::success(), self.secrets_file.display());
         println!("\nYou can update secrets anytime with: mnemosyne secrets set <KEY>");
 
         info!("Secrets initialization complete");
@@ -211,7 +212,7 @@ impl SecretsManager {
         self.save_secrets(&secrets, &recipient)?;
 
         info!("Secret '{}' updated", name);
-        println!("✓ Secret '{}' updated", name);
+        println!("{} Secret '{}' updated", crate::icons::status::success(), name);
 
         Ok(())
     }
