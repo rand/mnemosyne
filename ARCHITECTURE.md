@@ -1034,28 +1034,30 @@ mnemosyne-ics --readonly memory-dump.md     # View-only mode
 
 **File**: `src/bin/ics.rs` (300 lines)
 
-#### 2. mnemosyne serve --with-api
+#### 2. mnemosyne serve (Automatic API Server)
 
-**Purpose**: MCP server with optional HTTP API for monitoring
+**Purpose**: MCP server with automatic HTTP API for monitoring
 
 **Usage**:
 ```bash
 # Auto-launched by Claude Code (99% of users)
+# First instance runs as owner (starts API server)
+# Subsequent instances run as clients (forward events)
 mnemosyne serve
-
-# Manual launch with monitoring API
-mnemosyne serve --with-api
 ```
 
 **Features**:
 - JSON-RPC stdio protocol for Claude Code MCP
-- Optional HTTP API server on :3000
-- Real-time event broadcasting via SSE
+- Automatic HTTP API server on :3000 (or 3001-3010 if port unavailable)
+- Owner/client mode for multi-instance support
+- Real-time event broadcasting via SSE (owner) or HTTP POST (client)
+- Zero-configuration event forwarding across instances
 - Concurrent operation (tokio::select!)
 
 **Files**:
-- `src/mcp/tools.rs`: Event emission from recall/remember
-- `src/api/`: HTTP server, SSE, state management
+- `src/mcp/tools.rs`: EventSink enum, event emission from recall/remember
+- `src/api/server.rs`: HTTP server, SSE, POST /events/emit endpoint
+- `src/main.rs`: Owner/client mode detection, port binding logic
 
 #### 3. mnemosyne-dash (Real-time Monitoring)
 
@@ -1079,19 +1081,29 @@ mnemosyne-dash --api http://host:3000      # Custom API URL
 ### Event Streaming Architecture
 
 ```rust
-// MCP tools emit events
-if let Some(broadcaster) = &self.event_broadcaster {
-    let event = Event::memory_recalled(query, count);
-    broadcaster.broadcast(event)?;
+// EventSink enum for flexible event routing
+pub enum EventSink {
+    Local(EventBroadcaster),      // Owner mode: direct broadcast
+    Remote { client, api_url },   // Client mode: HTTP forward
+    None,                         // No API server available
 }
 
-// API server streams via SSE
+// MCP tools emit events via EventSink
+self.event_sink.emit(Event::memory_recalled(query, count)).await?;
+
+// Owner mode: API server broadcasts via SSE
 async fn events_handler(state: State<AppState>) -> Sse<...> {
     let rx = state.events.subscribe();
     Sse::new(stream)
 }
 
-// Dashboard consumes via SSE client
+// Client mode: Forward events via HTTP POST
+async fn emit_event_handler(state: State<AppState>, event: Json<Event>) -> StatusCode {
+    state.events.broadcast(event)?;
+    StatusCode::ACCEPTED
+}
+
+// Dashboard consumes via SSE client (all instances visible)
 spawn_sse_client(api_url, event_tx);
 app.process_events();  // Display in TUI
 ```
@@ -1100,28 +1112,30 @@ app.process_events();  // Display in TUI
 
 1. **Terminal Ownership**: Each tool owns its terminal completely
 2. **File-Based Context**: .claude/*.md files as handoff mechanism
-3. **Event Streaming**: HTTP SSE for real-time coordination
+3. **Event Streaming**: HTTP SSE for real-time coordination across instances
 4. **Unix Philosophy**: Do one thing well, compose via pipes/files
-5. **Optional Monitoring**: MCP works standalone, API is additive
+5. **Automatic Monitoring**: API server starts automatically, owner/client mode for multi-instance
+6. **Zero Configuration**: No flags required, port detection (3000-3010), event forwarding
 
 ### Migration Path
 
 **Before**:
 ```bash
 mnemosyne tui  # Broken TUI wrapper
+mnemosyne serve --with-api  # Manual flag required
 ```
 
 **After**:
 ```bash
-# 99% use case (automatic)
-claude
+# 99% use case (automatic, no configuration)
+claude  # First instance: owner mode (API server on :3000)
+        # Subsequent instances: client mode (events forwarded via HTTP POST)
 
 # Context editing (manual)
 mnemosyne-ics context.md
 
 # Monitoring (manual, optional)
-mnemosyne serve --with-api  # Terminal 1
-mnemosyne-dash              # Terminal 2
+mnemosyne-dash  # Automatically connects to localhost:3000
 ```
 
 ### Benefits

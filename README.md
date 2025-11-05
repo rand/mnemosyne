@@ -72,8 +72,8 @@ See [docs/guides/ICS_INTEGRATION.md](docs/guides/ICS_INTEGRATION.md) for complet
 
 ### Dashboard & Monitoring
 - **mnemosyne-dash**: Real-time monitoring dashboard with SSE event streaming
-- **HTTP API Server** (`:3000`): Optional REST API with `mnemosyne serve --with-api`
-- **Event Streaming**: Real-time coordination via SSE for monitoring
+- **HTTP API Server** (`:3000`): Automatic REST API with owner/client mode for multiple instances
+- **Event Streaming**: Real-time coordination via SSE for monitoring and cross-instance event forwarding
 
 ---
 
@@ -184,18 +184,17 @@ mnemosyne-ics --read-only path/to/dump.md
 
 **Real-time Monitoring Dashboard**:
 ```bash
-# Start API server with SSE event streaming
-mnemosyne serve --with-api
-
-# In another terminal, launch monitoring dashboard
+# API server starts automatically with first MCP instance (owner mode)
+# Launch monitoring dashboard (connects to http://localhost:3000 by default)
 mnemosyne-dash
 
 # Features:
-# - Live agent activity display
+# - Live agent activity display across all MCP instances
 # - Color-coded agent states
 # - System statistics (memory, CPU, context usage)
 # - Event log with scrollback and filtering
 # - Auto-reconnect on disconnect
+# - Automatic port detection (3000-3010)
 ```
 
 **TUI Wrapper Mode** (Deprecated in v2.1.0):
@@ -338,34 +337,46 @@ mnemosyne-dash [OPTIONS]
   --api-url <URL>       API server URL (default: http://localhost:3000)
   --refresh-rate <MS>   Update interval (default: 100ms)
 
-# Prerequisites:
-# Start API server first: mnemosyne serve --with-api
+# API server starts automatically with first MCP instance
+# No manual startup required
 
 # Features:
-# • Live agent activity via SSE
+# • Live agent activity via SSE across all MCP instances
 # • Color-coded agent states
 # • System statistics (memory, CPU, context)
 # • Event log with scrollback
 # • Auto-reconnect on disconnect
 ```
 
-### API Server
+### API Server (Automatic)
 ```bash
-# Start MCP server with HTTP API
-mnemosyne serve --with-api [OPTIONS]
-  --api-port <PORT>     API server port (default: 3000)
-  --cors-origins <URL>  CORS allowed origins
+# MCP server automatically starts HTTP API on first instance (owner mode)
+# Subsequent instances connect as clients and forward events via HTTP
+mnemosyne serve
+
+# Owner mode (first instance):
+# • Binds port 3000 (or 3001-3010 if 3000 unavailable)
+# • Starts API server with SSE event streaming
+# • Broadcasts events locally
+
+# Client mode (subsequent instances):
+# • Detects existing API server via health check
+# • Forwards events via POST /events/emit
+# • No port conflicts - seamless multi-instance support
 
 # Endpoints:
-# GET  /api/agents          List agent states
-# GET  /api/context         Current context state
-# GET  /api/events/stream   SSE event stream (real-time)
+# GET  /health                Health check (used for auto-detection)
+# GET  /events                SSE event stream (real-time)
+# POST /events/emit           Event forwarding (client mode)
+# GET  /state/agents          List agent states
+# GET  /state/context-files   Context files across instances
 
 # Features:
-# • REST API with Axum
-# • Server-Sent Events (SSE) for real-time updates
+# • Automatic owner/client mode detection
+# • Zero-configuration multi-instance support
+# • Event forwarding via HTTP POST (100ms timeout, fire-and-forget)
+# • REST API with Axum + Server-Sent Events (SSE)
 # • CORS support for web clients
-# • Concurrent with MCP server (tokio::select!)
 ```
 
 ### TUI (Terminal User Interface) - Deprecated
