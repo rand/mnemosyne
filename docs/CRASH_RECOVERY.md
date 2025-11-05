@@ -312,13 +312,40 @@ pkill -t "$(basename $(tty))"
 5. **Test Isolation**: Run tests in separate process groups
 6. **Terminal Safety**: Detect terminal type and disable ANSI codes if needed
 
+## Resolution
+
+**Issue Resolved**: 2025-11-05 (Commit 87b7a33)
+
+After implementing the terminal corruption fixes (eec1a33, 048f26d), a new issue emerged:
+
+**Problem**: File descriptor leak causing EIO error (errno -5) on fd 17 during hook execution.
+
+**Root Cause**: Subprocess calls in hooks (uuidgen, date, mnemosyne, jq) were inheriting file descriptors from parent process without proper stdin protection.
+
+**Solution**: Added explicit stdin protection to all subprocess invocations:
+- Commands not reading stdin: Added `< /dev/null`
+- jq reading files: Changed to `jq ... < "$FILE"` pattern
+- jq in pipes: Left unchanged (pipe is stdin)
+
+**Files Fixed**:
+- `.claude/hooks/session-start.sh` (4 changes)
+- `.claude/hooks/post-tool-use.sh` (5 changes)
+- `.claude/hooks/on-stop.sh` (2 changes)
+
+**Validation**: Comprehensive test cycle with 689 passing unit tests and 12 specialized FD safety tests confirmed complete resolution. See [FD_LEAK_FIX_TEST_RESULTS.md](FD_LEAK_FIX_TEST_RESULTS.md) for full test report.
+
+**System Status**: ✅ **Stable** - All issues resolved, no regressions detected.
+
+---
+
 ## References
 
 - [iTerm2 Terminal Corruption Issues](https://github.com/zsh-users/zsh-autosuggestions/issues/107)
 - [Bash Background Process Best Practices](https://stackoverflow.com/questions/48446853/preventing-background-process-from-writing-to-console)
 - [Proper Process Daemonization](https://technology.amis.nl/tech/linux-background-process-and-redirecting-the-standard-input-output-and-error-stream/)
+- [FD Leak Fix Test Results](FD_LEAK_FIX_TEST_RESULTS.md) - Comprehensive validation report
 
 ---
 
 **Last Updated**: 2025-11-05
-**Status**: Active recovery procedures documented
+**Status**: ✅ All issues resolved and validated
