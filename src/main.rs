@@ -962,8 +962,9 @@ async fn main() -> Result<()> {
 
     // Build filter: use specified level for mnemosyne, but WARN for noisy external crates
     // Suppress tokio broadcast channel "recv error" spam from SSE disconnections
+    // Suppress iroh netcheck probe warnings during shutdown (expected when cancelling background tasks)
     let filter = EnvFilter::new(format!(
-        "mnemosyne={},iroh=warn,iroh_net=warn,tokio::sync::broadcast=error,tokio_stream=error",
+        "mnemosyne={},iroh=warn,iroh_net=warn,iroh::net::magicsock=error,tokio::sync::broadcast=error,tokio_stream=error",
         level.as_str().to_lowercase()
     ));
 

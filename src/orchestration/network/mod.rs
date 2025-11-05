@@ -74,9 +74,11 @@ impl NetworkLayer {
             return Ok(());
         }
 
-        tracing::info!("Stopping network layer");
+        tracing::debug!("Stopping network layer");
 
         // Close endpoint
+        // Note: Iroh may log warnings about closed channels during shutdown.
+        // These are expected and harmless (background STUN probes being cancelled).
         {
             let mut ep = self.endpoint.write().await;
             if let Some(endpoint) = ep.take() {
@@ -86,7 +88,7 @@ impl NetworkLayer {
 
         *started = false;
 
-        tracing::info!("Network layer stopped");
+        tracing::debug!("Network layer stopped");
         Ok(())
     }
 
