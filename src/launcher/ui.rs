@@ -18,7 +18,7 @@ const BANNER: &str = r#"
 "#;
 
 /// Tagline displayed below banner
-const TAGLINE: &str = "Agentic Memory for Claude Code";
+const TAGLINE: &str = "Intelligent Agentic Memory and Orchestration";
 
 /// Playful loading messages shown during initialization
 const LOADING_MESSAGES: &[&str] = &[
@@ -44,6 +44,18 @@ const LOADING_MESSAGES: &[&str] = &[
     "Awakening neural ensembles",
     "Crystallizing insights",
     "Tuning attention mechanisms",
+];
+
+/// Fun glyphs for transition animation (Nerd Font icons)
+const TRANSITION_GLYPHS: &[&str] = &[
+    "\u{f0eb}", // fa-lightbulb
+    "\u{f135}", // fa-rocket
+    "\u{f0e7}", // fa-bolt (lightning)
+    "\u{f005}", // fa-star
+    "\u{f021}", // fa-refresh (sync)
+    "\u{f013}", // fa-gear
+    "\u{f5dc}", // md-brain
+    "\u{f0c1}", // fa-link
 ];
 
 /// ANSI color codes for banner gradient
@@ -124,6 +136,108 @@ impl LaunchProgress {
         }
         print!("\r"); // Clear the line
         io::stdout().flush().ok();
+    }
+
+    /// Display 3 lines of loading messages, each randomizing independently before settling
+    pub fn show_multiline_loading(&self) {
+        let mut rng = rand::thread_rng();
+
+        // Prepare 3 separate message pools
+        let mut messages1 = LOADING_MESSAGES.to_vec();
+        let mut messages2 = LOADING_MESSAGES.to_vec();
+        let mut messages3 = LOADING_MESSAGES.to_vec();
+        messages1.shuffle(&mut rng);
+        messages2.shuffle(&mut rng);
+        messages3.shuffle(&mut rng);
+
+        // Pick final messages (different for each line)
+        let final1 = messages1[0];
+        let final2 = messages2[0];
+        let final3 = messages3[0];
+
+        // Number of randomization cycles per line (~250ms total at 50ms/cycle)
+        let cycles_per_line = 5;
+
+        // Animate all 3 lines simultaneously
+        for cycle in 0..cycles_per_line {
+            // Move cursor up to overwrite previous lines (except first cycle)
+            if cycle > 0 {
+                print!("\x1b[3A"); // ANSI escape: move cursor up 3 lines
+            }
+
+            let msg1 = if cycle < cycles_per_line - 1 {
+                messages1[cycle % messages1.len()]
+            } else {
+                final1
+            };
+            let msg2 = if cycle < cycles_per_line - 1 {
+                messages2[cycle % messages2.len()]
+            } else {
+                final2
+            };
+            let msg3 = if cycle < cycles_per_line - 1 {
+                messages3[cycle % messages3.len()]
+            } else {
+                final3
+            };
+
+            // Print lines with padding to clear previous content
+            println!(
+                "\r   {}  {}...{}",
+                icons::system::gear(),
+                msg1,
+                " ".repeat(50)
+            );
+            println!(
+                "\r   {}  {}...{}",
+                icons::system::gear(),
+                msg2,
+                " ".repeat(50)
+            );
+            println!(
+                "\r   {}  {}...{}",
+                icons::system::gear(),
+                msg3,
+                " ".repeat(50)
+            );
+
+            io::stdout().flush().ok();
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    }
+
+    /// Show animated glyph transition between mnemosyne and Claude Code UI
+    pub fn show_transition(&self) {
+        println!(); // Blank line after loading messages
+        println!(); // Second blank line
+
+        let gradient_colors = [
+            colors::BRIGHT_BLUE,
+            colors::CYAN,
+            colors::BRIGHT_MAGENTA,
+            colors::MAGENTA,
+            colors::YELLOW,
+        ];
+
+        // Animate glyphs cycling through colors
+        for cycle in 0..8 {
+            print!("\r   ");
+
+            for i in 0..6 {
+                let glyph_idx = (cycle + i) % TRANSITION_GLYPHS.len();
+                let color = gradient_colors[i % gradient_colors.len()];
+                print!("{}{} ", color, TRANSITION_GLYPHS[glyph_idx]);
+            }
+
+            print!("{}", colors::RESET);
+            io::stdout().flush().ok();
+            std::thread::sleep(std::time::Duration::from_millis(60));
+        }
+
+        // Clear the line and add spacing
+        println!("\r{}", " ".repeat(80));
+        println!(); // Blank space before Claude Code UI
+        println!(); // Extra blank space
     }
 
     /// Clear the current line and show completion

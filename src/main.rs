@@ -2938,9 +2938,10 @@ For more information, see: docs/specs/specification-artifacts.md
             info!("Dashboard available at: http://{}", socket_addr);
             info!("Run 'mnemosyne-dash' in another terminal to monitor activity");
 
-            // Show playful loading messages cycling
+            // Show playful loading messages with 3-line animation
             let progress = launcher::ui::LaunchProgress::new();
-            progress.cycle_loading_messages(4);
+            progress.show_multiline_loading();
+            progress.show_transition();
 
             // Launch orchestrated session with event broadcasting and state management
             let result = launcher::launch_orchestrated_session(
