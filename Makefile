@@ -27,7 +27,7 @@ help:
 
 # Build release binary (suppresses warnings for clean output)
 build:
-	@RUSTFLAGS="-A warnings" cargo build --release 2>&1 | grep -v "^warning:" || true
+	@RUSTFLAGS="-A warnings" cargo build --release
 
 # Build with warnings visible (for development)
 build-verbose:
