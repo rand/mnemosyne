@@ -195,7 +195,7 @@ impl Event {
 }
 
 /// Event broadcaster using tokio broadcast channel
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct EventBroadcaster {
     tx: broadcast::Sender<Event>,
 }

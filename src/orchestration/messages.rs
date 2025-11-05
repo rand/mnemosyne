@@ -37,6 +37,10 @@ pub enum OrchestratorMessage {
         executor: ractor::ActorRef<ExecutorMessage>,
     },
 
+    /// Register event broadcaster for real-time observability
+    #[serde(skip)]
+    RegisterEventBroadcaster(crate::api::EventBroadcaster),
+
     /// Submit a new work item to the queue
     SubmitWork(WorkItem),
 
@@ -86,6 +90,10 @@ pub enum OptimizerMessage {
     /// Register orchestrator reference for communication
     #[serde(skip)]
     RegisterOrchestrator(ractor::ActorRef<OrchestratorMessage>),
+
+    /// Register event broadcaster for real-time observability
+    #[serde(skip)]
+    RegisterEventBroadcaster(crate::api::EventBroadcaster),
 
     /// Discover skills for a task description
     DiscoverSkills {
@@ -163,6 +171,10 @@ pub enum ReviewerMessage {
     #[serde(skip)]
     RegisterOrchestrator(ractor::ActorRef<OrchestratorMessage>),
 
+    /// Register event broadcaster for real-time observability
+    #[serde(skip)]
+    RegisterEventBroadcaster(crate::api::EventBroadcaster),
+
     /// Register Python reviewer for LLM validation (feature-gated)
     #[cfg(feature = "python")]
     #[serde(skip)]
@@ -191,6 +203,14 @@ pub enum ExecutorMessage {
     /// Initialize executor
     Initialize,
 
+    /// Register event broadcaster for real-time observability
+    #[serde(skip)]
+    RegisterEventBroadcaster(crate::api::EventBroadcaster),
+
+    /// Register orchestrator reference (for sub-agents)
+    #[serde(skip)]
+    RegisterOrchestrator(ractor::ActorRef<OrchestratorMessage>),
+
     /// Execute a work item
     ExecuteWork(WorkItem),
 
@@ -202,10 +222,6 @@ pub enum ExecutorMessage {
         item_id: WorkItemId,
         result: WorkResult,
     },
-
-    /// Register orchestrator reference (for sub-agents)
-    #[serde(skip)]
-    RegisterOrchestrator(ractor::ActorRef<OrchestratorMessage>),
 }
 
 /// Generic agent message envelope for unified handling

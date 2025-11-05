@@ -368,6 +368,63 @@ impl SupervisionTree {
             tracing::debug!("Agents wired: Full mesh topology established");
         }
 
+        // Register event broadcaster with all actors for real-time observability
+        if let Some(broadcaster) = &self.event_broadcaster {
+            tracing::debug!("Registering event broadcaster with all actors");
+
+            // Register with Orchestrator
+            if let Some(ref orchestrator) = self.orchestrator {
+                orchestrator
+                    .cast(OrchestratorMessage::RegisterEventBroadcaster(
+                        broadcaster.clone(),
+                    ))
+                    .map_err(|e| {
+                        tracing::warn!("Failed to register broadcaster with Orchestrator: {:?}", e);
+                        crate::error::MnemosyneError::ActorError(e.to_string())
+                    })?;
+            }
+
+            // Register with Optimizer
+            if let Some(ref optimizer) = self.optimizer {
+                optimizer
+                    .cast(OptimizerMessage::RegisterEventBroadcaster(
+                        broadcaster.clone(),
+                    ))
+                    .map_err(|e| {
+                        tracing::warn!("Failed to register broadcaster with Optimizer: {:?}", e);
+                        crate::error::MnemosyneError::ActorError(e.to_string())
+                    })?;
+            }
+
+            // Register with Reviewer
+            if let Some(ref reviewer) = self.reviewer {
+                reviewer
+                    .cast(ReviewerMessage::RegisterEventBroadcaster(
+                        broadcaster.clone(),
+                    ))
+                    .map_err(|e| {
+                        tracing::warn!("Failed to register broadcaster with Reviewer: {:?}", e);
+                        crate::error::MnemosyneError::ActorError(e.to_string())
+                    })?;
+            }
+
+            // Register with Executor
+            if let Some(ref executor) = self.executor {
+                executor
+                    .cast(ExecutorMessage::RegisterEventBroadcaster(
+                        broadcaster.clone(),
+                    ))
+                    .map_err(|e| {
+                        tracing::warn!("Failed to register broadcaster with Executor: {:?}", e);
+                        crate::error::MnemosyneError::ActorError(e.to_string())
+                    })?;
+            }
+
+            tracing::info!("Event broadcaster registered with all 4 actors");
+        } else {
+            tracing::debug!("No event broadcaster available, skipping registration");
+        }
+
         tracing::debug!("Supervision tree started with {} agents", 4);
 
         Ok(())

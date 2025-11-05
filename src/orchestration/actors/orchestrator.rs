@@ -72,6 +72,16 @@ impl OrchestratorState {
         self.reviewer = Some(reviewer);
         self.executor = Some(executor);
     }
+
+    /// Register event broadcaster for real-time observability
+    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, storage: Arc<dyn StorageBackend>, namespace: Namespace) {
+        // Reconstruct EventPersistence with broadcaster
+        self.events = EventPersistence::new_with_broadcaster(
+            storage,
+            namespace,
+            Some(broadcaster),
+        );
+    }
 }
 
 /// Orchestrator actor implementation
@@ -691,6 +701,11 @@ impl Actor for OrchestratorActor {
                 tracing::debug!("Registering agent references with Orchestrator");
                 state.register_agents(optimizer, reviewer, executor);
                 tracing::debug!("Agents wired: Optimizer, Reviewer, Executor");
+            }
+            OrchestratorMessage::RegisterEventBroadcaster(broadcaster) => {
+                tracing::debug!("Registering event broadcaster with Orchestrator");
+                state.register_event_broadcaster(broadcaster, self.storage.clone(), self.namespace.clone());
+                tracing::info!("Event broadcaster registered with Orchestrator - events will now be broadcast");
             }
             OrchestratorMessage::SubmitWork(item) => {
                 Self::handle_submit_work(state, item)

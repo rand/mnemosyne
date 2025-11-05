@@ -54,6 +54,16 @@ impl ExecutorState {
     pub fn register_orchestrator(&mut self, orchestrator: ActorRef<OrchestratorMessage>) {
         self.orchestrator = Some(orchestrator);
     }
+
+    /// Register event broadcaster for real-time observability
+    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, namespace: Namespace) {
+        // Reconstruct EventPersistence with broadcaster
+        self.events = EventPersistence::new_with_broadcaster(
+            self.storage.clone(),
+            namespace,
+            Some(broadcaster),
+        );
+    }
 }
 
 /// Executor actor implementation
@@ -247,6 +257,15 @@ impl Actor for ExecutorActor {
             ExecutorMessage::Initialize => {
                 tracing::debug!("Executor initialized");
             }
+            ExecutorMessage::RegisterEventBroadcaster(broadcaster) => {
+                tracing::debug!("Registering event broadcaster with Executor");
+                state.register_event_broadcaster(broadcaster, self.namespace.clone());
+                tracing::info!("Event broadcaster registered with Executor - events will now be broadcast");
+            }
+            ExecutorMessage::RegisterOrchestrator(orchestrator_ref) => {
+                tracing::debug!("Registering orchestrator reference");
+                state.register_orchestrator(orchestrator_ref);
+            }
             ExecutorMessage::ExecuteWork(item) => {
                 Self::execute_work(state, item)
                     .await
@@ -261,10 +280,6 @@ impl Actor for ExecutorActor {
                 Self::handle_sub_agent_completed(state, item_id, result)
                     .await
                     .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
-            }
-            ExecutorMessage::RegisterOrchestrator(orchestrator_ref) => {
-                tracing::debug!("Registering orchestrator reference");
-                state.register_orchestrator(orchestrator_ref);
             }
         }
 

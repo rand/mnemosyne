@@ -109,6 +109,16 @@ impl OptimizerState {
         self.orchestrator = Some(orchestrator);
     }
 
+    /// Register event broadcaster for real-time observability
+    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, namespace: Namespace) {
+        // Reconstruct EventPersistence with broadcaster
+        self.events = EventPersistence::new_with_broadcaster(
+            self.storage.clone(),
+            namespace,
+            Some(broadcaster),
+        );
+    }
+
     /// Register DSPy adapter for intelligent optimization
     #[cfg(feature = "python")]
     pub fn register_optimizer_adapter(&mut self, adapter: Arc<OptimizerDSpyAdapter>) {
@@ -810,6 +820,11 @@ impl Actor for OptimizerActor {
             OptimizerMessage::RegisterOrchestrator(orchestrator_ref) => {
                 tracing::debug!("Registering orchestrator reference with Optimizer");
                 state.orchestrator = Some(orchestrator_ref);
+            }
+            OptimizerMessage::RegisterEventBroadcaster(broadcaster) => {
+                tracing::debug!("Registering event broadcaster with Optimizer");
+                state.register_event_broadcaster(broadcaster, self.namespace.clone());
+                tracing::info!("Event broadcaster registered with Optimizer - events will now be broadcast");
             }
             OptimizerMessage::DiscoverSkills {
                 task_description,

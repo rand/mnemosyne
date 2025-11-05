@@ -245,6 +245,16 @@ impl ReviewerState {
         self.orchestrator = Some(orchestrator);
     }
 
+    /// Register event broadcaster for real-time observability
+    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, namespace: Namespace) {
+        // Reconstruct EventPersistence with broadcaster
+        self.events = EventPersistence::new_with_broadcaster(
+            self.storage.clone(),
+            namespace,
+            Some(broadcaster),
+        );
+    }
+
     /// Register DSPy instrumentation layer for LLM-based validation with telemetry
     #[cfg(feature = "python")]
     pub fn register_dspy_bridge(&mut self, instrumentation: Arc<DSpyInstrumentation>) {
@@ -1261,6 +1271,11 @@ impl Actor for ReviewerActor {
                 tracing::info!("Registering Python reviewer for LLM validation");
                 #[allow(deprecated)]
                 state.register_py_reviewer(py_reviewer);
+            }
+            ReviewerMessage::RegisterEventBroadcaster(broadcaster) => {
+                tracing::debug!("Registering event broadcaster with Reviewer");
+                state.register_event_broadcaster(broadcaster, self.namespace.clone());
+                tracing::info!("Event broadcaster registered with Reviewer - events will now be broadcast");
             }
             ReviewerMessage::ReviewWork {
                 item_id,
