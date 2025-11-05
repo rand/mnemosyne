@@ -237,6 +237,127 @@ show_build_error() {
     echo ""
 }
 
+# Detect if Nerd Fonts are installed
+detect_nerd_fonts() {
+    if command -v fc-list &> /dev/null; then
+        # Linux/Unix with fontconfig
+        if fc-list | grep -iq "nerd\|JetBrains.*Mono.*Nerd\|FiraCode.*Nerd"; then
+            return 0
+        fi
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        if ls ~/Library/Fonts/*Nerd* 2>/dev/null | grep -q . || \
+           ls /Library/Fonts/*Nerd* 2>/dev/null | grep -q . || \
+           ls ~/Library/Fonts/JetBrains*Mono* 2>/dev/null | grep -q .; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# Offer to install Nerd Fonts
+install_nerd_fonts() {
+    print_header "Nerd Fonts Detection"
+
+    if detect_nerd_fonts; then
+        print_success "Nerd Fonts detected"
+        echo "  Mnemosyne will use beautiful icons in terminal output"
+        echo ""
+        return 0
+    fi
+
+    print_warning "Nerd Fonts not detected"
+    echo ""
+    echo "Mnemosyne uses Nerd Font icons for elegant terminal UI."
+    echo "Without them, ASCII fallbacks will be used (still fully functional)."
+    echo ""
+
+    if [[ "$AUTO_YES" == "true" ]]; then
+        echo "Running in non-interactive mode, skipping font installation"
+        echo "See https://www.nerdfonts.com/ for manual installation"
+        echo ""
+        return 1
+    fi
+
+    if ! prompt_yes_no "Install JetBrains Mono Nerd Font? (recommended)" "y"; then
+        echo "Skipping font installation"
+        echo ""
+        echo "To install later:"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            echo "  ${BOLD}brew tap homebrew/cask-fonts${NC}"
+            echo "  ${BOLD}brew install --cask font-jetbrains-mono-nerd-font${NC}"
+        elif command -v pacman &> /dev/null; then
+            echo "  ${BOLD}sudo pacman -S ttf-jetbrains-mono-nerd${NC}"
+        elif command -v apt-get &> /dev/null; then
+            echo "  Visit: ${BOLD}https://www.nerdfonts.com/font-downloads${NC}"
+        fi
+        echo ""
+        return 1
+    fi
+
+    # Install based on platform
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if ! command -v brew &> /dev/null; then
+            print_error "Homebrew not found. Please install from https://brew.sh"
+            return 1
+        fi
+
+        echo "Installing via Homebrew..."
+        brew tap homebrew/cask-fonts 2>/dev/null || true
+        if brew install --cask font-jetbrains-mono-nerd-font; then
+            print_success "Font installed successfully"
+            echo ""
+            print_warning "Please configure your terminal to use 'JetBrainsMono Nerd Font'"
+            echo "  - iTerm2: Preferences → Profiles → Text → Font"
+            echo "  - Terminal.app: Preferences → Profiles → Font"
+            echo ""
+
+            # Set environment variable for this session
+            export NERD_FONTS=1
+            return 0
+        else
+            print_error "Font installation failed"
+            return 1
+        fi
+
+    elif command -v pacman &> /dev/null; then
+        echo "Installing via pacman..."
+        if sudo pacman -S --noconfirm ttf-jetbrains-mono-nerd; then
+            print_success "Font installed successfully"
+            export NERD_FONTS=1
+            return 0
+        else
+            print_error "Font installation failed"
+            return 1
+        fi
+
+    elif command -v apt-get &> /dev/null; then
+        echo "Downloading JetBrains Mono Nerd Font..."
+
+        mkdir -p ~/.local/share/fonts
+        cd ~/.local/share/fonts || return 1
+
+        if curl -fLo "JetBrainsMono.zip" \
+          https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/JetBrainsMono.zip; then
+            unzip -o JetBrainsMono.zip
+            rm JetBrainsMono.zip
+            fc-cache -fv > /dev/null 2>&1
+            print_success "Font installed successfully"
+            export NERD_FONTS=1
+            return 0
+        else
+            print_error "Download failed"
+            return 1
+        fi
+
+    else
+        echo "Automated installation not available for your platform"
+        echo "Please visit: ${BOLD}https://www.nerdfonts.com/font-downloads${NC}"
+        echo ""
+        return 1
+    fi
+}
+
 # Check prerequisites
 check_prerequisites() {
     print_header "Checking prerequisites"
@@ -789,6 +910,7 @@ main() {
     install_binary
     init_database
     configure_api_key
+    install_nerd_fonts
     configure_mcp
     configure_hooks
     verify_installation
