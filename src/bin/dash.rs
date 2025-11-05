@@ -353,15 +353,27 @@ async fn run_app<B: ratatui::backend::Backend>(
                     .rev()
                     .take(chunks[1].height as usize - 2)
                     .map(|e| {
-                        // Color code events
+                        // Color code events by priority and type
                         let color = if e.contains("session_started") {
                             Color::Green
                         } else if e.contains("heartbeat") {
                             Color::Blue
-                        } else if e.contains("error") || e.contains("failed") {
-                            Color::Red
+                        } else if e.contains("deadlock_detected") {
+                            Color::Red  // Critical: deadlock detected
+                        } else if e.contains("review_failed") {
+                            Color::LightRed  // Warning: quality gate failure
+                        } else if e.contains("error") || e.contains("failed") || e.contains("agent_failed") {
+                            Color::Red  // Error conditions
+                        } else if e.contains("phase_changed") {
+                            Color::Magenta  // Important: workflow phase transition
+                        } else if e.contains("work_item_retried") {
+                            Color::Yellow  // Notice: retry attempt
+                        } else if e.contains("context_checkpointed") {
+                            Color::Cyan  // Info: context optimization
+                        } else if e.contains("agent_started") || e.contains("agent_completed") {
+                            Color::LightGreen  // Success: agent lifecycle
                         } else {
-                            Color::White
+                            Color::White  // Default
                         };
                         ListItem::new(Line::from(vec![
                             Span::styled(e, Style::default().fg(color))
