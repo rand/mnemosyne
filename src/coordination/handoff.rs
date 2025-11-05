@@ -344,4 +344,160 @@ mod tests {
         assert!(!temp_dir.path().join("edit-intent.json").exists());
         assert!(!temp_dir.path().join("edit-result.json").exists());
     }
+
+    #[tokio::test]
+    async fn test_timeout_on_missing_result() {
+        let temp_dir = TempDir::new().unwrap();
+        let coordinator = HandoffCoordinator::new(temp_dir.path().to_path_buf()).unwrap();
+
+        // Don't write result file - timeout should occur
+        let result = coordinator.read_result(Duration::from_millis(500)).await;
+
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Timeout") || err_msg.contains("timeout"));
+    }
+
+    #[tokio::test]
+    async fn test_malformed_json_recovery() {
+        let temp_dir = TempDir::new().unwrap();
+        let coordinator = HandoffCoordinator::new(temp_dir.path().to_path_buf()).unwrap();
+
+        // Write malformed JSON initially
+        let result_path = temp_dir.path().join("edit-result.json");
+        std::fs::write(&result_path, "{ invalid json }").unwrap();
+
+        // Spawn task to write valid JSON after a delay
+        let result_path_clone = result_path.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            let valid_result = EditResult {
+                session_id: "test".to_string(),
+                timestamp: chrono::Utc::now(),
+                status: "completed".to_string(),
+                file_path: PathBuf::from("/tmp/test.md"),
+                changes_made: true,
+                exit_reason: ExitReason::UserSaved,
+                analysis: None,
+                error: None,
+            };
+            let json = serde_json::to_string_pretty(&valid_result).unwrap();
+            std::fs::write(&result_path_clone, json).unwrap();
+        });
+
+        // Should eventually succeed when valid JSON is written
+        let result = coordinator.read_result(Duration::from_secs(2)).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().session_id, "test");
+    }
+
+    #[test]
+    fn test_concurrent_coordinators() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let temp_dir = TempDir::new().unwrap();
+        let dir_path = Arc::new(temp_dir.path().to_path_buf());
+
+        // Spawn multiple threads with separate coordinators
+        let handles: Vec<_> = (0..5)
+            .map(|i| {
+                let dir = Arc::clone(&dir_path);
+                thread::spawn(move || {
+                    let coordinator = HandoffCoordinator::new((*dir).clone()).unwrap();
+
+                    let intent = EditIntent {
+                        session_id: format!("session-{}", i),
+                        timestamp: chrono::Utc::now(),
+                        action: "edit".to_string(),
+                        file_path: PathBuf::from(format!("/tmp/test-{}.md", i)),
+                        template: None,
+                        readonly: false,
+                        panel: None,
+                        context: EditContext {
+                            conversation_summary: format!("Thread {}", i),
+                            relevant_memories: vec![],
+                            related_files: vec![],
+                        },
+                    };
+
+                    // Each thread writes its own intent
+                    // (In real usage, each would have separate session dirs)
+                    coordinator.write_intent(&intent).unwrap();
+
+                    // Small delay
+                    thread::sleep(Duration::from_millis(10));
+
+                    // Verify can read back
+                    let read_intent = coordinator.read_intent().unwrap();
+                    assert!(read_intent.session_id.starts_with("session-"));
+                })
+            })
+            .collect();
+
+        // Wait for all threads
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn test_auto_create_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let session_dir = temp_dir.path().join("nonexistent").join("sessions");
+
+        // Directory doesn't exist yet
+        assert!(!session_dir.exists());
+
+        // Creating coordinator should create it
+        let coordinator = HandoffCoordinator::new(session_dir.clone()).unwrap();
+        assert!(session_dir.exists());
+
+        // Should be able to write files
+        let intent = EditIntent {
+            session_id: "test".to_string(),
+            timestamp: chrono::Utc::now(),
+            action: "edit".to_string(),
+            file_path: PathBuf::from("/tmp/test.md"),
+            template: None,
+            readonly: false,
+            panel: None,
+            context: EditContext {
+                conversation_summary: "Test".to_string(),
+                relevant_memories: vec![],
+                related_files: vec![],
+            },
+        };
+
+        coordinator.write_intent(&intent).unwrap();
+        assert!(session_dir.join("edit-intent.json").exists());
+    }
+
+    #[test]
+    fn test_missing_intent_file_error() {
+        let temp_dir = TempDir::new().unwrap();
+        let coordinator = HandoffCoordinator::new(temp_dir.path().to_path_buf()).unwrap();
+
+        // Try to read intent when file doesn't exist
+        let result = coordinator.read_intent();
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Failed to read intent"));
+    }
+
+    #[test]
+    fn test_malformed_intent_json() {
+        let temp_dir = TempDir::new().unwrap();
+        let coordinator = HandoffCoordinator::new(temp_dir.path().to_path_buf()).unwrap();
+
+        // Write invalid JSON
+        let intent_path = temp_dir.path().join("edit-intent.json");
+        std::fs::write(&intent_path, "{ this is not valid json }").unwrap();
+
+        // Try to read it
+        let result = coordinator.read_intent();
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Failed to parse"));
+    }
 }
