@@ -494,15 +494,15 @@ async fn check_performance(storage: &LibsqlStorage, _verbose: bool) -> Result<Ve
 
 /// Print health summary to console
 pub fn print_health_summary(summary: &HealthSummary, verbose: bool) {
-    println!("🏥 Mnemosyne Health Check");
+    println!("{} Mnemosyne Health Check", crate::icons::system::gear());
     println!("━━━━━━━━━━━━━━━━━━━━━━━━");
     println!();
 
     for check in &summary.checks {
         let icon = match check.status {
-            CheckStatus::Pass => "✅",
-            CheckStatus::Warn => "⚠️ ",
-            CheckStatus::Fail => "❌",
+            CheckStatus::Pass => crate::icons::status::success(),
+            CheckStatus::Warn => crate::icons::status::warning(),
+            CheckStatus::Fail => crate::icons::status::error(),
         };
 
         let status_text = match check.status {
@@ -527,9 +527,9 @@ pub fn print_health_summary(summary: &HealthSummary, verbose: bool) {
     println!(
         "Overall: {} ({} passed, {} warnings, {} errors)",
         match summary.status {
-            CheckStatus::Pass => "✅ HEALTHY",
-            CheckStatus::Warn => "⚠️  WARNINGS",
-            CheckStatus::Fail => "❌ ERRORS",
+            CheckStatus::Pass => format!("{} HEALTHY", crate::icons::status::success()),
+            CheckStatus::Warn => format!("{}  WARNINGS", crate::icons::status::warning()),
+            CheckStatus::Fail => format!("{} ERRORS", crate::icons::status::error()),
         },
         summary.summary.passed,
         summary.summary.warnings,
