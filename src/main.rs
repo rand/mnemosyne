@@ -229,7 +229,7 @@ enum Commands {
     /// Manage encrypted secrets
     Secrets {
         #[command(subcommand)]
-        command: SecretsCommand,
+        command: cli::secrets::SecretsCommand,
     },
 
     /// Launch multi-agent orchestration system
@@ -504,34 +504,6 @@ enum ArtifactCommands {
     },
 }
 
-
-#[derive(Subcommand)]
-enum SecretsCommand {
-    /// Initialize secrets (first-time setup)
-    Init,
-
-    /// Set a secret value
-    Set {
-        /// Secret name (e.g., ANTHROPIC_API_KEY)
-        name: String,
-
-        /// Value (optional, will prompt if not provided)
-        #[arg(short, long)]
-        value: Option<String>,
-    },
-
-    /// Get a secret value (for testing)
-    Get {
-        /// Secret name
-        name: String,
-    },
-
-    /// List configured secrets (names only)
-    List,
-
-    /// Show where secrets are stored
-    Info,
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -846,117 +818,7 @@ async fn main() -> Result<()> {
         Some(Commands::Config { action }) => {
             cli::config::handle(action).await
         }
-        Some(Commands::Secrets { command }) => {
-            use mnemosyne_core::secrets::SecretsManager;
-            use secrecy::ExposeSecret;
-
-            let secrets = SecretsManager::new()?;
-
-            match command {
-                SecretsCommand::Init => {
-                    if secrets.is_initialized() {
-                        println!(
-                            "{}  Secrets already initialized at: {}",
-                            icons::status::warning(),
-                            secrets.secrets_file().display()
-                        );
-                        print!("Reinitialize? This will overwrite existing secrets. [y/N]: ");
-                        std::io::Write::flush(&mut std::io::stdout())?;
-
-                        let mut input = String::new();
-                        std::io::stdin().read_line(&mut input)?;
-
-                        if !input.trim().eq_ignore_ascii_case("y") {
-                            println!("Cancelled.");
-                            return Ok(());
-                        }
-                    }
-                    secrets.initialize_interactive()?;
-                    Ok(())
-                }
-                SecretsCommand::Set { name, value } => {
-                    let val = if let Some(v) = value {
-                        v
-                    } else {
-                        print!("Enter value for {}: ", name);
-                        std::io::Write::flush(&mut std::io::stdout())?;
-                        let mut input = String::new();
-                        std::io::stdin().read_line(&mut input)?;
-                        input.trim().to_string()
-                    };
-                    secrets.set_secret(&name, &val)?;
-                    Ok(())
-                }
-                SecretsCommand::Get { name } => {
-                    match secrets.get_secret(&name) {
-                        Ok(secret) => {
-                            println!("{}", secret.expose_secret());
-                        }
-                        Err(e) => {
-                            eprintln!("✗ {}", e);
-                        }
-                    }
-                    Ok(())
-                }
-                SecretsCommand::List => {
-                    if !secrets.is_initialized() {
-                        println!("No secrets configured. Run: mnemosyne secrets init");
-                        return Ok(());
-                    }
-
-                    let names = secrets.list_secrets()?;
-                    if names.is_empty() {
-                        println!("No secrets configured. Run: mnemosyne secrets init");
-                    } else {
-                        println!("Configured secrets:");
-                        for name in names {
-                            // Check if available via environment variable
-                            let source = if std::env::var(&name).is_ok() {
-                                " (from environment)"
-                            } else {
-                                ""
-                            };
-                            println!("  - {}{}", name, source);
-                        }
-                    }
-                    Ok(())
-                }
-                SecretsCommand::Info => {
-                    println!("Secrets Configuration");
-                    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                    println!("Config dir:     {}", secrets.config_dir().display());
-                    println!("Secrets file:   {}", secrets.secrets_file().display());
-                    println!("Identity key:   {}", secrets.identity_file().display());
-                    println!(
-                        "Initialized:    {}",
-                        if secrets.is_initialized() {
-                            "yes"
-                        } else {
-                            "no"
-                        }
-                    );
-                    println!();
-
-                    if secrets.is_initialized() {
-                        let names = secrets.list_secrets()?;
-                        println!("Configured secrets: {}", names.len());
-                        for name in names {
-                            let available = secrets.get_secret(&name).is_ok();
-                            let status = if available { "✓" } else { "✗" };
-                            let source = if std::env::var(&name).is_ok() {
-                                " (env)"
-                            } else {
-                                " (file)"
-                            };
-                            println!("  {} {}{}", status, name, source);
-                        }
-                    } else {
-                        println!("Run 'mnemosyne secrets init' to set up encrypted secrets.");
-                    }
-                    Ok(())
-                }
-            }
-        }
+        Some(Commands::Secrets { command }) => cli::secrets::handle(command).await,
         Some(Commands::Orchestrate {
             plan,
             database,
