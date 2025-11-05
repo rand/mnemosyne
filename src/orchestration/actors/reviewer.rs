@@ -445,7 +445,7 @@ impl ReviewerActor {
             .await?;
 
         // Track requirement satisfaction
-        let _extracted_requirements = work_item.requirements.clone();
+        let extracted_requirements = work_item.requirements.clone();
         let mut satisfied_requirements = std::collections::HashMap::new();
         let mut unsatisfied_requirements = Vec::new();
 

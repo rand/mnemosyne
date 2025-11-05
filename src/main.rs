@@ -216,7 +216,7 @@ async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
     use std::net::SocketAddr;
     use mnemosyne_core::mcp::tools::EventSink;
 
-    let socket_addr: SocketAddr = "127.0.0.1:3000".parse()?;
+    let socket_addr: SocketAddr = "127.0.0.1:3000".parse().expect("Valid socket address");
     let api_config = ApiServerConfig {
         addr: socket_addr,
         event_capacity: 1000,
@@ -294,6 +294,7 @@ async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 async fn start_mcp_server_with_api(
     db_path_arg: Option<String>,
     api_addr: String,
