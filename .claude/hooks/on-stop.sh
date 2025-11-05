@@ -14,9 +14,10 @@ fi
 DEBT=$(jq '.memory_debt' "$STATE_FILE" 2>/dev/null || echo "0")
 COUNT=$(jq '.memories_stored_count' "$STATE_FILE" 2>/dev/null || echo "0")
 
-# Only show reminder if there's an issue
-if [ "$DEBT" -gt 0 ] || [ "$COUNT" -eq 0 ]; then
-  cat >&2 <<EOF
+# Only show reminder if there's an issue AND debug mode enabled
+if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+  if [ "$DEBT" -gt 0 ] || [ "$COUNT" -eq 0 ]; then
+    cat >&2 <<EOF
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 Session Memory Status
@@ -26,27 +27,28 @@ Memory debt: $DEBT events
 
 EOF
 
-  if [ "$COUNT" -eq 0 ]; then
-    cat >&2 <<EOF
+    if [ "$COUNT" -eq 0 ]; then
+      cat >&2 <<EOF
 ⚠️  No memories stored this session.
    Consider storing key learnings before ending session.
 EOF
-  fi
+    fi
 
-  if [ "$DEBT" -gt 0 ]; then
-    cat >&2 <<EOF
+    if [ "$DEBT" -gt 0 ]; then
+      cat >&2 <<EOF
 ⚠️  Memory debt exists.
    You must store memories before git push or PR creation.
 EOF
-  fi
+    fi
 
-  cat >&2 <<EOF
+    cat >&2 <<EOF
 
 Store memories with:
   mnemosyne remember -c "..." -n "project:mnemosyne" -i 7-10
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
+  fi
 fi
 
 exit 0

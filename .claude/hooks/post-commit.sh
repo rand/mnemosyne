@@ -9,8 +9,10 @@ PROJECT_DIR="$(pwd)"
 PROJECT_NAME="$(basename "$PROJECT_DIR")"
 NAMESPACE="project:${PROJECT_NAME}"
 
-# Log hook execution
-echo "🔗 Mnemosyne: Analyzing commit for memory links" >&2
+# Log hook execution (only in debug mode)
+if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+  echo "🔗 Mnemosyne: Analyzing commit for memory links" >&2
+fi
 
 # Get mnemosyne binary path
 # Try installed binary first, fall back to local build
@@ -30,13 +32,18 @@ COMMIT_MSG=$(git log -1 --format=%s)
 COMMIT_BODY=$(git log -1 --format=%b)
 FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD | wc -l | tr -d ' ')
 
-echo "[*] Commit: $COMMIT_HASH - $COMMIT_MSG" >&2
-echo "[~] Files changed: $FILES_CHANGED" >&2
+# Debug output only
+if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+  echo "[*] Commit: $COMMIT_HASH - $COMMIT_MSG" >&2
+  echo "[~] Files changed: $FILES_CHANGED" >&2
+fi
 
 # Check if this commit relates to architectural decisions
 # Keywords that suggest architectural significance
 if echo "$COMMIT_MSG $COMMIT_BODY" | grep -qiE "(architecture|implement|refactor|migrate|design|pattern|decision|integrate|add|remove|fix|update|create|improve|enhance|complete|wire|establish)"; then
-    echo "[#] Architectural commit detected" >&2
+    if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+      echo "[#] Architectural commit detected" >&2
+    fi
 
     # Create memory linking commit to decision
     MEMORY_CONTENT="Git commit $COMMIT_HASH: $COMMIT_MSG
@@ -59,7 +66,9 @@ $COMMIT_BODY
         IMPORTANCE=7
     fi
 
-    echo "[+] Saving commit memory (importance: $IMPORTANCE)" >&2
+    if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+      echo "[+] Saving commit memory (importance: $IMPORTANCE)" >&2
+    fi
 
     "$MNEMOSYNE_BIN" remember \
         --content "$MEMORY_CONTENT" \
@@ -71,8 +80,10 @@ $COMMIT_BODY
             echo "[!] Failed to save commit memory" >&2
         }
 
-    # Try to link to related memories
-    echo "[?] Searching for related memories..." >&2
+    # Try to link to related memories (debug output only)
+    if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+      echo "[?] Searching for related memories..." >&2
+    fi
 
     RELATED=$("$MNEMOSYNE_BIN" recall \
         --query "$COMMIT_MSG" \
@@ -82,7 +93,7 @@ $COMMIT_BODY
 
     RELATED_COUNT=$(echo "$RELATED" | jq -r '.results | length' 2>/dev/null || echo "0")
 
-    if [ "$RELATED_COUNT" -gt 0 ]; then
+    if [ "$RELATED_COUNT" -gt 0 ] && [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
         echo "[✓] Found $RELATED_COUNT related memories" >&2
     fi
 fi

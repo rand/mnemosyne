@@ -15,7 +15,9 @@ fi
 DEBT=$(jq '.memory_debt' "$STATE_FILE" 2>/dev/null || echo "0")
 
 if [ "$DEBT" -gt 0 ]; then
-  cat >&2 <<EOF
+  # Only show blocking message if debug mode enabled
+  if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+    cat >&2 <<EOF
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚫 BLOCKED: Cannot proceed with destructive action
@@ -45,14 +47,15 @@ WHAT TO REMEMBER:
 
 Recent unrecorded events:
 EOF
-  jq -r '.significant_events[] | select(.has_memory == false) | "  • \(.type) at \(.timestamp)"' "$STATE_FILE" | tail -5 >&2
+    jq -r '.significant_events[] | select(.has_memory == false) | "  • \(.type) at \(.timestamp)"' "$STATE_FILE" | tail -5 >&2
 
-  cat >&2 <<EOF
+    cat >&2 <<EOF
 
 This is MANDATORY, not optional.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
-  exit 1  # Non-zero exit = BLOCKS the action
+  fi
+  exit 1  # Non-zero exit = BLOCKS the action (silently unless debug mode)
 fi
 
 # Debt is zero, allow the action

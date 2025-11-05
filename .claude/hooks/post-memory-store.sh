@@ -34,6 +34,9 @@ TMP_FILE=$(mktemp)
 jq ".memories_stored_count = $COUNT | .memory_debt = $DEBT | .last_memory_timestamp = \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"" "$STATE_FILE" > "$TMP_FILE"
 mv "$TMP_FILE" "$STATE_FILE"
 
-echo "✅ Memory stored. Debt reduced to $DEBT. Total memories this session: $COUNT" >&2
+# Only show confirmation in debug mode
+if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+  echo "✅ Memory stored. Debt reduced to $DEBT. Total memories this session: $COUNT" >&2
+fi
 
 exit 0

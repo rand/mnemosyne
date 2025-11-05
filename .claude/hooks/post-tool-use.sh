@@ -34,9 +34,10 @@ case "$TOOL_USE" in
     jq ".memory_debt = $DEBT | .significant_events += [{\"type\": \"$TOOL_USE\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"has_memory\": false}]" "$STATE_FILE" > "$TMP_FILE"
     mv "$TMP_FILE" "$STATE_FILE"
 
-    # If debt >= 3, inject urgent prompt
-    if [ "$DEBT" -ge 3 ]; then
-      cat >&2 <<EOF
+    # If debt >= 3, inject urgent prompt (only visible in debug mode)
+    if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+      if [ "$DEBT" -ge 3 ]; then
+        cat >&2 <<EOF
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️  MEMORY DEBT ALERT: $DEBT significant actions without memories
@@ -53,15 +54,16 @@ Store memories about your recent work using:
 
 Recent unrecorded events:
 EOF
-      jq -r '.significant_events[] | select(.has_memory == false) | "  • \(.type) at \(.timestamp)"' "$STATE_FILE" | tail -5 >&2
+        jq -r '.significant_events[] | select(.has_memory == false) | "  • \(.type) at \(.timestamp)"' "$STATE_FILE" | tail -5 >&2
 
-      cat >&2 <<EOF
+        cat >&2 <<EOF
 
 ⚠️  You cannot git push or create PRs until debt is cleared.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
-    elif [ "$DEBT" -ge 1 ]; then
-      echo "💭 Memory debt: $DEBT (store memories to avoid blocking later)" >&2
+      elif [ "$DEBT" -ge 1 ]; then
+        echo "💭 Memory debt: $DEBT (store memories to avoid blocking later)" >&2
+      fi
     fi
     ;;
 esac
