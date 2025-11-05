@@ -11,8 +11,8 @@ if [ ! -f "$STATE_FILE" ]; then
     exit 0
 fi
 
-DEBT=$(jq '.memory_debt' "$STATE_FILE" 2>/dev/null || echo "0")
-COUNT=$(jq '.memories_stored_count' "$STATE_FILE" 2>/dev/null || echo "0")
+DEBT=$(jq '.memory_debt' < "$STATE_FILE" 2>/dev/null || echo "0")
+COUNT=$(jq '.memories_stored_count' < "$STATE_FILE" 2>/dev/null || echo "0")
 
 # Only show reminder if there's an issue AND debug mode enabled
 if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then

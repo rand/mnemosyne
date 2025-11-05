@@ -18,7 +18,7 @@ PROJECT_NAME="$(basename "$PROJECT_DIR")"
 
 # Initialize memory state file
 STATE_FILE=".claude/memory-state.json"
-SESSION_ID=$(uuidgen)
+SESSION_ID=$(uuidgen < /dev/null)
 
 cat > "$STATE_FILE" <<EOF
 {
@@ -58,7 +58,7 @@ MEMORIES=$("$MNEMOSYNE_BIN" recall \
     --namespace "$NAMESPACE" \
     --limit 10 \
     --min-importance 7 \
-    --format json 2>/dev/null || echo '{"results": []}')
+    --format json < /dev/null 2>/dev/null || echo '{"results": []}')
 
 # Count memories
 MEMORY_COUNT=$(echo "$MEMORIES" | jq -r '.results | length' 2>/dev/null || echo "0")
@@ -101,7 +101,7 @@ $LINK_COUNT semantic connections across $MEMORY_COUNT memories
                 "additionalContext": $context
             },
             "suppressOutput": true
-        }'
+        }' < /dev/null
 else
     # Optional debug output (only if CC_HOOK_DEBUG=1)
     if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
@@ -130,5 +130,5 @@ Memory enforcement is active. Store memories to avoid blocking later."
                 "additionalContext": $context
             },
             "suppressOutput": true
-        }'
+        }' < /dev/null
 fi
