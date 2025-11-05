@@ -10,7 +10,7 @@
 set -e
 
 # Hook version for debugging
-HOOK_VERSION="2.0"
+HOOK_VERSION="3.0"
 
 # Get project directory
 PROJECT_DIR="$(pwd)"
@@ -65,10 +65,8 @@ MEMORY_COUNT=$(echo "$MEMORIES" | jq -r '.results | length' 2>/dev/null || echo 
 HIGH_IMPORTANCE_COUNT=$(echo "$MEMORIES" | jq -r '[.results[] | select(.importance >= 8)] | length' 2>/dev/null || echo "0")
 
 if [ "$MEMORY_COUNT" -gt 0 ]; then
-    # Optional debug output (only if CC_HOOK_DEBUG=1)
-    if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
-        echo "[hook v${HOOK_VERSION}] 🧠 Mnemosyne: Loaded $MEMORY_COUNT memories (≥7 importance, $HIGH_IMPORTANCE_COUNT critical) • Session: ${SESSION_ID:0:8}" >&2
-    fi
+    # User-visible status line (stderr)
+    echo "🧠 Loaded $MEMORY_COUNT memories ($HIGH_IMPORTANCE_COUNT critical)" >&2
 
     # Build context string for Claude
     CRITICAL_MEMORIES=$(echo "$MEMORIES" | jq -r '.results[] | select(.importance >= 8) | "**\(.summary)** — \(.memory_type) — \(.tags | join(", "))\n\(.content)\n\n---\n"' 2>/dev/null)
@@ -103,10 +101,8 @@ $LINK_COUNT semantic connections across $MEMORY_COUNT memories
             "suppressOutput": true
         }' < /dev/null
 else
-    # Optional debug output (only if CC_HOOK_DEBUG=1)
-    if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
-        echo "[hook v${HOOK_VERSION}] 🧠 Mnemosyne: No memories found (building context) • Session: ${SESSION_ID:0:8}" >&2
-    fi
+    # User-visible status line (stderr)
+    echo "🧠 No memories found (building context)" >&2
 
     # Build context for starting project
     CONTEXT="# Project Context: $PROJECT_NAME
