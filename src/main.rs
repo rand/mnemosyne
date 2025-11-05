@@ -338,8 +338,8 @@ struct Cli {
     #[arg(long)]
     serve: bool,
 
-    /// Set log level
-    #[arg(short, long, default_value = "info")]
+    /// Set log level (trace, debug, info, warn, error)
+    #[arg(short, long, default_value = "warn")]
     log_level: String,
 
     /// Database path (overrides MNEMOSYNE_DB_PATH env var and default)
