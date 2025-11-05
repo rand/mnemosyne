@@ -147,39 +147,53 @@ nohup command \
 ### 4. Test Infrastructure Fixes
 
 **macOS Timeout Workaround**:
-```bash
-# Install GNU coreutils for gtimeout
-brew install coreutils
 
-# Use gtimeout instead of timeout
+The GNU `timeout` command is not available on macOS by default. Solutions:
+
+```bash
+# Option 1: Install GNU coreutils (provides gtimeout)
+brew install coreutils
 gtimeout 10s ./test-script.sh
 
-# Or implement bash timeout
+# Option 2: Use macOS native timeout (if available)
+timeout 10s ./test-script.sh
+
+# Option 3: Implement bash-based timeout
 ( cmdpid=$BASHPID; (sleep 10; kill $cmdpid) & exec ./test-script.sh )
+
+# Option 4: Check availability before using
+if command -v timeout >/dev/null 2>&1; then
+  timeout 10s ./test-script.sh
+elif command -v gtimeout >/dev/null 2>&1; then
+  gtimeout 10s ./test-script.sh
+else
+  # Run without timeout or use bash alternative
+  ./test-script.sh
+fi
 ```
+
+**Current Status**: Project scripts don't use `timeout` command. If adding timeout to future test scripts, use one of the above approaches.
 
 ### 5. Cleanup Script
 
-Create `scripts/cleanup-processes.sh`:
+**Script Location**: `scripts/cleanup-processes.sh`
+
+A comprehensive cleanup script is provided:
 ```bash
-#!/bin/bash
-# Safe cleanup of all mnemosyne processes and state
+# Basic cleanup (processes and PID files)
+./scripts/cleanup-processes.sh
 
-echo "Cleaning up mnemosyne processes..."
-
-# Kill all mnemosyne processes
-pkill -TERM mnemosyne
-sleep 1
-pkill -KILL mnemosyne 2>/dev/null
-
-# Remove PID files
-rm -f .claude/server.pid
-
-# Clear stale logs (optional)
-# rm -f .claude/server.log
-
-echo "Cleanup complete"
+# Cleanup including log files
+./scripts/cleanup-processes.sh --clean-logs
 ```
+
+**What it does**:
+- Gracefully terminates all mnemosyne and test-server processes (SIGTERM)
+- Force kills if graceful termination fails (SIGKILL)
+- Removes stale PID files
+- Checks port 3000 status
+- Optionally cleans log files with --clean-logs flag
+- Provides clear status feedback throughout
 
 ## Safe Testing Protocol
 
