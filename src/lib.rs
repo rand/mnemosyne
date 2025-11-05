@@ -48,6 +48,7 @@ pub mod artifacts; // Specification workflow artifacts
 pub mod config;
 pub mod coordination; // ICS handoff coordination
 pub mod daemon;
+pub mod icons; // Nerd Font icons with ASCII fallbacks
 pub mod embeddings;
 pub mod error;
 pub mod evaluation;
