@@ -204,6 +204,18 @@ impl StateManager {
                 if let Some(agent) = agents_map.get_mut(&instance_id) {
                     agent.updated_at = Utc::now();
                     tracing::trace!("State updated: heartbeat from {}", instance_id);
+                } else {
+                    // Auto-create agent on first heartbeat (handles startup race conditions)
+                    agents_map.insert(
+                        instance_id.clone(),
+                        AgentInfo {
+                            id: instance_id.clone(),
+                            state: AgentState::Idle,
+                            updated_at: Utc::now(),
+                            metadata: HashMap::new(),
+                        },
+                    );
+                    tracing::debug!("State initialized: agent {} auto-created from heartbeat", instance_id);
                 }
             }
             EventType::MemoryStored { .. } => {
@@ -294,6 +306,45 @@ mod tests {
         let stats = manager.stats().await;
         assert_eq!(stats.total_agents, 1);
         assert_eq!(stats.active_agents, 1);
+    }
+
+    #[tokio::test]
+    async fn test_heartbeat_auto_creates_agent() {
+        let manager = StateManager::new();
+
+        // Verify agent doesn't exist initially
+        assert!(manager.get_agent("test-agent").await.is_none());
+
+        // Simulate heartbeat event (auto-create agent)
+        let event = crate::api::Event::heartbeat("test-agent".to_string());
+        let agents = manager.agents.clone();
+        let context_files = manager.context_files.clone();
+
+        StateManager::apply_event_static(event, &agents, &context_files)
+            .await
+            .unwrap();
+
+        // Verify agent was auto-created
+        let agent = manager.get_agent("test-agent").await.unwrap();
+        assert_eq!(agent.id, "test-agent");
+        assert!(matches!(agent.state, AgentState::Idle));
+
+        // Verify second heartbeat updates existing agent
+        let event2 = crate::api::Event::heartbeat("test-agent".to_string());
+        let before_update = agent.updated_at;
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+        StateManager::apply_event_static(event2, &agents, &context_files)
+            .await
+            .unwrap();
+
+        let agent_after = manager.get_agent("test-agent").await.unwrap();
+        assert!(agent_after.updated_at > before_update);
+
+        // Verify stats reflect auto-created agent
+        let stats = manager.stats().await;
+        assert_eq!(stats.total_agents, 1);
+        assert_eq!(stats.idle_agents, 1);
     }
 
     #[tokio::test]
