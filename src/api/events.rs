@@ -64,6 +64,38 @@ pub enum EventType {
         instance_id: String,
         timestamp: DateTime<Utc>,
     },
+    /// Phase transition (orchestration workflow)
+    PhaseChanged {
+        from: String,
+        to: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Deadlock detected in work queue
+    DeadlockDetected {
+        blocked_items: Vec<String>,
+        timestamp: DateTime<Utc>,
+    },
+    /// Context checkpoint created
+    ContextCheckpointed {
+        agent_id: String,
+        usage_percent: f32,
+        snapshot_id: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Review failed for work item
+    ReviewFailed {
+        item_id: String,
+        issues: Vec<String>,
+        attempt: u32,
+        timestamp: DateTime<Utc>,
+    },
+    /// Work item retried after failure/review
+    WorkItemRetried {
+        item_id: String,
+        reason: String,
+        attempt: u32,
+        timestamp: DateTime<Utc>,
+    },
 }
 
 /// Event wrapper with metadata
@@ -180,6 +212,53 @@ impl Event {
     pub fn heartbeat(instance_id: String) -> Self {
         Self::new(EventType::Heartbeat {
             instance_id,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create phase changed event
+    pub fn phase_changed(from: String, to: String) -> Self {
+        Self::new(EventType::PhaseChanged {
+            from,
+            to,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create deadlock detected event
+    pub fn deadlock_detected(blocked_items: Vec<String>) -> Self {
+        Self::new(EventType::DeadlockDetected {
+            blocked_items,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create context checkpointed event
+    pub fn context_checkpointed(agent_id: String, usage_percent: f32, snapshot_id: String) -> Self {
+        Self::new(EventType::ContextCheckpointed {
+            agent_id,
+            usage_percent,
+            snapshot_id,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create review failed event
+    pub fn review_failed(item_id: String, issues: Vec<String>, attempt: u32) -> Self {
+        Self::new(EventType::ReviewFailed {
+            item_id,
+            issues,
+            attempt,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create work item retried event
+    pub fn work_item_retried(item_id: String, reason: String, attempt: u32) -> Self {
+        Self::new(EventType::WorkItemRetried {
+            item_id,
+            reason,
+            attempt,
             timestamp: Utc::now(),
         })
     }

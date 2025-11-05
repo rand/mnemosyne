@@ -288,7 +288,42 @@ impl EventPersistence {
             AgentEvent::WorkItemFailed { agent, error, .. } => {
                 Some(Event::agent_failed(format!("{:?}", agent), error.clone()))
             }
-            // Only broadcast high-priority events to API (work item lifecycle)
+            AgentEvent::PhaseTransition { from, to, .. } => {
+                Some(Event::phase_changed(format!("{:?}", from), format!("{:?}", to)))
+            }
+            AgentEvent::DeadlockDetected { blocked_items, .. } => {
+                Some(Event::deadlock_detected(
+                    blocked_items.iter().map(|id| format!("{:?}", id)).collect(),
+                ))
+            }
+            AgentEvent::ContextCheckpoint {
+                agent,
+                usage_pct,
+                snapshot_id,
+                ..
+            } => Some(Event::context_checkpointed(
+                format!("{:?}", agent),
+                *usage_pct,
+                snapshot_id.to_string(),
+            )),
+            AgentEvent::ReviewFailed {
+                item_id,
+                issues,
+                attempt,
+            } => Some(Event::review_failed(
+                format!("{:?}", item_id),
+                issues.clone(),
+                *attempt,
+            )),
+            AgentEvent::WorkItemRequeued {
+                item_id,
+                reason,
+                review_attempt,
+            } => Some(Event::work_item_retried(
+                format!("{:?}", item_id),
+                reason.clone(),
+                *review_attempt,
+            )),
             // Other events are persisted but not broadcast
             _ => None,
         }

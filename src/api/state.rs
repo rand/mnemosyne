@@ -255,6 +255,51 @@ impl StateManager {
                 }
                 tracing::debug!("State updated: context file validated");
             }
+            EventType::PhaseChanged { from, to, .. } => {
+                tracing::info!("Phase transition: {} → {}", from, to);
+                // Could add phase to metadata if needed
+            }
+            EventType::DeadlockDetected { blocked_items, .. } => {
+                tracing::warn!("Deadlock detected: {} items blocked", blocked_items.len());
+                // Could track deadlocks in state for dashboard display
+            }
+            EventType::ContextCheckpointed {
+                agent_id,
+                usage_percent,
+                snapshot_id,
+                ..
+            } => {
+                tracing::info!(
+                    "Context checkpoint by {}: {}% usage, snapshot: {}",
+                    agent_id,
+                    usage_percent,
+                    snapshot_id
+                );
+                // Could track checkpoints as agent metadata
+            }
+            EventType::ReviewFailed {
+                item_id,
+                issues,
+                attempt,
+                ..
+            } => {
+                tracing::warn!(
+                    "Review failed for {}: {} issues (attempt {})",
+                    item_id,
+                    issues.len(),
+                    attempt
+                );
+                // Could track review failures for dashboard metrics
+            }
+            EventType::WorkItemRetried {
+                item_id,
+                reason,
+                attempt,
+                ..
+            } => {
+                tracing::info!("Work item {} retried (attempt {}): {}", item_id, attempt, reason);
+                // Could track retries for dashboard metrics
+            }
             EventType::HealthUpdate { .. } | EventType::SessionStarted { .. } => {
                 // System-level events, no state update needed
                 tracing::trace!("System event received (no state update)");
