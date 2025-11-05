@@ -54,6 +54,16 @@ pub enum EventType {
         cpu_percent: f32,
         timestamp: DateTime<Utc>,
     },
+    /// Session started
+    SessionStarted {
+        instance_id: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Heartbeat (published periodically when idle)
+    Heartbeat {
+        instance_id: String,
+        timestamp: DateTime<Utc>,
+    },
 }
 
 /// Event wrapper with metadata
@@ -154,6 +164,22 @@ impl Event {
         Self::new(EventType::HealthUpdate {
             memory_mb,
             cpu_percent,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create session started event
+    pub fn session_started(instance_id: String) -> Self {
+        Self::new(EventType::SessionStarted {
+            instance_id,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create heartbeat event
+    pub fn heartbeat(instance_id: String) -> Self {
+        Self::new(EventType::Heartbeat {
+            instance_id,
             timestamp: Utc::now(),
         })
     }

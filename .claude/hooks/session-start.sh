@@ -1,8 +1,16 @@
 #!/bin/bash
-# Mnemosyne session-start hook
+# Mnemosyne session-start hook v2.0
 # Loads project memory context and initializes memory state tracking
+#
+# Output behavior:
+# - All context goes to Claude via JSON stdout
+# - Status messages only shown if CC_HOOK_DEBUG=1
+# - User sees clean startup (no terminal noise)
 
 set -e
+
+# Hook version for debugging
+HOOK_VERSION="2.0"
 
 # Get project directory
 PROJECT_DIR="$(pwd)"
@@ -57,8 +65,10 @@ MEMORY_COUNT=$(echo "$MEMORIES" | jq -r '.results | length' 2>/dev/null || echo 
 HIGH_IMPORTANCE_COUNT=$(echo "$MEMORIES" | jq -r '[.results[] | select(.importance >= 8)] | length' 2>/dev/null || echo "0")
 
 if [ "$MEMORY_COUNT" -gt 0 ]; then
-    # Visible status line (stderr)
-    echo "🧠 Mnemosyne: Loaded $MEMORY_COUNT memories (≥7 importance, $HIGH_IMPORTANCE_COUNT critical) • Session: ${SESSION_ID:0:8}" >&2
+    # Optional debug output (only if CC_HOOK_DEBUG=1)
+    if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+        echo "[hook v${HOOK_VERSION}] 🧠 Mnemosyne: Loaded $MEMORY_COUNT memories (≥7 importance, $HIGH_IMPORTANCE_COUNT critical) • Session: ${SESSION_ID:0:8}" >&2
+    fi
 
     # Build context string for Claude
     CRITICAL_MEMORIES=$(echo "$MEMORIES" | jq -r '.results[] | select(.importance >= 8) | "**\(.summary)** — \(.memory_type) — \(.tags | join(", "))\n\(.content)\n\n---\n"' 2>/dev/null)
@@ -93,8 +103,10 @@ $LINK_COUNT semantic connections across $MEMORY_COUNT memories
             "suppressOutput": true
         }'
 else
-    # Visible status line (stderr)
-    echo "🧠 Mnemosyne: No memories found (building context) • Session: ${SESSION_ID:0:8}" >&2
+    # Optional debug output (only if CC_HOOK_DEBUG=1)
+    if [ "${CC_HOOK_DEBUG:-0}" = "1" ]; then
+        echo "[hook v${HOOK_VERSION}] 🧠 Mnemosyne: No memories found (building context) • Session: ${SESSION_ID:0:8}" >&2
+    fi
 
     # Build context for starting project
     CONTEXT="# Project Context: $PROJECT_NAME

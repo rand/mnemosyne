@@ -340,13 +340,35 @@ async fn run_app<B: ratatui::backend::Backend>(
             f.render_widget(header, chunks[0]);
 
             // Events
-            let events: Vec<ListItem> = app
-                .events
-                .iter()
-                .rev()
-                .take(chunks[1].height as usize - 2)
-                .map(|e| ListItem::new(Line::from(vec![Span::raw(e)])))
-                .collect();
+            let events: Vec<ListItem> = if app.events.is_empty() && app.connected {
+                vec![ListItem::new(Line::from(vec![
+                    Span::styled(
+                        "System idle - no recent activity",
+                        Style::default().fg(Color::Gray).add_modifier(Modifier::ITALIC)
+                    )
+                ]))]
+            } else {
+                app.events
+                    .iter()
+                    .rev()
+                    .take(chunks[1].height as usize - 2)
+                    .map(|e| {
+                        // Color code events
+                        let color = if e.contains("session_started") {
+                            Color::Green
+                        } else if e.contains("heartbeat") {
+                            Color::Blue
+                        } else if e.contains("error") || e.contains("failed") {
+                            Color::Red
+                        } else {
+                            Color::White
+                        };
+                        ListItem::new(Line::from(vec![
+                            Span::styled(e, Style::default().fg(color))
+                        ]))
+                    })
+                    .collect()
+            };
             let events_list = List::new(events).block(
                 Block::default()
                     .title("Recent Events")
@@ -393,7 +415,16 @@ async fn run_app<B: ratatui::backend::Backend>(
             f.render_widget(stats_widget, chunks[3]);
 
             // Footer
-            let footer = Paragraph::new("Press 'q' to quit | API: http://localhost:3000")
+            let footer_text = if app.connected {
+                if app.events.is_empty() {
+                    "Press 'q' to quit | Connected to API | Waiting for activity..."
+                } else {
+                    "Press 'q' to quit | Connected to API | Receiving events"
+                }
+            } else {
+                "Press 'q' to quit | Disconnected - check API server"
+            };
+            let footer = Paragraph::new(footer_text)
                 .style(Style::default().fg(Color::Gray));
             f.render_widget(footer, chunks[4]);
         })?;

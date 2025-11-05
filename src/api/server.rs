@@ -119,7 +119,23 @@ impl ApiServer {
             instance_id: self.instance_id.clone(),
         };
 
-        let router = Self::build_router(state);
+        let router = Self::build_router(state.clone());
+
+        // Publish session started event
+        let _ = self
+            .events
+            .broadcast(Event::session_started(self.instance_id.clone()));
+
+        // Spawn heartbeat task (every 10 seconds)
+        let events_clone = self.events.clone();
+        let instance_id_clone = self.instance_id.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
+            loop {
+                interval.tick().await;
+                let _ = events_clone.broadcast(Event::heartbeat(instance_id_clone.clone()));
+            }
+        });
 
         // Try configured address first
         match tokio::net::TcpListener::bind(self.config.addr).await {
