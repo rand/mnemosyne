@@ -643,29 +643,7 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Some(Commands::Init { database }) => {
-            debug!("Initializing database...");
-
-            // Use provided database path or fall back to global/default
-            let db_path = database
-                .or_else(|| cli.db_path.clone())
-                .unwrap_or_else(|| get_default_db_path().to_string_lossy().to_string());
-
-            debug!("Database path: {}", db_path);
-
-            // Create parent directory if it doesn't exist
-            if let Some(parent) = PathBuf::from(&db_path).parent() {
-                std::fs::create_dir_all(parent)?;
-                debug!("Created directory: {}", parent.display());
-            }
-
-            // Initialize storage (this will create the database and run migrations)
-            // Init command explicitly creates database if missing
-            let _storage =
-                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true)
-                    .await?;
-
-            println!("✓ Database initialized: {}", db_path);
-            Ok(())
+            cli::init::handle(database, cli.db_path.clone()).await
         }
         Some(Commands::Export { output, namespace }) => {
             if let Some(ref out_path) = output {
