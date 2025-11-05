@@ -4,6 +4,14 @@
 
 > **Multi-Agent Architecture**: A sophisticated multi-agent system operates continuously in Claude Code to orchestrate work, optimize context, validate quality, and execute tasks in parallel.
 
+> **⚡ AUTOMATIC MEMORY ENFORCEMENT**: Mnemosyne usage is **technically enforced** via hooks. You **cannot bypass** this system:
+> - **SessionStart**: Auto-loads memories at every session start
+> - **PostToolUse**: Tracks "memory debt" after Edit/Write/Commit
+> - **PreToolUse**: **BLOCKS** git push and PR creation if debt > 0
+> - **Stop**: Validates memory usage before finishing responses
+>
+> **Memory debt system**: Every Edit, Write, or Commit increments debt. After 3 events, you'll be prompted. `git push` is **blocked** until memories are stored. **This is not optional.**
+
 ## Table of Contents
 1. [Multi-Agent Orchestration System](#1-multi-agent-orchestration-system)
 2. [Work Plan Protocol](#2-work-plan-protocol) **START HERE**
@@ -811,6 +819,8 @@ Before completing ANY task:
 [ ] Multi-agents active and coordinating
 [ ] Optimizer discovered and loaded relevant skills (not all)
 [ ] Work Plan Protocol: Phase 1→2→3→4, all exit criteria met
+[ ] ✅ AUTOMATIC: Memory enforcement active (session-start hook loaded memories)
+[ ] ✅ AUTOMATIC: Memory debt tracked (post-tool-use hooks increment debt)
 [ ] Verified date/time if using timestamps
 [ ] Challenged vague requirements
 [ ] Confirmed tech stack and deployment
@@ -824,10 +834,18 @@ Before completing ANY task:
 [ ] Cloud resources cleaned up
 [ ] Beads state exported
 [ ] Changes committed (NO AI attribution unless user explicitly requests it)
+[ ] ✅ AUTOMATIC: Memory debt cleared before push (pre-destructive hook blocks otherwise)
 [ ] All agents checkpointed before session end
 ```
 
 **If any unchecked, stop and address it.**
+
+**Note on Memory Enforcement**:
+- SessionStart hook **automatically loads** project memories
+- PostToolUse hooks **automatically track** memory debt (Edit, Write, Commit)
+- PreToolUse hooks **automatically block** git push/PR if debt > 0
+- Stop hook **automatically validates** memory usage
+- **You cannot bypass this** - it's enforced at the tool level
 
 ---
 
