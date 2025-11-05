@@ -600,8 +600,7 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Some(Commands::Serve) => {
-            // Start MCP server (automatically handles API server startup)
-            start_mcp_server(cli.db_path).await
+            cli::serve::handle(cli.db_path).await
         }
         Some(Commands::ApiServer { addr, capacity }) => {
             cli::api_server::handle(addr, capacity).await
