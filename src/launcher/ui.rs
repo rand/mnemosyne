@@ -3,6 +3,7 @@
 //! This module provides refined user-facing output during Mnemosyne launch,
 //! replacing verbose INFO logs with a clean, informative, and playful experience.
 
+use crate::icons;
 use rand::seq::SliceRandom;
 use std::io::{self, Write};
 
@@ -106,7 +107,7 @@ impl LaunchProgress {
     pub fn show_loading_message(&self) {
         let mut rng = rand::thread_rng();
         let message = LOADING_MESSAGES.choose(&mut rng).unwrap_or(&"Initializing");
-        print!("   ⚙  {}...", message);
+        print!("   {}  {}...", icons::system::gear(), message);
         io::stdout().flush().ok();
     }
 
@@ -117,7 +118,7 @@ impl LaunchProgress {
         messages.shuffle(&mut rng);
 
         for message in messages.iter().take(count) {
-            print!("\r   ⚙  {}...                    ", message);
+            print!("\r   {}  {}...                    ", icons::system::gear(), message);
             io::stdout().flush().ok();
             std::thread::sleep(std::time::Duration::from_millis(200));
         }
@@ -127,7 +128,7 @@ impl LaunchProgress {
 
     /// Clear the current line and show completion
     pub fn show_step_complete(&self, step_name: &str) {
-        print!("\r   ✓ {}\n", step_name);
+        print!("\r   {} {}\n", icons::status::success(), step_name);
         io::stdout().flush().ok();
     }
 
@@ -148,12 +149,12 @@ impl LaunchProgress {
 
     /// Show completion banner
     pub fn show_completion(&self) {
-        println!("\n   ✨ Ready\n");
+        println!("\n   {} Ready\n", icons::status::ready());
     }
 
     /// Show error with context
     pub fn show_error(&self, error: &str) {
-        eprintln!("\n   ✗ Error: {}\n", error);
+        eprintln!("\n   {} Error: {}\n", icons::status::error(), error);
     }
 }
 
