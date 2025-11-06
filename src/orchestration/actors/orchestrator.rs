@@ -181,6 +181,23 @@ impl OrchestratorActor {
                 }
             }
 
+            // Second, load relevant context memories for the work item
+            // All agents benefit from having relevant context loaded
+            if let Some(ref optimizer) = state.optimizer {
+                tracing::debug!(
+                    "Loading context memories for work item: {}",
+                    item.description
+                );
+                let _ = optimizer
+                    .cast(OptimizerMessage::LoadContextMemories {
+                        work_item_id: item.id.clone(),
+                        query: item.description.clone(),
+                    })
+                    .map_err(|e| {
+                        tracing::warn!("Failed to load context memories: {:?}", e)
+                    });
+            }
+
             // Send to appropriate agent
             match item.agent {
                 AgentRole::Executor => {
@@ -191,14 +208,8 @@ impl OrchestratorActor {
                     }
                 }
                 AgentRole::Optimizer => {
-                    if let Some(ref optimizer) = state.optimizer {
-                        let _ = optimizer
-                            .cast(OptimizerMessage::LoadContextMemories {
-                                work_item_id: item.id.clone(),
-                                query: item.description.clone(),
-                            })
-                            .map_err(|e| tracing::warn!("Failed to cast to optimizer: {:?}", e));
-                    }
+                    // Optimizer work items already have context loaded above
+                    tracing::debug!("Optimizer work item dispatched");
                 }
                 AgentRole::Reviewer => {
                     // Reviewer doesn't execute work directly
