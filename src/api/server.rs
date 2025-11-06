@@ -200,15 +200,49 @@ impl ApiServer {
 }
 
 /// SSE events handler
+///
+/// Provides SSE snapshot for late-connecting clients:
+/// 1. Immediately sends current state as synthetic events (agents, context files)
+/// 2. Then streams real-time events
+///
+/// This ensures dashboard sees agents immediately even if it connects after startup.
 async fn events_handler(
     State(state): State<AppState>,
 ) -> Sse<impl tokio_stream::Stream<Item = Result<SseEvent, Infallible>>> {
-    debug!("New SSE client connected");
+    debug!("New SSE client connected, sending state snapshot");
 
+    // Get current state snapshot
+    let agents = state.state.list_agents().await;
+    let context_files = state.state.list_context_files().await;
+
+    debug!("Snapshot: {} agents, {} context files", agents.len(), context_files.len());
+
+    // Create synthetic snapshot events for current state
+    let mut snapshot_events = Vec::new();
+
+    // Agent heartbeat events (so StateManager sees them as alive)
+    for agent in agents {
+        let event = Event::heartbeat(agent.id.clone());
+        if let Ok(data) = serde_json::to_string(&event) {
+            snapshot_events.push(Ok(SseEvent::default().data(data).id(event.id)));
+        }
+    }
+
+    // Context file events
+    for file in context_files {
+        let event = Event::context_modified(file.path.clone());
+        if let Ok(data) = serde_json::to_string(&event) {
+            snapshot_events.push(Ok(SseEvent::default().data(data).id(event.id)));
+        }
+    }
+
+    debug!("Sending {} snapshot events to new client", snapshot_events.len());
+
+    // Subscribe to live event stream
     let rx = state.events.subscribe();
-    let stream = BroadcastStream::new(rx);
+    let live_stream = BroadcastStream::new(rx);
 
-    let event_stream = stream.filter_map(|result| match result {
+    let live_event_stream = live_stream.filter_map(|result| match result {
         Ok(event) => {
             // Convert Event to SSE Event
             let data = serde_json::to_string(&event).ok()?;
@@ -217,7 +251,11 @@ async fn events_handler(
         Err(_) => None, // Skip lagged messages
     });
 
-    Sse::new(event_stream).keep_alive(KeepAlive::default())
+    // Combine snapshot + live events
+    let snapshot_stream = tokio_stream::iter(snapshot_events);
+    let combined_stream = snapshot_stream.chain(live_event_stream);
+
+    Sse::new(combined_stream).keep_alive(KeepAlive::default())
 }
 
 /// Emit event handler (for remote MCP servers to forward events)
