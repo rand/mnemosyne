@@ -14,7 +14,11 @@ mod optimizer_adapter_tests {
         SkillDiscoveryResult, SkillMetadata,
     };
     use mnemosyne_core::orchestration::dspy_bridge::DSpyBridge;
-    use mnemosyne_core::orchestration::dspy_instrumentation::DSpyInstrumentation;
+    use mnemosyne_core::orchestration::dspy_instrumentation::{
+        DSpyInstrumentation, InstrumentationConfig,
+    };
+    use mnemosyne_core::orchestration::dspy_production_logger::{LogConfig, ProductionLogger};
+    use mnemosyne_core::orchestration::dspy_telemetry::TelemetryCollector;
     use std::sync::Arc;
 
     /// Helper to create test adapter (requires Python environment)
@@ -23,7 +27,15 @@ mod optimizer_adapter_tests {
         pyo3::prepare_freethreaded_python();
 
         let bridge = Arc::new(DSpyBridge::new().expect("Failed to create DSPy bridge"));
-        let instrumentation = Arc::new(DSpyInstrumentation::new(bridge));
+        let logger = Arc::new(
+            ProductionLogger::new(LogConfig::default())
+                .await
+                .expect("Failed to create logger"),
+        );
+        let telemetry = Arc::new(TelemetryCollector::new());
+        let config = InstrumentationConfig::default();
+
+        let instrumentation = Arc::new(DSpyInstrumentation::new(bridge, logger, telemetry, config));
         OptimizerDSpyAdapter::new(instrumentation)
     }
 
