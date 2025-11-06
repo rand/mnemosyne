@@ -3,8 +3,8 @@
 **A Production-Ready System for Persistent Context and Autonomous Coordination**
 
 **Version**: v2.1.1 (November 5, 2025)
-**Repository**: [github.com/USERNAME/mnemosyne](https://github.com/USERNAME/mnemosyne) *[Note: Replace USERNAME before publication]*
-**Tagged Release**: [v2.1.1](https://github.com/USERNAME/mnemosyne/tree/v2.1.1)
+**Repository**: [github.com/rand/mnemosyne](https://github.com/rand/mnemosyne) *[Note: Replace rand before publication]*
+**Tagged Release**: [v2.1.1](https://github.com/rand/mnemosyne/tree/v2.1.1)
 
 ---
 
@@ -56,15 +56,15 @@ Implementation in Rust with comprehensive testing (702 passing tests) ensures ty
 
 Mnemosyne delivers production-grade performance and reliability:
 
-**Sub-millisecond Retrieval**: 0.88ms for list operations, 1.61ms for hybrid search queries, validated across test suite [\[tests/performance\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/tests/performance).
+**Sub-millisecond Retrieval**: 0.88ms for list operations, 1.61ms for hybrid search queries, validated across test suite [\[tests/performance\]](https://github.com/rand/mnemosyne/tree/v2.1.1/tests/performance).
 
-**Namespace Isolation**: Three-tier hierarchy (Global → Project → Session) provides automatic context boundaries with priority-based search boosting [\[src/types.rs:45-120\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/types.rs#L45-120).
+**Namespace Isolation**: Three-tier hierarchy (Global → Project → Session) provides automatic context boundaries with priority-based search boosting [\[src/types.rs:45-120\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/types.rs#L45-120).
 
-**Seamless Integration**: Automatic Claude Code hooks inject memories at session start (+50-100ms latency), capture architectural commits post-tool-use, and enforce memory hygiene pre-destructive operations [\[.claude/hooks/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/.claude/hooks).
+**Seamless Integration**: Automatic Claude Code hooks inject memories at session start (+50-100ms latency), capture architectural commits post-tool-use, and enforce memory hygiene pre-destructive operations [\[.claude/hooks/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/.claude/hooks).
 
-**Real-Time Observability**: HTTP API server (port 3000 with auto-increment) broadcasts events via SSE to dashboard clients, supporting owner/client mode for multi-instance coordination [\[src/api/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/api).
+**Real-Time Observability**: HTTP API server (port 3000 with auto-increment) broadcasts events via SSE to dashboard clients, supporting owner/client mode for multi-instance coordination [\[src/api/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/api).
 
-**Comprehensive Testing**: 702 tests achieve 100% pass rate across unit (type system, storage operations), integration (MCP server, orchestration), E2E (human workflows, agent coordination), and specialized (file descriptor safety, process management) categories [\[tests/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/tests).
+**Comprehensive Testing**: 702 tests achieve 100% pass rate across unit (type system, storage operations), integration (MCP server, orchestration), E2E (human workflows, agent coordination), and specialized (file descriptor safety, process management) categories [\[tests/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/tests).
 
 ### 1.4 Target Use Cases
 
@@ -80,7 +80,7 @@ Mnemosyne addresses critical needs in LLM agent deployments:
 
 ### 1.5 Validation
 
-All technical claims in this whitepaper link directly to tagged source code (v2.1.1) and corresponding tests, enabling independent verification. Performance metrics derive from test suite executions [\[tests/performance/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/tests/performance). Production readiness validated through file descriptor leak prevention [\[commit 87b7a33\]](https://github.com/USERNAME/mnemosyne/commit/87b7a33), terminal corruption prevention [\[commit eec1a33\]](https://github.com/USERNAME/mnemosyne/commit/eec1a33), and robust process management [\[commit 048f26d\]](https://github.com/USERNAME/mnemosyne/commit/048f26d). Complete validation matrix available at [\[validation.md\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/docs/whitepaper/validation.md).
+All technical claims in this whitepaper link directly to tagged source code (v2.1.1) and corresponding tests, enabling independent verification. Performance metrics derive from test suite executions [\[tests/performance/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/tests/performance). Production readiness validated through file descriptor leak prevention [\[commit 87b7a33\]](https://github.com/rand/mnemosyne/commit/87b7a33), terminal corruption prevention [\[commit eec1a33\]](https://github.com/rand/mnemosyne/commit/eec1a33), and robust process management [\[commit 048f26d\]](https://github.com/rand/mnemosyne/commit/048f26d). Complete validation matrix available at [\[validation.md\]](https://github.com/rand/mnemosyne/blob/v2.1.1/docs/whitepaper/validation.md).
 
 ---
 
@@ -114,13 +114,13 @@ Mnemosyne occupies a distinct position by integrating memory persistence with mu
 
 Four key innovations distinguish this approach:
 
-**Integrated Architecture**: Memory system and agent framework share state through LibSQL storage [\[src/storage/libsql.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/storage/libsql.rs), enabling audit trails for agent decisions, persistent work queues, and dependency tracking across sessions.
+**Integrated Architecture**: Memory system and agent framework share state through LibSQL storage [\[src/storage/libsql.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/storage/libsql.rs), enabling audit trails for agent decisions, persistent work queues, and dependency tracking across sessions.
 
-**Autonomous Evolution**: LLM-guided consolidation [\[src/evolution/consolidation.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/evolution/consolidation.rs) automatically merges duplicate memories, importance recalibration [\[src/evolution/importance.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/evolution/importance.rs) adjusts relevance based on access patterns, and archival [\[src/evolution/archival.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/evolution/archival.rs) removes low-value information—all without human intervention.
+**Autonomous Evolution**: LLM-guided consolidation [\[src/evolution/consolidation.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/evolution/consolidation.rs) automatically merges duplicate memories, importance recalibration [\[src/evolution/importance.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/evolution/importance.rs) adjusts relevance based on access patterns, and archival [\[src/evolution/archival.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/evolution/archival.rs) removes low-value information—all without human intervention.
 
-**Production Integration**: MCP protocol [\[src/mcp/server.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/mcp/server.rs) enables Claude Code integration over JSON-RPC 2.0, automatic hooks [\[.claude/hooks/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/.claude/hooks) capture context without explicit commands, and real-time monitoring [\[src/api/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/api) provides observability for debugging coordination issues.
+**Production Integration**: MCP protocol [\[src/mcp/server.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/mcp/server.rs) enables Claude Code integration over JSON-RPC 2.0, automatic hooks [\[.claude/hooks/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/.claude/hooks) capture context without explicit commands, and real-time monitoring [\[src/api/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/api) provides observability for debugging coordination issues.
 
-**Type-Safe Implementation**: Rust provides memory safety, compile-time guarantees, and zero-cost abstractions [\[src/lib.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/lib.rs), while comprehensive testing (702 tests) validates correctness and safety properties.
+**Type-Safe Implementation**: Rust provides memory safety, compile-time guarantees, and zero-cost abstractions [\[src/lib.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/lib.rs), while comprehensive testing (702 tests) validates correctness and safety properties.
 
 ### 2.4 Contributions
 
@@ -238,7 +238,7 @@ The memory system provides persistent storage, hybrid search, and graph-based re
 
 #### 4.1.1 Memory Model
 
-**MemoryNote** [\[src/types.rs:45-120\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/types.rs#L45-120) serves as the fundamental data structure, containing 20+ fields organized in logical groups:
+**MemoryNote** [\[src/types.rs:45-120\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/types.rs#L45-120) serves as the fundamental data structure, containing 20+ fields organized in logical groups:
 
 - **Identity**: UUID-based `memory_id`, hierarchical `namespace` (Global/Project/Session)
 - **Content**: `content` (full text), `summary` (LLM-generated), `keywords`, `tags`
@@ -255,7 +255,7 @@ Five link types express semantic relationships: Extends (builds upon), Contradic
 
 #### 4.1.2 Hybrid Search
 
-Three complementary techniques combine for multi-modal retrieval [\[src/storage/libsql.rs:450-550\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/storage/libsql.rs#L450-550):
+Three complementary techniques combine for multi-modal retrieval [\[src/storage/libsql.rs:450-550\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/storage/libsql.rs#L450-550):
 
 **FTS5 Keyword Search** (20% weight): SQLite's FTS5 virtual table provides BM25-ranked full-text search across content, summary, keywords, and tags. Automatic triggers maintain synchronization between base tables and FTS index. Stop words, stemming, and phrase queries support natural language queries. Typical latency: <0.5ms for keyword matching on thousands of memories.
 
@@ -267,7 +267,7 @@ Results merge through weighted scoring: `final_score = 0.7 * vector_sim + 0.2 * 
 
 #### 4.1.3 Storage Backend
 
-LibSQL provides ACID guarantees, efficient indexing, and native vector support through sqlite-vec extension [\[src/storage/libsql.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/storage/libsql.rs):
+LibSQL provides ACID guarantees, efficient indexing, and native vector support through sqlite-vec extension [\[src/storage/libsql.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/storage/libsql.rs):
 
 **Schema Design**:
 - `memories` table: Primary storage with 25+ columns covering all MemoryNote fields
@@ -279,36 +279,36 @@ LibSQL provides ACID guarantees, efficient indexing, and native vector support t
 
 **Connection Pooling**: r2d2 provides connection pool (default: 5 connections) with automatic retry on contention and timeout-based cleanup.
 
-**Performance**: Sub-millisecond operations validated through benchmarks [\[tests/performance/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/tests/performance): 0.5ms get-by-ID, 0.88ms list-recent, 1.61ms hybrid-search, ~5ms graph-traverse (1-hop).
+**Performance**: Sub-millisecond operations validated through benchmarks [\[tests/performance/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/tests/performance): 0.5ms get-by-ID, 0.88ms list-recent, 1.61ms hybrid-search, ~5ms graph-traverse (1-hop).
 
 ### 4.2 Multi-Agent Orchestration
 
-Four specialized agents—Orchestrator, Optimizer, Reviewer, Executor—coordinate through Ractor actor supervision [\[src/orchestration/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/orchestration), providing work queue management, context optimization, quality validation, and parallel execution.
+Four specialized agents—Orchestrator, Optimizer, Reviewer, Executor—coordinate through Ractor actor supervision [\[src/orchestration/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/orchestration), providing work queue management, context optimization, quality validation, and parallel execution.
 
 #### 4.2.1 Four-Agent Framework
 
-**Orchestrator** [\[src/orchestration/orchestrator.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/orchestration/orchestrator.rs) manages global state and coordination:
+**Orchestrator** [\[src/orchestration/orchestrator.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/orchestrator.rs) manages global state and coordination:
 
 - **Work Queue**: Prioritized queue (0=highest priority) with dependency tracking, filters blocked items automatically based on unmet dependencies
 - **Deadlock Detection**: 60-second timeout triggers cycle detection in dependency graph, resolution via priority-based preemption
 - **Phase Transitions**: State machine for Work Plan Protocol (Prompt→Spec→Plan→Artifacts), validates exit criteria before advancing
 - **Memory Integration**: Loads project-scoped memories at orchestration start, persists phase completion as architectural decisions
 
-**Optimizer** [\[src/orchestration/optimizer.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/orchestration/optimizer.rs) manages context allocation and skill discovery:
+**Optimizer** [\[src/orchestration/optimizer.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/optimizer.rs) manages context allocation and skill discovery:
 
 - **Context Budget**: 40% critical (work items, dependencies), 30% skills (discovered capabilities), 20% project (persistent context), 10% general (ephemeral notes)
 - **Skill Discovery**: Scans local (`.claude/skills/`) and global (`~/.claude/plugins/cc-polymath/skills/`) directories, scores relevance (0-100) based on keyword/domain match, loads top 7 most relevant with caching
 - **Memory Prefetching**: Predicts future memory needs based on work item keywords and loaded skills, prefetches during idle periods
 - **Compaction**: Triggers at 75% context utilization, preserves critical content to checkpoints, summarizes non-critical sections
 
-**Reviewer** [\[src/orchestration/reviewer.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/orchestration/reviewer.rs) validates quality and correctness:
+**Reviewer** [\[src/orchestration/reviewer.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/reviewer.rs) validates quality and correctness:
 
 - **Quality Gates**: Intent satisfied (work achieves stated goals), tests passing (no regressions), documentation complete (public APIs documented), no anti-patterns (checked against skill guidelines)
-- **Semantic Validation**: DSPy modules [\[src/orchestration/dspy_modules/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/orchestration/dspy_modules) extract requirements from specs, validate implementations against extracted requirements, score semantic alignment
+- **Semantic Validation**: DSPy modules [\[src/orchestration/dspy_modules/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/orchestration/dspy_modules) extract requirements from specs, validate implementations against extracted requirements, score semantic alignment
 - **Requirement Extraction**: Uses Claude Haiku to extract structured requirements from natural language specs
 - **Blocking Behavior**: Refuses to mark work "complete" until all gates pass, provides detailed feedback on failures
 
-**Executor** [\[src/orchestration/executor.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/orchestration/executor.rs) performs actual work:
+**Executor** [\[src/orchestration/executor.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/executor.rs) performs actual work:
 
 - **Work Execution**: Retrieves tasks from Orchestrator queue, executes with timeout and retry logic, reports progress via events
 - **Sub-Agent Spawning**: Creates child Executor instances for parallel work when dependencies allow, enforces spawn criteria (truly independent, context budget available, clear success criteria)
@@ -317,7 +317,7 @@ Four specialized agents—Orchestrator, Optimizer, Reviewer, Executor—coordina
 
 #### 4.2.2 Actor Model
 
-Ractor 0.13 [\[src/orchestration/mod.rs:89-150\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/orchestration/mod.rs#L89-150) provides supervision trees with automatic restart:
+Ractor 0.13 [\[src/orchestration/mod.rs:89-150\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/mod.rs#L89-150) provides supervision trees with automatic restart:
 
 - **Hierarchical Trees**: Orchestrator supervises Optimizer, Reviewer, Executor; Executor supervises sub-Executors
 - **Message Passing**: Typed channels for work items, events, coordination primitives; no shared mutable state
@@ -326,7 +326,7 @@ Ractor 0.13 [\[src/orchestration/mod.rs:89-150\]](https://github.com/USERNAME/mn
 
 #### 4.2.3 Coordination Primitives
 
-**Work Item State Machine** [\[src/orchestration/work_items.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/orchestration/work_items.rs):
+**Work Item State Machine** [\[src/orchestration/work_items.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/work_items.rs):
 ```
 Pending → InProgress → [Completed | Failed]
 ```
@@ -335,15 +335,15 @@ Transitions validated by Orchestrator, persisted to memories, emit events to das
 
 **Dependency Tracking**: Work items declare dependencies via IDs, cycle detection prevents circular graphs, topological sort determines execution order, dynamic dependencies supported for discovered work.
 
-**Event Broadcasting**: EventBroadcaster [\[src/events/broadcaster.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/events/broadcaster.rs) multicasts events to subscribers (in-process handlers, HTTP API server, Mnemosyne storage), enables real-time monitoring and post-hoc debugging.
+**Event Broadcasting**: EventBroadcaster [\[src/events/broadcaster.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/events/broadcaster.rs) multicasts events to subscribers (in-process handlers, HTTP API server, Mnemosyne storage), enables real-time monitoring and post-hoc debugging.
 
 ### 4.3 Evolution System
 
-Four background jobs optimize the memory store autonomously: consolidation merges duplicates, importance recalibration adjusts relevance, link decay prunes weak connections, and archival removes low-value memories [\[src/evolution/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/evolution).
+Four background jobs optimize the memory store autonomously: consolidation merges duplicates, importance recalibration adjusts relevance, link decay prunes weak connections, and archival removes low-value memories [\[src/evolution/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/evolution).
 
 #### 4.3.1 Consolidation
 
-Claude Haiku 4.5 analyzes memory pairs for similarity [\[src/evolution/consolidation.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/evolution/consolidation.rs):
+Claude Haiku 4.5 analyzes memory pairs for similarity [\[src/evolution/consolidation.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/evolution/consolidation.rs):
 
 **Candidate Selection**: Tag/keyword overlap >60%, importance delta <3, same namespace, not already linked—identifies potentially duplicate memories without exhaustive O(n²) comparison.
 
@@ -358,7 +358,7 @@ Claude Haiku 4.5 analyzes memory pairs for similarity [\[src/evolution/consolida
 
 #### 4.3.2 Importance Recalibration
 
-Weekly batch job adjusts importance scores [\[src/evolution/importance.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/evolution/importance.rs):
+Weekly batch job adjusts importance scores [\[src/evolution/importance.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/evolution/importance.rs):
 
 **Recency Decay**: `adjusted = base_importance × e^(-age_days/30)` reduces old memories' relevance exponentially, 30-day half-life balances persistence and freshness.
 
@@ -370,7 +370,7 @@ Weekly batch job adjusts importance scores [\[src/evolution/importance.rs\]](htt
 
 #### 4.3.3 Link Decay & Pruning
 
-Links weaken over time unless reinforced by access [\[src/evolution/link_decay.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/evolution/link_decay.rs):
+Links weaken over time unless reinforced by access [\[src/evolution/link_decay.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/evolution/link_decay.rs):
 
 **Decay Function**: `new_strength = strength × (1 - 0.01 × days_since_access)` reduces strength by 1% per day of inactivity.
 
@@ -382,7 +382,7 @@ Links weaken over time unless reinforced by access [\[src/evolution/link_decay.r
 
 #### 4.3.4 Archival
 
-Low-value memories move to archive [\[src/evolution/archival.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/evolution/archival.rs):
+Low-value memories move to archive [\[src/evolution/archival.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/evolution/archival.rs):
 
 **Criteria**: (importance <2 AND age >90 days) OR (superseded_by IS NOT NULL AND age >7 days)—removes neglected or superseded memories.
 
@@ -394,7 +394,7 @@ Low-value memories move to archive [\[src/evolution/archival.rs\]](https://githu
 
 #### 4.3.5 Scheduler
 
-Idle detection triggers evolution jobs [\[src/evolution/scheduler.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/evolution/scheduler.rs):
+Idle detection triggers evolution jobs [\[src/evolution/scheduler.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/evolution/scheduler.rs):
 
 **Idle Criteria**: No memory operations for >5 minutes, no active orchestration work items, system load <50%.
 
@@ -408,17 +408,17 @@ Production-ready technologies provide type safety, performance, and interoperabi
 
 #### 4.4.1 Core Technologies
 
-**Rust 1.75+** [\[src/lib.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/lib.rs): Type system prevents memory safety bugs at compile time, zero-cost abstractions provide C-level performance, comprehensive error handling via `Result<T, E>`, strong ecosystem for async I/O, serialization, testing.
+**Rust 1.75+** [\[src/lib.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/lib.rs): Type system prevents memory safety bugs at compile time, zero-cost abstractions provide C-level performance, comprehensive error handling via `Result<T, E>`, strong ecosystem for async I/O, serialization, testing.
 
 **Tokio Async Runtime**: Non-blocking I/O for concurrent operations, spawns lightweight tasks (green threads) for parallelism, integrates with Ractor actors seamlessly, provides timers, channels, synchronization primitives.
 
 **LibSQL with Native Vector Search**: SQLite-compatible API, ACID guarantees for consistency, sqlite-vec extension for native vector operations (future), <1MB disk per 1,000 memories, single-file database simplifies deployment.
 
-**PyO3 0.22 for Python Bindings** [\[src/python_bindings/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/python_bindings): Native Python extension (10-20x faster than subprocess), exposes PyStorage, PyMemory, PyCoordinator classes, enables DSPy integration for Reviewer agent, requires Python 3.10-3.13 (3.14+ via ABI3 forward compatibility flag).
+**PyO3 0.22 for Python Bindings** [\[src/python_bindings/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/python_bindings): Native Python extension (10-20x faster than subprocess), exposes PyStorage, PyMemory, PyCoordinator classes, enables DSPy integration for Reviewer agent, requires Python 3.10-3.13 (3.14+ via ABI3 forward compatibility flag).
 
 #### 4.4.2 LLM Integration
 
-**Claude Haiku 4.5** (claude-haiku-4-5-20251001) [\[src/services/llm.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/services/llm.rs):
+**Claude Haiku 4.5** (claude-haiku-4-5-20251001) [\[src/services/llm.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/services/llm.rs):
 
 **Enrichment**: Five outputs (summary, keywords, tags, type, importance) generated in single API call, structured output via JSON schema, typical latency <500ms, cost 4-5x cheaper than Sonnet.
 
@@ -430,15 +430,15 @@ Production-ready technologies provide type safety, performance, and interoperabi
 
 #### 4.4.3 Communication Protocols
 
-**Model Context Protocol (MCP)** [\[src/mcp/server.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/mcp/server.rs): JSON-RPC 2.0 over stdio, 8 OODA-aligned tools (Observe: recall/list, Orient: graph/context, Decide: remember/consolidate, Act: update/delete), request/response with versioned schemas, error handling with codes + messages.
+**Model Context Protocol (MCP)** [\[src/mcp/server.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/mcp/server.rs): JSON-RPC 2.0 over stdio, 8 OODA-aligned tools (Observe: recall/list, Orient: graph/context, Decide: remember/consolidate, Act: update/delete), request/response with versioned schemas, error handling with codes + messages.
 
-**Server-Sent Events (SSE)** [\[src/api/server.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/api/server.rs): HTTP GET `/events` endpoint streams events as `data:` messages, heartbeat every 30s prevents timeouts, reconnection with Last-Event-ID for missed events, supports multiple dashboard clients.
+**Server-Sent Events (SSE)** [\[src/api/server.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/api/server.rs): HTTP GET `/events` endpoint streams events as `data:` messages, heartbeat every 30s prevents timeouts, reconnection with Last-Event-ID for missed events, supports multiple dashboard clients.
 
 **Ractor Message Passing**: Typed enums for work items, events, coordination, `ask` pattern for request/response, `cast` pattern for fire-and-forget, supervision messages for lifecycle management.
 
 #### 4.4.4 Data Structures
 
-**CRDT (Automerge)** [\[src/ics/editor/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/ics/editor): Conflict-free replicated data types for collaborative editing in ICS, eventual consistency without coordination, undo/redo through operation log, efficient delta synchronization.
+**CRDT (Automerge)** [\[src/ics/editor/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/ics/editor): Conflict-free replicated data types for collaborative editing in ICS, eventual consistency without coordination, undo/redo through operation log, efficient delta synchronization.
 
 **Graph with Recursive CTE**: Memory links stored as edges, traversal via WITH RECURSIVE queries, configurable depth limits, strength-weighted paths, cycles handled gracefully.
 
@@ -458,7 +458,7 @@ Mnemosyne integrates with development workflows through three primary mechanisms
 
 Two capture modes support different usage patterns:
 
-**Automatic Capture**: Hooks trigger on git events and context changes without explicit commands. The `post-tool-use` hook [\[.claude/hooks/post-tool-use.sh\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/.claude/hooks/post-tool-use.sh) activates after git commits, analyzes commit messages for architectural significance (keywords: architecture, implement, refactor, redesign, migrate), extracts commit metadata (hash, message, files changed), and creates memory with LLM enrichment.
+**Automatic Capture**: Hooks trigger on git events and context changes without explicit commands. The `post-tool-use` hook [\[.claude/hooks/post-tool-use.sh\]](https://github.com/rand/mnemosyne/tree/v2.1.1/.claude/hooks/post-tool-use.sh) activates after git commits, analyzes commit messages for architectural significance (keywords: architecture, implement, refactor, redesign, migrate), extracts commit metadata (hash, message, files changed), and creates memory with LLM enrichment.
 
 **Manual Capture**: CLI provides explicit control for important insights:
 ```bash
@@ -470,7 +470,7 @@ mnemosyne remember "Decided to use event sourcing for audit trail" \
 
 Parameters: `-i` sets importance (1-10), `-t` provides tags (comma-separated), `-n` specifies namespace (defaults to current project).
 
-**Enrichment Pipeline**: Both modes trigger LLM analysis [\[src/services/llm.rs:120-180\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/services/llm.rs#L120-180): summary generation (1-2 sentences), keyword extraction (5-10 terms), tag suggestion (3-5 categories), type classification (one of 9 types), importance scoring (1-10 scale). Claude Haiku completes enrichment in <500ms.
+**Enrichment Pipeline**: Both modes trigger LLM analysis [\[src/services/llm.rs:120-180\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/services/llm.rs#L120-180): summary generation (1-2 sentences), keyword extraction (5-10 terms), tag suggestion (3-5 categories), type classification (one of 9 types), importance scoring (1-10 scale). Claude Haiku completes enrichment in <500ms.
 
 **Semantic Linking**: After enrichment, the system searches for related memories (keyword overlap, tag similarity, namespace proximity), proposes links with strength scores (0.0-1.0), and stores relationships for graph traversal.
 
@@ -503,7 +503,7 @@ Follows links recursively, filters by strength threshold, visualizes as text or 
 
 Shared memory enables coordination without tight coupling:
 
-**Work Queue Persistence**: Orchestrator stores work items as Task memories [\[src/orchestration/work_items.rs:89-120\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/orchestration/work_items.rs#L89-120), survives process restarts, enables asynchronous work distribution, provides audit trail for debugging.
+**Work Queue Persistence**: Orchestrator stores work items as Task memories [\[src/orchestration/work_items.rs:89-120\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/work_items.rs#L89-120), survives process restarts, enables asynchronous work distribution, provides audit trail for debugging.
 
 **Decision Documentation**: Agents publish decisions as Architecture memories, other agents retrieve before dependent work, Reviewer validates consistency against stored decisions, debugging reconstructs agent knowledge at decision time.
 
@@ -517,7 +517,7 @@ Deep integration minimizes manual memory management through MCP protocol and aut
 
 #### 5.2.1 MCP Protocol Tools
 
-Eight OODA-aligned tools [\[src/mcp/tools.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/mcp/tools.rs) provide Claude Code access:
+Eight OODA-aligned tools [\[src/mcp/tools.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/mcp/tools.rs) provide Claude Code access:
 
 **Observe Phase**:
 - `mnemosyne.recall`: Hybrid search with query, namespace filter, limits
@@ -554,7 +554,7 @@ Response includes memories array, relevance scores, related memories, and total 
 
 #### 5.2.2 Automatic Hooks
 
-Three hooks provide zero-configuration context management [\[.claude/hooks/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/.claude/hooks):
+Three hooks provide zero-configuration context management [\[.claude/hooks/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/.claude/hooks):
 
 **session-start.sh**: Loads memories at Claude Code initialization, queries for importance ≥7 in current project, injects as markdown in initial context, adds 50-100ms startup latency (acceptable). Example output:
 ```markdown
@@ -570,7 +570,7 @@ Three hooks provide zero-configuration context management [\[.claude/hooks/\]](h
 
 **pre-destructive.sh**: Enforces memory hygiene before pushing, blocks `git push` and `gh pr create` if memory debt >0, prompts user to store memories for recent work, debt increments on Edit/Write/Commit (tracks context changes), debt clears on `mnemosyne remember` calls.
 
-**Configuration** [\[.claude/settings.json\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/.claude/settings.json):
+**Configuration** [\[.claude/settings.json\]](https://github.com/rand/mnemosyne/tree/v2.1.1/.claude/settings.json):
 ```json
 {
   "hooks": {
@@ -584,7 +584,7 @@ Three hooks provide zero-configuration context management [\[.claude/hooks/\]](h
 
 #### 5.2.3 Real-Time Monitoring
 
-HTTP API server and SSE enable observability [\[src/api/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/api):
+HTTP API server and SSE enable observability [\[src/api/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/api):
 
 **API Server**: First Mnemosyne instance starts server on port 3000 (auto-increment 3001-3010 if occupied), subsequent instances become clients (forward events via HTTP POST), owner broadcasts events via SSE to dashboard clients, graceful shutdown transfers ownership to next instance.
 
@@ -594,21 +594,21 @@ HTTP API server and SSE enable observability [\[src/api/\]](https://github.com/U
 
 ### 5.3 Interactive Collaborative Space (ICS)
 
-Standalone editor for context file creation and editing [\[src/ics/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/ics).
+Standalone editor for context file creation and editing [\[src/ics/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/ics).
 
 #### 5.3.1 Standalone Architecture
 
 **Terminal Ownership**: ICS takes full control of terminal in raw mode, no conflicts with Claude Code (which uses stdio), launched independently: `mnemosyne-ics`, clean process isolation.
 
-**CRDT-Based Editing**: Automerge provides conflict-free replicated data types [\[src/ics/editor/crdt.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/ics/editor/crdt.rs), eventual consistency without coordination server, undo/redo through operation log, enables future real-time collaboration.
+**CRDT-Based Editing**: Automerge provides conflict-free replicated data types [\[src/ics/editor/crdt.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/ics/editor/crdt.rs), eventual consistency without coordination server, undo/redo through operation log, enables future real-time collaboration.
 
-**Template System**: Five templates for common contexts [\[src/ics/templates/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/ics/templates): API design (endpoints, contracts, examples), architecture (layers, components, data flow), bugfix (reproduction, root cause, solution), feature (requirements, implementation, testing), refactor (motivation, approach, validation).
+**Template System**: Five templates for common contexts [\[src/ics/templates/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/ics/templates): API design (endpoints, contracts, examples), architecture (layers, components, data flow), bugfix (reproduction, root cause, solution), feature (requirements, implementation, testing), refactor (motivation, approach, validation).
 
 **Vim Mode**: 14 movement commands (w/b/e for word movement, f/F/t/T for character search, PageUp/Down, gg/G for file navigation), i/a/o for insert modes, ESC returns to command mode, familiar for Vim users.
 
 #### 5.3.2 Semantic Highlighting
 
-Three-tier progressive system [\[src/ics/semantic/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/ics/semantic):
+Three-tier progressive system [\[src/ics/semantic/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/src/ics/semantic):
 
 **Tier 1 (<5ms)**: Structural patterns via regex: XML-style tags (`<requirement>`, `<constraint>`), RFC 2119 keywords (MUST, SHOULD, MAY), modality markers (can, should, must), ambiguity flags (maybe, possibly, unclear), domain patterns (file paths, URLs, identifiers).
 
@@ -620,7 +620,7 @@ Three-tier progressive system [\[src/ics/semantic/\]](https://github.com/USERNAM
 
 #### 5.3.3 ICS Patterns
 
-Special syntax for cross-references [\[src/ics/patterns.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/ics/patterns.rs):
+Special syntax for cross-references [\[src/ics/patterns.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/ics/patterns.rs):
 
 **File References**: `#path/to/file.rs` renders in blue bold, hover shows file status (exists/missing), click opens file in editor (if available), validates paths on save.
 
@@ -685,7 +685,7 @@ All claims in this whitepaper link to source code (v2.1.1) and tests, enabling i
 
 ### 7.1 Test Coverage
 
-**702 passing tests** achieve 100% pass rate across multiple categories [\[tests/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/tests):
+**702 passing tests** achieve 100% pass rate across multiple categories [\[tests/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/tests):
 
 **Unit Tests** (~250 tests): Type system validation (MemoryNote fields, namespace hierarchy, link types), storage operations (CRUD with transactions), search algorithms (FTS5 integration, graph traversal), evolution jobs (consolidation logic, importance calculation, link decay), serialization/deserialization (JSON, MessagePack).
 
@@ -695,11 +695,11 @@ All claims in this whitepaper link to source code (v2.1.1) and tests, enabling i
 
 **Specialized Tests** (~50 tests): File descriptor safety (hook execution doesn't leak FDs, process cleanup validates closure), process management (background jobs don't orphan, signal handling terminates cleanly), ICS integration (CRDT operations, semantic highlighting correctness, template loading).
 
-**CI/CD**: GitHub Actions runs full test suite on every commit [\[.github/workflows/test.yml\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/.github/workflows/test.yml), tests against Rust 1.75+ stable and nightly, validates across Linux and macOS, enforces zero warnings policy (clippy).
+**CI/CD**: GitHub Actions runs full test suite on every commit [\[.github/workflows/test.yml\]](https://github.com/rand/mnemosyne/blob/v2.1.1/.github/workflows/test.yml), tests against Rust 1.75+ stable and nightly, validates across Linux and macOS, enforces zero warnings policy (clippy).
 
 ### 7.2 Performance Metrics
 
-Benchmarks validate sub-millisecond performance claims [\[tests/performance/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/tests/performance):
+Benchmarks validate sub-millisecond performance claims [\[tests/performance/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/tests/performance):
 
 **Storage Operations**:
 - Store memory: 2.25ms average (includes LLM enrichment dispatched to background)
@@ -724,13 +724,13 @@ Benchmarks validate sub-millisecond performance claims [\[tests/performance/\]](
 
 ### 7.3 Production Readiness
 
-Recent commits establish production stability [\[CHANGELOG.md\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/CHANGELOG.md):
+Recent commits establish production stability [\[CHANGELOG.md\]](https://github.com/rand/mnemosyne/blob/v2.1.1/CHANGELOG.md):
 
-**File Descriptor Safety** [\[commit 87b7a33\]](https://github.com/USERNAME/mnemosyne/commit/87b7a33): Hooks close all file descriptors before execution, prevents leaks during long-running sessions, validates closure in test suite (test_fd_safety.rs), adds debug flag for FD tracking.
+**File Descriptor Safety** [\[commit 87b7a33\]](https://github.com/rand/mnemosyne/commit/87b7a33): Hooks close all file descriptors before execution, prevents leaks during long-running sessions, validates closure in test suite (test_fd_safety.rs), adds debug flag for FD tracking.
 
-**Terminal Corruption Prevention** [\[commit eec1a33\]](https://github.com/USERNAME/mnemosyne/commit/eec1a33): Clean process management for hooks and ICS, proper signal handling (SIGTERM, SIGINT), terminal restore on abnormal exit, prevents "terminal breaks" after crashes.
+**Terminal Corruption Prevention** [\[commit eec1a33\]](https://github.com/rand/mnemosyne/commit/eec1a33): Clean process management for hooks and ICS, proper signal handling (SIGTERM, SIGINT), terminal restore on abnormal exit, prevents "terminal breaks" after crashes.
 
-**Robust Error Handling** [\[src/error.rs\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/error.rs): Result<T, E> throughout codebase (no unwrap in production paths), custom error types with context, error propagation via ? operator, graceful degradation patterns.
+**Robust Error Handling** [\[src/error.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/error.rs): Result<T, E> throughout codebase (no unwrap in production paths), custom error types with context, error propagation via ? operator, graceful degradation patterns.
 
 **Graceful Degradation**: System continues operating when components fail (API server unavailable → events stored locally, LLM service down → enrichment skipped with warning, evolution scheduler errors → logged but don't crash main process).
 
@@ -740,14 +740,14 @@ Recent commits establish production stability [\[CHANGELOG.md\]](https://github.
 
 ### 7.4 Code Validation
 
-Complete claim validation matrix available at [\[validation.md\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/docs/whitepaper/validation.md). Sample mappings:
+Complete claim validation matrix available at [\[validation.md\]](https://github.com/rand/mnemosyne/blob/v2.1.1/docs/whitepaper/validation.md). Sample mappings:
 
 | Claim | Source Code | Test | Status |
 |-------|-------------|------|--------|
-| Sub-ms retrieval (0.88ms list) | [src/storage/libsql.rs:420-450](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/storage/libsql.rs#L420-450) | [tests/performance/storage_perf.rs:89-110](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/tests/performance/storage_perf.rs#L89-110) | ✓ |
-| 4-agent orchestration | [src/orchestration/mod.rs:89-150](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/orchestration/mod.rs#L89-150) | [tests/orchestration_e2e.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/tests/orchestration_e2e.rs) | ✓ |
-| LLM enrichment <500ms | [src/services/llm.rs:120-180](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/services/llm.rs#L120-180) | [tests/llm_integration.rs:45-78](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/tests/llm_integration.rs#L45-78) | ✓ |
-| FD leak prevention | [commit 87b7a33](https://github.com/USERNAME/mnemosyne/commit/87b7a33) | [tests/test_fd_safety.sh](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/tests/test_fd_safety.sh) | ✓ |
+| Sub-ms retrieval (0.88ms list) | [src/storage/libsql.rs:420-450](https://github.com/rand/mnemosyne/blob/v2.1.1/src/storage/libsql.rs#L420-450) | [tests/performance/storage_perf.rs:89-110](https://github.com/rand/mnemosyne/blob/v2.1.1/tests/performance/storage_perf.rs#L89-110) | ✓ |
+| 4-agent orchestration | [src/orchestration/mod.rs:89-150](https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/mod.rs#L89-150) | [tests/orchestration_e2e.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/tests/orchestration_e2e.rs) | ✓ |
+| LLM enrichment <500ms | [src/services/llm.rs:120-180](https://github.com/rand/mnemosyne/blob/v2.1.1/src/services/llm.rs#L120-180) | [tests/llm_integration.rs:45-78](https://github.com/rand/mnemosyne/blob/v2.1.1/tests/llm_integration.rs#L45-78) | ✓ |
+| FD leak prevention | [commit 87b7a33](https://github.com/rand/mnemosyne/commit/87b7a33) | [tests/test_fd_safety.sh](https://github.com/rand/mnemosyne/blob/v2.1.1/tests/test_fd_safety.sh) | ✓ |
 
 All GitHub links resolve to v2.1.1 tagged release, ensuring claims remain verifiable even as development continues.
 
@@ -807,13 +807,13 @@ Mnemosyne addresses fundamental challenges in LLM deployments:
 
 ### 8.5 Call to Action
 
-**Try Mnemosyne**: Install via `cargo install mnemosyne` or build from source, integrate with Claude Code following Quick Start guide [\[docs/guides/quickstart.md\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/docs/guides/quickstart.md), explore dashboard with `mnemosyne-dash`, experiment with ICS editor via `mnemosyne-ics`.
+**Try Mnemosyne**: Install via `cargo install mnemosyne` or build from source, integrate with Claude Code following Quick Start guide [\[docs/guides/quickstart.md\]](https://github.com/rand/mnemosyne/blob/v2.1.1/docs/guides/quickstart.md), explore dashboard with `mnemosyne-dash`, experiment with ICS editor via `mnemosyne-ics`.
 
-**Contribute**: Report issues at [\[github.com/USERNAME/mnemosyne/issues\]](https://github.com/USERNAME/mnemosyne/issues), submit pull requests following contribution guidelines [\[CONTRIBUTING.md\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/CONTRIBUTING.md), improve documentation and tutorials, share use cases and feedback.
+**Contribute**: Report issues at [\[github.com/rand/mnemosyne/issues\]](https://github.com/rand/mnemosyne/issues), submit pull requests following contribution guidelines [\[CONTRIBUTING.md\]](https://github.com/rand/mnemosyne/blob/v2.1.1/CONTRIBUTING.md), improve documentation and tutorials, share use cases and feedback.
 
-**Learn More**: Comprehensive guides at [\[docs/\]](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/docs), architecture deep-dives in feature documentation, API reference for MCP tools, video tutorials and examples (coming soon).
+**Learn More**: Comprehensive guides at [\[docs/\]](https://github.com/rand/mnemosyne/tree/v2.1.1/docs), architecture deep-dives in feature documentation, API reference for MCP tools, video tutorials and examples (coming soon).
 
-**Stay Updated**: Watch repository for releases, follow changelog for new features [\[CHANGELOG.md\]](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/CHANGELOG.md), join discussions for Q&A and announcements, subscribe to newsletter (optional).
+**Stay Updated**: Watch repository for releases, follow changelog for new features [\[CHANGELOG.md\]](https://github.com/rand/mnemosyne/blob/v2.1.1/CHANGELOG.md), join discussions for Q&A and announcements, subscribe to newsletter (optional).
 
 Mnemosyne represents a step toward LLM systems that remember, coordinate, and evolve autonomously. By treating memory and agents as unified concerns, it enables persistent context across sessions, reliable multi-agent coordination, and continuous optimization without manual intervention.
 
@@ -844,9 +844,9 @@ Mnemosyne represents a step toward LLM systems that remember, coordinate, and ev
 ---
 
 **Mnemosyne** v2.1.1 (November 5, 2025)
-**Repository**: [github.com/USERNAME/mnemosyne](https://github.com/USERNAME/mnemosyne)
-**Documentation**: [docs/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/docs)
-**License**: MIT (see [LICENSE](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/LICENSE))
+**Repository**: [github.com/rand/mnemosyne](https://github.com/rand/mnemosyne)
+**Documentation**: [docs/](https://github.com/rand/mnemosyne/tree/v2.1.1/docs)
+**License**: MIT (see [LICENSE](https://github.com/rand/mnemosyne/blob/v2.1.1/LICENSE))
 
 ---
 
