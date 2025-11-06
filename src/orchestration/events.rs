@@ -643,7 +643,7 @@ mod tests {
         if let Some(api_event) = api_event {
             match &api_event.event_type {
                 crate::api::EventType::AgentStarted { agent_id, task, .. } => {
-                    assert_eq!(agent_id, "Executor");
+                    assert_eq!(agent_id, "executor");
                     assert_eq!(task.as_ref().unwrap(), "Test task");
                 }
                 _ => panic!("Wrong event type"),
