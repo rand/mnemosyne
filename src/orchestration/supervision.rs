@@ -536,6 +536,54 @@ impl SupervisionTree {
     pub fn proposal_queue(&self) -> &ProposalQueue {
         &self.proposal_queue
     }
+
+    /// Spawn all agents (alias for start() for daemon compatibility)
+    ///
+    /// This spawns all 4 agents:
+    /// - Orchestrator: Central coordinator
+    /// - Optimizer: Context and resource optimization
+    /// - Reviewer: Quality assurance and gating
+    /// - Executor: Work execution
+    pub async fn spawn_agents(&mut self) -> Result<()> {
+        self.start().await
+    }
+
+    /// Check if all agents are healthy and running
+    ///
+    /// Returns true if all 4 agent actor references exist and are accessible.
+    /// This is a lightweight health check that doesn't send messages to agents.
+    pub async fn is_healthy(&self) -> bool {
+        // Check if all agent references exist
+        self.orchestrator.is_some()
+            && self.optimizer.is_some()
+            && self.reviewer.is_some()
+            && self.executor.is_some()
+    }
+
+    /// Restart failed agents
+    ///
+    /// Checks each agent and restarts any that have failed.
+    /// The supervision tree (Ractor) handles automatic restart on failure,
+    /// so this is primarily for explicit restart requests.
+    pub async fn restart_failed_agents(&mut self) -> Result<()> {
+        // In Ractor supervision trees, actors automatically restart on failure
+        // This method is a no-op for now but can be extended to:
+        // - Manually restart specific actors
+        // - Clear actor state on restart
+        // - Broadcast restart events
+
+        // Check if agents are still alive
+        if self.orchestrator.is_none() || self.optimizer.is_none()
+            || self.reviewer.is_none() || self.executor.is_none() {
+            tracing::warn!("Some agents missing, restarting supervision tree");
+            // Stop any remaining agents
+            self.stop().await?;
+            // Restart all agents
+            self.start().await?;
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

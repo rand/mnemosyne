@@ -1,10 +1,16 @@
-//! Daemon Mode for MCP Server
+//! Daemon Mode for MCP Server and Orchestration
 #![allow(clippy::field_reassign_with_default)]
 //!
-//! Provides functionality to run the Mnemosyne MCP server in background (daemon) mode.
+//! Provides functionality to run the Mnemosyne MCP server and orchestration system
+//! in background (daemon) mode.
+//!
+//! # Modules
+//! - MCP Server daemon: Runs the JSON-RPC server for tool access
+//! - Orchestration daemon: Runs the 4-agent coordination system
 //!
 //! # Features
 //! - Daemonize MCP server process
+//! - Daemonize orchestration system
 //! - PID file management
 //! - Log file rotation
 //! - Signal handling (SIGTERM, SIGINT)
@@ -16,10 +22,18 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Start MCP server daemon
 //!     daemon::start_daemon(None).await?;
+//!
+//!     // Start orchestration daemon
+//!     let orch_daemon = daemon::orchestration::OrchestrationDaemon::new();
+//!     orch_daemon.start().await?;
+//!
 //!     Ok(())
 //! }
 //! ```
+
+pub mod orchestration;
 
 use crate::error::{MnemosyneError, Result};
 use std::fs;
