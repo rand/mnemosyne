@@ -689,7 +689,8 @@ async fn test_phase_tracking_in_work_queue() {
 
     tokio::time::sleep(Duration::from_millis(100)).await;
 
-    // Verify both work items were tracked using same namespace
+    // Verify work items were tracked using same namespace
+    // Expected: 3 from auto-bootstrap + 2 from test = 5 total
     let replay = EventReplay::new(storage.clone(), namespace);
     let events = replay.load_events().await.expect("Failed to load events");
 
@@ -698,7 +699,10 @@ async fn test_phase_tracking_in_work_queue() {
         .filter(|e| matches!(e, AgentEvent::WorkItemAssigned { .. }))
         .count();
 
-    assert_eq!(work_assigned_count, 2, "Should have 2 work items assigned");
+    assert_eq!(
+        work_assigned_count, 5,
+        "Should have 5 work items assigned (3 from auto-bootstrap + 2 from test)"
+    );
 
     engine.stop().await.expect("Failed to stop");
 }
