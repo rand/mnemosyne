@@ -277,13 +277,13 @@ impl EventPersistence {
 
     /// Convert AgentRole to agent ID string
     fn agent_role_to_id(&self, agent: &AgentRole) -> String {
-        let role_str = match agent {
+        match agent {
             AgentRole::Orchestrator => "orchestrator",
             AgentRole::Optimizer => "optimizer",
             AgentRole::Reviewer => "reviewer",
             AgentRole::Executor => "executor",
-        };
-        format!("{}-{}", self.namespace, role_str)
+        }
+        .to_string()
     }
 
     /// Convert orchestration event to API event for real-time broadcasting
