@@ -58,6 +58,20 @@ async fn test_orchestration_event_flow() {
     // Wait a bit for initialization
     tokio::time::sleep(Duration::from_millis(100)).await;
 
+    // Drain any startup events (heartbeats, agent initialization) before testing
+    loop {
+        match timeout(Duration::from_millis(50), subscriber1.recv()).await {
+            Ok(_) => continue, // Drain event
+            Err(_) => break,   // Timeout means no more events, we can proceed
+        }
+    }
+    loop {
+        match timeout(Duration::from_millis(50), subscriber2.recv()).await {
+            Ok(_) => continue, // Drain event
+            Err(_) => break,   // Timeout means no more events, we can proceed
+        }
+    }
+
     // Create event persistence and emit test events
     let namespace = Namespace::Session {
         project: "test-integration".to_string(),
@@ -141,7 +155,7 @@ async fn test_orchestration_event_flow() {
         EventType::AgentFailed { .. }
     ));
 
-    // Test 4: Phase transition should NOT be broadcast
+    // Test 4: Phase transition should be broadcast
     let event = AgentEvent::PhaseTransition {
         from: Phase::PromptToSpec,
         to: Phase::SpecToFullSpec,
@@ -153,9 +167,14 @@ async fn test_orchestration_event_flow() {
         .await
         .expect("Failed to persist event");
 
-    // Should timeout - no event broadcast
+    // Should receive PhaseChanged event
     let result = timeout(Duration::from_millis(100), subscriber1.recv()).await;
-    assert!(result.is_err(), "Phase transitions should not be broadcast");
+    assert!(result.is_ok(), "Phase transition should be broadcast");
+    let api_event = result.unwrap().unwrap();
+    assert!(matches!(
+        api_event.event_type,
+        EventType::PhaseChanged { .. }
+    ));
 
     // Cleanup
     engine.stop().await.expect("Failed to stop engine");

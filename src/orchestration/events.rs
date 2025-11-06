@@ -658,14 +658,20 @@ mod tests {
             ));
         }
 
-        // Test that other events are not mapped
+        // Test PhaseTransition mapping
         let event = AgentEvent::PhaseTransition {
             from: Phase::PromptToSpec,
             to: Phase::SpecToFullSpec,
             approved_by: AgentRole::Orchestrator,
         };
         let api_event = persistence.to_api_event(&event);
-        assert!(api_event.is_none()); // Phase transitions are not broadcast
+        assert!(api_event.is_some());
+        if let Some(api_event) = api_event {
+            assert!(matches!(
+                api_event.event_type,
+                crate::api::EventType::PhaseChanged { .. }
+            ));
+        }
     }
 
     #[tokio::test]
