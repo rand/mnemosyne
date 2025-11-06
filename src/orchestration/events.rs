@@ -662,7 +662,7 @@ mod tests {
         if let Some(api_event) = api_event {
             assert!(matches!(
                 api_event.event_type,
-                crate::api::EventType::AgentCompleted { .. }
+                crate::api::EventType::WorkItemCompleted { .. }
             ));
         }
 
