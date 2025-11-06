@@ -311,6 +311,11 @@ async fn run_app<B: ratatui::backend::Backend>(
     client: &Client,
     tick: &mut tokio::time::Interval,
 ) -> Result<()> {
+    // Force initial state refresh immediately on connection
+    // This ensures agents are visible right away, even if they spawned before SSE connected
+    app.update_state(client).await?;
+    debug!("Initial state refresh complete");
+
     loop {
         terminal.draw(|f| {
             let chunks = Layout::default()

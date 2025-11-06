@@ -126,8 +126,19 @@ impl OptimizerState {
         // Clone agent_id for the spawn task
         let agent_id_clone = agent_id.clone();
 
-        // Spawn heartbeat task (30s interval)
+        // Spawn heartbeat task with immediate first beat, then 30s interval
         tokio::spawn(async move {
+            // Send immediate first heartbeat so dashboard sees agent right away
+            let event = crate::api::Event::heartbeat(agent_id_clone.clone());
+            if let Err(e) = broadcaster.broadcast(event) {
+                tracing::debug!(
+                    "Failed to broadcast initial heartbeat for {}: {}",
+                    agent_id_clone,
+                    e
+                );
+            }
+
+            // Then continue with 30s interval
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
             loop {
                 interval.tick().await;
@@ -141,7 +152,7 @@ impl OptimizerState {
                 }
             }
         });
-        tracing::info!("Heartbeat task spawned for {}", agent_id);
+        tracing::info!("Heartbeat task spawned for {} (immediate first beat + 30s interval)", agent_id);
     }
 
     /// Register DSPy adapter for intelligent optimization
