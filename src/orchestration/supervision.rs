@@ -428,6 +428,89 @@ impl SupervisionTree {
 
         tracing::debug!("Supervision tree started with {} agents", 4);
 
+        // Bootstrap Work Plan Protocol with initial work items
+        self.bootstrap_work_plan_protocol().await?;
+
+        Ok(())
+    }
+
+    /// Bootstrap Work Plan Protocol
+    ///
+    /// Initializes the orchestration system by submitting initial work items.
+    /// This makes the system "always active" by automatically starting the Work Plan Protocol
+    /// when agents are spawned, rather than waiting for external triggers.
+    ///
+    /// Strategy:
+    /// 1. Check for existing active work (resume if present)
+    /// 2. If none, create session initialization work items
+    /// 3. Submit work to orchestrator to begin processing
+    async fn bootstrap_work_plan_protocol(&mut self) -> Result<()> {
+        use crate::orchestration::state::AgentState;
+        use crate::orchestration::work_plan_templates;
+
+        tracing::info!("Bootstrapping Work Plan Protocol");
+
+        // Check if there are existing active work items to resume
+        // We check Ready, Active, and Blocked states
+        let mut existing_items = Vec::new();
+
+        for state in &[AgentState::Ready, AgentState::Active, AgentState::Blocked] {
+            match self.storage.load_work_items_by_state(*state).await {
+                Ok(items) => existing_items.extend(items),
+                Err(e) => {
+                    tracing::warn!("Failed to load work items in state {:?}: {}", state, e);
+                }
+            }
+        }
+
+        if !existing_items.is_empty() {
+            tracing::info!(
+                "Found {} existing work items, resuming orchestration",
+                existing_items.len()
+            );
+
+            // Submit existing items to orchestrator for resumption
+            if let Some(ref orchestrator) = self.orchestrator {
+                for item in existing_items {
+                    tracing::debug!("Resuming work item: {}", item.description);
+                    orchestrator
+                        .cast(OrchestratorMessage::SubmitWork(item))
+                        .map_err(|e| {
+                            crate::error::MnemosyneError::ActorError(format!(
+                                "Failed to resume work: {}",
+                                e
+                            ))
+                        })?;
+                }
+            } else {
+                tracing::warn!("Orchestrator not available, cannot resume work");
+            }
+        } else {
+            // No existing work, bootstrap fresh session
+            tracing::info!("No existing work found, creating session initialization work items");
+
+            let init_items = work_plan_templates::create_session_init_work_items();
+
+            // Submit initialization work items to orchestrator
+            if let Some(ref orchestrator) = self.orchestrator {
+                for item in init_items {
+                    tracing::debug!("Submitting init work: {}", item.description);
+                    orchestrator
+                        .cast(OrchestratorMessage::SubmitWork(item))
+                        .map_err(|e| {
+                            crate::error::MnemosyneError::ActorError(format!(
+                                "Failed to submit init work: {}",
+                                e
+                            ))
+                        })?;
+                }
+
+                tracing::info!("Work Plan Protocol bootstrapped successfully");
+            } else {
+                tracing::warn!("Orchestrator not available, skipping bootstrap");
+            }
+        }
+
         Ok(())
     }
 
