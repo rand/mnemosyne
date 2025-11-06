@@ -61,7 +61,7 @@ pub async fn handle(
             }
         });
 
-        println!("{} Dashboard API: http://127.0.0.1:3000", icons::action::view());
+        println!("{} Dashboard API: http://127.0.0.1:3000", icons::action::link());
         println!("   Connect dashboard: mnemosyne-dash --api http://127.0.0.1:3000");
         println!();
 
