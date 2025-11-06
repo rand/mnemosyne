@@ -453,6 +453,119 @@ impl OrchestratorActor {
         Ok(())
     }
 
+    /// Check if current phase is complete and trigger automatic transition
+    async fn check_phase_completion(state: &mut OrchestratorState) -> Result<()> {
+        use crate::orchestration::work_plan_templates;
+
+        let current_phase = {
+            let queue = state.work_queue.read().await;
+            queue.current_phase()
+        };
+
+        // Check if all work items for current phase are completed
+        let phase_complete = {
+            let queue = state.work_queue.read().await;
+
+            // Get ready, active, and blocked items for current phase
+            let ready_items = queue.get_ready_items();
+            let active_items = queue.get_active_items();
+
+            // Count items that are still in progress for current phase
+            let in_progress_count = ready_items
+                .iter()
+                .chain(active_items.iter())
+                .filter(|item| item.phase == current_phase)
+                .count();
+
+            // Phase is complete when no items are in progress
+            in_progress_count == 0
+        };
+
+        if !phase_complete {
+            return Ok(());
+        }
+
+        // Determine next phase
+        let next_phase = match current_phase.next() {
+            Some(phase) => phase,
+            None => {
+                tracing::info!("Work Plan Protocol complete! All phases finished.");
+                return Ok(());
+            }
+        };
+
+        tracing::info!(
+            "Phase {:?} complete! Transitioning to {:?}",
+            current_phase,
+            next_phase
+        );
+
+        // Generate work items for next phase
+        let new_items = match next_phase {
+            Phase::SpecToFullSpec => {
+                // TODO: Extract spec summary from completed PromptToSpec work
+                let spec_summary = "Generated specification".to_string();
+                work_plan_templates::create_phase2_work_items(spec_summary)
+            }
+            Phase::FullSpecToPlan => {
+                // TODO: Extract full spec summary from completed SpecToFullSpec work
+                let full_spec_summary = "Detailed specification with components".to_string();
+                work_plan_templates::create_phase3_work_items(full_spec_summary)
+            }
+            Phase::PlanToArtifacts => {
+                // TODO: Extract plan tasks from completed FullSpecToPlan work
+                let plan_tasks = vec![
+                    "Implement core functionality".to_string(),
+                    "Write tests".to_string(),
+                    "Create documentation".to_string(),
+                ];
+                work_plan_templates::create_phase4_work_items(plan_tasks)
+            }
+            Phase::Complete => {
+                vec![] // No more work items
+            }
+            _ => vec![], // Shouldn't happen, but handle gracefully
+        };
+
+        // Trigger phase transition
+        Self::handle_phase_transition(state, current_phase, next_phase).await?;
+
+        // Submit new work items for next phase
+        let num_items = new_items.len();
+        for item in new_items {
+            tracing::debug!("Submitting work for next phase: {}", item.description);
+
+            let agent = item.agent;
+            let item_id = item.id.clone();
+            let phase = item.phase;
+            let description = item.description.clone();
+
+            {
+                let mut queue = state.work_queue.write().await;
+                queue.add(item);
+            }
+
+            // Persist event
+            state
+                .events
+                .persist(AgentEvent::WorkItemAssigned {
+                    agent,
+                    item_id,
+                    description,
+                    phase,
+                })
+                .await?;
+        }
+
+        tracing::info!(
+            "Phase transition complete: {} new work items created for {:?}",
+            num_items,
+            next_phase
+        );
+
+        Ok(())
+    }
+
     /// Handle context threshold reached
     async fn handle_context_threshold(
         state: &mut OrchestratorState,
@@ -543,6 +656,9 @@ impl OrchestratorActor {
                 "Work item passed all quality gates and satisfied all requirements: {:?}",
                 item_id
             );
+
+            // Check for phase completion and trigger automatic transition
+            Self::check_phase_completion(state).await?;
 
             // Dispatch next items
             Self::dispatch_work(state).await?;
