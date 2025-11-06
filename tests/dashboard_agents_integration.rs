@@ -37,18 +37,19 @@ async fn test_agents_visible_within_one_second() {
     let (storage, _temp) = create_test_storage().await;
 
     // Create event broadcaster and state manager
-    let event_broadcaster = Arc::new(EventBroadcaster::new());
+    let event_broadcaster = EventBroadcaster::default(); // 1000 event capacity
     let state_manager = Arc::new(StateManager::new());
 
-    // Subscribe state manager to events
-    state_manager.subscribe_to_events(event_broadcaster.clone());
+    // Subscribe state manager to event stream
+    let event_rx = event_broadcaster.subscribe();
+    state_manager.subscribe_to_events(event_rx);
 
     // Create and start orchestration engine with event broadcasting
     let config = SupervisionConfig::default();
     let mut engine = OrchestrationEngine::new_with_state(
         storage,
         config,
-        Some(event_broadcaster.clone()),
+        Some(event_broadcaster),
         Some(state_manager.clone()),
     )
     .await
@@ -63,7 +64,7 @@ async fn test_agents_visible_within_one_second() {
     // Poll state manager until all 4 agents are visible or timeout
     let result = timeout(Duration::from_secs(1), async {
         loop {
-            let agents = state_manager.get_agents().await;
+            let agents = state_manager.list_agents().await;
             if agents.len() >= 4 {
                 return Ok(());
             }
@@ -81,7 +82,7 @@ async fn test_agents_visible_within_one_second() {
         elapsed
     );
 
-    let agents = state_manager.get_agents().await;
+    let agents = state_manager.list_agents().await;
     assert_eq!(
         agents.len(),
         4,
@@ -92,7 +93,7 @@ async fn test_agents_visible_within_one_second() {
     println!("✅ All 4 agents visible in {:?}", elapsed);
 
     // Verify agent IDs contain expected roles
-    let agent_ids: Vec<String> = agents.keys().map(|k| k.clone()).collect();
+    let agent_ids: Vec<String> = agents.iter().map(|a| a.id.clone()).collect();
     assert!(
         agent_ids
             .iter()
@@ -127,7 +128,7 @@ async fn test_late_dashboard_connection_sees_agents() {
     let (storage, _temp) = create_test_storage().await;
 
     // Create event broadcaster and state manager
-    let event_broadcaster = Arc::new(EventBroadcaster::new());
+    let event_broadcaster = EventBroadcaster::default();
     let state_manager = Arc::new(StateManager::new());
 
     // Create and start orchestration engine
@@ -135,7 +136,7 @@ async fn test_late_dashboard_connection_sees_agents() {
     let mut engine = OrchestrationEngine::new_with_state(
         storage,
         config,
-        Some(event_broadcaster.clone()),
+        Some(event_broadcaster.clone()), // Clone broadcaster for engine
         Some(state_manager.clone()),
     )
     .await
@@ -148,14 +149,15 @@ async fn test_late_dashboard_connection_sees_agents() {
     tokio::time::sleep(Duration::from_millis(500)).await;
 
     // NOW connect state manager (simulating late dashboard connection)
-    state_manager.subscribe_to_events(event_broadcaster.clone());
+    let event_rx = event_broadcaster.subscribe();
+    state_manager.subscribe_to_events(event_rx);
 
     // State manager should see agents immediately (from querying state)
     let start = std::time::Instant::now();
 
     let result = timeout(Duration::from_millis(500), async {
         loop {
-            let agents = state_manager.get_agents().await;
+            let agents = state_manager.list_agents().await;
             if agents.len() >= 4 {
                 return Ok(());
             }
@@ -172,7 +174,7 @@ async fn test_late_dashboard_connection_sees_agents() {
         elapsed
     );
 
-    let agents = state_manager.get_agents().await;
+    let agents = state_manager.list_agents().await;
     assert_eq!(
         agents.len(),
         4,
