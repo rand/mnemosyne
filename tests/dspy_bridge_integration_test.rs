@@ -82,14 +82,8 @@ mod dspy_bridge_tests {
         inputs.insert("text".to_string(), json!("Sample text"));
         inputs.insert("count".to_string(), json!(42));
         inputs.insert("flag".to_string(), json!(true));
-        inputs.insert(
-            "list".to_string(),
-            json!(["item1", "item2", "item3"]),
-        );
-        inputs.insert(
-            "nested".to_string(),
-            json!({"key": "value", "number": 123}),
-        );
+        inputs.insert("list".to_string(), json!(["item1", "item2", "item3"]));
+        inputs.insert("nested".to_string(), json!({"key": "value", "number": 123}));
 
         // Should handle complex JSON values
         let result = bridge.call_agent_module("Reviewer", inputs).await;

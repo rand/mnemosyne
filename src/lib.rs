@@ -48,12 +48,12 @@ pub mod artifacts; // Specification workflow artifacts
 pub mod config;
 pub mod coordination; // ICS handoff coordination
 pub mod daemon;
-pub mod icons; // Nerd Font icons with ASCII fallbacks
 pub mod embeddings;
 pub mod error;
 pub mod evaluation;
 pub mod evolution;
 pub mod health; // Health check system
+pub mod icons; // Nerd Font icons with ASCII fallbacks
 pub mod ics; // Integrated Context Studio
 pub mod launcher;
 pub mod mcp;

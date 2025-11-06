@@ -119,17 +119,17 @@ impl Dialog for ConfirmDialog {
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(3),    // Message
-                    Constraint::Min(5),       // Preview
-                    Constraint::Length(3),    // Buttons
+                    Constraint::Length(3), // Message
+                    Constraint::Min(5),    // Preview
+                    Constraint::Length(3), // Buttons
                 ])
                 .split(inner)
         } else {
             Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Min(3),       // Message
-                    Constraint::Length(3),    // Buttons
+                    Constraint::Min(3),    // Message
+                    Constraint::Length(3), // Buttons
                 ])
                 .split(inner)
         };
@@ -159,10 +159,7 @@ impl Dialog for ConfirmDialog {
         let button_idx = if self.preview.is_some() { 2 } else { 1 };
         let button_chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(50),
-                Constraint::Percentage(50),
-            ])
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(chunks[button_idx]);
 
         // Yes button
@@ -362,8 +359,7 @@ impl Dialog for InputDialog {
             .split(inner);
 
         // Render prompt
-        let prompt = Paragraph::new(self.prompt.as_str())
-            .alignment(Alignment::Left);
+        let prompt = Paragraph::new(self.prompt.as_str()).alignment(Alignment::Left);
         frame.render_widget(prompt, chunks[0]);
 
         // Render input box
@@ -373,8 +369,8 @@ impl Dialog for InputDialog {
         let input_inner = input_block.inner(chunks[1]);
         frame.render_widget(input_block, chunks[1]);
 
-        let input_text = Paragraph::new(self.input.as_str())
-            .style(Style::default().fg(Color::White));
+        let input_text =
+            Paragraph::new(self.input.as_str()).style(Style::default().fg(Color::White));
         frame.render_widget(input_text, input_inner);
 
         // Render cursor
@@ -388,8 +384,7 @@ impl Dialog for InputDialog {
         // Render error if present
         let mut hint_idx = 2;
         if let Some(error) = &self.error {
-            let error_text = Paragraph::new(error.as_str())
-                .style(Style::default().fg(Color::Red));
+            let error_text = Paragraph::new(error.as_str()).style(Style::default().fg(Color::Red));
             frame.render_widget(error_text, chunks[2]);
             hint_idx = 3;
         }
@@ -689,14 +684,13 @@ mod tests {
 
     #[test]
     fn test_input_dialog_with_validator() {
-        let mut dialog = InputDialog::new("Test", "Enter:")
-            .with_validator(|s| {
-                if s.is_empty() {
-                    Err("Cannot be empty".to_string())
-                } else {
-                    Ok(())
-                }
-            });
+        let mut dialog = InputDialog::new("Test", "Enter:").with_validator(|s| {
+            if s.is_empty() {
+                Err("Cannot be empty".to_string())
+            } else {
+                Ok(())
+            }
+        });
 
         // Try to confirm empty input
         let should_close = dialog.handle_key(KeyEvent::from(KeyCode::Enter));
@@ -707,7 +701,10 @@ mod tests {
         dialog.handle_key(KeyEvent::from(KeyCode::Char('a')));
         let should_close = dialog.handle_key(KeyEvent::from(KeyCode::Enter));
         assert!(should_close);
-        assert_eq!(dialog.result(), DialogResult::ConfirmedWithInput("a".to_string()));
+        assert_eq!(
+            dialog.result(),
+            DialogResult::ConfirmedWithInput("a".to_string())
+        );
     }
 
     #[test]

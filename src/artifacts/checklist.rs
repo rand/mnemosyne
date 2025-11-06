@@ -1,8 +1,8 @@
 //! Quality checklist artifact
 #![allow(clippy::useless_format, clippy::single_char_add_str)]
 
-use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use super::storage::{parse_frontmatter, serialize_frontmatter};
+use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use crate::error::{MnemosyneError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -253,10 +253,8 @@ mod tests {
 
     #[test]
     fn test_quality_checklist_creation() {
-        let checklist = QualityChecklist::new(
-            "user-auth".to_string(),
-            "User Auth Checklist".to_string(),
-        );
+        let checklist =
+            QualityChecklist::new("user-auth".to_string(), "User Auth Checklist".to_string());
 
         assert_eq!(checklist.feature_id, "user-auth");
         assert_eq!(checklist.completion_percentage(), 0.0);
@@ -264,10 +262,8 @@ mod tests {
 
     #[test]
     fn test_completion_percentage() {
-        let mut checklist = QualityChecklist::new(
-            "user-auth".to_string(),
-            "User Auth Checklist".to_string(),
-        );
+        let mut checklist =
+            QualityChecklist::new("user-auth".to_string(), "User Auth Checklist".to_string());
 
         checklist.add_section(ChecklistSection {
             name: "Tests".to_string(),
@@ -323,9 +319,15 @@ mod tests {
         assert_eq!(loaded.sections.len(), 1);
         assert_eq!(loaded.sections[0].name, "Tests");
         assert_eq!(loaded.sections[0].items.len(), 2);
-        assert_eq!(loaded.sections[0].items[0].description, "Unit tests passing");
+        assert_eq!(
+            loaded.sections[0].items[0].description,
+            "Unit tests passing"
+        );
         assert!(loaded.sections[0].items[0].completed);
-        assert_eq!(loaded.sections[0].items[1].description, "Integration tests passing");
+        assert_eq!(
+            loaded.sections[0].items[1].description,
+            "Integration tests passing"
+        );
         assert!(!loaded.sections[0].items[1].completed);
     }
 
@@ -376,13 +378,11 @@ mod tests {
 
         original.add_section(ChecklistSection {
             name: "Security".to_string(),
-            items: vec![
-                ChecklistItem {
-                    description: "No secrets in git".to_string(),
-                    completed: true,
-                    notes: Some("Keys stored in .env".to_string()),
-                },
-            ],
+            items: vec![ChecklistItem {
+                description: "No secrets in git".to_string(),
+                completed: true,
+                notes: Some("Keys stored in .env".to_string()),
+            }],
         });
 
         // Serialize to markdown
@@ -398,15 +398,30 @@ mod tests {
         // Verify Functional Requirements section
         assert_eq!(loaded.sections[0].name, "Functional Requirements");
         assert_eq!(loaded.sections[0].items.len(), 3);
-        assert_eq!(loaded.sections[0].items[0].description, "Token generation works");
+        assert_eq!(
+            loaded.sections[0].items[0].description,
+            "Token generation works"
+        );
         assert!(loaded.sections[0].items[0].completed);
-        assert_eq!(loaded.sections[0].items[0].notes, Some("Using RS256 algorithm".to_string()));
-        assert_eq!(loaded.sections[0].items[1].description, "Token validation works");
+        assert_eq!(
+            loaded.sections[0].items[0].notes,
+            Some("Using RS256 algorithm".to_string())
+        );
+        assert_eq!(
+            loaded.sections[0].items[1].description,
+            "Token validation works"
+        );
         assert!(loaded.sections[0].items[1].completed);
         assert_eq!(loaded.sections[0].items[1].notes, None);
-        assert_eq!(loaded.sections[0].items[2].description, "Refresh token flow works");
+        assert_eq!(
+            loaded.sections[0].items[2].description,
+            "Refresh token flow works"
+        );
         assert!(!loaded.sections[0].items[2].completed);
-        assert_eq!(loaded.sections[0].items[2].notes, Some("Waiting on cookie implementation".to_string()));
+        assert_eq!(
+            loaded.sections[0].items[2].notes,
+            Some("Waiting on cookie implementation".to_string())
+        );
 
         // Verify Testing section
         assert_eq!(loaded.sections[1].name, "Testing");
@@ -417,7 +432,10 @@ mod tests {
         // Verify Security section
         assert_eq!(loaded.sections[2].name, "Security");
         assert_eq!(loaded.sections[2].items.len(), 1);
-        assert_eq!(loaded.sections[2].items[0].notes, Some("Keys stored in .env".to_string()));
+        assert_eq!(
+            loaded.sections[2].items[0].notes,
+            Some("Keys stored in .env".to_string())
+        );
     }
 
     #[test]
@@ -446,7 +464,10 @@ mod tests {
         assert_eq!(sections[0].items.len(), 2);
         assert_eq!(sections[0].items[0].description, "Feature A works");
         assert!(sections[0].items[0].completed);
-        assert_eq!(sections[0].items[0].notes, Some("Tested manually".to_string()));
+        assert_eq!(
+            sections[0].items[0].notes,
+            Some("Tested manually".to_string())
+        );
         assert_eq!(sections[0].items[1].description, "Feature B works");
         assert!(!sections[0].items[1].completed);
         assert_eq!(sections[0].items[1].notes, None);

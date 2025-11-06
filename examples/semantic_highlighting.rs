@@ -6,7 +6,7 @@
 //! the public-facing engine API that coordinates all analyzers.
 
 use mnemosyne_core::ics::semantic_highlighter::{
-    SemanticHighlightEngine, EngineBuilder, HighlightSettings,
+    EngineBuilder, HighlightSettings, SemanticHighlightEngine,
 };
 
 fn main() {
@@ -60,7 +60,11 @@ components might need refactoring. See #src/validator.rs for implementation.
 
     for line in complex_text.lines() {
         let highlighted = engine.highlight_line(line);
-        println!("Line: '{}' → {} highlights", line.trim(), highlighted.spans.len());
+        println!(
+            "Line: '{}' → {} highlights",
+            line.trim(),
+            highlighted.spans.len()
+        );
     }
 
     println!("\nThis text triggers:");
@@ -83,9 +87,7 @@ fn example_custom_configuration() {
         ..Default::default()
     };
 
-    let mut tier1_engine = EngineBuilder::new()
-        .with_settings(tier1_settings)
-        .build();
+    let mut tier1_engine = EngineBuilder::new().with_settings(tier1_settings).build();
 
     let text = "The system MUST validate input. See #src/main.rs";
     let line = tier1_engine.highlight_line(text);
@@ -100,9 +102,7 @@ fn example_custom_configuration() {
         ..Default::default()
     };
 
-    let mut tier12_engine = EngineBuilder::new()
-        .with_settings(tier12_settings)
-        .build();
+    let mut tier12_engine = EngineBuilder::new().with_settings(tier12_settings).build();
 
     let line = tier12_engine.highlight_line(text);
     println!("\nTier 1+2: {} highlights", line.spans.len());
@@ -122,7 +122,7 @@ fn example_cache_management() {
     let texts = vec![
         "Dr. Smith works on the algorithm.",
         "The system MUST validate input.",
-        "Dr. Smith works on the algorithm.",  // Duplicate
+        "Dr. Smith works on the algorithm.", // Duplicate
     ];
 
     for text in &texts {
@@ -131,12 +131,14 @@ fn example_cache_management() {
 
     // Get cache statistics
     let (relational_stats, analytical_stats) = engine.cache_stats();
-    println!("Relational cache: {} entries / {} capacity ({:.1}% utilization)",
+    println!(
+        "Relational cache: {} entries / {} capacity ({:.1}% utilization)",
         relational_stats.size,
         relational_stats.capacity,
         relational_stats.utilization() * 100.0
     );
-    println!("Analytical cache: {} entries / {} capacity ({:.1}% utilization)",
+    println!(
+        "Analytical cache: {} entries / {} capacity ({:.1}% utilization)",
         analytical_stats.size,
         analytical_stats.capacity,
         analytical_stats.utilization() * 100.0
@@ -152,8 +154,14 @@ fn example_cache_management() {
     }
 
     let (relational_stats, analytical_stats) = engine.cache_stats();
-    println!("After clear - Relational: {} entries", relational_stats.size);
-    println!("              Analytical: {} entries", analytical_stats.size);
+    println!(
+        "After clear - Relational: {} entries",
+        relational_stats.size
+    );
+    println!(
+        "              Analytical: {} entries",
+        analytical_stats.size
+    );
 
     println!();
 }
@@ -195,7 +203,8 @@ using @validate_input with ?custom_rules. Several edge cases remain unclear.
     for line in mixed.lines() {
         let highlighted = engine.highlight_line(line);
         if !line.trim().is_empty() {
-            println!("  '{}...' → {} highlights",
+            println!(
+                "  '{}...' → {} highlights",
                 &line.trim()[..line.trim().len().min(40)],
                 highlighted.spans.len()
             );

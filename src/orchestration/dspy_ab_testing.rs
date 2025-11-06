@@ -151,7 +151,7 @@ impl RollbackPolicy {
     /// Defaults: max_error_rate=0.10 (10%), max_latency_factor=1.5 (50% increase), min_samples=100
     pub fn default_policy() -> Self {
         Self {
-            max_error_rate: 0.10, // 10% error rate threshold
+            max_error_rate: 0.10,    // 10% error rate threshold
             max_latency_factor: 1.5, // 50% latency increase threshold
             min_samples: 100,
             auto_rollback_enabled: true,
@@ -161,7 +161,7 @@ impl RollbackPolicy {
     /// Create a conservative rollback policy (stricter thresholds)
     pub fn conservative() -> Self {
         Self {
-            max_error_rate: 0.05, // 5% error rate threshold
+            max_error_rate: 0.05,    // 5% error rate threshold
             max_latency_factor: 1.2, // 20% latency increase threshold
             min_samples: 200,
             auto_rollback_enabled: true,
@@ -171,7 +171,7 @@ impl RollbackPolicy {
     /// Create a permissive rollback policy (looser thresholds)
     pub fn permissive() -> Self {
         Self {
-            max_error_rate: 0.20, // 20% error rate threshold
+            max_error_rate: 0.20,    // 20% error rate threshold
             max_latency_factor: 2.0, // 100% latency increase threshold
             min_samples: 50,
             auto_rollback_enabled: true,
@@ -409,7 +409,10 @@ impl ABTestRouter {
             config_map.insert(module_name, config);
         }
 
-        info!("A/B test router initialized with {} tests", config_map.len());
+        info!(
+            "A/B test router initialized with {} tests",
+            config_map.len()
+        );
 
         Ok(Self {
             module_loader,
@@ -682,10 +685,8 @@ mod tests {
 
     #[test]
     fn test_gradual_rollout() {
-        let config = ABTestConfig::gradual_rollout(
-            "reviewer",
-            ModuleVersion::Optimized("v1".to_string()),
-        );
+        let config =
+            ABTestConfig::gradual_rollout("reviewer", ModuleVersion::Optimized("v1".to_string()));
 
         assert_eq!(config.module_name, "reviewer");
         assert_eq!(config.treatment_percentage, 0.01); // Starts at 1%

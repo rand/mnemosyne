@@ -178,10 +178,7 @@ impl ApiServer {
                         "API server [{}] listening on http://{}",
                         self.instance_id, alt_addr
                     );
-                    info!(
-                        "Dashboard: mnemosyne-dash --api http://{}",
-                        alt_addr
-                    );
+                    info!("Dashboard: mnemosyne-dash --api http://{}", alt_addr);
                     axum::serve(listener, router).await?;
                     return Ok(());
                 }
@@ -224,11 +221,11 @@ async fn events_handler(
 }
 
 /// Emit event handler (for remote MCP servers to forward events)
-async fn emit_event_handler(
-    State(state): State<AppState>,
-    Json(event): Json<Event>,
-) -> StatusCode {
-    debug!("Received event from remote MCP server: {:?}", event.event_type);
+async fn emit_event_handler(State(state): State<AppState>, Json(event): Json<Event>) -> StatusCode {
+    debug!(
+        "Received event from remote MCP server: {:?}",
+        event.event_type
+    );
 
     match state.events.broadcast(event) {
         Ok(_) => {

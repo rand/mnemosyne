@@ -8,11 +8,11 @@
 //! - Background processing coordination
 
 use crate::ics::semantic_highlighter::{Result, SemanticError};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock};
-use serde::{Serialize, Deserialize};
 
 /// Analysis request type
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -99,8 +99,7 @@ impl RateLimiter {
     fn refill(&mut self) {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last_refill).as_secs_f64();
-        self.tokens = (self.tokens + elapsed * self.tokens_per_second)
-            .min(self.max_tokens);
+        self.tokens = (self.tokens + elapsed * self.tokens_per_second).min(self.max_tokens);
         self.last_refill = now;
     }
 
@@ -142,7 +141,8 @@ impl RequestBatcher {
         let mut cache = self.dedup_cache.write().await;
         if let Some(_existing) = cache.get(&request.content_hash) {
             // Already have this request, just add ID to waiting list
-            cache.get_mut(&request.content_hash)
+            cache
+                .get_mut(&request.content_hash)
                 .unwrap()
                 .push(request.id.clone());
             return Ok(());
@@ -204,7 +204,7 @@ impl RequestBatcher {
 
                 if wait > Duration::from_secs(5) {
                     return Err(SemanticError::AnalysisFailed(
-                        "Rate limit exceeded, wait time too long".to_string()
+                        "Rate limit exceeded, wait time too long".to_string(),
                     ));
                 }
 

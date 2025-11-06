@@ -24,18 +24,6 @@
 pub mod actors;
 pub mod branch_coordinator;
 
-#[cfg(feature = "python")]
-pub mod dspy_bridge;
-#[cfg(feature = "python")]
-pub mod dspy_module_loader;
-#[cfg(feature = "python")]
-pub mod dspy_ab_testing;
-#[cfg(feature = "python")]
-pub mod dspy_telemetry;
-#[cfg(feature = "python")]
-pub mod dspy_production_logger;
-#[cfg(feature = "python")]
-pub mod dspy_instrumentation;
 pub mod branch_guard;
 pub mod branch_registry;
 pub mod cli;
@@ -43,11 +31,22 @@ pub mod config;
 pub mod conflict_detector;
 pub mod conflict_notifier;
 pub mod cross_process;
+#[cfg(feature = "python")]
+pub mod dspy_ab_testing;
+#[cfg(feature = "python")]
+pub mod dspy_bridge;
+#[cfg(feature = "python")]
+pub mod dspy_instrumentation;
+#[cfg(feature = "python")]
+pub mod dspy_module_loader;
+#[cfg(feature = "python")]
+pub mod dspy_production_logger;
+#[cfg(feature = "python")]
+pub mod dspy_telemetry;
 pub mod events;
 pub mod file_tracker;
 pub mod git_state;
 pub mod git_wrapper;
-pub mod worktree_manager;
 pub mod identity;
 pub mod integrations;
 pub mod messages;
@@ -60,6 +59,7 @@ pub mod skills;
 pub mod state;
 pub mod status_line;
 pub mod supervision;
+pub mod worktree_manager;
 
 #[cfg(test)]
 mod coordination_tests;
@@ -67,23 +67,6 @@ mod coordination_tests;
 // Re-export key types
 pub use actors::{ExecutorActor, OptimizerActor, OrchestratorActor, ReviewerActor};
 
-#[cfg(feature = "python")]
-pub use dspy_bridge::DSpyBridge;
-#[cfg(feature = "python")]
-pub use dspy_module_loader::{DSpyModuleLoader, ModuleMetadata, ModuleVersion};
-#[cfg(feature = "python")]
-pub use dspy_ab_testing::{
-    ABTestConfig, ABTestMetrics, ABTestRouter, RollbackEvent, RollbackPolicy, VersionMetrics,
-};
-#[cfg(feature = "python")]
-pub use dspy_telemetry::{
-    CostCalculator, DSpyEvent, EventType, ModuleMetrics as TelemetryModuleMetrics,
-    TelemetryCollector, TokenUsage,
-};
-#[cfg(feature = "python")]
-pub use dspy_production_logger::{
-    InteractionLog, LogConfig, LogSink, LoggerStats, ProductionLogger, TrainingDataEntry,
-};
 pub use branch_coordinator::{
     BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse,
 };
@@ -106,11 +89,27 @@ pub use conflict_notifier::{
 pub use cross_process::{
     CoordinationMessage, CrossProcessCoordinator, MessageType, ProcessRegistration,
 };
+#[cfg(feature = "python")]
+pub use dspy_ab_testing::{
+    ABTestConfig, ABTestMetrics, ABTestRouter, RollbackEvent, RollbackPolicy, VersionMetrics,
+};
+#[cfg(feature = "python")]
+pub use dspy_bridge::DSpyBridge;
+#[cfg(feature = "python")]
+pub use dspy_module_loader::{DSpyModuleLoader, ModuleMetadata, ModuleVersion};
+#[cfg(feature = "python")]
+pub use dspy_production_logger::{
+    InteractionLog, LogConfig, LogSink, LoggerStats, ProductionLogger, TrainingDataEntry,
+};
+#[cfg(feature = "python")]
+pub use dspy_telemetry::{
+    CostCalculator, DSpyEvent, EventType, ModuleMetrics as TelemetryModuleMetrics,
+    TelemetryCollector, TokenUsage,
+};
 pub use events::{AgentEvent, EventPersistence, EventReplay};
 pub use file_tracker::{ActiveConflict, FileModification, FileTracker, ModificationType};
 pub use git_state::{GitState, GitStateTracker};
 pub use git_wrapper::{GitAuditEntry, GitOperationType, GitWrapper};
-pub use worktree_manager::{WorktreeInfo, WorktreeManager};
 pub use identity::{AgentId, AgentIdentity};
 pub use messages::{
     AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage,
@@ -126,6 +125,7 @@ pub use skills::{get_skills_directory, SkillMatch, SkillMetadata, SkillsDiscover
 pub use state::{AgentState, Phase, WorkItem, WorkQueue};
 pub use status_line::{ShellIntegration, StatusLine, StatusLineFormat, StatusLineProvider};
 pub use supervision::{SupervisionConfig, SupervisionTree};
+pub use worktree_manager::{WorktreeInfo, WorktreeManager};
 
 use crate::error::Result;
 use std::sync::Arc;
@@ -213,7 +213,8 @@ impl OrchestrationEngine {
         namespace: crate::types::Namespace,
         event_broadcaster: Option<crate::api::EventBroadcaster>,
     ) -> Result<Self> {
-        Self::new_with_namespace_and_state(storage, config, namespace, event_broadcaster, None).await
+        Self::new_with_namespace_and_state(storage, config, namespace, event_broadcaster, None)
+            .await
     }
 
     /// Create a new orchestration engine with explicit namespace, event broadcasting, and state management

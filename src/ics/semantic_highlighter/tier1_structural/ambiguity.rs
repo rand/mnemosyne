@@ -10,8 +10,8 @@
 //! This helps identify areas where more precision might be needed.
 
 use crate::ics::semantic_highlighter::{
-    visualization::{HighlightSpan, HighlightSource, AnnotationType, Annotation},
     utils::CommonPatterns,
+    visualization::{Annotation, AnnotationType, HighlightSource, HighlightSpan},
     Result,
 };
 use ratatui::style::{Color, Modifier, Style};
@@ -116,7 +116,10 @@ impl AmbiguityDetector {
                 Some(Annotation {
                     annotation_type: AnnotationType::Warning,
                     underline: None,
-                    tooltip: Some(format!("{}: Consider being more specific", AmbiguityType::VagueQuantifier.description())),
+                    tooltip: Some(format!(
+                        "{}: Consider being more specific",
+                        AmbiguityType::VagueQuantifier.description()
+                    )),
                 })
             } else {
                 None
@@ -260,8 +263,12 @@ mod tests {
         // Should find "several" and "many"
         assert!(spans.len() >= 2);
 
-        let has_several = spans.iter().any(|s| text[s.range.clone()].to_lowercase().contains("several"));
-        let has_many = spans.iter().any(|s| text[s.range.clone()].to_lowercase().contains("many"));
+        let has_several = spans
+            .iter()
+            .any(|s| text[s.range.clone()].to_lowercase().contains("several"));
+        let has_many = spans
+            .iter()
+            .any(|s| text[s.range.clone()].to_lowercase().contains("many"));
 
         assert!(has_several);
         assert!(has_many);
@@ -274,8 +281,12 @@ mod tests {
         let spans = detector.analyze(text).unwrap();
 
         // Should find "about" and "roughly"
-        let has_about = spans.iter().any(|s| text[s.range.clone()].to_lowercase().contains("about"));
-        let has_roughly = spans.iter().any(|s| text[s.range.clone()].to_lowercase().contains("roughly"));
+        let has_about = spans
+            .iter()
+            .any(|s| text[s.range.clone()].to_lowercase().contains("about"));
+        let has_roughly = spans
+            .iter()
+            .any(|s| text[s.range.clone()].to_lowercase().contains("roughly"));
 
         assert!(has_about);
         assert!(has_roughly);
@@ -288,9 +299,9 @@ mod tests {
         let spans = detector.analyze(text).unwrap();
 
         // Should find sentence-initial "this"
-        let has_this = spans.iter().any(|s| {
-            text[s.range.clone()].to_lowercase() == "this"
-        });
+        let has_this = spans
+            .iter()
+            .any(|s| text[s.range.clone()].to_lowercase() == "this");
 
         assert!(has_this);
     }

@@ -8,8 +8,8 @@
 //! Also validates nesting and matching of open/close tags.
 
 use crate::ics::semantic_highlighter::{
-    visualization::{HighlightSpan, HighlightSource, AnnotationType, Annotation},
     utils::CommonPatterns,
+    visualization::{Annotation, AnnotationType, HighlightSource, HighlightSpan},
     Result,
 };
 use ratatui::style::{Color, Modifier, Style};
@@ -72,7 +72,8 @@ impl XmlTagAnalyzer {
             let end = full_match.end();
 
             // Determine color based on tag name
-            let color = self.colors
+            let color = self
+                .colors
                 .get(tag_name.to_lowercase().as_str())
                 .copied()
                 .unwrap_or(Color::DarkGray);
@@ -109,14 +110,13 @@ impl XmlTagAnalyzer {
             let start = full_match.start();
             let end = full_match.end();
 
-            let color = self.colors
+            let color = self
+                .colors
                 .get(tag_name.to_lowercase().as_str())
                 .copied()
                 .unwrap_or(Color::DarkGray);
 
-            let style = Style::default()
-                .fg(color)
-                .add_modifier(Modifier::ITALIC);
+            let style = Style::default().fg(color).add_modifier(Modifier::ITALIC);
 
             spans.push(HighlightSpan {
                 range: start..end,
@@ -167,8 +167,12 @@ impl XmlTagAnalyzer {
                                 .fg(Color::Red)
                                 .add_modifier(Modifier::UNDERLINED),
                             source: HighlightSource::Structural,
-                            annotation: Some(Annotation::new(AnnotationType::Warning)
-                                .with_tooltip(format!("Mismatched tag: expected </{}>", open_tag))),
+                            annotation: Some(
+                                Annotation::new(AnnotationType::Warning).with_tooltip(format!(
+                                    "Mismatched tag: expected </{}>",
+                                    open_tag
+                                )),
+                            ),
                             confidence: 1.0,
                             metadata: None,
                         });
@@ -181,8 +185,10 @@ impl XmlTagAnalyzer {
                             .fg(Color::Red)
                             .add_modifier(Modifier::UNDERLINED),
                         source: HighlightSource::Structural,
-                        annotation: Some(Annotation::new(AnnotationType::Warning)
-                            .with_tooltip("Closing tag without opening tag")),
+                        annotation: Some(
+                            Annotation::new(AnnotationType::Warning)
+                                .with_tooltip("Closing tag without opening tag"),
+                        ),
                         confidence: 1.0,
                         metadata: None,
                     });
@@ -203,8 +209,10 @@ impl XmlTagAnalyzer {
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::UNDERLINED),
                     source: HighlightSource::Structural,
-                    annotation: Some(Annotation::new(AnnotationType::Warning)
-                        .with_tooltip(format!("Unclosed tag: <{}>", tag_name))),
+                    annotation: Some(
+                        Annotation::new(AnnotationType::Warning)
+                            .with_tooltip(format!("Unclosed tag: <{}>", tag_name)),
+                    ),
                     confidence: 1.0,
                     metadata: None,
                 });
@@ -260,7 +268,8 @@ mod tests {
 
         // Check that there's a warning annotation
         let has_warning = spans.iter().any(|s| {
-            s.annotation.as_ref()
+            s.annotation
+                .as_ref()
                 .map(|a| matches!(a.annotation_type, AnnotationType::Warning))
                 .unwrap_or(false)
         });
@@ -278,7 +287,8 @@ mod tests {
 
         // Check for unclosed tag warning
         let has_warning = spans.iter().any(|s| {
-            s.annotation.as_ref()
+            s.annotation
+                .as_ref()
                 .and_then(|a| a.tooltip.as_ref())
                 .and_then(|t| t.strip_prefix("Unclosed tag"))
                 .is_some()

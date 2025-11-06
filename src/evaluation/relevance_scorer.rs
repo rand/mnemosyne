@@ -647,27 +647,34 @@ impl RelevanceScorer {
         let project_name = if let Some(project) = session_weights.scope_id.split(':').nth(1) {
             project
         } else {
-            warn!("Cannot extract project from session scope_id: {}", session_weights.scope_id);
+            warn!(
+                "Cannot extract project from session scope_id: {}",
+                session_weights.scope_id
+            );
             return Ok(());
         };
 
         // Get or create project-level weights
-        let mut project_weights = match self.get_weights(
-            Scope::Project,
-            project_name,
-            &session_weights.context_type,
-            &session_weights.agent_role,
-            session_weights.work_phase.as_deref(),
-            session_weights.task_type.as_deref(),
-            session_weights.error_context.as_deref(),
-        ).await? {
+        let mut project_weights = match self
+            .get_weights(
+                Scope::Project,
+                project_name,
+                &session_weights.context_type,
+                &session_weights.agent_role,
+                session_weights.work_phase.as_deref(),
+                session_weights.task_type.as_deref(),
+                session_weights.error_context.as_deref(),
+            )
+            .await?
+        {
             Some(w) => w,
             None => {
                 // Create new project weights from session
                 let mut w = session_weights.clone();
                 w.scope = Scope::Project;
                 w.scope_id = project_name.to_string();
-                w.id = format!("{}_{}_{}_{:?}_{:?}_{:?}",
+                w.id = format!(
+                    "{}_{}_{}_{:?}_{:?}_{:?}",
                     "project",
                     project_name,
                     w.context_type,
@@ -702,28 +709,27 @@ impl RelevanceScorer {
         );
 
         // Get or create global weights
-        let mut global_weights = match self.get_weights(
-            Scope::Global,
-            "global",
-            &session_weights.context_type,
-            &session_weights.agent_role,
-            session_weights.work_phase.as_deref(),
-            session_weights.task_type.as_deref(),
-            session_weights.error_context.as_deref(),
-        ).await? {
+        let mut global_weights = match self
+            .get_weights(
+                Scope::Global,
+                "global",
+                &session_weights.context_type,
+                &session_weights.agent_role,
+                session_weights.work_phase.as_deref(),
+                session_weights.task_type.as_deref(),
+                session_weights.error_context.as_deref(),
+            )
+            .await?
+        {
             Some(w) => w,
             None => {
                 // Create new global weights from project
                 let mut w = project_weights.clone();
                 w.scope = Scope::Global;
                 w.scope_id = "global".to_string();
-                w.id = format!("{}_{}_{}_{:?}_{:?}_{:?}",
-                    "global",
-                    "global",
-                    w.context_type,
-                    w.agent_role,
-                    w.work_phase,
-                    w.task_type
+                w.id = format!(
+                    "{}_{}_{}_{:?}_{:?}_{:?}",
+                    "global", "global", w.context_type, w.agent_role, w.work_phase, w.task_type
                 );
                 w.sample_count = 0;
                 w
@@ -840,17 +846,15 @@ impl RelevanceScorer {
                 libsql::params![],
             )
             .await
-            .map_err(|e| {
-                MnemosyneError::Database(format!("Failed to query metrics: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query metrics: {}", e)))?;
 
-        let row = rows.next().await.map_err(|e| {
-            MnemosyneError::Database(format!("Failed to fetch metrics row: {}", e))
-        })?;
+        let row = rows
+            .next()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to fetch metrics row: {}", e)))?;
 
-        let row = row.ok_or_else(|| {
-            MnemosyneError::Database("No metrics data found".to_string())
-        })?;
+        let row =
+            row.ok_or_else(|| MnemosyneError::Database("No metrics data found".to_string()))?;
 
         let total = row.get::<i64>(0).unwrap_or(0);
         let useful_count = row.get::<i64>(1).unwrap_or(0);
@@ -875,9 +879,7 @@ impl RelevanceScorer {
                 libsql::params![],
             )
             .await
-            .map_err(|e| {
-                MnemosyneError::Database(format!("Failed to query recall: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query recall: {}", e)))?;
 
         let recall_row = recall_rows.next().await.unwrap_or(None);
         let recall = if let Some(r) = recall_row {

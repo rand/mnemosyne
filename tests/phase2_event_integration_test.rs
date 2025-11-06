@@ -47,13 +47,10 @@ async fn test_orchestration_event_flow() {
 
     // Create orchestration engine with event broadcasting
     let config = SupervisionConfig::default();
-    let mut engine = OrchestrationEngine::new_with_events(
-        storage.clone(),
-        config,
-        Some(broadcaster.clone()),
-    )
-    .await
-    .expect("Failed to create orchestration engine");
+    let mut engine =
+        OrchestrationEngine::new_with_events(storage.clone(), config, Some(broadcaster.clone()))
+            .await
+            .expect("Failed to create orchestration engine");
 
     // Start the engine
     engine.start().await.expect("Failed to start engine");
@@ -75,6 +72,7 @@ async fn test_orchestration_event_flow() {
     let event = AgentEvent::WorkItemStarted {
         agent: AgentRole::Executor,
         item_id: item_id.clone(),
+        description: "Test work".to_string(),
     };
 
     persistence
@@ -86,12 +84,18 @@ async fn test_orchestration_event_flow() {
     let result = timeout(Duration::from_millis(200), subscriber1.recv()).await;
     assert!(result.is_ok(), "Subscriber 1 should receive event");
     let api_event = result.unwrap().unwrap();
-    assert!(matches!(api_event.event_type, EventType::AgentStarted { .. }));
+    assert!(matches!(
+        api_event.event_type,
+        EventType::AgentStarted { .. }
+    ));
 
     let result = timeout(Duration::from_millis(200), subscriber2.recv()).await;
     assert!(result.is_ok(), "Subscriber 2 should receive event");
     let api_event = result.unwrap().unwrap();
-    assert!(matches!(api_event.event_type, EventType::AgentStarted { .. }));
+    assert!(matches!(
+        api_event.event_type,
+        EventType::AgentStarted { .. }
+    ));
 
     // Test 2: WorkItemCompleted event
     let event = AgentEvent::WorkItemCompleted {
@@ -107,7 +111,10 @@ async fn test_orchestration_event_flow() {
         .expect("Failed to persist event");
 
     let result = timeout(Duration::from_millis(200), subscriber1.recv()).await;
-    assert!(result.is_ok(), "Subscriber 1 should receive completed event");
+    assert!(
+        result.is_ok(),
+        "Subscriber 1 should receive completed event"
+    );
     let api_event = result.unwrap().unwrap();
     assert!(matches!(
         api_event.event_type,
@@ -129,7 +136,10 @@ async fn test_orchestration_event_flow() {
     let result = timeout(Duration::from_millis(200), subscriber1.recv()).await;
     assert!(result.is_ok(), "Subscriber 1 should receive failed event");
     let api_event = result.unwrap().unwrap();
-    assert!(matches!(api_event.event_type, EventType::AgentFailed { .. }));
+    assert!(matches!(
+        api_event.event_type,
+        EventType::AgentFailed { .. }
+    ));
 
     // Test 4: Phase transition should NOT be broadcast
     let event = AgentEvent::PhaseTransition {
@@ -226,10 +236,8 @@ async fn test_api_server_event_streaming() {
         .broadcast(event1)
         .expect("Failed to broadcast event");
 
-    let event2 = mnemosyne_core::api::Event::memory_stored(
-        "mem-123".to_string(),
-        "Test memory".to_string(),
-    );
+    let event2 =
+        mnemosyne_core::api::Event::memory_stored("mem-123".to_string(), "Test memory".to_string());
     broadcaster
         .broadcast(event2)
         .expect("Failed to broadcast event");
@@ -238,7 +246,10 @@ async fn test_api_server_event_streaming() {
     let result = timeout(Duration::from_millis(100), subscriber.recv()).await;
     assert!(result.is_ok(), "Should receive first event");
     let api_event = result.unwrap().unwrap();
-    assert!(matches!(api_event.event_type, EventType::AgentStarted { .. }));
+    assert!(matches!(
+        api_event.event_type,
+        EventType::AgentStarted { .. }
+    ));
 
     let result = timeout(Duration::from_millis(100), subscriber.recv()).await;
     assert!(result.is_ok(), "Should receive second event");

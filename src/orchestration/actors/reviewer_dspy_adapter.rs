@@ -87,7 +87,10 @@ impl ReviewerDSpyAdapter {
             inputs.insert("context".to_string(), json!(ctx));
         }
 
-        let outputs = self.instrumentation.call_agent_module("reviewer", inputs).await?;
+        let outputs = self
+            .instrumentation
+            .call_agent_module("reviewer", inputs)
+            .await?;
 
         // Extract requirements from output
         let requirements: Vec<String> = outputs
@@ -133,7 +136,10 @@ impl ReviewerDSpyAdapter {
         inputs.insert("implementation".to_string(), json!(implementation));
         inputs.insert("execution_context".to_string(), json!(execution_memories));
 
-        let outputs = self.instrumentation.call_agent_module("reviewer", inputs).await?;
+        let outputs = self
+            .instrumentation
+            .call_agent_module("reviewer", inputs)
+            .await?;
 
         // Extract validation results
         let intent_satisfied = outputs
@@ -180,14 +186,20 @@ impl ReviewerDSpyAdapter {
         implementation: &str,
         execution_memories: Vec<Value>,
     ) -> Result<(bool, Vec<String>)> {
-        debug!("DSPy: Verifying completeness against {} requirements", requirements.len());
+        debug!(
+            "DSPy: Verifying completeness against {} requirements",
+            requirements.len()
+        );
 
         let mut inputs = HashMap::new();
         inputs.insert("requirements".to_string(), json!(requirements));
         inputs.insert("implementation".to_string(), json!(implementation));
         inputs.insert("execution_context".to_string(), json!(execution_memories));
 
-        let outputs = self.instrumentation.call_agent_module("reviewer", inputs).await?;
+        let outputs = self
+            .instrumentation
+            .call_agent_module("reviewer", inputs)
+            .await?;
 
         // Extract validation results
         let complete = outputs
@@ -206,7 +218,10 @@ impl ReviewerDSpyAdapter {
             .unwrap_or_default();
 
         if !complete {
-            warn!("DSPy: Completeness check failed with {} issues", issues.len());
+            warn!(
+                "DSPy: Completeness check failed with {} issues",
+                issues.len()
+            );
         } else {
             debug!("DSPy: Completeness verified");
         }
@@ -235,7 +250,10 @@ impl ReviewerDSpyAdapter {
         inputs.insert("implementation".to_string(), json!(implementation));
         inputs.insert("execution_context".to_string(), json!(execution_memories));
 
-        let outputs = self.instrumentation.call_agent_module("reviewer", inputs).await?;
+        let outputs = self
+            .instrumentation
+            .call_agent_module("reviewer", inputs)
+            .await?;
 
         // Extract validation results
         let correct = outputs
@@ -254,7 +272,10 @@ impl ReviewerDSpyAdapter {
             .unwrap_or_default();
 
         if !correct {
-            warn!("DSPy: Correctness check failed with {} issues", issues.len());
+            warn!(
+                "DSPy: Correctness check failed with {} issues",
+                issues.len()
+            );
         } else {
             debug!("DSPy: Correctness verified");
         }

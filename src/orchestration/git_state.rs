@@ -506,8 +506,7 @@ mod tests {
         let state = GitState::from_repo_root(repo_path).unwrap();
         assert!(!state.is_clean);
         assert_eq!(state.modified_files.len(), 1);
-        assert!(state
-            .modified_files[0]
+        assert!(state.modified_files[0]
             .to_string_lossy()
             .contains("README.md"));
     }

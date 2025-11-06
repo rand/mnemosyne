@@ -118,9 +118,18 @@ pub async fn run_health_checks(
     checks.extend(check_worktree_cleanup(verbose, fix).await?);
 
     // Calculate summary
-    let passed = checks.iter().filter(|c| c.status == CheckStatus::Pass).count();
-    let warnings = checks.iter().filter(|c| c.status == CheckStatus::Warn).count();
-    let errors = checks.iter().filter(|c| c.status == CheckStatus::Fail).count();
+    let passed = checks
+        .iter()
+        .filter(|c| c.status == CheckStatus::Pass)
+        .count();
+    let warnings = checks
+        .iter()
+        .filter(|c| c.status == CheckStatus::Warn)
+        .count();
+    let errors = checks
+        .iter()
+        .filter(|c| c.status == CheckStatus::Fail)
+        .count();
 
     let overall_status = if errors > 0 {
         CheckStatus::Fail
@@ -262,11 +271,8 @@ async fn check_migration_consistency(
         }
         Err(e) => {
             results.push(
-                CheckResult::fail(
-                    "migrations_table",
-                    "Failed to query applied migrations",
-                )
-                .with_details(serde_json::json!({ "error": e.to_string() })),
+                CheckResult::fail("migrations_table", "Failed to query applied migrations")
+                    .with_details(serde_json::json!({ "error": e.to_string() })),
             );
         }
     }
@@ -475,7 +481,10 @@ async fn check_performance(storage: &LibsqlStorage, _verbose: bool) -> Result<Ve
                 results.push(
                     CheckResult::warn(
                         "search_performance",
-                        format!("Search performance: {}ms (exceeds 100ms target)", elapsed_ms),
+                        format!(
+                            "Search performance: {}ms (exceeds 100ms target)",
+                            elapsed_ms
+                        ),
                     )
                     .with_details(serde_json::json!({
                         "elapsed_ms": elapsed_ms,
@@ -642,7 +651,10 @@ pub fn print_health_summary(summary: &HealthSummary, verbose: bool) {
             println!("   {}", check.message);
             if let Some(details) = &check.details {
                 if verbose {
-                    println!("   Details: {}", serde_json::to_string_pretty(details).unwrap());
+                    println!(
+                        "   Details: {}",
+                        serde_json::to_string_pretty(details).unwrap()
+                    );
                 }
             }
         }

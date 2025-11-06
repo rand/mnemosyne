@@ -110,7 +110,12 @@ impl OptimizerState {
     }
 
     /// Register event broadcaster for real-time observability
-    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, namespace: Namespace, agent_id: String) {
+    pub fn register_event_broadcaster(
+        &mut self,
+        broadcaster: crate::api::EventBroadcaster,
+        namespace: Namespace,
+        agent_id: String,
+    ) {
         // Reconstruct EventPersistence with broadcaster
         self.events = EventPersistence::new_with_broadcaster(
             self.storage.clone(),
@@ -128,7 +133,11 @@ impl OptimizerState {
                 interval.tick().await;
                 let event = crate::api::Event::heartbeat(agent_id_clone.clone());
                 if let Err(e) = broadcaster.broadcast(event) {
-                    tracing::warn!("Failed to broadcast heartbeat for {}: {}", agent_id_clone, e);
+                    tracing::warn!(
+                        "Failed to broadcast heartbeat for {}: {}",
+                        agent_id_clone,
+                        e
+                    );
                 }
             }
         });
@@ -619,7 +628,8 @@ impl OptimizerActor {
         if review_attempt == 1 {
             accumulated_context.push_str("- Address all quality gate failures\n");
             accumulated_context.push_str("- Implement suggested tests\n");
-            accumulated_context.push_str("- Verify completeness, correctness, and principled implementation\n");
+            accumulated_context
+                .push_str("- Verify completeness, correctness, and principled implementation\n");
         } else {
             accumulated_context.push_str(&format!(
                 "- Previous attempt failed {} quality gates\n",
@@ -666,7 +676,7 @@ impl OptimizerActor {
                     reason: "Execution context".to_string(),
                     created_at: chrono::Utc::now(),
                     last_traversed_at: None,
-                    user_created: true,  // Agent-created links are considered user-created
+                    user_created: true, // Agent-created links are considered user-created
                 })
                 .collect(),
             related_files: vec![],
@@ -841,7 +851,9 @@ impl Actor for OptimizerActor {
                 tracing::debug!("Registering event broadcaster with Optimizer");
                 let agent_id = format!("{}-optimizer", self.namespace);
                 state.register_event_broadcaster(broadcaster, self.namespace.clone(), agent_id);
-                tracing::info!("Event broadcaster registered with Optimizer - events will now be broadcast");
+                tracing::info!(
+                    "Event broadcaster registered with Optimizer - events will now be broadcast"
+                );
             }
             OptimizerMessage::DiscoverSkills {
                 task_description,
@@ -881,16 +893,17 @@ impl Actor for OptimizerActor {
                 suggested_tests,
                 review_attempt,
             } => {
-                let (consolidated_memory_id, estimated_tokens) = Self::consolidate_work_item_context(
-                    state,
-                    item_id.clone(),
-                    execution_memory_ids,
-                    review_feedback,
-                    suggested_tests,
-                    review_attempt,
-                )
-                .await
-                .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+                let (consolidated_memory_id, estimated_tokens) =
+                    Self::consolidate_work_item_context(
+                        state,
+                        item_id.clone(),
+                        execution_memory_ids,
+                        review_feedback,
+                        suggested_tests,
+                        review_attempt,
+                    )
+                    .await
+                    .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
 
                 // Send result to Orchestrator
                 if let Some(ref orchestrator) = state.orchestrator {
@@ -907,10 +920,7 @@ impl Actor for OptimizerActor {
                     tracing::warn!("No orchestrator reference to send consolidation result");
                 }
             }
-            OptimizerMessage::LoadWorkItemContext {
-                item_id,
-                work_item,
-            } => {
+            OptimizerMessage::LoadWorkItemContext { item_id, work_item } => {
                 Self::load_work_item_context(state, item_id, work_item)
                     .await
                     .map_err(|e| ActorProcessingErr::from(e.to_string()))?;

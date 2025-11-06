@@ -8,18 +8,18 @@
 
 pub mod executor;
 pub mod optimizer;
-pub mod orchestrator;
-pub mod reviewer;
 #[cfg(feature = "python")]
 pub mod optimizer_dspy_adapter;
+pub mod orchestrator;
+pub mod reviewer;
 #[cfg(feature = "python")]
 pub mod reviewer_dspy_adapter;
 
 pub use executor::ExecutorActor;
 pub use optimizer::OptimizerActor;
-pub use orchestrator::OrchestratorActor;
-pub use reviewer::ReviewerActor;
 #[cfg(feature = "python")]
 pub use optimizer_dspy_adapter::OptimizerDSpyAdapter;
+pub use orchestrator::OrchestratorActor;
+pub use reviewer::ReviewerActor;
 #[cfg(feature = "python")]
 pub use reviewer_dspy_adapter::ReviewerDSpyAdapter;

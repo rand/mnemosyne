@@ -211,28 +211,36 @@ impl Highlighter {
                 self.parser.set_language(&tree_sitter_md::LANGUAGE.into())?;
             }
             Language::Rust => {
-                self.parser.set_language(&tree_sitter_rust::LANGUAGE.into())?;
+                self.parser
+                    .set_language(&tree_sitter_rust::LANGUAGE.into())?;
             }
             Language::Python => {
-                self.parser.set_language(&tree_sitter_python::LANGUAGE.into())?;
+                self.parser
+                    .set_language(&tree_sitter_python::LANGUAGE.into())?;
             }
             Language::TypeScript => {
-                self.parser.set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())?;
+                self.parser
+                    .set_language(&tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into())?;
             }
             Language::JavaScript => {
-                self.parser.set_language(&tree_sitter_javascript::LANGUAGE.into())?;
+                self.parser
+                    .set_language(&tree_sitter_javascript::LANGUAGE.into())?;
             }
             Language::JSON => {
-                self.parser.set_language(&tree_sitter_json::LANGUAGE.into())?;
+                self.parser
+                    .set_language(&tree_sitter_json::LANGUAGE.into())?;
             }
             Language::TOML => {
-                self.parser.set_language(&tree_sitter_toml_ng::LANGUAGE.into())?;
+                self.parser
+                    .set_language(&tree_sitter_toml_ng::LANGUAGE.into())?;
             }
             Language::YAML => {
-                self.parser.set_language(&tree_sitter_yaml::LANGUAGE.into())?;
+                self.parser
+                    .set_language(&tree_sitter_yaml::LANGUAGE.into())?;
             }
             Language::Bash => {
-                self.parser.set_language(&tree_sitter_bash::LANGUAGE.into())?;
+                self.parser
+                    .set_language(&tree_sitter_bash::LANGUAGE.into())?;
             }
             Language::Go => {
                 self.parser.set_language(&tree_sitter_go::LANGUAGE.into())?;
@@ -241,7 +249,8 @@ impl Highlighter {
                 self.parser.set_language(&tree_sitter_c::LANGUAGE.into())?;
             }
             Language::Cpp => {
-                self.parser.set_language(&tree_sitter_cpp::LANGUAGE.into())?;
+                self.parser
+                    .set_language(&tree_sitter_cpp::LANGUAGE.into())?;
             }
             Language::PlainText => {
                 // Plain text doesn't need parsing

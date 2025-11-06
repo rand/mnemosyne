@@ -134,12 +134,7 @@ impl DSpyEvent {
     }
 
     /// Create a response event
-    pub fn response(
-        request: &Self,
-        latency_ms: u64,
-        tokens: TokenUsage,
-        cost_usd: f64,
-    ) -> Self {
+    pub fn response(request: &Self, latency_ms: u64, tokens: TokenUsage, cost_usd: f64) -> Self {
         let timestamp_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -223,16 +218,8 @@ impl CostCalculator {
     ///
     /// Returns cost in USD
     pub fn calculate_cost(&self, model: &str, tokens: &TokenUsage) -> f64 {
-        let input_price = self
-            .input_price_per_1m
-            .get(model)
-            .copied()
-            .unwrap_or(3.0); // Default to Sonnet pricing
-        let output_price = self
-            .output_price_per_1m
-            .get(model)
-            .copied()
-            .unwrap_or(15.0);
+        let input_price = self.input_price_per_1m.get(model).copied().unwrap_or(3.0); // Default to Sonnet pricing
+        let output_price = self.output_price_per_1m.get(model).copied().unwrap_or(15.0);
 
         let input_cost = (tokens.input_tokens as f64 / 1_000_000.0) * input_price;
         let output_cost = (tokens.output_tokens as f64 / 1_000_000.0) * output_price;
@@ -241,7 +228,12 @@ impl CostCalculator {
     }
 
     /// Add custom pricing for a model
-    pub fn add_model_pricing(&mut self, model: impl Into<String>, input_price: f64, output_price: f64) {
+    pub fn add_model_pricing(
+        &mut self,
+        model: impl Into<String>,
+        input_price: f64,
+        output_price: f64,
+    ) {
         let model = model.into();
         self.input_price_per_1m.insert(model.clone(), input_price);
         self.output_price_per_1m.insert(model, output_price);
@@ -402,9 +394,9 @@ impl TelemetryCollector {
         // Update aggregated metrics
         {
             let mut metrics = self.metrics.write().await;
-            let module_metrics = metrics
-                .entry(key.clone())
-                .or_insert_with(|| ModuleMetrics::new(event.module_name.clone(), event.module_version.clone()));
+            let module_metrics = metrics.entry(key.clone()).or_insert_with(|| {
+                ModuleMetrics::new(event.module_name.clone(), event.module_version.clone())
+            });
 
             // Get latencies for percentile calculation
             let latencies = self.latencies.read().await;
@@ -421,7 +413,11 @@ impl TelemetryCollector {
     }
 
     /// Get metrics for a specific module version
-    pub async fn get_metrics(&self, module_name: &str, version: &ModuleVersion) -> Option<ModuleMetrics> {
+    pub async fn get_metrics(
+        &self,
+        module_name: &str,
+        version: &ModuleVersion,
+    ) -> Option<ModuleMetrics> {
         let key = format!("{}:{}", module_name, version);
         let metrics = self.metrics.read().await;
         metrics.get(&key).cloned()
@@ -609,7 +605,9 @@ mod tests {
 
         // Create response event
         let tokens = TokenUsage::new(1000, 500);
-        let cost = collector.cost_calculator().calculate_cost("claude-sonnet-4-20250514", &tokens);
+        let cost = collector
+            .cost_calculator()
+            .calculate_cost("claude-sonnet-4-20250514", &tokens);
         let response = DSpyEvent::response(&request, 250, tokens, cost);
 
         // Record response
@@ -633,15 +631,13 @@ mod tests {
     async fn test_prometheus_export() {
         let collector = TelemetryCollector::new();
 
-        let request = DSpyEvent::request(
-            "reviewer",
-            ModuleVersion::Baseline,
-            "validate_intent",
-        );
+        let request = DSpyEvent::request("reviewer", ModuleVersion::Baseline, "validate_intent");
         collector.record(request.clone()).await;
 
         let tokens = TokenUsage::new(1000, 500);
-        let cost = collector.cost_calculator().calculate_cost("claude-sonnet-4-20250514", &tokens);
+        let cost = collector
+            .cost_calculator()
+            .calculate_cost("claude-sonnet-4-20250514", &tokens);
         let response = DSpyEvent::response(&request, 250, tokens, cost);
         collector.record(response).await;
 

@@ -221,28 +221,21 @@ async fn main() -> Result<()> {
                 .context("Failed to load file")?;
         } else if let Some(template) = args.template {
             // Create new file from template
-            debug!(
-                "Creating new file with template: {:?}",
-                template
-            );
+            debug!("Creating new file with template: {:?}", template);
 
             // Use embedded template content
             let content = template.content().to_string();
 
             // Write template content to file
-            std::fs::write(&file_path, &content)
-                .context("Failed to create file from template")?;
+            std::fs::write(&file_path, &content).context("Failed to create file from template")?;
 
             app.load_file(file_path.clone())
                 .context("Failed to load template file")?;
         } else {
             // Create empty file
             debug!("Creating new empty file: {}", file_path.display());
-            std::fs::write(
-                &file_path,
-                "# Context\n\nEdit your context here...\n",
-            )
-            .context("Failed to create empty file")?;
+            std::fs::write(&file_path, "# Context\n\nEdit your context here...\n")
+                .context("Failed to create empty file")?;
 
             app.load_file(file_path.clone())
                 .context("Failed to load new file")?;
@@ -274,7 +267,10 @@ async fn main() -> Result<()> {
 
     // Show launch banner
     println!();
-    println!("{} ICS - Integrated Context Studio", mnemosyne_core::icons::system::palette());
+    println!(
+        "{} ICS - Integrated Context Studio",
+        mnemosyne_core::icons::system::palette()
+    );
     println!("   AI-assisted context engineering for Claude Code");
     println!();
     println!("   Shortcuts:");

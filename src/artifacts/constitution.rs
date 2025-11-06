@@ -1,8 +1,8 @@
 //! Project constitution artifact
 #![allow(clippy::useless_format, clippy::single_char_add_str)]
 
-use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use super::storage::{parse_frontmatter, serialize_frontmatter};
+use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use crate::error::{MnemosyneError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -69,11 +69,17 @@ fn parse_bullet_list(markdown: &str, section_name: &str) -> Vec<String> {
             }
 
             // Match bullet items: "- Item" or "* Item" or "[ ] Item" (checkbox)
-            if let Some(content) = trimmed.strip_prefix('-').or_else(|| trimmed.strip_prefix('*')) {
+            if let Some(content) = trimmed
+                .strip_prefix('-')
+                .or_else(|| trimmed.strip_prefix('*'))
+            {
                 let mut cleaned = content.trim();
 
                 // Strip checkboxes if present
-                if let Some(after_checkbox) = cleaned.strip_prefix("[ ]").or_else(|| cleaned.strip_prefix("[x]")) {
+                if let Some(after_checkbox) = cleaned
+                    .strip_prefix("[ ]")
+                    .or_else(|| cleaned.strip_prefix("[x]"))
+                {
                     cleaned = after_checkbox.trim();
                 }
 
@@ -335,7 +341,10 @@ mod tests {
         assert_eq!(loaded.principles.len(), 3);
         assert_eq!(loaded.principles[0], "Performance First: Sub-200ms latency");
         assert_eq!(loaded.principles[1], "Type Safety: Leverage strong typing");
-        assert_eq!(loaded.principles[2], "Developer Experience: Clear error messages");
+        assert_eq!(
+            loaded.principles[2],
+            "Developer Experience: Clear error messages"
+        );
 
         assert_eq!(loaded.quality_gates.len(), 2);
         assert_eq!(loaded.quality_gates[0], "90%+ test coverage");

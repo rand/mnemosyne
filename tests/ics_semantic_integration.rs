@@ -61,7 +61,8 @@ async fn test_semantic_engine_with_complex_text() {
     let mut buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
 
     // Insert text with multiple semantic features
-    let complex_text = "<thinking>The system MUST validate input. Dr. Smith reviewed the algorithm.</thinking>";
+    let complex_text =
+        "<thinking>The system MUST validate input. Dr. Smith reviewed the algorithm.</thinking>";
     buffer.insert(0, complex_text).unwrap();
 
     // Get the semantic engine

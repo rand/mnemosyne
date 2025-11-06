@@ -746,12 +746,14 @@ impl IcsApp {
         if !atty::is(atty::Stream::Stdin) || !atty::is(atty::Stream::Stdout) {
             eprintln!("\n❌ ICS requires a terminal (TTY)");
             eprintln!();
-            eprintln!("Current mode: {}",
+            eprintln!(
+                "Current mode: {}",
                 if !atty::is(atty::Stream::Stdin) {
                     "stdin is piped/redirected"
                 } else {
                     "stdout is piped/redirected"
-                });
+                }
+            );
             eprintln!();
             eprintln!("Solutions:");
             eprintln!("  • Run in a terminal emulator");
@@ -761,18 +763,17 @@ impl IcsApp {
         }
 
         // Check terminal size
-        let (width, height) = crossterm::terminal::size()
-            .map_err(|e| {
-                eprintln!("\n❌ Cannot determine terminal size: {}", e);
-                eprintln!();
-                eprintln!("Common causes:");
-                eprintln!("  • SSH without TERM variable");
-                eprintln!("  • tmux/screen misconfiguration");
-                eprintln!();
-                eprintln!("Try: export TERM=xterm-256color");
-                eprintln!();
-                e
-            })?;
+        let (width, height) = crossterm::terminal::size().map_err(|e| {
+            eprintln!("\n❌ Cannot determine terminal size: {}", e);
+            eprintln!();
+            eprintln!("Common causes:");
+            eprintln!("  • SSH without TERM variable");
+            eprintln!("  • tmux/screen misconfiguration");
+            eprintln!();
+            eprintln!("Try: export TERM=xterm-256color");
+            eprintln!();
+            e
+        })?;
 
         if width < 80 || height < 24 {
             eprintln!("⚠️  Small terminal: {}x{}", width, height);
@@ -781,19 +782,18 @@ impl IcsApp {
         }
 
         // Initialize terminal with better error messages
-        let mut terminal = TerminalManager::new(TerminalConfig::default())
-            .map_err(|e| {
-                eprintln!("\n❌ Terminal initialization failed");
-                eprintln!();
-                eprintln!("Error: {}", e);
-                eprintln!();
-                eprintln!("Troubleshooting:");
-                eprintln!("  • Check TERM variable: echo $TERM");
-                eprintln!("  • Try: export TERM=xterm-256color");
-                eprintln!("  • Verify terminal supports ANSI colors");
-                eprintln!();
-                e
-            })?;
+        let mut terminal = TerminalManager::new(TerminalConfig::default()).map_err(|e| {
+            eprintln!("\n❌ Terminal initialization failed");
+            eprintln!();
+            eprintln!("Error: {}", e);
+            eprintln!();
+            eprintln!("Troubleshooting:");
+            eprintln!("  • Check TERM variable: echo $TERM");
+            eprintln!("  • Try: export TERM=xterm-256color");
+            eprintln!("  • Verify terminal supports ANSI colors");
+            eprintln!();
+            e
+        })?;
         let event_loop = EventLoop::default();
 
         // Main event loop

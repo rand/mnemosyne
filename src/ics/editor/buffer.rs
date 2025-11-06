@@ -672,7 +672,10 @@ mod tests {
         for i in 0..50 {
             buffer.insert(&format!("Line {}\n", i));
         }
-        buffer.cursor.position = Position { line: 25, column: 0 };
+        buffer.cursor.position = Position {
+            line: 25,
+            column: 0,
+        };
 
         // Page up
         buffer.move_cursor(Movement::PageUp);

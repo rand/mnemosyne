@@ -9,15 +9,13 @@
 //! This helps identify hedged language, speculative statements, and certainty levels.
 
 use crate::ics::semantic_highlighter::{
-    visualization::{
-        HighlightSpan, HighlightSource,
-    },
     utils::ModalityDictionaries,
+    visualization::{HighlightSource, HighlightSpan},
     Result,
 };
+use once_cell::sync::Lazy;
 use ratatui::style::{Color, Modifier, Style};
 use regex::Regex;
-use once_cell::sync::Lazy;
 
 /// Modality level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -68,9 +66,8 @@ pub struct ModalityAnalyzer {
 
 impl ModalityAnalyzer {
     pub fn new() -> Self {
-        static WORD_BOUNDARY: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"\b\w+\b").expect("Valid word boundary regex")
-        });
+        static WORD_BOUNDARY: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"\b\w+\b").expect("Valid word boundary regex"));
 
         Self {
             word_boundary: &WORD_BOUNDARY,
@@ -193,7 +190,8 @@ mod tests {
         let spans = analyzer.analyze(text).unwrap();
 
         assert!(spans.len() > 0);
-        let definitely_span = spans.iter()
+        let definitely_span = spans
+            .iter()
             .find(|s| text[s.range.clone()].to_lowercase() == "definitely")
             .expect("Should find 'definitely'");
 
@@ -206,7 +204,8 @@ mod tests {
         let text = "This will probably work as expected";
         let spans = analyzer.analyze(text).unwrap();
 
-        let probably_span = spans.iter()
+        let probably_span = spans
+            .iter()
             .find(|s| text[s.range.clone()].to_lowercase() == "probably")
             .expect("Should find 'probably'");
 
@@ -219,7 +218,8 @@ mod tests {
         let text = "This might be the issue";
         let spans = analyzer.analyze(text).unwrap();
 
-        let might_span = spans.iter()
+        let might_span = spans
+            .iter()
             .find(|s| text[s.range.clone()].to_lowercase() == "might")
             .expect("Should find 'might'");
 
@@ -232,7 +232,8 @@ mod tests {
         let text = "If we add caching, the system will be faster";
         let spans = analyzer.analyze(text).unwrap();
 
-        let if_span = spans.iter()
+        let if_span = spans
+            .iter()
             .find(|s| text[s.range.clone()].to_lowercase() == "if")
             .expect("Should find 'if'");
 

@@ -353,7 +353,10 @@ async fn test_e2e_vector_search_with_embeddings() {
     println!("\nVector search results:");
     for (i, (memory_id, score)) in results.iter().enumerate() {
         // Fetch memory to display content
-        let mem = storage.get_memory(*memory_id).await.expect("Should get memory");
+        let mem = storage
+            .get_memory(*memory_id)
+            .await
+            .expect("Should get memory");
         println!(
             "{}. [Score: {:.3}] {}",
             i + 1,

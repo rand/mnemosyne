@@ -10,15 +10,15 @@
 
 #![allow(dead_code)]
 
+#[cfg(feature = "python")]
+use super::dspy_integration::DSpySemanticBridge;
 use crate::{
     ics::semantic_highlighter::{
-        visualization::{HighlightSpan, HighlightSource, Connection, ConnectionType},
+        visualization::{Connection, ConnectionType, HighlightSource, HighlightSpan},
         Result, SemanticError,
     },
     LlmService,
 };
-#[cfg(feature = "python")]
-use super::dspy_integration::DSpySemanticBridge;
 use ratatui::style::{Color, Modifier, Style};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
@@ -129,19 +129,24 @@ impl DiscourseAnalyzer {
         #[cfg(feature = "python")]
         if let Some(bridge) = &self.dspy_bridge {
             debug!("Using DSPy for discourse analysis");
-            return bridge.analyze_discourse(text).await
-                .map_err(|e| SemanticError::AnalysisFailed(format!("DSPy discourse analysis failed: {}", e)));
+            return bridge.analyze_discourse(text).await.map_err(|e| {
+                SemanticError::AnalysisFailed(format!("DSPy discourse analysis failed: {}", e))
+            });
         }
 
         // Fallback: Direct LLM call (not yet implemented)
         debug!("DSPy not available, using direct LLM call (not implemented yet)");
         Err(SemanticError::AnalysisFailed(
-            "Discourse analysis requires DSPy integration (enable 'python' feature)".to_string()
+            "Discourse analysis requires DSPy integration (enable 'python' feature)".to_string(),
         ))
     }
 
     /// Parse discourse response from LLM
-    fn parse_discourse_response(&self, json: &str, text_len: usize) -> Result<Vec<DiscourseSegment>> {
+    fn parse_discourse_response(
+        &self,
+        json: &str,
+        text_len: usize,
+    ) -> Result<Vec<DiscourseSegment>> {
         #[derive(Deserialize)]
         struct SegmentJson {
             start: usize,
@@ -153,10 +158,12 @@ impl DiscourseAnalyzer {
             confidence: f32,
         }
 
-        let segments: Vec<SegmentJson> = serde_json::from_str(json)
-            .map_err(|e| crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(
-                format!("JSON parse error: {}", e)
-            ))?;
+        let segments: Vec<SegmentJson> = serde_json::from_str(json).map_err(|e| {
+            crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(format!(
+                "JSON parse error: {}",
+                e
+            ))
+        })?;
 
         // Convert to DiscourseSegment, filtering invalid entries
         let result = segments
@@ -164,7 +171,10 @@ impl DiscourseAnalyzer {
             .filter_map(|s| {
                 // Validate ranges
                 if s.end > text_len || s.start >= s.end {
-                    warn!("Invalid discourse segment range: {}..{} (text len: {})", s.start, s.end, text_len);
+                    warn!(
+                        "Invalid discourse segment range: {}..{} (text len: {})",
+                        s.start, s.end, text_len
+                    );
                     return None;
                 }
 
@@ -185,16 +195,20 @@ impl DiscourseAnalyzer {
                 });
 
                 // Parse related_to range
-                let related_to = if let (Some(start), Some(end)) = (s.related_to_start, s.related_to_end) {
-                    if end <= text_len && start < end {
-                        Some(start..end)
+                let related_to =
+                    if let (Some(start), Some(end)) = (s.related_to_start, s.related_to_end) {
+                        if end <= text_len && start < end {
+                            Some(start..end)
+                        } else {
+                            warn!(
+                                "Invalid related_to range: {}..{} (text len: {})",
+                                start, end, text_len
+                            );
+                            None
+                        }
                     } else {
-                        warn!("Invalid related_to range: {}..{} (text len: {})", start, end, text_len);
                         None
-                    }
-                } else {
-                    None
-                };
+                    };
 
                 Some(DiscourseSegment {
                     range: s.start..s.end,
@@ -214,30 +228,42 @@ impl DiscourseAnalyzer {
         for (i, seg) in segments.iter().enumerate() {
             // Check range validity
             if seg.range.end > text_len {
-                return Err(crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(
-                    format!("Segment {} range exceeds text length: {:?} > {}", i, seg.range, text_len)
-                ));
+                return Err(
+                    crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(format!(
+                        "Segment {} range exceeds text length: {:?} > {}",
+                        i, seg.range, text_len
+                    )),
+                );
             }
 
             if seg.range.start >= seg.range.end {
-                return Err(crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(
-                    format!("Segment {} has invalid range: {:?}", i, seg.range)
-                ));
+                return Err(
+                    crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(format!(
+                        "Segment {} has invalid range: {:?}",
+                        i, seg.range
+                    )),
+                );
             }
 
             // Check confidence
             if seg.confidence < 0.0 || seg.confidence > 1.0 {
-                return Err(crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(
-                    format!("Segment {} has invalid confidence: {}", i, seg.confidence)
-                ));
+                return Err(
+                    crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(format!(
+                        "Segment {} has invalid confidence: {}",
+                        i, seg.confidence
+                    )),
+                );
             }
 
             // Check related_to validity if present
             if let Some(ref related) = seg.related_to {
                 if related.end > text_len || related.start >= related.end {
-                    return Err(crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(
-                        format!("Segment {} has invalid related_to range: {:?}", i, related)
-                    ));
+                    return Err(
+                        crate::ics::semantic_highlighter::SemanticError::AnalysisFailed(format!(
+                            "Segment {} has invalid related_to range: {:?}",
+                            i, related
+                        )),
+                    );
                 }
             }
         }
@@ -389,21 +415,22 @@ mod tests {
 
     #[test]
     fn test_discourse_relation_descriptions() {
-        assert_eq!(DiscourseRelation::Elaboration._description(), "Elaborates on");
+        assert_eq!(
+            DiscourseRelation::Elaboration._description(),
+            "Elaborates on"
+        );
         assert_eq!(DiscourseRelation::Contrast._description(), "Contrasts with");
     }
 
     #[test]
     fn test_segments_to_spans() {
-        let _segments = vec![
-            DiscourseSegment {
-                range: 0..10,
-                text: "First part".to_string(),
-                relation: Some(DiscourseRelation::Elaboration),
-                related_to: None,
-                confidence: 0.9,
-            },
-        ];
+        let _segments = vec![DiscourseSegment {
+            range: 0..10,
+            text: "First part".to_string(),
+            relation: Some(DiscourseRelation::Elaboration),
+            related_to: None,
+            confidence: 0.9,
+        }];
 
         // Mock analyzer without LLM service for this test
         // In real implementation, we'd need proper mocking

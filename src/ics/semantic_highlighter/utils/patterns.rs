@@ -22,8 +22,7 @@ impl CommonPatterns {
     /// Self-closing XML tags: <tag/>
     pub fn xml_self_closing() -> &'static Regex {
         static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"<([a-zA-Z][a-zA-Z0-9_-]*)\s*/>")
-                .expect("Valid self-closing XML regex")
+            Regex::new(r"<([a-zA-Z][a-zA-Z0-9_-]*)\s*/>").expect("Valid self-closing XML regex")
         });
         &PATTERN
     }
@@ -39,27 +38,22 @@ impl CommonPatterns {
 
     /// Markdown code blocks: ```language or ```
     pub fn code_fence() -> &'static Regex {
-        static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"^```([a-zA-Z0-9_+-]*)")
-                .expect("Valid code fence regex")
-        });
+        static PATTERN: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"^```([a-zA-Z0-9_+-]*)").expect("Valid code fence regex"));
         &PATTERN
     }
 
     /// Inline code: `code`
     pub fn inline_code() -> &'static Regex {
-        static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"`([^`]+)`")
-                .expect("Valid inline code regex")
-        });
+        static PATTERN: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"`([^`]+)`").expect("Valid inline code regex"));
         &PATTERN
     }
 
     /// File paths: #/path/to/file or #file.txt
     pub fn file_path() -> &'static Regex {
         static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"#([/a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._-]+)*)")
-                .expect("Valid file path regex")
+            Regex::new(r"#([/a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._-]+)*)").expect("Valid file path regex")
         });
         &PATTERN
     }
@@ -76,18 +70,15 @@ impl CommonPatterns {
     /// Typed holes: ?hole or ?typed_hole
     pub fn typed_hole() -> &'static Regex {
         static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"\?([a-zA-Z_][a-zA-Z0-9_]*)")
-                .expect("Valid typed hole regex")
+            Regex::new(r"\?([a-zA-Z_][a-zA-Z0-9_]*)").expect("Valid typed hole regex")
         });
         &PATTERN
     }
 
     /// URLs: http:// or https://
     pub fn url() -> &'static Regex {
-        static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"https?://[^\s<>]+")
-                .expect("Valid URL regex")
-        });
+        static PATTERN: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"https?://[^\s<>]+").expect("Valid URL regex"));
         &PATTERN
     }
 
@@ -103,8 +94,10 @@ impl CommonPatterns {
     /// Vague quantifiers
     pub fn vague_quantifiers() -> &'static Regex {
         static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"\b(a lot of|lots of|a bunch of|a few|some|several|many|most|all|none|any)\b")
-                .expect("Valid vague quantifiers regex")
+            Regex::new(
+                r"\b(a lot of|lots of|a bunch of|a few|some|several|many|most|all|none|any)\b",
+            )
+            .expect("Valid vague quantifiers regex")
         });
         &PATTERN
     }
@@ -121,8 +114,10 @@ impl CommonPatterns {
     /// Causal indicators
     pub fn causal_indicators() -> &'static Regex {
         static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"\b(because|since|as|therefore|thus|hence|consequently|so|then|if|when|unless)\b")
-                .expect("Valid causal indicators regex")
+            Regex::new(
+                r"\b(because|since|as|therefore|thus|hence|consequently|so|then|if|when|unless)\b",
+            )
+            .expect("Valid causal indicators regex")
         });
         &PATTERN
     }
@@ -156,10 +151,8 @@ impl CommonPatterns {
 
     /// Sentence boundaries
     pub fn sentence_boundary() -> &'static Regex {
-        static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"[.!?]\s+")
-                .expect("Valid sentence boundary regex")
-        });
+        static PATTERN: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"[.!?]\s+").expect("Valid sentence boundary regex"));
         &PATTERN
     }
 }

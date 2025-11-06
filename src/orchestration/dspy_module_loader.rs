@@ -157,9 +157,7 @@ impl DSpyModuleLoader {
 
         match &version {
             ModuleVersion::Baseline => self.load_baseline_module(module_name).await,
-            ModuleVersion::Optimized(v) => {
-                self.load_optimized_module(module_name, v).await
-            }
+            ModuleVersion::Optimized(v) => self.load_optimized_module(module_name, v).await,
         }
     }
 
@@ -207,9 +205,7 @@ impl DSpyModuleLoader {
         // Load and parse JSON
         let json_content = tokio::fs::read_to_string(&file_path)
             .await
-            .map_err(|e| {
-                MnemosyneError::Other(format!("Failed to read module file: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Other(format!("Failed to read module file: {}", e)))?;
 
         // Load module into Python via DSpyBridge
         self.load_module_from_json(module_name, &json_content)
@@ -246,11 +242,7 @@ impl DSpyModuleLoader {
     }
 
     /// Load module from JSON string into Python
-    async fn load_module_from_json(
-        &self,
-        module_name: &str,
-        json_content: &str,
-    ) -> Result<()> {
+    async fn load_module_from_json(&self, module_name: &str, json_content: &str) -> Result<()> {
         let module_name = module_name.to_string();
         let json_content = json_content.to_string();
         let _bridge = self.bridge.clone();
@@ -264,27 +256,20 @@ impl DSpyModuleLoader {
                 })?;
 
                 // Parse JSON
-                let json_module = py.import_bound("json").map_err(|e| {
-                    MnemosyneError::Other(format!("json import failed: {}", e))
-                })?;
+                let json_module = py
+                    .import_bound("json")
+                    .map_err(|e| MnemosyneError::Other(format!("json import failed: {}", e)))?;
                 let parsed = json_module
                     .call_method1("loads", (&json_content,))
-                    .map_err(|e| {
-                        MnemosyneError::Other(format!("JSON parsing failed: {}", e))
-                    })?;
+                    .map_err(|e| MnemosyneError::Other(format!("JSON parsing failed: {}", e)))?;
 
                 // Load module using dspy.load()
                 // Note: This loads the module state into the current Python environment
                 // The DSpyBridge.get_agent_module() will then return this loaded module
-                let _loaded_module = dspy
-                    .call_method1("load", (parsed,))
-                    .map_err(|e| {
-                        error!("Failed to load DSPy module '{}': {}", module_name, e);
-                        MnemosyneError::Other(format!(
-                            "DSPy module load failed: {}",
-                            e
-                        ))
-                    })?;
+                let _loaded_module = dspy.call_method1("load", (parsed,)).map_err(|e| {
+                    error!("Failed to load DSPy module '{}': {}", module_name, e);
+                    MnemosyneError::Other(format!("DSPy module load failed: {}", e))
+                })?;
 
                 debug!("Successfully loaded optimized module into Python");
                 Ok::<(), MnemosyneError>(())
@@ -364,9 +349,9 @@ impl DSpyModuleLoader {
         }
 
         let mut modules = Vec::new();
-        let mut entries = tokio::fs::read_dir(&results_dir)
-            .await
-            .map_err(|e| MnemosyneError::Other(format!("Failed to read results directory: {}", e)))?;
+        let mut entries = tokio::fs::read_dir(&results_dir).await.map_err(|e| {
+            MnemosyneError::Other(format!("Failed to read results directory: {}", e))
+        })?;
 
         while let Some(entry) = entries
             .next_entry()

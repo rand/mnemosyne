@@ -36,7 +36,10 @@
 //! # }
 //! ```
 
-use super::{Contradiction, ContradictionType, DiscourseRelation, DiscourseSegment, PragmaticElement, PragmaticType, SpeechActType};
+use super::{
+    Contradiction, ContradictionType, DiscourseRelation, DiscourseSegment, PragmaticElement,
+    PragmaticType, SpeechActType,
+};
 use crate::error::{MnemosyneError, Result};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
@@ -119,12 +122,13 @@ impl DSpySemanticBridge {
                 let service_ref = service_guard.bind(py);
 
                 // Get semantic module
-                let semantic_module = service_ref
-                    .call_method0("get_semantic_module")
-                    .map_err(|e| {
-                        error!("Failed to get semantic module: {}", e);
-                        MnemosyneError::Other(format!("Semantic module not found: {}", e))
-                    })?;
+                let semantic_module =
+                    service_ref
+                        .call_method0("get_semantic_module")
+                        .map_err(|e| {
+                            error!("Failed to get semantic module: {}", e);
+                            MnemosyneError::Other(format!("Semantic module not found: {}", e))
+                        })?;
 
                 // Call analyze_discourse
                 let prediction = semantic_module
@@ -171,12 +175,13 @@ impl DSpySemanticBridge {
                 let service_ref = service_guard.bind(py);
 
                 // Get semantic module
-                let semantic_module = service_ref
-                    .call_method0("get_semantic_module")
-                    .map_err(|e| {
-                        error!("Failed to get semantic module: {}", e);
-                        MnemosyneError::Other(format!("Semantic module not found: {}", e))
-                    })?;
+                let semantic_module =
+                    service_ref
+                        .call_method0("get_semantic_module")
+                        .map_err(|e| {
+                            error!("Failed to get semantic module: {}", e);
+                            MnemosyneError::Other(format!("Semantic module not found: {}", e))
+                        })?;
 
                 // Call detect_contradictions
                 let prediction = semantic_module
@@ -223,12 +228,13 @@ impl DSpySemanticBridge {
                 let service_ref = service_guard.bind(py);
 
                 // Get semantic module
-                let semantic_module = service_ref
-                    .call_method0("get_semantic_module")
-                    .map_err(|e| {
-                        error!("Failed to get semantic module: {}", e);
-                        MnemosyneError::Other(format!("Semantic module not found: {}", e))
-                    })?;
+                let semantic_module =
+                    service_ref
+                        .call_method0("get_semantic_module")
+                        .map_err(|e| {
+                            error!("Failed to get semantic module: {}", e);
+                            MnemosyneError::Other(format!("Semantic module not found: {}", e))
+                        })?;
 
                 // Call extract_pragmatics
                 let prediction = semantic_module
@@ -474,7 +480,8 @@ impl DSpySemanticBridge {
             })
         });
 
-        let implied_meaning = json.get("implied_meaning")
+        let implied_meaning = json
+            .get("implied_meaning")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
@@ -509,7 +516,10 @@ mod tests {
         let segment = DSpySemanticBridge::json_to_discourse_segment(&json).unwrap();
         assert_eq!(segment.range, 0..10);
         assert_eq!(segment.text, "Test text");
-        assert!(matches!(segment.relation, Some(DiscourseRelation::Elaboration)));
+        assert!(matches!(
+            segment.relation,
+            Some(DiscourseRelation::Elaboration)
+        ));
         assert_eq!(segment.confidence, 0.9);
     }
 
@@ -530,7 +540,10 @@ mod tests {
         let contradiction = DSpySemanticBridge::json_to_contradiction(&json).unwrap();
         assert_eq!(contradiction.statement1, 0..10);
         assert_eq!(contradiction.text1, "Auth required");
-        assert!(matches!(contradiction.contradiction_type, ContradictionType::Direct));
+        assert!(matches!(
+            contradiction.contradiction_type,
+            ContradictionType::Direct
+        ));
         assert_eq!(contradiction.confidence, 0.95);
     }
 }

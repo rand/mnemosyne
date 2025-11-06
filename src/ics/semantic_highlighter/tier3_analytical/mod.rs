@@ -5,7 +5,7 @@
 
 use crate::{
     ics::semantic_highlighter::{
-        cache::{SemanticCache, CachedResult, ContentHash},
+        cache::{CachedResult, ContentHash, SemanticCache},
         settings::AnalyticalSettings,
         visualization::HighlightSpan,
         Result,
@@ -18,18 +18,18 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
-pub mod discourse;
-pub mod contradictions;
-pub mod pragmatics;
 pub mod batching;
+pub mod contradictions;
+pub mod discourse;
+pub mod pragmatics;
 
 #[cfg(feature = "python")]
 pub mod dspy_integration;
 
-pub use discourse::{DiscourseAnalyzer, DiscourseSegment, DiscourseRelation, CoherenceScore};
-pub use contradictions::{ContradictionDetector, Contradiction, ContradictionType};
-pub use pragmatics::{PragmaticsAnalyzer, PragmaticElement, PragmaticType, SpeechActType};
-pub use batching::{RequestBatcher, BatchRequest, BatchConfig, AnalysisType};
+pub use batching::{AnalysisType, BatchConfig, BatchRequest, RequestBatcher};
+pub use contradictions::{Contradiction, ContradictionDetector, ContradictionType};
+pub use discourse::{CoherenceScore, DiscourseAnalyzer, DiscourseRelation, DiscourseSegment};
+pub use pragmatics::{PragmaticElement, PragmaticType, PragmaticsAnalyzer, SpeechActType};
 
 #[cfg(feature = "python")]
 pub use dspy_integration::DSpySemanticBridge;
@@ -138,14 +138,7 @@ impl AnalyticalProcessor {
 
         // Spawn batch processing task
         tokio::spawn(async move {
-            Self::batch_processing_loop(
-                batcher,
-                discourse,
-                contradiction,
-                pragmatics,
-                cache,
-            )
-            .await
+            Self::batch_processing_loop(batcher, discourse, contradiction, pragmatics, cache).await
         });
 
         // Main request processing loop
@@ -178,7 +171,11 @@ impl AnalyticalProcessor {
                     }
                 }
                 AnalysisRequest::Range { text, range } => {
-                    info!("Range analysis requested: {:?} (len: {})", range, text.len());
+                    info!(
+                        "Range analysis requested: {:?} (len: {})",
+                        range,
+                        text.len()
+                    );
 
                     // Extract the text range for analysis
                     let range_text = if range.end <= text.len() {
@@ -333,14 +330,18 @@ impl AnalyticalProcessor {
                     Err(e) => {
                         retries += 1;
                         if retries >= max_retries {
-                            error!("Discourse analysis failed for request {} after {} attempts: {}",
-                                   request.id, max_retries, e);
+                            error!(
+                                "Discourse analysis failed for request {} after {} attempts: {}",
+                                request.id, max_retries, e
+                            );
                             break;
                         }
 
                         let backoff = Duration::from_millis(100 * 2_u64.pow(retries));
-                        warn!("Discourse analysis failed (attempt {}/{}), retrying in {:?}: {}",
-                              retries, max_retries, backoff, e);
+                        warn!(
+                            "Discourse analysis failed (attempt {}/{}), retrying in {:?}: {}",
+                            retries, max_retries, backoff, e
+                        );
                         tokio::time::sleep(backoff).await;
                     }
                 }
@@ -364,7 +365,10 @@ impl AnalyticalProcessor {
             loop {
                 match analyzer.detect(&request.text).await {
                     Ok(contradictions) => {
-                        debug!("Contradiction detection completed: {} found", contradictions.len());
+                        debug!(
+                            "Contradiction detection completed: {} found",
+                            contradictions.len()
+                        );
 
                         // Store in cache
                         let result = AnalysisResult::Contradiction(contradictions);
@@ -383,8 +387,10 @@ impl AnalyticalProcessor {
                         }
 
                         let backoff = Duration::from_millis(100 * 2_u64.pow(retries));
-                        warn!("Contradiction detection failed (attempt {}/{}), retrying in {:?}: {}",
-                              retries, max_retries, backoff, e);
+                        warn!(
+                            "Contradiction detection failed (attempt {}/{}), retrying in {:?}: {}",
+                            retries, max_retries, backoff, e
+                        );
                         tokio::time::sleep(backoff).await;
                     }
                 }
@@ -421,14 +427,18 @@ impl AnalyticalProcessor {
                     Err(e) => {
                         retries += 1;
                         if retries >= max_retries {
-                            error!("Pragmatics analysis failed for request {} after {} attempts: {}",
-                                   request.id, max_retries, e);
+                            error!(
+                                "Pragmatics analysis failed for request {} after {} attempts: {}",
+                                request.id, max_retries, e
+                            );
                             break;
                         }
 
                         let backoff = Duration::from_millis(100 * 2_u64.pow(retries));
-                        warn!("Pragmatics analysis failed (attempt {}/{}), retrying in {:?}: {}",
-                              retries, max_retries, backoff, e);
+                        warn!(
+                            "Pragmatics analysis failed (attempt {}/{}), retrying in {:?}: {}",
+                            retries, max_retries, backoff, e
+                        );
                         tokio::time::sleep(backoff).await;
                     }
                 }

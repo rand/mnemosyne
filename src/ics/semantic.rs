@@ -135,7 +135,8 @@ impl SemanticAnalyzer {
                     Err(panic_err) => {
                         // Analysis panicked - send empty result as fallback
                         let panic_msg = panic_err
-                            .downcast_ref::<&str>().copied()
+                            .downcast_ref::<&str>()
+                            .copied()
                             .or_else(|| panic_err.downcast_ref::<String>().map(|s| s.as_str()))
                             .unwrap_or("unknown panic");
 

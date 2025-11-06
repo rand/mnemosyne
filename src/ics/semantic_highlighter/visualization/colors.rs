@@ -40,11 +40,11 @@ impl Default for ColorScheme {
     fn default() -> Self {
         Self {
             // Entity colors
-            person: Color::Rgb(255, 215, 0),       // Warm yellow #FFD700
+            person: Color::Rgb(255, 215, 0), // Warm yellow #FFD700
             organization: Color::Rgb(65, 105, 225), // Corporate blue #4169E1
-            location: Color::Rgb(46, 139, 87),     // Earth green #2E8B57
-            concept: Color::Rgb(147, 112, 219),    // Abstract purple #9370DB
-            temporal: Color::Rgb(255, 140, 0),     // Clock orange #FF8C00
+            location: Color::Rgb(46, 139, 87), // Earth green #2E8B57
+            concept: Color::Rgb(147, 112, 219), // Abstract purple #9370DB
+            temporal: Color::Rgb(255, 140, 0), // Clock orange #FF8C00
 
             // Relationship colors
             subject: Color::Blue,

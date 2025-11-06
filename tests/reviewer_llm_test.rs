@@ -228,7 +228,6 @@ async fn test_implementation_evidence_tracking() {
     assert!(evidence.contains(&memory_id2));
 }
 
-
 // =============================================================================
 // Test: Review Retry Workflow
 // =============================================================================

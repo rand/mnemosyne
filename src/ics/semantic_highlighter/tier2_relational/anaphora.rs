@@ -11,9 +11,9 @@ use crate::ics::semantic_highlighter::{
     visualization::{Connection, ConnectionType},
     Result,
 };
-use std::ops::Range;
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
+use std::ops::Range;
 
 /// Anaphoric reference
 #[derive(Debug, Clone, PartialEq)]
@@ -76,7 +76,10 @@ impl AnaphoraPatterns {
             demonstratives: Regex::new(r"\b(this|that|these|those)\b").unwrap(),
             relative_pronouns: Regex::new(r"\b(which|who|whom|whose|that)\b").unwrap(),
             // Capitalized words or "the X" as potential antecedents
-            potential_antecedents: Regex::new(r"\b(?:([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)|the\s+([a-z]+))\b").unwrap(),
+            potential_antecedents: Regex::new(
+                r"\b(?:([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)|the\s+([a-z]+))\b",
+            )
+            .unwrap(),
         }
     }
 }
@@ -127,7 +130,10 @@ impl AnaphoraResolver {
     }
 
     /// Convert resolutions to visual connections
-    pub fn resolutions_to_connections(&self, resolutions: &[AnaphoraResolution]) -> Vec<Connection> {
+    pub fn resolutions_to_connections(
+        &self,
+        resolutions: &[AnaphoraResolution],
+    ) -> Vec<Connection> {
         resolutions
             .iter()
             .map(|res| Connection {
@@ -240,7 +246,8 @@ impl AnaphoraResolver {
                 }
 
                 // Number agreement (simplified)
-                let is_plural = ["they", "them", "their"].contains(&anaphor.text.to_lowercase().as_str());
+                let is_plural =
+                    ["they", "them", "their"].contains(&anaphor.text.to_lowercase().as_str());
                 let looks_plural = candidate.text.split_whitespace().count() > 1;
 
                 if is_plural == looks_plural {
@@ -303,7 +310,9 @@ mod tests {
         let resolutions = resolver.resolve(text).unwrap();
 
         // Should find "this" referring to something
-        let has_this = resolutions.iter().any(|r| r.anaphor.text.to_lowercase() == "this");
+        let has_this = resolutions
+            .iter()
+            .any(|r| r.anaphor.text.to_lowercase() == "this");
         assert!(has_this);
     }
 
@@ -313,7 +322,9 @@ mod tests {
         let text = "Alice completed the task. Her work was excellent.";
         let resolutions = resolver.resolve(text).unwrap();
 
-        let has_her = resolutions.iter().any(|r| r.anaphor.text.to_lowercase() == "her");
+        let has_her = resolutions
+            .iter()
+            .any(|r| r.anaphor.text.to_lowercase() == "her");
         assert!(has_her);
     }
 
@@ -360,8 +371,8 @@ mod tests {
         let resolutions = resolver.resolve(text).unwrap();
 
         let has_which = resolutions.iter().any(|r| {
-            r.anaphor.text.to_lowercase() == "which" &&
-            r.anaphor.anaphor_type == AnaphorType::RelativePronoun
+            r.anaphor.text.to_lowercase() == "which"
+                && r.anaphor.anaphor_type == AnaphorType::RelativePronoun
         });
 
         assert!(has_which);
@@ -374,7 +385,10 @@ mod tests {
         let resolutions = resolver.resolve(text).unwrap();
 
         // Should prefer "developers" (plural) for "they"
-        if let Some(res) = resolutions.iter().find(|r| r.anaphor.text.to_lowercase() == "they") {
+        if let Some(res) = resolutions
+            .iter()
+            .find(|r| r.anaphor.text.to_lowercase() == "they")
+        {
             assert!(res.antecedent.confidence > 0.5);
         }
     }

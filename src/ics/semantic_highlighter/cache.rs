@@ -195,10 +195,7 @@ impl<T: Clone> AnalyticalCache<T> {
     /// Get cache statistics
     pub fn stats(&self) -> CacheStats {
         if let Ok(cache) = self.cache.read() {
-            let valid_count = cache
-                .values()
-                .filter(|r| r.is_valid(self.ttl))
-                .count();
+            let valid_count = cache.values().filter(|r| r.is_valid(self.ttl)).count();
             CacheStats {
                 size: valid_count,
                 capacity: cache.len(),
@@ -264,7 +261,7 @@ impl SemanticCache {
 
 impl Default for SemanticCache {
     fn default() -> Self {
-        Self::new(100, 3600)  // 100 entries, 1 hour TTL
+        Self::new(100, 3600) // 100 entries, 1 hour TTL
     }
 }
 
@@ -310,7 +307,7 @@ mod tests {
 
     #[test]
     fn test_cache_expiration() {
-        let cache = AnalyticalCache::new(0);  // 0 second TTL
+        let cache = AnalyticalCache::new(0); // 0 second TTL
         let result = CachedResult::new("data".to_string());
 
         cache.insert_with_content("test", result);
@@ -368,8 +365,8 @@ mod tests {
 
     #[test]
     fn test_ranges_overlap_utility() {
-        assert!(ranges_overlap(&(0..10), &(5..15)));  // Overlapping
-        assert!(ranges_overlap(&(0..10), &(0..10)));  // Identical
+        assert!(ranges_overlap(&(0..10), &(5..15))); // Overlapping
+        assert!(ranges_overlap(&(0..10), &(0..10))); // Identical
         assert!(!ranges_overlap(&(0..10), &(10..20))); // Adjacent (no overlap)
         assert!(!ranges_overlap(&(0..10), &(15..20))); // Separate
     }

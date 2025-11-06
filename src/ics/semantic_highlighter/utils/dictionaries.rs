@@ -3,8 +3,8 @@
 //! Provides curated word lists for entity recognition, modality detection,
 //! and other semantic analysis tasks.
 
-use std::collections::HashSet;
 use once_cell::sync::Lazy;
+use std::collections::HashSet;
 
 /// Modality and hedging dictionaries
 pub struct ModalityDictionaries;
@@ -14,10 +14,26 @@ impl ModalityDictionaries {
     pub fn certain_markers() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "definitely", "certainly", "clearly", "obviously", "undoubtedly",
-                "unquestionably", "absolutely", "surely", "always", "never",
-                "must", "will", "cannot", "impossible", "guaranteed",
-                "proven", "confirmed", "established", "evident", "indisputable",
+                "definitely",
+                "certainly",
+                "clearly",
+                "obviously",
+                "undoubtedly",
+                "unquestionably",
+                "absolutely",
+                "surely",
+                "always",
+                "never",
+                "must",
+                "will",
+                "cannot",
+                "impossible",
+                "guaranteed",
+                "proven",
+                "confirmed",
+                "established",
+                "evident",
+                "indisputable",
             ]
             .iter()
             .copied()
@@ -30,10 +46,25 @@ impl ModalityDictionaries {
     pub fn probable_markers() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "probably", "likely", "presumably", "apparently", "seemingly",
-                "should", "would", "expected", "anticipated", "plausible",
-                "reasonable", "typical", "usually", "generally", "normally",
-                "often", "frequently", "tends to", "inclined to",
+                "probably",
+                "likely",
+                "presumably",
+                "apparently",
+                "seemingly",
+                "should",
+                "would",
+                "expected",
+                "anticipated",
+                "plausible",
+                "reasonable",
+                "typical",
+                "usually",
+                "generally",
+                "normally",
+                "often",
+                "frequently",
+                "tends to",
+                "inclined to",
             ]
             .iter()
             .copied()
@@ -46,11 +77,31 @@ impl ModalityDictionaries {
     pub fn uncertain_markers() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "maybe", "perhaps", "possibly", "conceivably", "potentially",
-                "might", "may", "could", "uncertain", "unclear",
-                "ambiguous", "questionable", "doubtful", "speculative", "hypothetical",
-                "unknown", "unsure", "unconfirmed", "debatable", "tentative",
-                "approximately", "roughly", "about", "around", "nearly",
+                "maybe",
+                "perhaps",
+                "possibly",
+                "conceivably",
+                "potentially",
+                "might",
+                "may",
+                "could",
+                "uncertain",
+                "unclear",
+                "ambiguous",
+                "questionable",
+                "doubtful",
+                "speculative",
+                "hypothetical",
+                "unknown",
+                "unsure",
+                "unconfirmed",
+                "debatable",
+                "tentative",
+                "approximately",
+                "roughly",
+                "about",
+                "around",
+                "nearly",
             ]
             .iter()
             .copied()
@@ -63,9 +114,20 @@ impl ModalityDictionaries {
     pub fn conditional_markers() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "if", "unless", "provided", "assuming", "suppose",
-                "given", "when", "whenever", "in case", "should",
-                "were", "had", "assuming that", "on condition",
+                "if",
+                "unless",
+                "provided",
+                "assuming",
+                "suppose",
+                "given",
+                "when",
+                "whenever",
+                "in case",
+                "should",
+                "were",
+                "had",
+                "assuming that",
+                "on condition",
             ]
             .iter()
             .copied()
@@ -83,12 +145,40 @@ impl EntityDictionaries {
     pub fn person_titles() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "mr", "mrs", "ms", "miss", "dr", "prof", "professor",
-                "sir", "madam", "lord", "lady", "captain", "colonel",
-                "general", "admiral", "president", "senator", "governor",
-                "judge", "justice", "reverend", "father", "brother",
-                "sister", "rabbi", "imam", "king", "queen", "prince",
-                "princess", "duke", "duchess", "count", "countess",
+                "mr",
+                "mrs",
+                "ms",
+                "miss",
+                "dr",
+                "prof",
+                "professor",
+                "sir",
+                "madam",
+                "lord",
+                "lady",
+                "captain",
+                "colonel",
+                "general",
+                "admiral",
+                "president",
+                "senator",
+                "governor",
+                "judge",
+                "justice",
+                "reverend",
+                "father",
+                "brother",
+                "sister",
+                "rabbi",
+                "imam",
+                "king",
+                "queen",
+                "prince",
+                "princess",
+                "duke",
+                "duchess",
+                "count",
+                "countess",
             ]
             .iter()
             .copied()
@@ -101,13 +191,42 @@ impl EntityDictionaries {
     pub fn organization_indicators() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "inc", "corp", "corporation", "company", "co", "ltd",
-                "limited", "llc", "llp", "plc", "gmbh", "sa", "ag",
-                "group", "holdings", "industries", "enterprises",
-                "foundation", "institute", "association", "organization",
-                "university", "college", "school", "academy", "hospital",
-                "clinic", "laboratory", "center", "department", "ministry",
-                "agency", "bureau", "commission", "committee", "council",
+                "inc",
+                "corp",
+                "corporation",
+                "company",
+                "co",
+                "ltd",
+                "limited",
+                "llc",
+                "llp",
+                "plc",
+                "gmbh",
+                "sa",
+                "ag",
+                "group",
+                "holdings",
+                "industries",
+                "enterprises",
+                "foundation",
+                "institute",
+                "association",
+                "organization",
+                "university",
+                "college",
+                "school",
+                "academy",
+                "hospital",
+                "clinic",
+                "laboratory",
+                "center",
+                "department",
+                "ministry",
+                "agency",
+                "bureau",
+                "commission",
+                "committee",
+                "council",
             ]
             .iter()
             .copied()
@@ -120,12 +239,40 @@ impl EntityDictionaries {
     pub fn location_indicators() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "city", "town", "village", "county", "state", "province",
-                "region", "district", "territory", "country", "nation",
-                "continent", "island", "peninsula", "mountain", "river",
-                "lake", "ocean", "sea", "bay", "gulf", "strait",
-                "street", "avenue", "road", "boulevard", "lane", "drive",
-                "building", "tower", "center", "square", "park", "garden",
+                "city",
+                "town",
+                "village",
+                "county",
+                "state",
+                "province",
+                "region",
+                "district",
+                "territory",
+                "country",
+                "nation",
+                "continent",
+                "island",
+                "peninsula",
+                "mountain",
+                "river",
+                "lake",
+                "ocean",
+                "sea",
+                "bay",
+                "gulf",
+                "strait",
+                "street",
+                "avenue",
+                "road",
+                "boulevard",
+                "lane",
+                "drive",
+                "building",
+                "tower",
+                "center",
+                "square",
+                "park",
+                "garden",
             ]
             .iter()
             .copied()
@@ -138,13 +285,43 @@ impl EntityDictionaries {
     pub fn temporal_indicators() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "monday", "tuesday", "wednesday", "thursday", "friday",
-                "saturday", "sunday", "january", "february", "march",
-                "april", "may", "june", "july", "august", "september",
-                "october", "november", "december", "morning", "afternoon",
-                "evening", "night", "yesterday", "today", "tomorrow",
-                "week", "month", "year", "decade", "century", "era",
-                "spring", "summer", "autumn", "fall", "winter",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+                "january",
+                "february",
+                "march",
+                "april",
+                "may",
+                "june",
+                "july",
+                "august",
+                "september",
+                "october",
+                "november",
+                "december",
+                "morning",
+                "afternoon",
+                "evening",
+                "night",
+                "yesterday",
+                "today",
+                "tomorrow",
+                "week",
+                "month",
+                "year",
+                "decade",
+                "century",
+                "era",
+                "spring",
+                "summer",
+                "autumn",
+                "fall",
+                "winter",
             ]
             .iter()
             .copied()
@@ -157,12 +334,36 @@ impl EntityDictionaries {
     pub fn concept_indicators() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "algorithm", "architecture", "framework", "pattern", "paradigm",
-                "methodology", "approach", "strategy", "technique", "method",
-                "process", "procedure", "protocol", "standard", "specification",
-                "interface", "abstraction", "implementation", "design", "model",
-                "theory", "principle", "concept", "notion", "idea",
-                "system", "structure", "component", "module", "service",
+                "algorithm",
+                "architecture",
+                "framework",
+                "pattern",
+                "paradigm",
+                "methodology",
+                "approach",
+                "strategy",
+                "technique",
+                "method",
+                "process",
+                "procedure",
+                "protocol",
+                "standard",
+                "specification",
+                "interface",
+                "abstraction",
+                "implementation",
+                "design",
+                "model",
+                "theory",
+                "principle",
+                "concept",
+                "notion",
+                "idea",
+                "system",
+                "structure",
+                "component",
+                "module",
+                "service",
             ]
             .iter()
             .copied()
@@ -180,10 +381,23 @@ impl DiscourseMarkers {
     pub fn elaboration_markers() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "specifically", "namely", "particularly", "especially",
-                "for example", "for instance", "such as", "including",
-                "like", "e.g.", "i.e.", "that is", "in other words",
-                "to clarify", "to elaborate", "in fact", "actually",
+                "specifically",
+                "namely",
+                "particularly",
+                "especially",
+                "for example",
+                "for instance",
+                "such as",
+                "including",
+                "like",
+                "e.g.",
+                "i.e.",
+                "that is",
+                "in other words",
+                "to clarify",
+                "to elaborate",
+                "in fact",
+                "actually",
             ]
             .iter()
             .copied()
@@ -196,10 +410,23 @@ impl DiscourseMarkers {
     pub fn contrast_markers() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "but", "however", "although", "though", "yet",
-                "nevertheless", "nonetheless", "despite", "in spite of",
-                "instead", "rather", "whereas", "while", "conversely",
-                "on the other hand", "in contrast", "by contrast",
+                "but",
+                "however",
+                "although",
+                "though",
+                "yet",
+                "nevertheless",
+                "nonetheless",
+                "despite",
+                "in spite of",
+                "instead",
+                "rather",
+                "whereas",
+                "while",
+                "conversely",
+                "on the other hand",
+                "in contrast",
+                "by contrast",
             ]
             .iter()
             .copied()
@@ -212,10 +439,24 @@ impl DiscourseMarkers {
     pub fn causal_markers() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "because", "since", "as", "therefore", "thus",
-                "hence", "consequently", "so", "then", "as a result",
-                "due to", "owing to", "thanks to", "leads to",
-                "causes", "results in", "triggers", "produces",
+                "because",
+                "since",
+                "as",
+                "therefore",
+                "thus",
+                "hence",
+                "consequently",
+                "so",
+                "then",
+                "as a result",
+                "due to",
+                "owing to",
+                "thanks to",
+                "leads to",
+                "causes",
+                "results in",
+                "triggers",
+                "produces",
             ]
             .iter()
             .copied()
@@ -228,10 +469,25 @@ impl DiscourseMarkers {
     pub fn temporal_markers() -> &'static HashSet<&'static str> {
         static SET: Lazy<HashSet<&'static str>> = Lazy::new(|| {
             [
-                "before", "after", "when", "while", "during",
-                "since", "until", "then", "next", "finally",
-                "previously", "subsequently", "meanwhile", "simultaneously",
-                "first", "second", "third", "last", "initially",
+                "before",
+                "after",
+                "when",
+                "while",
+                "during",
+                "since",
+                "until",
+                "then",
+                "next",
+                "finally",
+                "previously",
+                "subsequently",
+                "meanwhile",
+                "simultaneously",
+                "first",
+                "second",
+                "third",
+                "last",
+                "initially",
             ]
             .iter()
             .copied()

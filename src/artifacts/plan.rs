@@ -1,8 +1,8 @@
 //! Implementation plan artifact
 #![allow(clippy::useless_format, clippy::single_char_add_str)]
 
-use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use super::storage::{parse_frontmatter, serialize_frontmatter};
+use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use crate::error::{MnemosyneError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -70,8 +70,10 @@ fn parse_architecture_decisions(markdown: &str) -> Vec<ArchitectureDecision> {
                     let content_line = lines[i].trim();
 
                     // Stop at next decision or section
-                    if content_line.starts_with("###") ||
-                       (content_line.starts_with("##") && !content_line.contains("Architecture Decisions")) {
+                    if content_line.starts_with("###")
+                        || (content_line.starts_with("##")
+                            && !content_line.contains("Architecture Decisions"))
+                    {
                         break;
                     }
 
@@ -85,12 +87,17 @@ fn parse_architecture_decisions(markdown: &str) -> Vec<ArchitectureDecision> {
                         i += 1;
                         while i < lines.len() {
                             let alt_line = lines[i].trim();
-                            if alt_line.starts_with("###") || alt_line.starts_with("##") ||
-                               alt_line.starts_with("**") {
+                            if alt_line.starts_with("###")
+                                || alt_line.starts_with("##")
+                                || alt_line.starts_with("**")
+                            {
                                 i -= 1; // Back up
                                 break;
                             }
-                            if let Some(content) = alt_line.strip_prefix('-').or_else(|| alt_line.strip_prefix('*')) {
+                            if let Some(content) = alt_line
+                                .strip_prefix('-')
+                                .or_else(|| alt_line.strip_prefix('*'))
+                            {
                                 let cleaned = content.trim();
                                 if !cleaned.is_empty() {
                                     alternatives.push(cleaned.to_string());
@@ -142,7 +149,10 @@ fn parse_dependencies(markdown: &str) -> Vec<String> {
             }
 
             // Match bullet items
-            if let Some(content) = trimmed.strip_prefix('-').or_else(|| trimmed.strip_prefix('*')) {
+            if let Some(content) = trimmed
+                .strip_prefix('-')
+                .or_else(|| trimmed.strip_prefix('*'))
+            {
                 let cleaned = content.trim();
                 if !cleaned.is_empty() {
                     dependencies.push(cleaned.to_string());
@@ -344,7 +354,10 @@ mod tests {
 
         // Verify fields were preserved
         assert_eq!(loaded.feature_id, "test-feature");
-        assert_eq!(loaded.approach, "Use simple approach with minimal dependencies");
+        assert_eq!(
+            loaded.approach,
+            "Use simple approach with minimal dependencies"
+        );
         assert_eq!(loaded.architecture.len(), 0);
         assert_eq!(loaded.dependencies.len(), 0);
     }
@@ -373,9 +386,7 @@ mod tests {
             title: "Token Storage".to_string(),
             decision: "Store refresh tokens in HTTP-only cookies".to_string(),
             rationale: "Prevents XSS attacks on refresh tokens".to_string(),
-            alternatives: vec![
-                "LocalStorage".to_string(),
-            ],
+            alternatives: vec!["LocalStorage".to_string()],
         });
 
         // Add dependencies
@@ -391,18 +402,36 @@ mod tests {
 
         // Verify all fields preserved
         assert_eq!(loaded.feature_id, "user-auth");
-        assert_eq!(loaded.approach, "Implement JWT-based authentication with RS256 signing and refresh tokens");
+        assert_eq!(
+            loaded.approach,
+            "Implement JWT-based authentication with RS256 signing and refresh tokens"
+        );
 
         assert_eq!(loaded.architecture.len(), 2);
         assert_eq!(loaded.architecture[0].title, "JWT Algorithm");
-        assert_eq!(loaded.architecture[0].decision, "Use RS256 asymmetric signing");
-        assert_eq!(loaded.architecture[0].rationale, "Better security than HS256, enables distributed verification");
+        assert_eq!(
+            loaded.architecture[0].decision,
+            "Use RS256 asymmetric signing"
+        );
+        assert_eq!(
+            loaded.architecture[0].rationale,
+            "Better security than HS256, enables distributed verification"
+        );
         assert_eq!(loaded.architecture[0].alternatives.len(), 2);
-        assert_eq!(loaded.architecture[0].alternatives[0], "HS256 symmetric signing");
-        assert_eq!(loaded.architecture[0].alternatives[1], "Opaque session tokens");
+        assert_eq!(
+            loaded.architecture[0].alternatives[0],
+            "HS256 symmetric signing"
+        );
+        assert_eq!(
+            loaded.architecture[0].alternatives[1],
+            "Opaque session tokens"
+        );
 
         assert_eq!(loaded.architecture[1].title, "Token Storage");
-        assert_eq!(loaded.architecture[1].decision, "Store refresh tokens in HTTP-only cookies");
+        assert_eq!(
+            loaded.architecture[1].decision,
+            "Store refresh tokens in HTTP-only cookies"
+        );
         assert_eq!(loaded.architecture[1].alternatives.len(), 1);
 
         assert_eq!(loaded.dependencies.len(), 3);

@@ -210,9 +210,7 @@ mod reviewer_adapter_tests {
 
         // Very long text
         let long_text = "Implementation details. ".repeat(1000);
-        let result = adapter
-            .verify_correctness(&long_text, vec![])
-            .await;
+        let result = adapter.verify_correctness(&long_text, vec![]).await;
         assert!(result.is_ok() || result.is_err());
 
         // Special characters

@@ -2,9 +2,7 @@
 
 pub mod dialogs;
 
-pub use dialogs::{
-    ConfirmDialog, Dialog, DialogResult, InputDialog, PreviewDialog,
-};
+pub use dialogs::{ConfirmDialog, Dialog, DialogResult, InputDialog, PreviewDialog};
 
 use ratatui::{
     buffer::Buffer,
@@ -628,23 +626,22 @@ impl Widget for &HelpOverlay {
 
         // Build help content based on mode
         let mut help_text = vec![
-            Line::from(vec![
-                Span::styled(
-                    "Keyboard Shortcuts",
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-            ]),
+            Line::from(vec![Span::styled(
+                "Keyboard Shortcuts",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(""),
         ];
 
         if self.ics_mode {
             // ICS-specific help
             help_text.extend(vec![
-                Line::from(vec![
-                    Span::styled("ICS Mode", Style::default().add_modifier(Modifier::BOLD)),
-                ]),
+                Line::from(vec![Span::styled(
+                    "ICS Mode",
+                    Style::default().add_modifier(Modifier::BOLD),
+                )]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("  Ctrl+Enter", Style::default().fg(Color::Yellow)),
@@ -659,9 +656,10 @@ impl Widget for &HelpOverlay {
                     Span::raw("      Focus/toggle ICS editor"),
                 ]),
                 Line::from(""),
-                Line::from(vec![
-                    Span::styled("Patterns", Style::default().add_modifier(Modifier::BOLD)),
-                ]),
+                Line::from(vec![Span::styled(
+                    "Patterns",
+                    Style::default().add_modifier(Modifier::BOLD),
+                )]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("  #file.rs", Style::default().fg(Color::Blue)),
@@ -679,9 +677,10 @@ impl Widget for &HelpOverlay {
         } else {
             // General TUI help
             help_text.extend(vec![
-                Line::from(vec![
-                    Span::styled("Navigation", Style::default().add_modifier(Modifier::BOLD)),
-                ]),
+                Line::from(vec![Span::styled(
+                    "Navigation",
+                    Style::default().add_modifier(Modifier::BOLD),
+                )]),
                 Line::from(""),
                 Line::from(vec![
                     Span::styled("  Ctrl+P", Style::default().fg(Color::Yellow)),

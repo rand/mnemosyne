@@ -68,36 +68,36 @@ pub struct IconSet {
 /// with the exception of `brain` which uses Material Design Icons for better visual.
 const NERD_ICONS: IconSet = IconSet {
     // Status - Font Awesome
-    success: "\x1b[32m\u{f00c}\x1b[0m",      // fa-check (green)
-    error: "\x1b[31m\u{f00d}\x1b[0m",        // fa-times (red)
-    warning: "\x1b[33m\u{f071}\x1b[0m",      // fa-exclamation-triangle (yellow)
-    info: "\x1b[36m\u{f05a}\x1b[0m",         // fa-info-circle (cyan)
-    ready: "\x1b[35m\u{f005}\x1b[0m",        // fa-star (magenta)
+    success: "\x1b[32m\u{f00c}\x1b[0m", // fa-check (green)
+    error: "\x1b[31m\u{f00d}\x1b[0m",   // fa-times (red)
+    warning: "\x1b[33m\u{f071}\x1b[0m", // fa-exclamation-triangle (yellow)
+    info: "\x1b[36m\u{f05a}\x1b[0m",    // fa-info-circle (cyan)
+    ready: "\x1b[35m\u{f005}\x1b[0m",   // fa-star (magenta)
 
     // Actions - Font Awesome
-    target: "\x1b[33m\u{f140}\x1b[0m",       // fa-bullseye (yellow)
-    search: "\x1b[36m\u{f002}\x1b[0m",       // fa-search (cyan)
-    edit: "\x1b[34m\u{f040}\x1b[0m",         // fa-pencil (blue)
-    save: "\x1b[35m\u{f0c7}\x1b[0m",         // fa-floppy-o (magenta)
-    link: "\x1b[36m\u{f0c1}\x1b[0m",         // fa-link (cyan)
-    build: "\x1b[33m\u{f0ad}\x1b[0m",        // fa-wrench (yellow)
-    launch: "\x1b[32m\u{f135}\x1b[0m",       // fa-rocket (green)
-    sync: "\x1b[36m\u{f021}\x1b[0m",         // fa-refresh (cyan)
-    lightning: "\x1b[33m\u{f0e7}\x1b[0m",    // fa-bolt (yellow)
+    target: "\x1b[33m\u{f140}\x1b[0m",    // fa-bullseye (yellow)
+    search: "\x1b[36m\u{f002}\x1b[0m",    // fa-search (cyan)
+    edit: "\x1b[34m\u{f040}\x1b[0m",      // fa-pencil (blue)
+    save: "\x1b[35m\u{f0c7}\x1b[0m",      // fa-floppy-o (magenta)
+    link: "\x1b[36m\u{f0c1}\x1b[0m",      // fa-link (cyan)
+    build: "\x1b[33m\u{f0ad}\x1b[0m",     // fa-wrench (yellow)
+    launch: "\x1b[32m\u{f135}\x1b[0m",    // fa-rocket (green)
+    sync: "\x1b[36m\u{f021}\x1b[0m",      // fa-refresh (cyan)
+    lightning: "\x1b[33m\u{f0e7}\x1b[0m", // fa-bolt (yellow)
 
     // Data - Font Awesome (except brain)
-    chart: "\x1b[34m\u{f080}\x1b[0m",        // fa-bar-chart (blue)
-    database: "\x1b[35m\u{f1c0}\x1b[0m",     // fa-database (magenta)
-    folder: "\x1b[33m\u{f07b}\x1b[0m",       // fa-folder-open (yellow)
-    trending: "\x1b[32m\u{f201}\x1b[0m",     // fa-line-chart (green)
-    brain: "\x1b[35m\u{f5dc}\x1b[0m",        // md-brain (Material Design, magenta)
+    chart: "\x1b[34m\u{f080}\x1b[0m",    // fa-bar-chart (blue)
+    database: "\x1b[35m\u{f1c0}\x1b[0m", // fa-database (magenta)
+    folder: "\x1b[33m\u{f07b}\x1b[0m",   // fa-folder-open (yellow)
+    trending: "\x1b[32m\u{f201}\x1b[0m", // fa-line-chart (green)
+    brain: "\x1b[35m\u{f5dc}\x1b[0m",    // md-brain (Material Design, magenta)
 
     // System - Font Awesome
-    gear: "\x1b[90m\u{f013}\x1b[0m",         // fa-gear (gray)
-    lightbulb: "\x1b[33m\u{f0eb}\x1b[0m",    // fa-lightbulb-o (yellow)
-    palette: "\x1b[35m\u{f53f}\x1b[0m",      // fa-paint-brush (magenta)
-    clock: "\x1b[36m\u{f017}\x1b[0m",        // fa-clock-o (cyan)
-    star: "\x1b[33m\u{f005}\x1b[0m",         // fa-star (yellow)
+    gear: "\x1b[90m\u{f013}\x1b[0m",      // fa-gear (gray)
+    lightbulb: "\x1b[33m\u{f0eb}\x1b[0m", // fa-lightbulb-o (yellow)
+    palette: "\x1b[35m\u{f53f}\x1b[0m",   // fa-paint-brush (magenta)
+    clock: "\x1b[36m\u{f017}\x1b[0m",     // fa-clock-o (cyan)
+    star: "\x1b[33m\u{f005}\x1b[0m",      // fa-star (yellow)
 };
 
 /// ASCII fallback icons (colored, no special fonts needed)
@@ -105,36 +105,36 @@ const NERD_ICONS: IconSet = IconSet {
 /// Uses standard Unicode characters that render on all terminals.
 const ASCII_ICONS: IconSet = IconSet {
     // Status
-    success: "\x1b[32m✓\x1b[0m",             // Check mark (green)
-    error: "\x1b[31m✗\x1b[0m",               // Ballot X (red)
-    warning: "\x1b[33m!\x1b[0m",             // Exclamation (yellow)
-    info: "\x1b[36mi\x1b[0m",                // Lowercase i (cyan)
-    ready: "\x1b[35m*\x1b[0m",               // Asterisk (magenta)
+    success: "\x1b[32m✓\x1b[0m", // Check mark (green)
+    error: "\x1b[31m✗\x1b[0m",   // Ballot X (red)
+    warning: "\x1b[33m!\x1b[0m", // Exclamation (yellow)
+    info: "\x1b[36mi\x1b[0m",    // Lowercase i (cyan)
+    ready: "\x1b[35m*\x1b[0m",   // Asterisk (magenta)
 
     // Actions
-    target: "\x1b[33m◎\x1b[0m",              // Bullseye (yellow)
-    search: "\x1b[36m?\x1b[0m",              // Question mark (cyan)
-    edit: "\x1b[34m~\x1b[0m",                // Tilde (blue)
-    save: "\x1b[35m↓\x1b[0m",                // Downward arrow (magenta)
-    link: "\x1b[36m∞\x1b[0m",                // Infinity (cyan)
-    build: "\x1b[33m§\x1b[0m",               // Section sign (yellow)
-    launch: "\x1b[32m»\x1b[0m",              // Right guillemet (green)
-    sync: "\x1b[36m↻\x1b[0m",                // Clockwise arrow (cyan)
-    lightning: "\x1b[33m↯\x1b[0m",           // Downward zigzag (yellow)
+    target: "\x1b[33m◎\x1b[0m",    // Bullseye (yellow)
+    search: "\x1b[36m?\x1b[0m",    // Question mark (cyan)
+    edit: "\x1b[34m~\x1b[0m",      // Tilde (blue)
+    save: "\x1b[35m↓\x1b[0m",      // Downward arrow (magenta)
+    link: "\x1b[36m∞\x1b[0m",      // Infinity (cyan)
+    build: "\x1b[33m§\x1b[0m",     // Section sign (yellow)
+    launch: "\x1b[32m»\x1b[0m",    // Right guillemet (green)
+    sync: "\x1b[36m↻\x1b[0m",      // Clockwise arrow (cyan)
+    lightning: "\x1b[33m↯\x1b[0m", // Downward zigzag (yellow)
 
     // Data
-    chart: "\x1b[34m▊\x1b[0m",               // Left 3/4 block (blue)
-    database: "\x1b[35m◘\x1b[0m",            // Inverse bullet (magenta)
-    folder: "\x1b[33m□\x1b[0m",              // White square (yellow)
-    trending: "\x1b[32m↗\x1b[0m",            // Up-right arrow (green)
-    brain: "\x1b[35m◉\x1b[0m",               // Fish eye (magenta)
+    chart: "\x1b[34m▊\x1b[0m",    // Left 3/4 block (blue)
+    database: "\x1b[35m◘\x1b[0m", // Inverse bullet (magenta)
+    folder: "\x1b[33m□\x1b[0m",   // White square (yellow)
+    trending: "\x1b[32m↗\x1b[0m", // Up-right arrow (green)
+    brain: "\x1b[35m◉\x1b[0m",    // Fish eye (magenta)
 
     // System
-    gear: "\x1b[90m⚙\x1b[0m",                // Gear (gray)
-    lightbulb: "\x1b[33m○\x1b[0m",           // White circle (yellow)
-    palette: "\x1b[35m◆\x1b[0m",             // Black diamond (magenta)
-    clock: "\x1b[36m◷\x1b[0m",               // Circle 1/4 white (cyan)
-    star: "\x1b[33m★\x1b[0m",                // Black star (yellow)
+    gear: "\x1b[90m⚙\x1b[0m",      // Gear (gray)
+    lightbulb: "\x1b[33m○\x1b[0m", // White circle (yellow)
+    palette: "\x1b[35m◆\x1b[0m",   // Black diamond (magenta)
+    clock: "\x1b[36m◷\x1b[0m",     // Circle 1/4 white (cyan)
+    star: "\x1b[33m★\x1b[0m",      // Black star (yellow)
 };
 
 /// Global icon set (initialized once at runtime)
@@ -198,19 +198,29 @@ pub mod status {
     use super::icons;
 
     /// Success/completion icon (green check or ✓)
-    pub fn success() -> &'static str { icons().success }
+    pub fn success() -> &'static str {
+        icons().success
+    }
 
     /// Error/failure icon (red X or ✗)
-    pub fn error() -> &'static str { icons().error }
+    pub fn error() -> &'static str {
+        icons().error
+    }
 
     /// Warning/alert icon (yellow triangle or !)
-    pub fn warning() -> &'static str { icons().warning }
+    pub fn warning() -> &'static str {
+        icons().warning
+    }
 
     /// Information icon (cyan circle-i or i)
-    pub fn info() -> &'static str { icons().info }
+    pub fn info() -> &'static str {
+        icons().info
+    }
 
     /// Ready/completion icon (magenta star or *)
-    pub fn ready() -> &'static str { icons().ready }
+    pub fn ready() -> &'static str {
+        icons().ready
+    }
 }
 
 /// Action icons (search, edit, save, launch, etc.)
@@ -218,31 +228,49 @@ pub mod action {
     use super::icons;
 
     /// Target/goal icon (yellow bullseye or ◎)
-    pub fn target() -> &'static str { icons().target }
+    pub fn target() -> &'static str {
+        icons().target
+    }
 
     /// Search/find icon (cyan magnifier or ?)
-    pub fn search() -> &'static str { icons().search }
+    pub fn search() -> &'static str {
+        icons().search
+    }
 
     /// Edit/write icon (blue pencil or ~)
-    pub fn edit() -> &'static str { icons().edit }
+    pub fn edit() -> &'static str {
+        icons().edit
+    }
 
     /// Save/persist icon (magenta floppy or ↓)
-    pub fn save() -> &'static str { icons().save }
+    pub fn save() -> &'static str {
+        icons().save
+    }
 
     /// Link/connection icon (cyan chain or ∞)
-    pub fn link() -> &'static str { icons().link }
+    pub fn link() -> &'static str {
+        icons().link
+    }
 
     /// Build/tools icon (yellow wrench or §)
-    pub fn build() -> &'static str { icons().build }
+    pub fn build() -> &'static str {
+        icons().build
+    }
 
     /// Launch/start icon (green rocket or »)
-    pub fn launch() -> &'static str { icons().launch }
+    pub fn launch() -> &'static str {
+        icons().launch
+    }
 
     /// Sync/refresh icon (cyan circular arrows or ↻)
-    pub fn sync() -> &'static str { icons().sync }
+    pub fn sync() -> &'static str {
+        icons().sync
+    }
 
     /// Fast/lightning icon (yellow bolt or ↯)
-    pub fn lightning() -> &'static str { icons().lightning }
+    pub fn lightning() -> &'static str {
+        icons().lightning
+    }
 }
 
 /// Data icons (charts, database, folders, etc.)
@@ -250,19 +278,29 @@ pub mod data {
     use super::icons;
 
     /// Chart/statistics icon (blue bars or ▊)
-    pub fn chart() -> &'static str { icons().chart }
+    pub fn chart() -> &'static str {
+        icons().chart
+    }
 
     /// Database icon (magenta cylinder or ◘)
-    pub fn database() -> &'static str { icons().database }
+    pub fn database() -> &'static str {
+        icons().database
+    }
 
     /// Folder/files icon (yellow folder or □)
-    pub fn folder() -> &'static str { icons().folder }
+    pub fn folder() -> &'static str {
+        icons().folder
+    }
 
     /// Trending/growth icon (green line chart or ↗)
-    pub fn trending() -> &'static str { icons().trending }
+    pub fn trending() -> &'static str {
+        icons().trending
+    }
 
     /// Brain/memory icon (magenta brain or ◉)
-    pub fn brain() -> &'static str { icons().brain }
+    pub fn brain() -> &'static str {
+        icons().brain
+    }
 }
 
 /// System icons (settings, ideas, time, etc.)
@@ -270,19 +308,29 @@ pub mod system {
     use super::icons;
 
     /// Settings/configuration icon (gray gear or ⚙)
-    pub fn gear() -> &'static str { icons().gear }
+    pub fn gear() -> &'static str {
+        icons().gear
+    }
 
     /// Ideas/tips icon (yellow lightbulb or ○)
-    pub fn lightbulb() -> &'static str { icons().lightbulb }
+    pub fn lightbulb() -> &'static str {
+        icons().lightbulb
+    }
 
     /// Art/design icon (magenta palette or ◆)
-    pub fn palette() -> &'static str { icons().palette }
+    pub fn palette() -> &'static str {
+        icons().palette
+    }
 
     /// Time/clock icon (cyan clock or ◷)
-    pub fn clock() -> &'static str { icons().clock }
+    pub fn clock() -> &'static str {
+        icons().clock
+    }
 
     /// Star/special icon (yellow star or ★)
-    pub fn star() -> &'static str { icons().star }
+    pub fn star() -> &'static str {
+        icons().star
+    }
 }
 
 #[cfg(test)]

@@ -123,8 +123,7 @@ pub trait StorageBackend: Send + Sync {
     ) -> Result<Vec<crate::orchestration::state::WorkItem>>;
 
     /// Delete a work item (when permanently completed)
-    async fn delete_work_item(&self, id: &crate::orchestration::state::WorkItemId)
-        -> Result<()>;
+    async fn delete_work_item(&self, id: &crate::orchestration::state::WorkItemId) -> Result<()>;
 }
 
 /// Sort order for listing memories

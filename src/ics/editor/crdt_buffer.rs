@@ -197,7 +197,9 @@ impl CrdtBuffer {
             let full_text = self.text()?;
             let range = pos..pos + text.len();
             if let Some(ref engine_cell) = self.semantic_engine {
-                engine_cell.borrow_mut().schedule_analysis(&full_text, range);
+                engine_cell
+                    .borrow_mut()
+                    .schedule_analysis(&full_text, range);
             }
         }
 
@@ -250,7 +252,9 @@ impl CrdtBuffer {
             let context_start = pos.saturating_sub(50);
             let context_end = (pos + 50).min(full_text.len());
             if let Some(ref engine_cell) = self.semantic_engine {
-                engine_cell.borrow_mut().schedule_analysis(&full_text, context_start..context_end);
+                engine_cell
+                    .borrow_mut()
+                    .schedule_analysis(&full_text, context_start..context_end);
             }
         }
 

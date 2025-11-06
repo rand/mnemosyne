@@ -11,6 +11,8 @@ pub enum EventType {
     /// Agent started
     AgentStarted {
         agent_id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        task: Option<String>,
         timestamp: DateTime<Utc>,
     },
     /// Agent completed task
@@ -134,6 +136,16 @@ impl Event {
     pub fn agent_started(agent_id: String) -> Self {
         Self::new(EventType::AgentStarted {
             agent_id,
+            task: None,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create agent started event with task information
+    pub fn agent_started_with_task(agent_id: String, task: String) -> Self {
+        Self::new(EventType::AgentStarted {
+            agent_id,
+            task: Some(task),
             timestamp: Utc::now(),
         })
     }
@@ -325,10 +337,7 @@ mod tests {
 
     #[test]
     fn test_sse_format() {
-        let event = Event::memory_stored(
-            "mem-123".to_string(),
-            "Test memory".to_string(),
-        );
+        let event = Event::memory_stored("mem-123".to_string(), "Test memory".to_string());
         let sse = event.to_sse();
         assert!(sse.contains("id:"));
         assert!(sse.contains("data:"));

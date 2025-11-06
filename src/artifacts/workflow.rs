@@ -7,14 +7,16 @@
 //!
 //! Use these functions to implement complete specification workflow operations.
 
-use super::storage::ArtifactStorage;
 use super::memory_link::MemoryLinker;
+use super::storage::ArtifactStorage;
 use super::types::Artifact;
-use super::{Constitution, FeatureSpec, ImplementationPlan, TaskBreakdown, QualityChecklist, Clarification};
+use super::{
+    Clarification, Constitution, FeatureSpec, ImplementationPlan, QualityChecklist, TaskBreakdown,
+};
 use crate::error::Result;
+use crate::storage::StorageBackend;
 use crate::types::{MemoryId, MemoryType, Namespace};
 use std::sync::Arc;
-use crate::storage::StorageBackend;
 
 /// Workflow coordinator for artifact operations
 pub struct ArtifactWorkflow {
@@ -134,11 +136,7 @@ impl ArtifactWorkflow {
             spec.metadata.name.clone()
         };
 
-        let content = format!(
-            "{}\n\nFull specification: {}",
-            summary,
-            artifact_path
-        );
+        let content = format!("{}\n\nFull specification: {}", summary, artifact_path);
 
         let tags = vec![
             "spec".to_string(),
@@ -227,11 +225,7 @@ impl ArtifactWorkflow {
             plan.approach.clone()
         };
 
-        let content = format!(
-            "{}\n\nFull plan: {}",
-            summary,
-            artifact_path
-        );
+        let content = format!("{}\n\nFull plan: {}", summary, artifact_path);
 
         let tags = vec![
             "plan".to_string(),
@@ -308,17 +302,9 @@ impl ArtifactWorkflow {
 
         // Build summary from phases
         let total_tasks: usize = tasks.phases.iter().map(|p| p.tasks.len()).sum();
-        let summary = format!(
-            "{} phases, {} tasks",
-            tasks.phases.len(),
-            total_tasks
-        );
+        let summary = format!("{} phases, {} tasks", tasks.phases.len(), total_tasks);
 
-        let content = format!(
-            "{}\n\nFull tasks: {}",
-            summary,
-            artifact_path
-        );
+        let content = format!("{}\n\nFull tasks: {}", summary, artifact_path);
 
         let tags = vec![
             "tasks".to_string(),
@@ -401,11 +387,7 @@ impl ArtifactWorkflow {
             completion
         );
 
-        let content = format!(
-            "{}\n\nFull checklist: {}",
-            summary,
-            artifact_path
-        );
+        let content = format!("{}\n\nFull checklist: {}", summary, artifact_path);
 
         let tags = vec![
             "checklist".to_string(),
@@ -482,7 +464,11 @@ impl ArtifactWorkflow {
 
         // Build summary from completion status
         let total = clarification.items.len();
-        let resolved = clarification.items.iter().filter(|i| i.decision.is_some()).count();
+        let resolved = clarification
+            .items
+            .iter()
+            .filter(|i| i.decision.is_some())
+            .count();
         let summary = format!(
             "{} clarifications: {} resolved, {} pending",
             total,
@@ -490,11 +476,7 @@ impl ArtifactWorkflow {
             total - resolved
         );
 
-        let content = format!(
-            "{}\n\nFull clarifications: {}",
-            summary,
-            artifact_path
-        );
+        let content = format!("{}\n\nFull clarifications: {}", summary, artifact_path);
 
         let tags = vec![
             "clarification".to_string(),

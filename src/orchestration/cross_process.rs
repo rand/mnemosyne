@@ -186,7 +186,7 @@ impl CrossProcessCoordinator {
             pid: std::process::id(),
             registered_at: Utc::now(),
             last_heartbeat: Utc::now(),
-            signature: None, // Will be set below
+            signature: None,     // Will be set below
             worktree_path: None, // Will be set by launcher if using worktrees
         };
 
@@ -276,7 +276,9 @@ impl CrossProcessCoordinator {
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-')
         {
-            return Err(MnemosyneError::Other("Invalid message ID: contains illegal characters".to_string()));
+            return Err(MnemosyneError::Other(
+                "Invalid message ID: contains illegal characters".to_string(),
+            ));
         }
 
         let message_path = self.queue_dir.join(format!("{}.json", message.id));

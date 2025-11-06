@@ -213,14 +213,8 @@ impl ConsolidationJob {
         let mut similarity_map: HashMap<(MemoryId, MemoryId), f32> = HashMap::new();
 
         for (m1, m2, sim) in candidates {
-            graph
-                .entry(m1.id)
-                .or_default()
-                .insert(m2.id);
-            graph
-                .entry(m2.id)
-                .or_default()
-                .insert(m1.id);
+            graph.entry(m1.id).or_default().insert(m2.id);
+            graph.entry(m2.id).or_default().insert(m1.id);
 
             memory_map.insert(m1.id, m1.clone());
             memory_map.insert(m2.id, m2.clone());

@@ -316,19 +316,25 @@ async fn run_app<B: ratatui::backend::Backend>(
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(3),  // Header
-                    Constraint::Min(10),    // Events
-                    Constraint::Length(7),  // Agents
-                    Constraint::Length(5),  // Stats
-                    Constraint::Length(1),  // Footer
+                    Constraint::Length(3), // Header
+                    Constraint::Min(10),   // Events
+                    Constraint::Length(7), // Agents
+                    Constraint::Length(5), // Stats
+                    Constraint::Length(1), // Footer
                 ])
                 .split(f.area());
 
             // Header
             let title = if app.connected {
-                format!("{} Mnemosyne Dashboard [Connected]", mnemosyne_core::icons::system::palette())
+                format!(
+                    "{} Mnemosyne Dashboard [Connected]",
+                    mnemosyne_core::icons::system::palette()
+                )
             } else {
-                format!("{} Mnemosyne Dashboard [Disconnected]", mnemosyne_core::icons::system::palette())
+                format!(
+                    "{} Mnemosyne Dashboard [Disconnected]",
+                    mnemosyne_core::icons::system::palette()
+                )
             };
             let header = Paragraph::new(title.as_str())
                 .style(Style::default().fg(if app.connected {
@@ -341,12 +347,12 @@ async fn run_app<B: ratatui::backend::Backend>(
 
             // Events
             let events: Vec<ListItem> = if app.events.is_empty() && app.connected {
-                vec![ListItem::new(Line::from(vec![
-                    Span::styled(
-                        "System idle - no recent activity",
-                        Style::default().fg(Color::Gray).add_modifier(Modifier::ITALIC)
-                    )
-                ]))]
+                vec![ListItem::new(Line::from(vec![Span::styled(
+                    "System idle - no recent activity",
+                    Style::default()
+                        .fg(Color::Gray)
+                        .add_modifier(Modifier::ITALIC),
+                )]))]
             } else {
                 app.events
                     .iter()
@@ -359,25 +365,29 @@ async fn run_app<B: ratatui::backend::Backend>(
                         } else if e.contains("heartbeat") {
                             Color::Blue
                         } else if e.contains("deadlock_detected") {
-                            Color::Red  // Critical: deadlock detected
+                            Color::Red // Critical: deadlock detected
                         } else if e.contains("review_failed") {
-                            Color::LightRed  // Warning: quality gate failure
-                        } else if e.contains("error") || e.contains("failed") || e.contains("agent_failed") {
-                            Color::Red  // Error conditions
+                            Color::LightRed // Warning: quality gate failure
+                        } else if e.contains("error")
+                            || e.contains("failed")
+                            || e.contains("agent_failed")
+                        {
+                            Color::Red // Error conditions
                         } else if e.contains("phase_changed") {
-                            Color::Magenta  // Important: workflow phase transition
+                            Color::Magenta // Important: workflow phase transition
                         } else if e.contains("work_item_retried") {
-                            Color::Yellow  // Notice: retry attempt
+                            Color::Yellow // Notice: retry attempt
                         } else if e.contains("context_checkpointed") {
-                            Color::Cyan  // Info: context optimization
+                            Color::Cyan // Info: context optimization
                         } else if e.contains("agent_started") || e.contains("agent_completed") {
-                            Color::LightGreen  // Success: agent lifecycle
+                            Color::LightGreen // Success: agent lifecycle
                         } else {
-                            Color::White  // Default
+                            Color::White // Default
                         };
-                        ListItem::new(Line::from(vec![
-                            Span::styled(e, Style::default().fg(color))
-                        ]))
+                        ListItem::new(Line::from(vec![Span::styled(
+                            e,
+                            Style::default().fg(color),
+                        )]))
                     })
                     .collect()
             };
@@ -412,8 +422,10 @@ async fn run_app<B: ratatui::backend::Backend>(
             let stats_text = if let Some(stats) = &app.stats {
                 vec![
                     Line::from(format!("Total Agents: {}", stats.total_agents)),
-                    Line::from(format!("Active: {} | Idle: {} | Waiting: {}",
-                        stats.active_agents, stats.idle_agents, stats.waiting_agents)),
+                    Line::from(format!(
+                        "Active: {} | Idle: {} | Waiting: {}",
+                        stats.active_agents, stats.idle_agents, stats.waiting_agents
+                    )),
                     Line::from(format!("Context Files: {}", stats.context_files)),
                 ]
             } else {
@@ -436,8 +448,7 @@ async fn run_app<B: ratatui::backend::Backend>(
             } else {
                 "Press 'q' to quit | Disconnected - check API server"
             };
-            let footer = Paragraph::new(footer_text)
-                .style(Style::default().fg(Color::Gray));
+            let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::Gray));
             f.render_widget(footer, chunks[4]);
         })?;
 

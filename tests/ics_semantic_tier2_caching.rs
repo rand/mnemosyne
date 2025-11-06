@@ -6,7 +6,10 @@
 use mnemosyne_core::ics::semantic_highlighter::{
     cache::{CachedResult, SemanticCache},
     settings::RelationalSettings,
-    tier2_relational::{Entity, EntityType, RelationalAnalyzer, Relationship, RelationType, RoleAssignment, SemanticRole, Tier2AnalysisResult},
+    tier2_relational::{
+        Entity, EntityType, RelationType, RelationalAnalyzer, Relationship, RoleAssignment,
+        SemanticRole, Tier2AnalysisResult,
+    },
 };
 use std::sync::Arc;
 
@@ -104,7 +107,10 @@ fn test_tier2_cache_insert_and_retrieve() {
     cache.relational.insert(range.clone(), cached);
 
     // Retrieve from cache
-    let retrieved = cache.relational.get(&range).expect("Cache should have entry");
+    let retrieved = cache
+        .relational
+        .get(&range)
+        .expect("Cache should have entry");
     let deserialized: Tier2AnalysisResult =
         serde_json::from_value(retrieved.data).expect("Deserialization should succeed");
 
@@ -150,9 +156,18 @@ fn test_tier2_cache_invalidation() {
     cache.relational.invalidate_range(&(15..35));
 
     // Verify middle entry removed
-    assert!(cache.relational.get(&(0..10)).is_some(), "First entry should remain");
-    assert!(cache.relational.get(&(20..30)).is_none(), "Middle entry should be removed");
-    assert!(cache.relational.get(&(40..50)).is_some(), "Last entry should remain");
+    assert!(
+        cache.relational.get(&(0..10)).is_some(),
+        "First entry should remain"
+    );
+    assert!(
+        cache.relational.get(&(20..30)).is_none(),
+        "Middle entry should be removed"
+    );
+    assert!(
+        cache.relational.get(&(40..50)).is_some(),
+        "Last entry should remain"
+    );
 }
 
 #[test]
@@ -176,7 +191,9 @@ fn test_relational_analyzer_cache_hit() {
 
     // Retrieve highlights from cache
     let text = "Dr. Smith";
-    let spans = analyzer.get_cached_highlights(&(0..9), text).expect("Should succeed");
+    let spans = analyzer
+        .get_cached_highlights(&(0..9), text)
+        .expect("Should succeed");
 
     // Verify spans created from cached data
     assert!(!spans.is_empty(), "Should have highlights from cache");
@@ -190,7 +207,9 @@ fn test_relational_analyzer_cache_miss() {
 
     // Try to get highlights for range not in cache
     let text = "Some text";
-    let spans = analyzer.get_cached_highlights(&(0..9), text).expect("Should succeed");
+    let spans = analyzer
+        .get_cached_highlights(&(0..9), text)
+        .expect("Should succeed");
 
     // Verify empty result on cache miss
     assert!(spans.is_empty(), "Should return empty on cache miss");
@@ -227,8 +246,7 @@ fn test_entity_type_all_variants_serializable() {
 
     for variant in variants {
         let json = serde_json::to_value(&variant).expect("Should serialize");
-        let deserialized: EntityType =
-            serde_json::from_value(json).expect("Should deserialize");
+        let deserialized: EntityType = serde_json::from_value(json).expect("Should deserialize");
         assert_eq!(variant, deserialized);
     }
 }
@@ -245,8 +263,7 @@ fn test_relation_type_all_variants_serializable() {
 
     for variant in variants {
         let json = serde_json::to_value(&variant).expect("Should serialize");
-        let deserialized: RelationType =
-            serde_json::from_value(json).expect("Should deserialize");
+        let deserialized: RelationType = serde_json::from_value(json).expect("Should deserialize");
         assert_eq!(variant, deserialized);
     }
 }
@@ -264,8 +281,7 @@ fn test_semantic_role_all_variants_serializable() {
 
     for variant in variants {
         let json = serde_json::to_value(&variant).expect("Should serialize");
-        let deserialized: SemanticRole =
-            serde_json::from_value(json).expect("Should deserialize");
+        let deserialized: SemanticRole = serde_json::from_value(json).expect("Should deserialize");
         assert_eq!(variant, deserialized);
     }
 }

@@ -46,8 +46,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 /// Complete configuration for branch isolation system
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BranchIsolationConfig {
     /// Branch isolation settings
     #[serde(default)]
@@ -69,7 +68,6 @@ pub struct BranchIsolationConfig {
     #[serde(default)]
     pub telemetry: TelemetrySettings,
 }
-
 
 /// Branch isolation settings
 #[derive(Debug, Clone, Serialize, Deserialize)]

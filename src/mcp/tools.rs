@@ -335,7 +335,11 @@ impl ToolHandler {
             "mnemosyne.update" => self.update(params).await,
             "mnemosyne.delete" => self.delete(params).await,
             _ => {
-                warn!("{} Unknown MCP tool: {}", crate::icons::status::error(), tool_name);
+                warn!(
+                    "{} Unknown MCP tool: {}",
+                    crate::icons::status::error(),
+                    tool_name
+                );
                 Ok(serde_json::json!({
                     "error": format!("Unknown tool: {}", tool_name)
                 }))
@@ -343,8 +347,17 @@ impl ToolHandler {
         };
 
         match &result {
-            Ok(_) => info!("{} MCP tool {} completed successfully", crate::icons::status::success(), tool_name),
-            Err(e) => warn!("{} MCP tool {} failed: {}", crate::icons::status::error(), tool_name, e),
+            Ok(_) => info!(
+                "{} MCP tool {} completed successfully",
+                crate::icons::status::success(),
+                tool_name
+            ),
+            Err(e) => warn!(
+                "{} MCP tool {} failed: {}",
+                crate::icons::status::error(),
+                tool_name,
+                e
+            ),
         }
 
         result
@@ -355,9 +368,10 @@ impl ToolHandler {
     /// Validate importance value (must be 1-10)
     fn validate_importance(importance: u8) -> Result<()> {
         if !(1..=10).contains(&importance) {
-            return Err(crate::error::MnemosyneError::ValidationError(
-                format!("Importance must be between 1-10, got {}", importance)
-            ));
+            return Err(crate::error::MnemosyneError::ValidationError(format!(
+                "Importance must be between 1-10, got {}",
+                importance
+            )));
         }
         Ok(())
     }
@@ -366,7 +380,7 @@ impl ToolHandler {
     fn validate_max_results(max_results: usize) -> Result<usize> {
         if max_results == 0 {
             return Err(crate::error::MnemosyneError::ValidationError(
-                "max_results must be at least 1".to_string()
+                "max_results must be at least 1".to_string(),
             ));
         }
         if max_results > 1000 {
@@ -379,9 +393,10 @@ impl ToolHandler {
     /// Validate non-empty string
     fn validate_non_empty(value: &str, field_name: &str) -> Result<()> {
         if value.trim().is_empty() {
-            return Err(crate::error::MnemosyneError::ValidationError(
-                format!("{} cannot be empty", field_name)
-            ));
+            return Err(crate::error::MnemosyneError::ValidationError(format!(
+                "{} cannot be empty",
+                field_name
+            )));
         }
         Ok(())
     }
@@ -390,13 +405,11 @@ impl ToolHandler {
     fn validate_content_length(content: &str) -> Result<()> {
         const MAX_CONTENT_LENGTH: usize = 100_000; // 100KB
         if content.len() > MAX_CONTENT_LENGTH {
-            return Err(crate::error::MnemosyneError::ValidationError(
-                format!(
-                    "Content too large: {} bytes (max: {} bytes)",
-                    content.len(),
-                    MAX_CONTENT_LENGTH
-                )
-            ));
+            return Err(crate::error::MnemosyneError::ValidationError(format!(
+                "Content too large: {} bytes (max: {} bytes)",
+                content.len(),
+                MAX_CONTENT_LENGTH
+            )));
         }
         Ok(())
     }
@@ -633,7 +646,7 @@ impl ToolHandler {
         // Validate memory_ids is not empty
         if params.memory_ids.is_empty() {
             return Err(crate::error::MnemosyneError::ValidationError(
-                "memory_ids cannot be empty".to_string()
+                "memory_ids cannot be empty".to_string(),
             ));
         }
 
@@ -729,10 +742,7 @@ impl ToolHandler {
         self.storage.store_memory(&memory).await?;
 
         // Emit event through event sink
-        let event = crate::api::Event::memory_stored(
-            memory.id.to_string(),
-            memory.summary.clone(),
-        );
+        let event = crate::api::Event::memory_stored(memory.id.to_string(), memory.summary.clone());
         if let Err(e) = self.event_sink.emit(event).await {
             warn!("Failed to emit memory stored event: {}", e);
         }

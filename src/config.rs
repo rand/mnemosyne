@@ -187,13 +187,15 @@ impl EmbeddingConfig {
     /// Validate the configuration
     pub fn validate(&self) -> Result<()> {
         // Check if model is supported
-        let supported_models = ["nomic-embed-text-v1.5",
+        let supported_models = [
+            "nomic-embed-text-v1.5",
             "nomic-embed-text-v1",
             "all-MiniLM-L6-v2",
             "all-MiniLM-L12-v2",
             "bge-small-en-v1.5",
             "bge-base-en-v1.5",
-            "bge-large-en-v1.5"];
+            "bge-large-en-v1.5",
+        ];
 
         if !supported_models.contains(&self.model.as_str()) {
             return Err(MnemosyneError::Config(config::ConfigError::Message(
@@ -454,7 +456,10 @@ impl ConfigManager {
         }
 
         self.set_api_key(key)?;
-        println!("{} API key securely saved!\n", crate::icons::status::success());
+        println!(
+            "{} API key securely saved!\n",
+            crate::icons::status::success()
+        );
 
         Ok(())
     }

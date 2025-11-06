@@ -120,6 +120,7 @@ async fn test_event_persistence_connection() {
     let event = AgentEvent::WorkItemStarted {
         agent: AgentRole::Executor,
         item_id: WorkItemId::new(),
+        description: "Test work".to_string(),
     };
 
     let memory_id = persistence
@@ -184,6 +185,7 @@ async fn test_engine_restart_preserves_events() {
             let event = AgentEvent::WorkItemStarted {
                 agent: AgentRole::Executor,
                 item_id: WorkItemId::new(),
+                description: "Test work".to_string(),
             };
             persistence.persist(event).await.expect("Failed to persist");
         }
@@ -453,7 +455,10 @@ async fn test_work_completion_notification() {
         embedding: None,
         embedding_model: "test".to_string(),
     };
-    storage.store_memory(&dummy_memory).await.expect("Failed to store memory");
+    storage
+        .store_memory(&dummy_memory)
+        .await
+        .expect("Failed to store memory");
 
     // Simulate work completion with memory IDs (required for documentation_complete gate)
     use mnemosyne_core::orchestration::messages::WorkResult;
@@ -777,6 +782,7 @@ async fn test_event_persistence_and_replay() {
         AgentEvent::WorkItemStarted {
             agent: AgentRole::Executor,
             item_id: WorkItemId::new(),
+            description: "Test task".to_string(),
         },
         AgentEvent::PhaseTransition {
             from: Phase::PromptToSpec,
@@ -836,6 +842,7 @@ async fn test_state_reconstruction_from_events() {
         AgentEvent::WorkItemStarted {
             agent: AgentRole::Executor,
             item_id: item_id_1.clone(),
+            description: "Task 1".to_string(),
         },
         AgentEvent::WorkItemCompleted {
             agent: AgentRole::Executor,
@@ -1482,7 +1489,10 @@ async fn test_graceful_degradation() {
         embedding: None,
         embedding_model: "test".to_string(),
     };
-    storage.store_memory(&dummy_memory).await.expect("Failed to store memory");
+    storage
+        .store_memory(&dummy_memory)
+        .await
+        .expect("Failed to store memory");
 
     // Complete successful work with memory IDs
     use mnemosyne_core::orchestration::messages::WorkResult;

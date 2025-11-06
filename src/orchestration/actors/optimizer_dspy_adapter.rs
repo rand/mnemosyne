@@ -61,14 +61,14 @@ impl OptimizerDSpyAdapter {
     ) -> Result<ConsolidatedContext> {
         let mut inputs = HashMap::new();
         inputs.insert("original_intent".to_string(), json!(original_intent));
-        inputs.insert("execution_summaries".to_string(), json!(execution_summaries));
+        inputs.insert(
+            "execution_summaries".to_string(),
+            json!(execution_summaries),
+        );
         inputs.insert("review_feedback".to_string(), json!(review_feedback));
         inputs.insert("suggested_tests".to_string(), json!(suggested_tests));
         inputs.insert("review_attempt".to_string(), json!(review_attempt));
-        inputs.insert(
-            "consolidation_mode".to_string(),
-            json!(consolidation_mode),
-        );
+        inputs.insert("consolidation_mode".to_string(), json!(consolidation_mode));
 
         let outputs = self
             .instrumentation

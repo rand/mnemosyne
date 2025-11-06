@@ -130,7 +130,11 @@ impl LaunchProgress {
         messages.shuffle(&mut rng);
 
         for message in messages.iter().take(count) {
-            print!("\r   {}  {}...                    ", icons::system::gear(), message);
+            print!(
+                "\r   {}  {}...                    ",
+                icons::system::gear(),
+                message
+            );
             io::stdout().flush().ok();
             std::thread::sleep(std::time::Duration::from_millis(200));
         }

@@ -13,9 +13,9 @@
 //! Run with: cargo run --example specification_workflow
 
 use mnemosyne_core::artifacts::{
-    Constitution, FeatureSpec, UserScenario, ImplementationPlan, TaskBreakdown,
-    TaskPhase, Task, QualityChecklist, ChecklistSection, ChecklistItem,
-    Clarification, ClarificationItem, ArtifactWorkflow,
+    ArtifactWorkflow, ChecklistItem, ChecklistSection, Clarification, ClarificationItem,
+    Constitution, FeatureSpec, ImplementationPlan, QualityChecklist, Task, TaskBreakdown,
+    TaskPhase, UserScenario,
 };
 use mnemosyne_core::types::Namespace;
 use mnemosyne_core::{ConnectionMode, LibsqlStorage};
@@ -30,10 +30,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let artifacts_dir = temp_dir.join(".mnemosyne/artifacts");
     std::fs::create_dir_all(&artifacts_dir)?;
 
-    println!("📁 Created artifact directory: {}\n", artifacts_dir.display());
+    println!(
+        "📁 Created artifact directory: {}\n",
+        artifacts_dir.display()
+    );
 
     // Create subdirectories
-    for subdir in &["constitution", "specs", "plans", "tasks", "checklists", "clarifications"] {
+    for subdir in &[
+        "constitution",
+        "specs",
+        "plans",
+        "tasks",
+        "checklists",
+        "clarifications",
+    ] {
         std::fs::create_dir_all(artifacts_dir.join(subdir))?;
     }
 
@@ -44,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ConnectionMode::Local(db_path.to_string_lossy().to_string()),
             true, // Create if missing
         )
-        .await?
+        .await?,
     );
 
     println!("✅ Initialized memory storage\n");
@@ -76,7 +86,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ Constitution saved!");
     println!("   Memory ID: {}", constitution_memory_id);
-    println!("   File: {}/constitution/project-constitution.md\n", artifacts_dir.display());
+    println!(
+        "   File: {}/constitution/project-constitution.md\n",
+        artifacts_dir.display()
+    );
 
     // 4. Create feature specification
     println!("🎯 Creating feature specification...\n");
@@ -124,7 +137,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ Feature spec saved!");
     println!("   Memory ID: {}", spec_memory_id);
-    println!("   File: {}/specs/user-authentication.md", artifacts_dir.display());
+    println!(
+        "   File: {}/specs/user-authentication.md",
+        artifacts_dir.display()
+    );
     println!("   Linked to constitution: {}\n", constitution_memory_id);
 
     // 5. Create implementation plan
@@ -135,11 +151,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "JWT Authentication Implementation Plan".to_string(),
         "Using jsonwebtoken crate with RS256 algorithm for asymmetric signing. \
          Refresh tokens stored in HTTP-only cookies with secure flag. \
-         Token revocation via blacklist in Redis.".to_string(),
+         Token revocation via blacklist in Redis."
+            .to_string(),
     );
 
     plan.dependencies.push("jsonwebtoken = \"9.2\"".to_string());
-    plan.dependencies.push("redis = { version = \"0.23\", features = [\"tokio-comp\"] }".to_string());
+    plan.dependencies
+        .push("redis = { version = \"0.23\", features = [\"tokio-comp\"] }".to_string());
 
     let plan_memory_id = workflow
         .save_implementation_plan(
@@ -151,7 +169,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ Implementation plan saved!");
     println!("   Memory ID: {}", plan_memory_id);
-    println!("   File: {}/plans/user-authentication-plan.md", artifacts_dir.display());
+    println!(
+        "   File: {}/plans/user-authentication-plan.md",
+        artifacts_dir.display()
+    );
     println!("   Linked to spec: {}\n", spec_memory_id);
 
     // 6. Create task breakdown
@@ -246,7 +267,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ Task breakdown saved!");
     println!("   Memory ID: {}", tasks_memory_id);
-    println!("   File: {}/tasks/user-authentication-tasks.md", artifacts_dir.display());
+    println!(
+        "   File: {}/tasks/user-authentication-tasks.md",
+        artifacts_dir.display()
+    );
     println!("   Linked to plan: {}\n", plan_memory_id);
 
     // 7. Create quality checklist
@@ -325,7 +349,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ Quality checklist saved!");
     println!("   Memory ID: {}", checklist_memory_id);
-    println!("   File: {}/checklists/user-authentication-checklist.md", artifacts_dir.display());
+    println!(
+        "   File: {}/checklists/user-authentication-checklist.md",
+        artifacts_dir.display()
+    );
     println!("   Linked to spec: {}\n", spec_memory_id);
 
     // 8. Create clarifications
@@ -376,11 +403,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✅ Clarifications saved!");
     println!("   Memory ID: {}", clarification_memory_id);
-    println!("   File: {}/clarifications/user-authentication-clarifications.md", artifacts_dir.display());
+    println!(
+        "   File: {}/clarifications/user-authentication-clarifications.md",
+        artifacts_dir.display()
+    );
     println!("   Linked to spec: {}", spec_memory_id);
-    println!("   Status: {} resolved, {} pending\n",
-        clarification.items.iter().filter(|i| i.decision.is_some()).count(),
-        clarification.items.iter().filter(|i| i.decision.is_none()).count()
+    println!(
+        "   Status: {} resolved, {} pending\n",
+        clarification
+            .items
+            .iter()
+            .filter(|i| i.decision.is_some())
+            .count(),
+        clarification
+            .items
+            .iter()
+            .filter(|i| i.decision.is_none())
+            .count()
     );
 
     // 9. Verify files were created
@@ -392,14 +431,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if constitution_path.exists() {
         let content = std::fs::read_to_string(&constitution_path)?;
         println!("✅ Constitution file exists ({} bytes)", content.len());
-        println!("   Preview: {}", &content.lines().take(5).collect::<Vec<_>>().join("\n"));
+        println!(
+            "   Preview: {}",
+            &content.lines().take(5).collect::<Vec<_>>().join("\n")
+        );
         println!();
     }
 
     if spec_path.exists() {
         let content = std::fs::read_to_string(&spec_path)?;
         println!("✅ Feature spec file exists ({} bytes)", content.len());
-        println!("   Preview: {}", &content.lines().take(5).collect::<Vec<_>>().join("\n"));
+        println!(
+            "   Preview: {}",
+            &content.lines().take(5).collect::<Vec<_>>().join("\n")
+        );
         println!();
     }
 
@@ -409,7 +454,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let loaded_constitution = workflow.load_constitution().await?;
     println!("✅ Loaded constitution:");
     println!("   Principles: {}", loaded_constitution.principles.len());
-    println!("   Quality Gates: {}", loaded_constitution.quality_gates.len());
+    println!(
+        "   Quality Gates: {}",
+        loaded_constitution.quality_gates.len()
+    );
     println!("   Constraints: {}", loaded_constitution.constraints.len());
     println!();
 
@@ -417,10 +465,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("✅ Loaded feature spec:");
     println!("   Scenarios: {}", loaded_spec.scenarios.len());
     println!("   Requirements: {}", loaded_spec.requirements.len());
-    println!("   Success Criteria: {}", loaded_spec.success_criteria.len());
+    println!(
+        "   Success Criteria: {}",
+        loaded_spec.success_criteria.len()
+    );
     println!();
 
-    let loaded_plan = workflow.load_implementation_plan("user-authentication").await?;
+    let loaded_plan = workflow
+        .load_implementation_plan("user-authentication")
+        .await?;
     println!("✅ Loaded implementation plan:");
     println!("   Approach: {} chars", loaded_plan.approach.len());
     println!("   Dependencies: {}", loaded_plan.dependencies.len());
@@ -433,20 +486,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Total Tasks: {}", total_tasks);
     println!();
 
-    let loaded_checklist = workflow.load_quality_checklist("user-authentication").await?;
-    let total_items: usize = loaded_checklist.sections.iter().map(|s| s.items.len()).sum();
+    let loaded_checklist = workflow
+        .load_quality_checklist("user-authentication")
+        .await?;
+    let total_items: usize = loaded_checklist
+        .sections
+        .iter()
+        .map(|s| s.items.len())
+        .sum();
     println!("✅ Loaded quality checklist:");
     println!("   Sections: {}", loaded_checklist.sections.len());
     println!("   Total Items: {}", total_items);
-    println!("   Completion: {:.1}%", loaded_checklist.completion_percentage());
+    println!(
+        "   Completion: {:.1}%",
+        loaded_checklist.completion_percentage()
+    );
     println!();
 
     let loaded_clarification = workflow.load_clarification("user-authentication").await?;
-    let resolved = loaded_clarification.items.iter().filter(|i| i.decision.is_some()).count();
+    let resolved = loaded_clarification
+        .items
+        .iter()
+        .filter(|i| i.decision.is_some())
+        .count();
     println!("✅ Loaded clarifications:");
     println!("   Total Questions: {}", loaded_clarification.items.len());
     println!("   Resolved: {}", resolved);
-    println!("   Pending: {}", loaded_clarification.items.len() - resolved);
+    println!(
+        "   Pending: {}",
+        loaded_clarification.items.len() - resolved
+    );
     println!();
 
     // 11. Cleanup

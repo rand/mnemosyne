@@ -332,7 +332,8 @@ impl SupervisionTree {
             .await;
 
         // Notify dashboard about agent startup
-        self.notify_agent_started(&orchestrator_id, "Orchestrator").await;
+        self.notify_agent_started(&orchestrator_id, "Orchestrator")
+            .await;
 
         self.orchestrator = Some(orchestrator_ref.clone());
 
@@ -540,9 +541,9 @@ impl SupervisionTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ConnectionMode, LibsqlStorage};
-    use crate::orchestration::state::{RequirementStatus, Phase, WorkItem};
     use crate::orchestration::messages::{ReviewFeedback, WorkResult};
+    use crate::orchestration::state::{Phase, RequirementStatus, WorkItem};
+    use crate::{ConnectionMode, LibsqlStorage};
 
     #[tokio::test]
     async fn test_supervision_tree() {
@@ -601,7 +602,8 @@ mod tests {
         // === ATTEMPT 1: Partial completion ===
 
         // Simulate first execution result
-        let mut result_attempt1 = WorkResult::success(work_item.id.clone(), Duration::from_secs(10));
+        let mut result_attempt1 =
+            WorkResult::success(work_item.id.clone(), Duration::from_secs(10));
         result_attempt1.memory_ids = vec![
             crate::types::MemoryId(uuid::Uuid::new_v4()),
             crate::types::MemoryId(uuid::Uuid::new_v4()),
@@ -609,7 +611,10 @@ mod tests {
 
         // Simulate review feedback: 1 satisfied, 2 unsatisfied
         let mut satisfied_req1 = std::collections::HashMap::new();
-        satisfied_req1.insert("Implement core functionality".to_string(), result_attempt1.memory_ids.clone());
+        satisfied_req1.insert(
+            "Implement core functionality".to_string(),
+            result_attempt1.memory_ids.clone(),
+        );
 
         let feedback_attempt1 = ReviewFeedback {
             gates_passed: false, // Completeness gate failed
@@ -629,24 +634,44 @@ mod tests {
         };
 
         // Verify attempt 1 would trigger retry
-        let all_requirements_satisfied_attempt1 = feedback_attempt1.unsatisfied_requirements.is_empty();
-        assert!(!all_requirements_satisfied_attempt1, "Attempt 1: Not all requirements satisfied");
-        assert_eq!(feedback_attempt1.satisfied_requirements.len(), 1, "Attempt 1: 1 requirement satisfied");
-        assert_eq!(feedback_attempt1.unsatisfied_requirements.len(), 2, "Attempt 1: 2 requirements unsatisfied");
+        let all_requirements_satisfied_attempt1 =
+            feedback_attempt1.unsatisfied_requirements.is_empty();
+        assert!(
+            !all_requirements_satisfied_attempt1,
+            "Attempt 1: Not all requirements satisfied"
+        );
+        assert_eq!(
+            feedback_attempt1.satisfied_requirements.len(),
+            1,
+            "Attempt 1: 1 requirement satisfied"
+        );
+        assert_eq!(
+            feedback_attempt1.unsatisfied_requirements.len(),
+            2,
+            "Attempt 1: 2 requirements unsatisfied"
+        );
 
         // Update work item for retry (simulating orchestrator behavior)
         work_item.review_attempt = 1;
         for req in &feedback_attempt1.unsatisfied_requirements {
-            work_item.requirement_status.insert(req.clone(), RequirementStatus::InProgress);
+            work_item
+                .requirement_status
+                .insert(req.clone(), RequirementStatus::InProgress);
         }
         for (req, evidence) in &feedback_attempt1.satisfied_requirements {
-            work_item.requirement_status.insert(req.clone(), RequirementStatus::Satisfied);
-            work_item.implementation_evidence.insert(req.clone(), evidence.clone());
+            work_item
+                .requirement_status
+                .insert(req.clone(), RequirementStatus::Satisfied);
+            work_item
+                .implementation_evidence
+                .insert(req.clone(), evidence.clone());
         }
 
         // Verify partial tracking
         assert_eq!(
-            work_item.requirement_status.get("Implement core functionality"),
+            work_item
+                .requirement_status
+                .get("Implement core functionality"),
             Some(&RequirementStatus::Satisfied),
             "Attempt 1: First requirement satisfied"
         );
@@ -664,7 +689,8 @@ mod tests {
         // === ATTEMPT 2: Full completion ===
 
         // Simulate second execution result (after retry)
-        let mut result_attempt2 = WorkResult::success(work_item.id.clone(), Duration::from_secs(15));
+        let mut result_attempt2 =
+            WorkResult::success(work_item.id.clone(), Duration::from_secs(15));
         result_attempt2.memory_ids = vec![
             crate::types::MemoryId(uuid::Uuid::new_v4()),
             crate::types::MemoryId(uuid::Uuid::new_v4()),
@@ -673,9 +699,18 @@ mod tests {
 
         // Simulate review feedback: all 3 satisfied
         let mut satisfied_req2 = std::collections::HashMap::new();
-        satisfied_req2.insert("Implement core functionality".to_string(), result_attempt2.memory_ids.clone());
-        satisfied_req2.insert("Add error handling".to_string(), result_attempt2.memory_ids.clone());
-        satisfied_req2.insert("Write unit tests".to_string(), result_attempt2.memory_ids.clone());
+        satisfied_req2.insert(
+            "Implement core functionality".to_string(),
+            result_attempt2.memory_ids.clone(),
+        );
+        satisfied_req2.insert(
+            "Add error handling".to_string(),
+            result_attempt2.memory_ids.clone(),
+        );
+        satisfied_req2.insert(
+            "Write unit tests".to_string(),
+            result_attempt2.memory_ids.clone(),
+        );
 
         let feedback_attempt2 = ReviewFeedback {
             gates_passed: true, // All gates passed
@@ -689,20 +724,38 @@ mod tests {
         };
 
         // Verify attempt 2 would mark complete
-        let all_requirements_satisfied_attempt2 = feedback_attempt2.unsatisfied_requirements.is_empty();
-        assert!(all_requirements_satisfied_attempt2, "Attempt 2: All requirements satisfied");
-        assert_eq!(feedback_attempt2.satisfied_requirements.len(), 3, "Attempt 2: 3 requirements satisfied");
-        assert_eq!(feedback_attempt2.unsatisfied_requirements.len(), 0, "Attempt 2: 0 requirements unsatisfied");
+        let all_requirements_satisfied_attempt2 =
+            feedback_attempt2.unsatisfied_requirements.is_empty();
+        assert!(
+            all_requirements_satisfied_attempt2,
+            "Attempt 2: All requirements satisfied"
+        );
+        assert_eq!(
+            feedback_attempt2.satisfied_requirements.len(),
+            3,
+            "Attempt 2: 3 requirements satisfied"
+        );
+        assert_eq!(
+            feedback_attempt2.unsatisfied_requirements.len(),
+            0,
+            "Attempt 2: 0 requirements unsatisfied"
+        );
 
         // Update work item with final status (simulating orchestrator behavior)
         for (req, evidence) in &feedback_attempt2.satisfied_requirements {
-            work_item.requirement_status.insert(req.clone(), RequirementStatus::Satisfied);
-            work_item.implementation_evidence.insert(req.clone(), evidence.clone());
+            work_item
+                .requirement_status
+                .insert(req.clone(), RequirementStatus::Satisfied);
+            work_item
+                .implementation_evidence
+                .insert(req.clone(), evidence.clone());
         }
 
         // Verify all requirements satisfied
         assert_eq!(
-            work_item.requirement_status.get("Implement core functionality"),
+            work_item
+                .requirement_status
+                .get("Implement core functionality"),
             Some(&RequirementStatus::Satisfied),
             "Attempt 2: First requirement satisfied"
         );
@@ -718,17 +771,27 @@ mod tests {
         );
 
         // Verify implementation evidence stored
-        assert_eq!(work_item.implementation_evidence.len(), 3, "All requirements have evidence");
+        assert_eq!(
+            work_item.implementation_evidence.len(),
+            3,
+            "All requirements have evidence"
+        );
         assert!(
-            work_item.implementation_evidence.contains_key("Implement core functionality"),
+            work_item
+                .implementation_evidence
+                .contains_key("Implement core functionality"),
             "Evidence for first requirement"
         );
         assert!(
-            work_item.implementation_evidence.contains_key("Add error handling"),
+            work_item
+                .implementation_evidence
+                .contains_key("Add error handling"),
             "Evidence for second requirement"
         );
         assert!(
-            work_item.implementation_evidence.contains_key("Write unit tests"),
+            work_item
+                .implementation_evidence
+                .contains_key("Write unit tests"),
             "Evidence for third requirement"
         );
     }

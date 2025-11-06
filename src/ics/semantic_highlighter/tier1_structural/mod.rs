@@ -5,17 +5,17 @@
 
 use crate::ics::semantic_highlighter::{visualization::HighlightSpan, Result};
 
-pub mod xml_tags;
-pub mod constraints;
-pub mod modality;
 pub mod ambiguity;
+pub mod constraints;
 pub mod domain_patterns;
+pub mod modality;
+pub mod xml_tags;
 
-pub use xml_tags::XmlTagAnalyzer;
-pub use constraints::ConstraintDetector;
-pub use modality::ModalityAnalyzer;
 pub use ambiguity::AmbiguityDetector;
+pub use constraints::ConstraintDetector;
 pub use domain_patterns::DomainPatternMatcher;
+pub use modality::ModalityAnalyzer;
+pub use xml_tags::XmlTagAnalyzer;
 
 /// Structural pattern highlighter
 ///

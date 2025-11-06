@@ -96,7 +96,6 @@ pub struct ConsolidationConfig {
     pub max_cost_per_run_usd: f32,
 }
 
-
 impl Default for ConsolidationConfig {
     fn default() -> Self {
         Self {

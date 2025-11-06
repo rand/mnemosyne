@@ -29,7 +29,7 @@ impl Default for HighlightSettings {
         Self {
             enable_structural: true,
             enable_relational: true,
-            enable_analytical: true,  // Will be auto-disabled if no API key
+            enable_analytical: true, // Will be auto-disabled if no API key
             relational: RelationalSettings::default(),
             analytical: AnalyticalSettings::default(),
             visual: VisualSettings::default(),
@@ -122,7 +122,7 @@ impl Default for AnalyticalSettings {
             max_api_calls_per_minute: 10,
             auto_analyze_on_idle: false,
             cache_results: true,
-            cache_ttl_seconds: 3600,  // 1 hour
+            cache_ttl_seconds: 3600, // 1 hour
         }
     }
 }

@@ -444,7 +444,11 @@ impl IcsPanel {
         };
 
         let block = Block::default()
-            .title(if self.focused { "ICS - Context Studio [FOCUSED]" } else { "ICS - Context Studio" })
+            .title(if self.focused {
+                "ICS - Context Studio [FOCUSED]"
+            } else {
+                "ICS - Context Studio"
+            })
             .borders(Borders::ALL)
             .border_style(border_style);
 
@@ -453,7 +457,8 @@ impl IcsPanel {
 
         // Calculate visible range
         let visible_height = inner.height as usize;
-        let visible_lines = self.lines
+        let visible_lines = self
+            .lines
             .iter()
             .skip(self.scroll_offset)
             .take(visible_height)

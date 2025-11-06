@@ -71,8 +71,8 @@ fn setup_test_repo() -> (TempDir, WorktreeManager, Vec<AgentId>) {
         .expect("Failed to create branch");
 
     // Initialize worktree manager
-    let manager = WorktreeManager::new(repo_path.to_path_buf())
-        .expect("Failed to create worktree manager");
+    let manager =
+        WorktreeManager::new(repo_path.to_path_buf()).expect("Failed to create worktree manager");
 
     // Create "stale" worktrees (simulating crashed instances)
     let agent1 = AgentId::new();

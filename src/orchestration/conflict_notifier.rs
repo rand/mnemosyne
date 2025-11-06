@@ -489,8 +489,6 @@ mod tests {
     use super::*;
     use crate::orchestration::conflict_detector::ConflictDetector;
     use std::path::PathBuf;
-    
-    
 
     #[test]
     fn test_notify_on_save_new_conflict() {

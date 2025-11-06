@@ -1,8 +1,7 @@
 //! Cursor and selection management
 
 /// Position in text buffer
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Position {
     /// Line number (0-indexed)
     pub line: usize,
@@ -10,10 +9,8 @@ pub struct Position {
     pub column: usize,
 }
 
-
 /// Cursor state
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CursorState {
     /// Current cursor position
     pub position: Position,
@@ -26,7 +23,6 @@ pub struct CursorState {
     /// Preserves horizontal position when moving through shorter lines
     pub virtual_column: usize,
 }
-
 
 /// Cursor movement commands
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

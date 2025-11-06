@@ -4,8 +4,8 @@
 //! No external API calls - all processing is local.
 
 use crate::ics::semantic_highlighter::{
-    cache::{SemanticCache, CachedResult},
-    incremental::{DirtyRegions, Debouncer},
+    cache::{CachedResult, SemanticCache},
+    incremental::{Debouncer, DirtyRegions},
     settings::RelationalSettings,
     visualization::HighlightSpan,
     Result,
@@ -16,17 +16,17 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
 use tracing::{debug, info};
 
-pub mod entities;
+pub mod anaphora;
 pub mod coreference;
+pub mod entities;
 pub mod relationships;
 pub mod semantic_roles;
-pub mod anaphora;
 
-pub use entities::{EntityRecognizer, EntityType, Entity};
-pub use coreference::{CoreferenceResolver, CorefChain, Mention};
-pub use relationships::{RelationshipExtractor, Relationship, RelationType};
-pub use semantic_roles::{SemanticRoleLabeler, RoleAssignment, SemanticRole};
-pub use anaphora::{AnaphoraResolver, AnaphoraResolution, Anaphor};
+pub use anaphora::{Anaphor, AnaphoraResolution, AnaphoraResolver};
+pub use coreference::{CorefChain, CoreferenceResolver, Mention};
+pub use entities::{Entity, EntityRecognizer, EntityType};
+pub use relationships::{RelationType, Relationship, RelationshipExtractor};
+pub use semantic_roles::{RoleAssignment, SemanticRole, SemanticRoleLabeler};
 
 /// Analysis request for background processing
 #[derive(Debug, Clone)]
@@ -58,13 +58,18 @@ impl Tier2AnalysisResult {
         text: &str,
     ) -> Vec<HighlightSpan> {
         match self {
-            Tier2AnalysisResult::Entities(entities) =>
-                entity_recognizer.entities_to_spans(entities),
-            Tier2AnalysisResult::Relationships(relationships) =>
-                relation_extractor.relationships_to_spans(relationships, text),
-            Tier2AnalysisResult::Roles(roles) =>
-                role_labeler.roles_to_spans(roles),
-            Tier2AnalysisResult::Combined { entities, relationships, roles } => {
+            Tier2AnalysisResult::Entities(entities) => {
+                entity_recognizer.entities_to_spans(entities)
+            }
+            Tier2AnalysisResult::Relationships(relationships) => {
+                relation_extractor.relationships_to_spans(relationships, text)
+            }
+            Tier2AnalysisResult::Roles(roles) => role_labeler.roles_to_spans(roles),
+            Tier2AnalysisResult::Combined {
+                entities,
+                relationships,
+                roles,
+            } => {
                 let mut spans = Vec::new();
                 spans.extend(entity_recognizer.entities_to_spans(entities));
                 spans.extend(relation_extractor.relationships_to_spans(relationships, text));
@@ -125,8 +130,7 @@ impl RelationalAnalyzer {
                 .with_threshold(settings.min_entity_confidence),
             relation_extractor: RelationshipExtractor::new()
                 .with_threshold(settings.min_entity_confidence),
-            role_labeler: SemanticRoleLabeler::new()
-                .with_threshold(settings.min_entity_confidence),
+            role_labeler: SemanticRoleLabeler::new().with_threshold(settings.min_entity_confidence),
             anaphora_resolver: AnaphoraResolver::new()
                 .with_max_lookback(settings.max_coref_distance)
                 .with_threshold(settings.min_entity_confidence),
@@ -137,7 +141,11 @@ impl RelationalAnalyzer {
     }
 
     /// Get cached highlights for range (non-blocking)
-    pub fn get_cached_highlights(&self, range: &Range<usize>, text: &str) -> Result<Vec<HighlightSpan>> {
+    pub fn get_cached_highlights(
+        &self,
+        range: &Range<usize>,
+        text: &str,
+    ) -> Result<Vec<HighlightSpan>> {
         if let Some(cached) = self.cache.relational.get(range) {
             // Deserialize cached result
             if let Ok(result) = serde_json::from_value::<Tier2AnalysisResult>(cached.data) {
@@ -180,7 +188,10 @@ impl RelationalAnalyzer {
         }
 
         if let Ok(relationships) = self.relation_extractor.extract(text) {
-            spans.extend(self.relation_extractor.relationships_to_spans(&relationships, text));
+            spans.extend(
+                self.relation_extractor
+                    .relationships_to_spans(&relationships, text),
+            );
         }
 
         if let Ok(roles) = self.role_labeler.label(text) {
@@ -217,7 +228,9 @@ impl RelationalAnalyzer {
                     tokio::time::sleep(std::time::Duration::from_millis(debounce_delay)).await;
 
                     // Trigger analysis
-                    let _ = tx_clone.send(AnalysisRequest::Incremental(text_owned)).await;
+                    let _ = tx_clone
+                        .send(AnalysisRequest::Incremental(text_owned))
+                        .await;
                 });
             }
         }
@@ -254,7 +267,11 @@ impl RelationalAnalyzer {
                     // Analyze each dirty region
                     for region in regions {
                         if region.end > text.len() {
-                            debug!("Skipping invalid region {:?} (text len: {})", region, text.len());
+                            debug!(
+                                "Skipping invalid region {:?} (text len: {})",
+                                region,
+                                text.len()
+                            );
                             continue;
                         }
 
@@ -262,8 +279,8 @@ impl RelationalAnalyzer {
 
                         // Run local analysis on region
                         // Create temporary analyzers with configured thresholds
-                        let entity_recognizer = EntityRecognizer::new()
-                            .with_threshold(settings.min_entity_confidence);
+                        let entity_recognizer =
+                            EntityRecognizer::new().with_threshold(settings.min_entity_confidence);
                         let relation_extractor = RelationshipExtractor::new()
                             .with_threshold(settings.min_entity_confidence);
                         let role_labeler = SemanticRoleLabeler::new()
@@ -271,7 +288,8 @@ impl RelationalAnalyzer {
 
                         // Analyze all components
                         let entities = entity_recognizer.recognize(region_text).unwrap_or_default();
-                        let relationships = relation_extractor.extract(region_text).unwrap_or_default();
+                        let relationships =
+                            relation_extractor.extract(region_text).unwrap_or_default();
                         let roles = role_labeler.label(region_text).unwrap_or_default();
 
                         debug!(
@@ -296,7 +314,10 @@ impl RelationalAnalyzer {
                                 _cache.relational.insert(region.clone(), cached);
                                 debug!("Cached Tier 2 results for region {:?}", region);
                             } else {
-                                debug!("Failed to serialize Tier 2 results for region {:?}", region);
+                                debug!(
+                                    "Failed to serialize Tier 2 results for region {:?}",
+                                    region
+                                );
                             }
                         }
                     }

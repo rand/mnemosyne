@@ -54,9 +54,13 @@ async fn e2_malformed_analysis_input() {
     // Test malformed markup
     let buffer = ctx.editor.active_buffer_mut();
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "# Unclosed header [[[[[").expect("Should insert");
+    buffer
+        .insert(pos, "# Unclosed header [[[[[")
+        .expect("Should insert");
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "{{{{{{ Unbalanced braces").expect("Should insert");
+    buffer
+        .insert(pos, "{{{{{{ Unbalanced braces")
+        .expect("Should insert");
 
     let analysis_result = ctx.analyze().await;
     // Should handle gracefully (either succeed or fail cleanly)

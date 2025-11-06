@@ -1,8 +1,8 @@
 //! Clarification artifact for resolving ambiguities
 #![allow(clippy::useless_format, clippy::single_char_add_str)]
 
-use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use super::storage::{parse_frontmatter, serialize_frontmatter};
+use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use crate::error::{MnemosyneError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -128,11 +128,16 @@ fn parse_clarification_items(markdown: &str) -> Vec<ClarificationItem> {
                             i += 1;
                             while i < lines.len() {
                                 let update_line = lines[i].trim();
-                                if update_line.starts_with("###") || update_line.starts_with("##") ||
-                                   update_line.starts_with("**") {
+                                if update_line.starts_with("###")
+                                    || update_line.starts_with("##")
+                                    || update_line.starts_with("**")
+                                {
                                     break;
                                 }
-                                if let Some(content) = update_line.strip_prefix('-').or_else(|| update_line.strip_prefix('*')) {
+                                if let Some(content) = update_line
+                                    .strip_prefix('-')
+                                    .or_else(|| update_line.strip_prefix('*'))
+                                {
                                     let cleaned = content.trim();
                                     if !cleaned.is_empty() {
                                         spec_updates.push(cleaned.to_string());
@@ -243,9 +248,7 @@ impl Clarification {
     }
 
     pub fn is_complete(&self) -> bool {
-        self.items
-            .iter()
-            .all(|item| item.decision.is_some())
+        self.items.iter().all(|item| item.decision.is_some())
     }
 }
 
@@ -413,8 +416,14 @@ mod tests {
         assert_eq!(loaded.items[0].id, "Q001");
         assert_eq!(loaded.items[0].question, "Should we use caching?");
         assert_eq!(loaded.items[0].context, "Performance requirements unclear");
-        assert_eq!(loaded.items[0].decision, Some("Yes, use Redis caching".to_string()));
-        assert_eq!(loaded.items[0].rationale, Some("Improves response times significantly".to_string()));
+        assert_eq!(
+            loaded.items[0].decision,
+            Some("Yes, use Redis caching".to_string())
+        );
+        assert_eq!(
+            loaded.items[0].rationale,
+            Some("Improves response times significantly".to_string())
+        );
         assert!(loaded.is_complete());
     }
 
@@ -471,22 +480,40 @@ mod tests {
 
         // Verify Q001 (complete with spec updates)
         assert_eq!(loaded.items[0].id, "Q001");
-        assert_eq!(loaded.items[0].question, "Should we support refresh tokens or only short-lived access tokens?");
-        assert_eq!(loaded.items[0].context, "The spec mentions stateless sessions but doesn't specify refresh mechanism.");
-        assert_eq!(loaded.items[0].decision, Some("Use refresh tokens stored in HTTP-only cookies".to_string()));
+        assert_eq!(
+            loaded.items[0].question,
+            "Should we support refresh tokens or only short-lived access tokens?"
+        );
+        assert_eq!(
+            loaded.items[0].context,
+            "The spec mentions stateless sessions but doesn't specify refresh mechanism."
+        );
+        assert_eq!(
+            loaded.items[0].decision,
+            Some("Use refresh tokens stored in HTTP-only cookies".to_string())
+        );
         assert_eq!(loaded.items[0].rationale, Some("Improves security (refresh tokens can be revoked) and UX (no manual re-auth every 24h)".to_string()));
         assert_eq!(loaded.items[0].spec_updates.len(), 2);
-        assert_eq!(loaded.items[0].spec_updates[0], "Added P2 scenario for refresh token flow");
+        assert_eq!(
+            loaded.items[0].spec_updates[0],
+            "Added P2 scenario for refresh token flow"
+        );
 
         // Verify Q002 (no rationale)
         assert_eq!(loaded.items[1].id, "Q002");
-        assert_eq!(loaded.items[1].decision, Some("Use RS256 asymmetric signing".to_string()));
+        assert_eq!(
+            loaded.items[1].decision,
+            Some("Use RS256 asymmetric signing".to_string())
+        );
         assert_eq!(loaded.items[1].rationale, None);
         assert_eq!(loaded.items[1].spec_updates.len(), 1);
 
         // Verify Q003 (pending)
         assert_eq!(loaded.items[2].id, "Q003");
-        assert_eq!(loaded.items[2].question, "Should we implement password recovery?");
+        assert_eq!(
+            loaded.items[2].question,
+            "Should we implement password recovery?"
+        );
         assert_eq!(loaded.items[2].decision, None);
         assert_eq!(loaded.items[2].rationale, None);
         assert_eq!(loaded.items[2].spec_updates.len(), 0);
@@ -539,9 +566,18 @@ Real-time requirements unclear
         // Verify Q001
         assert_eq!(items[0].id, "Q001");
         assert_eq!(items[0].question, "Should we use caching?");
-        assert_eq!(items[0].context, "Performance requirements need clarification");
-        assert_eq!(items[0].decision, Some("Yes, use Redis caching".to_string()));
-        assert_eq!(items[0].rationale, Some("Improves response times".to_string()));
+        assert_eq!(
+            items[0].context,
+            "Performance requirements need clarification"
+        );
+        assert_eq!(
+            items[0].decision,
+            Some("Yes, use Redis caching".to_string())
+        );
+        assert_eq!(
+            items[0].rationale,
+            Some("Improves response times".to_string())
+        );
         assert_eq!(items[0].spec_updates.len(), 2);
         assert_eq!(items[0].spec_updates[0], "Added caching requirement");
 

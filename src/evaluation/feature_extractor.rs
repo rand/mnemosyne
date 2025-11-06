@@ -268,7 +268,10 @@ impl FeatureExtractor {
         })?;
 
         let modified = metadata.modified().map_err(|e| {
-            MnemosyneError::Other(format!("Failed to get modified time for {}: {}", file_path, e))
+            MnemosyneError::Other(format!(
+                "Failed to get modified time for {}: {}",
+                file_path, e
+            ))
         })?;
 
         let duration = std::time::SystemTime::now()
@@ -290,9 +293,7 @@ impl FeatureExtractor {
         context_type: &ContextType,
     ) -> Result<f32> {
         match context_type {
-            ContextType::Memory => {
-                self.get_memory_access_frequency(context_id).await
-            }
+            ContextType::Memory => self.get_memory_access_frequency(context_id).await,
             _ => Ok(0.0),
         }
     }
@@ -304,9 +305,7 @@ impl FeatureExtractor {
         context_type: &ContextType,
     ) -> Result<Option<f32>> {
         match context_type {
-            ContextType::Memory => {
-                self.get_memory_last_used_days(context_id).await
-            }
+            ContextType::Memory => self.get_memory_last_used_days(context_id).await,
             _ => Ok(None),
         }
     }
@@ -369,9 +368,9 @@ impl FeatureExtractor {
             .await
             .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
 
-        let conn = db.connect().map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get connection: {}", e))
-        })?;
+        let conn = db
+            .connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
 
         let mut rows = conn
             .query(
@@ -379,22 +378,21 @@ impl FeatureExtractor {
                 libsql::params![memory_id],
             )
             .await
-            .map_err(|e| {
-                MnemosyneError::Database(format!("Failed to query memory: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query memory: {}", e)))?;
 
-        let row = rows.next().await.map_err(|e| {
-            MnemosyneError::Database(format!("Failed to fetch row: {}", e))
-        })?;
+        let row = rows
+            .next()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to fetch row: {}", e)))?;
 
         let row = row.ok_or_else(|| {
             warn!("Memory not found: {}", memory_id);
             MnemosyneError::NotFound(format!("Memory not found: {}", memory_id))
         })?;
 
-        let created_at = row.get::<i64>(0).map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get created_at: {}", e))
-        })?;
+        let created_at = row
+            .get::<i64>(0)
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get created_at: {}", e)))?;
 
         // Calculate days since creation
         let now = chrono::Utc::now().timestamp();
@@ -412,9 +410,9 @@ impl FeatureExtractor {
             .await
             .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
 
-        let conn = db.connect().map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get connection: {}", e))
-        })?;
+        let conn = db
+            .connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
 
         let mut rows = conn
             .query(
@@ -422,26 +420,26 @@ impl FeatureExtractor {
                 libsql::params![memory_id],
             )
             .await
-            .map_err(|e| {
-                MnemosyneError::Database(format!("Failed to query memory: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query memory: {}", e)))?;
 
-        let row = rows.next().await.map_err(|e| {
-            MnemosyneError::Database(format!("Failed to fetch row: {}", e))
-        })?;
+        let row = rows
+            .next()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to fetch row: {}", e)))?;
 
         let row = row.ok_or_else(|| {
             warn!("Memory not found: {}", memory_id);
             MnemosyneError::NotFound(format!("Memory not found: {}", memory_id))
         })?;
 
-        let access_count = row.get::<i64>(0).map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get access_count: {}", e))
-        })? as f32;
+        let access_count = row
+            .get::<i64>(0)
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get access_count: {}", e)))?
+            as f32;
 
-        let created_at = row.get::<i64>(1).map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get created_at: {}", e))
-        })?;
+        let created_at = row
+            .get::<i64>(1)
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get created_at: {}", e)))?;
 
         // Calculate frequency (accesses per day)
         let now = chrono::Utc::now().timestamp();
@@ -462,9 +460,9 @@ impl FeatureExtractor {
             .await
             .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
 
-        let conn = db.connect().map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get connection: {}", e))
-        })?;
+        let conn = db
+            .connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
 
         let mut rows = conn
             .query(
@@ -472,13 +470,12 @@ impl FeatureExtractor {
                 libsql::params![memory_id],
             )
             .await
-            .map_err(|e| {
-                MnemosyneError::Database(format!("Failed to query memory: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query memory: {}", e)))?;
 
-        let row = rows.next().await.map_err(|e| {
-            MnemosyneError::Database(format!("Failed to fetch row: {}", e))
-        })?;
+        let row = rows
+            .next()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to fetch row: {}", e)))?;
 
         let row = row.ok_or_else(|| {
             warn!("Memory not found: {}", memory_id);
@@ -490,7 +487,10 @@ impl FeatureExtractor {
         if let Some(timestamp) = last_accessed_at {
             let now = chrono::Utc::now().timestamp();
             let days_ago = ((now - timestamp).max(0) as f32) / 86400.0;
-            debug!("Memory {} was last accessed {:.1} days ago", memory_id, days_ago);
+            debug!(
+                "Memory {} was last accessed {:.1} days ago",
+                memory_id, days_ago
+            );
             Ok(Some(days_ago))
         } else {
             debug!("Memory {} has never been accessed", memory_id);
@@ -512,9 +512,9 @@ impl FeatureExtractor {
             .await
             .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
 
-        let conn = db.connect().map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get connection: {}", e))
-        })?;
+        let conn = db
+            .connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
 
         let context_type_str = match context_type {
             ContextType::Memory => "memory",
@@ -536,17 +536,15 @@ impl FeatureExtractor {
                 libsql::params![context_id, context_type_str],
             )
             .await
-            .map_err(|e| {
-                MnemosyneError::Database(format!("Failed to query evaluations: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query evaluations: {}", e)))?;
 
-        let row = rows.next().await.map_err(|e| {
-            MnemosyneError::Database(format!("Failed to fetch row: {}", e))
-        })?;
+        let row = rows
+            .next()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to fetch row: {}", e)))?;
 
-        let row = row.ok_or_else(|| {
-            MnemosyneError::Database("No evaluation data found".to_string())
-        })?;
+        let row =
+            row.ok_or_else(|| MnemosyneError::Database("No evaluation data found".to_string()))?;
 
         let total_provided = row.get::<i64>(0).unwrap_or(0);
         let times_accessed = row.get::<i64>(1).unwrap_or(0);
@@ -584,9 +582,9 @@ impl FeatureExtractor {
             .await
             .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
 
-        let conn = db.connect().map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get connection: {}", e))
-        })?;
+        let conn = db
+            .connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
 
         // Find sessions where this context appeared
         let mut rows = conn
@@ -600,9 +598,7 @@ impl FeatureExtractor {
                 libsql::params![context_id],
             )
             .await
-            .map_err(|e| {
-                MnemosyneError::Database(format!("Failed to query sessions: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query sessions: {}", e)))?;
 
         let mut sessions = Vec::new();
         while let Ok(Some(row)) = rows.next().await {
@@ -696,9 +692,9 @@ impl FeatureExtractor {
             .await
             .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
 
-        let conn = db.connect().map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get connection: {}", e))
-        })?;
+        let conn = db
+            .connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
 
         conn.execute(
             r#"
@@ -737,9 +733,7 @@ impl FeatureExtractor {
             ],
         )
         .await
-        .map_err(|e| {
-            MnemosyneError::Database(format!("Failed to insert features: {}", e))
-        })?;
+        .map_err(|e| MnemosyneError::Database(format!("Failed to insert features: {}", e)))?;
 
         debug!("Stored features for evaluation {}", features.evaluation_id);
         Ok(())
@@ -752,9 +746,9 @@ impl FeatureExtractor {
             .await
             .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
 
-        let conn = db.connect().map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get connection: {}", e))
-        })?;
+        let conn = db
+            .connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
 
         let mut rows = conn
             .query(
@@ -780,16 +774,18 @@ impl FeatureExtractor {
                 libsql::params![evaluation_id],
             )
             .await
-            .map_err(|e| {
-                MnemosyneError::Database(format!("Failed to query features: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query features: {}", e)))?;
 
-        let row = rows.next().await.map_err(|e| {
-            MnemosyneError::Database(format!("Failed to fetch row: {}", e))
-        })?;
+        let row = rows
+            .next()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to fetch row: {}", e)))?;
 
         let row = row.ok_or_else(|| {
-            MnemosyneError::NotFound(format!("Features not found for evaluation: {}", evaluation_id))
+            MnemosyneError::NotFound(format!(
+                "Features not found for evaluation: {}",
+                evaluation_id
+            ))
         })?;
 
         Ok(RelevanceFeatures {
@@ -813,7 +809,12 @@ impl FeatureExtractor {
             task_type_match: row.get::<i64>(7).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to get task_type_match: {}", e))
             })? != 0,
-            agent_role_affinity: row.get::<Option<f64>>(8).ok().flatten().map(|v| v as f32).unwrap_or(0.5),
+            agent_role_affinity: row
+                .get::<Option<f64>>(8)
+                .ok()
+                .flatten()
+                .map(|v| v as f32)
+                .unwrap_or(0.5),
             namespace_match: row.get::<i64>(9).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to get namespace_match: {}", e))
             })? != 0,

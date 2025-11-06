@@ -1,7 +1,7 @@
 //! Utility modules for semantic highlighting
 
-pub mod patterns;
 pub mod dictionaries;
+pub mod patterns;
 
-pub use patterns::CommonPatterns;
 pub use dictionaries::{EntityDictionaries, ModalityDictionaries};
+pub use patterns::CommonPatterns;

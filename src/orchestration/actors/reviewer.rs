@@ -97,7 +97,7 @@ use crate::error::Result;
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{OrchestratorMessage, ReviewerMessage, WorkResult};
-use crate::orchestration::state::{Phase, WorkItemId, WorkItem};
+use crate::orchestration::state::{Phase, WorkItem, WorkItemId};
 use crate::storage::StorageBackend;
 use crate::types::Namespace;
 use ractor::{Actor, ActorProcessingErr, ActorRef};
@@ -108,11 +108,12 @@ use crate::orchestration::actors::reviewer_dspy_adapter::ReviewerDSpyAdapter;
 #[cfg(feature = "python")]
 use crate::orchestration::dspy_instrumentation::DSpyInstrumentation;
 #[cfg(feature = "python")]
-use crate::python_bindings::{collect_implementation_from_memories, execution_memories_to_python_format};
+use crate::python_bindings::{
+    collect_implementation_from_memories, execution_memories_to_python_format,
+};
 
 /// Quality gates that must pass (8 total: 5 existing + 3 pillars)
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct QualityGates {
     // Existing gates
     pub intent_satisfied: bool,
@@ -246,7 +247,12 @@ impl ReviewerState {
     }
 
     /// Register event broadcaster for real-time observability
-    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, namespace: Namespace, agent_id: String) {
+    pub fn register_event_broadcaster(
+        &mut self,
+        broadcaster: crate::api::EventBroadcaster,
+        namespace: Namespace,
+        agent_id: String,
+    ) {
         // Reconstruct EventPersistence with broadcaster
         self.events = EventPersistence::new_with_broadcaster(
             self.storage.clone(),
@@ -264,7 +270,11 @@ impl ReviewerState {
                 interval.tick().await;
                 let event = crate::api::Event::heartbeat(agent_id_clone.clone());
                 if let Err(e) = broadcaster.broadcast(event) {
-                    tracing::warn!("Failed to broadcast heartbeat for {}: {}", agent_id_clone, e);
+                    tracing::warn!(
+                        "Failed to broadcast heartbeat for {}: {}",
+                        agent_id_clone,
+                        e
+                    );
                 }
             }
         });
@@ -314,28 +324,28 @@ impl ReviewerState {
     ///
     /// Returns: List of extracted requirements, or empty vec if extraction fails or LLM unavailable
     #[cfg(feature = "python")]
-    async fn extract_requirements_from_intent(
-        &self,
-        work_item: &WorkItem,
-    ) -> Result<Vec<String>> {
+    async fn extract_requirements_from_intent(&self, work_item: &WorkItem) -> Result<Vec<String>> {
         if !self.config.enable_llm_validation || self.reviewer_adapter.is_none() {
             tracing::debug!("LLM validation not enabled, skipping requirement extraction");
             return Ok(Vec::new());
         }
 
-        tracing::info!("Extracting requirements from intent for work item {}", work_item.id);
+        tracing::info!(
+            "Extracting requirements from intent for work item {}",
+            work_item.id
+        );
 
         // Gather context about the work item
         let context = format!(
             "Work Item: {}\nPhase: {:?}\nAgent: {:?}\nFile Scope: {:?}",
-            work_item.description,
-            work_item.phase,
-            work_item.agent,
-            work_item.file_scope
+            work_item.description, work_item.phase, work_item.agent, work_item.file_scope
         );
 
         // Call DSPy adapter to extract requirements
-        match self.reviewer_adapter.as_ref().unwrap()
+        match self
+            .reviewer_adapter
+            .as_ref()
+            .unwrap()
             .extract_requirements(&work_item.original_intent, Some(&context))
             .await
         {
@@ -433,22 +443,31 @@ impl ReviewerActor {
 
         // Generate improvement guidance if review failed
         #[cfg(feature = "python")]
-        let improvement_guidance = if !passed && state.config.enable_llm_validation && state.reviewer_adapter.is_some() {
-            tracing::info!("Generating DSPy improvement guidance for failed review");
+        let improvement_guidance =
+            if !passed && state.config.enable_llm_validation && state.reviewer_adapter.is_some() {
+                tracing::info!("Generating DSPy improvement guidance for failed review");
 
-            match Self::generate_improvement_guidance(state, &gates, &all_issues, &work_item, &result).await {
-                Ok(guidance) => {
-                    tracing::info!("Generated improvement guidance ({} chars)", guidance.len());
-                    Some(guidance)
+                match Self::generate_improvement_guidance(
+                    state,
+                    &gates,
+                    &all_issues,
+                    &work_item,
+                    &result,
+                )
+                .await
+                {
+                    Ok(guidance) => {
+                        tracing::info!("Generated improvement guidance ({} chars)", guidance.len());
+                        Some(guidance)
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to generate improvement guidance: {:?}", e);
+                        None
+                    }
                 }
-                Err(e) => {
-                    tracing::warn!("Failed to generate improvement guidance: {:?}", e);
-                    None
-                }
-            }
-        } else {
-            None
-        };
+            } else {
+                None
+            };
 
         #[cfg(not(feature = "python"))]
         let improvement_guidance: Option<String> = None;
@@ -574,16 +593,12 @@ impl ReviewerActor {
             tracing::debug!("Using DSPy for semantic intent validation");
 
             // Collect implementation content from execution memories
-            let implementation = collect_implementation_from_memories(
-                &state.storage,
-                &result.memory_ids
-            ).await?;
+            let implementation =
+                collect_implementation_from_memories(&state.storage, &result.memory_ids).await?;
 
             // Convert memory IDs to JSON-compatible format
-            let execution_memories_raw = execution_memories_to_python_format(
-                &state.storage,
-                &result.memory_ids
-            ).await?;
+            let execution_memories_raw =
+                execution_memories_to_python_format(&state.storage, &result.memory_ids).await?;
 
             let execution_memories: Vec<serde_json::Value> = execution_memories_raw
                 .into_iter()
@@ -591,11 +606,14 @@ impl ReviewerActor {
                 .collect();
 
             // Call DSPy adapter for semantic validation
-            match state.reviewer_adapter.as_ref().unwrap()
+            match state
+                .reviewer_adapter
+                .as_ref()
+                .unwrap()
                 .semantic_intent_check(
                     &work_item.original_intent,
                     &implementation,
-                    execution_memories
+                    execution_memories,
                 )
                 .await
             {
@@ -632,7 +650,8 @@ impl ReviewerActor {
 
                     if content_upper.contains("INTENT NOT SATISFIED")
                         || content_upper.contains("REQUIREMENTS NOT MET")
-                        || content_upper.contains("PARTIALLY IMPLEMENTED") {
+                        || content_upper.contains("PARTIALLY IMPLEMENTED")
+                    {
                         issues.push(format!(
                             "Intent satisfaction issue in memory {}: partial or incomplete",
                             memory_id
@@ -803,10 +822,7 @@ impl ReviewerActor {
                     if content_upper.contains("PLACEHOLDER")
                         || content_upper.contains("REPLACE THIS")
                     {
-                        issues.push(format!(
-                            "Placeholder code detected in memory {}",
-                            memory_id
-                        ));
+                        issues.push(format!("Placeholder code detected in memory {}", memory_id));
                     }
                 }
                 Err(e) => {
@@ -825,10 +841,8 @@ impl ReviewerActor {
             tracing::debug!("Using DSPy for semantic completeness validation");
 
             // Collect implementation content
-            let implementation = collect_implementation_from_memories(
-                &state.storage,
-                &result.memory_ids
-            ).await?;
+            let implementation =
+                collect_implementation_from_memories(&state.storage, &result.memory_ids).await?;
 
             // Use explicit requirements if available, otherwise use original intent
             let requirements = if !work_item.requirements.is_empty() {
@@ -838,10 +852,8 @@ impl ReviewerActor {
             };
 
             // Convert memory IDs to JSON-compatible format
-            let execution_memories_raw = execution_memories_to_python_format(
-                &state.storage,
-                &result.memory_ids
-            ).await?;
+            let execution_memories_raw =
+                execution_memories_to_python_format(&state.storage, &result.memory_ids).await?;
 
             let execution_memories: Vec<serde_json::Value> = execution_memories_raw
                 .into_iter()
@@ -849,12 +861,11 @@ impl ReviewerActor {
                 .collect();
 
             // Call DSPy adapter for completeness validation
-            match state.reviewer_adapter.as_ref().unwrap()
-                .verify_completeness(
-                    &requirements,
-                    &implementation,
-                    execution_memories
-                )
+            match state
+                .reviewer_adapter
+                .as_ref()
+                .unwrap()
+                .verify_completeness(&requirements, &implementation, execution_memories)
                 .await
             {
                 Ok((passed, llm_issues)) => {
@@ -930,13 +941,9 @@ impl ReviewerActor {
                     }
 
                     // Check for logic issues
-                    if content_upper.contains("LOGIC ERROR")
-                        || content_upper.contains("INCORRECT")
+                    if content_upper.contains("LOGIC ERROR") || content_upper.contains("INCORRECT")
                     {
-                        issues.push(format!(
-                            "Logic issue detected in memory {}",
-                            memory_id
-                        ));
+                        issues.push(format!("Logic issue detected in memory {}", memory_id));
                     }
                 }
                 Err(e) => {
@@ -955,16 +962,12 @@ impl ReviewerActor {
             tracing::debug!("Using DSPy for semantic correctness validation");
 
             // Collect implementation content
-            let implementation = collect_implementation_from_memories(
-                &state.storage,
-                &result.memory_ids
-            ).await?;
+            let implementation =
+                collect_implementation_from_memories(&state.storage, &result.memory_ids).await?;
 
             // Convert memory IDs to JSON-compatible format
-            let execution_memories_raw = execution_memories_to_python_format(
-                &state.storage,
-                &result.memory_ids
-            ).await?;
+            let execution_memories_raw =
+                execution_memories_to_python_format(&state.storage, &result.memory_ids).await?;
 
             let execution_memories: Vec<serde_json::Value> = execution_memories_raw
                 .into_iter()
@@ -972,11 +975,11 @@ impl ReviewerActor {
                 .collect();
 
             // Call DSPy adapter for correctness validation
-            match state.reviewer_adapter.as_ref().unwrap()
-                .verify_correctness(
-                    &implementation,
-                    execution_memories
-                )
+            match state
+                .reviewer_adapter
+                .as_ref()
+                .unwrap()
+                .verify_correctness(&implementation, execution_memories)
                 .await
             {
                 Ok((passed, llm_issues)) => {
@@ -1085,7 +1088,10 @@ impl ReviewerActor {
         // TODO: Implement improvement guidance in ReviewerModule
         // For now, generate a basic summary
         let mut guidance = String::new();
-        guidance.push_str(&format!("Review failed for work item: {}\n\n", work_item.description));
+        guidance.push_str(&format!(
+            "Review failed for work item: {}\n\n",
+            work_item.description
+        ));
         guidance.push_str("Failed Quality Gates:\n");
 
         if !gates.intent_satisfied {
@@ -1135,15 +1141,11 @@ impl ReviewerActor {
                     let content_lower = memory.content.to_lowercase();
 
                     // Check for common missing test scenarios
-                    if content_lower.contains("error")
-                        && !content_lower.contains("test error")
-                    {
-                        suggestions
-                            .push("Add tests for error handling and edge cases".to_string());
+                    if content_lower.contains("error") && !content_lower.contains("test error") {
+                        suggestions.push("Add tests for error handling and edge cases".to_string());
                     }
 
-                    if content_lower.contains("async") && !content_lower.contains("test async")
-                    {
+                    if content_lower.contains("async") && !content_lower.contains("test async") {
                         suggestions.push(
                             "Add tests for async behavior and concurrency scenarios".to_string(),
                         );
@@ -1292,7 +1294,9 @@ impl Actor for ReviewerActor {
                 tracing::debug!("Registering event broadcaster with Reviewer");
                 let agent_id = format!("{}-reviewer", self.namespace);
                 state.register_event_broadcaster(broadcaster, self.namespace.clone(), agent_id);
-                tracing::info!("Event broadcaster registered with Reviewer - events will now be broadcast");
+                tracing::info!(
+                    "Event broadcaster registered with Reviewer - events will now be broadcast"
+                );
             }
             ReviewerMessage::ReviewWork {
                 item_id,
@@ -1337,9 +1341,10 @@ impl Actor for ReviewerActor {
                 #[cfg(not(feature = "python"))]
                 let work_item_with_reqs = work_item.clone();
 
-                let feedback = Self::review_work(state, item_id.clone(), result, work_item_with_reqs.clone())
-                    .await
-                    .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+                let feedback =
+                    Self::review_work(state, item_id.clone(), result, work_item_with_reqs.clone())
+                        .await
+                        .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
 
                 let passed = feedback.gates.all_passed();
 
@@ -1417,8 +1422,8 @@ impl Actor for ReviewerActor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LibsqlStorage;
     use crate::storage::test_utils::create_test_storage;
+    use crate::LibsqlStorage;
     use std::time::Duration;
     use tempfile::TempDir;
 
@@ -1548,10 +1553,7 @@ mod tests {
             crate::orchestration::state::Phase::PlanToArtifacts,
             5,
         );
-        work_item.requirements = vec![
-            "Requirement 1".to_string(),
-            "Requirement 2".to_string(),
-        ];
+        work_item.requirements = vec!["Requirement 1".to_string(), "Requirement 2".to_string()];
 
         // Create result
         let result = crate::orchestration::messages::WorkResult::success(
@@ -1800,7 +1802,10 @@ mod tests {
             .expect("Anti-pattern check failed");
 
         // Should detect TODO marker
-        assert!(!passed, "Anti-pattern check should have failed due to TODO marker");
+        assert!(
+            !passed,
+            "Anti-pattern check should have failed due to TODO marker"
+        );
     }
 
     #[tokio::test]
@@ -1844,8 +1849,12 @@ mod tests {
         );
 
         // Add memory IDs
-        result.memory_ids.push(crate::types::MemoryId(uuid::Uuid::new_v4()));
-        result.memory_ids.push(crate::types::MemoryId(uuid::Uuid::new_v4()));
+        result
+            .memory_ids
+            .push(crate::types::MemoryId(uuid::Uuid::new_v4()));
+        result
+            .memory_ids
+            .push(crate::types::MemoryId(uuid::Uuid::new_v4()));
 
         assert_eq!(result.memory_ids.len(), 2);
         assert!(result.success);
@@ -1919,8 +1928,14 @@ mod tests {
         };
 
         // Store memories
-        storage.store_memory(&memory1).await.expect("Failed to store memory1");
-        storage.store_memory(&memory2).await.expect("Failed to store memory2");
+        storage
+            .store_memory(&memory1)
+            .await
+            .expect("Failed to store memory1");
+        storage
+            .store_memory(&memory2)
+            .await
+            .expect("Failed to store memory2");
 
         // Convert to Python format
         let memory_ids = vec![memory1.id, memory2.id];
@@ -1933,9 +1948,18 @@ mod tests {
 
         // Validate first memory
         let mem1_dict = &python_format[0];
-        assert!(mem1_dict.contains_key("id"), "Memory should have 'id' field");
-        assert!(mem1_dict.contains_key("summary"), "Memory should have 'summary' field");
-        assert!(mem1_dict.contains_key("content"), "Memory should have 'content' field");
+        assert!(
+            mem1_dict.contains_key("id"),
+            "Memory should have 'id' field"
+        );
+        assert!(
+            mem1_dict.contains_key("summary"),
+            "Memory should have 'summary' field"
+        );
+        assert!(
+            mem1_dict.contains_key("content"),
+            "Memory should have 'content' field"
+        );
 
         assert_eq!(mem1_dict.get("id").unwrap(), &memory1.id.to_string());
         assert_eq!(mem1_dict.get("summary").unwrap(), "JWT authentication");

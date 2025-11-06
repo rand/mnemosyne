@@ -154,10 +154,7 @@ impl From<&InteractionLog> for TrainingDataEntry {
     fn from(log: &InteractionLog) -> Self {
         let mut metadata = log.metadata.clone();
         metadata.insert("module_name".to_string(), log.module_name.clone());
-        metadata.insert(
-            "module_version".to_string(),
-            log.module_version.to_string(),
-        );
+        metadata.insert("module_version".to_string(), log.module_version.to_string());
         metadata.insert("timestamp_ms".to_string(), log.timestamp_ms.to_string());
         metadata.insert("latency_ms".to_string(), log.latency_ms.to_string());
         metadata.insert("model".to_string(), log.model.clone());
@@ -389,7 +386,10 @@ impl ProductionLogger {
             }
             LogSink::Stdout => {
                 let json = serde_json::to_string(&log).map_err(|e| {
-                    MnemosyneError::SerializationError(format!("Failed to serialize log entry: {}", e))
+                    MnemosyneError::SerializationError(format!(
+                        "Failed to serialize log entry: {}",
+                        e
+                    ))
                 })?;
                 println!("{}", json);
             }
@@ -409,7 +409,10 @@ impl ProductionLogger {
                         }
                         LogSink::Stdout => {
                             let json = serde_json::to_string(&log).map_err(|e| {
-                                MnemosyneError::SerializationError(format!("Failed to serialize log entry: {}", e))
+                                MnemosyneError::SerializationError(format!(
+                                    "Failed to serialize log entry: {}",
+                                    e
+                                ))
                             })?;
                             println!("{}", json);
                         }
@@ -526,13 +529,15 @@ impl ProductionLogger {
 
         for entry in &training_entries {
             let json = serde_json::to_string(entry).map_err(|e| {
-                MnemosyneError::SerializationError(format!("Failed to serialize training entry: {}", e))
+                MnemosyneError::SerializationError(format!(
+                    "Failed to serialize training entry: {}",
+                    e
+                ))
             })?;
 
-            writer
-                .write_all(json.as_bytes())
-                .await
-                .map_err(|e| MnemosyneError::Other(format!("Failed to write training data: {}", e)))?;
+            writer.write_all(json.as_bytes()).await.map_err(|e| {
+                MnemosyneError::Other(format!("Failed to write training data: {}", e))
+            })?;
 
             writer
                 .write_all(b"\n")
@@ -654,7 +659,10 @@ mod tests {
 
         logger.log_interaction(log).await.unwrap();
 
-        let count = logger.export_training_data(&training_path, None).await.unwrap();
+        let count = logger
+            .export_training_data(&training_path, None)
+            .await
+            .unwrap();
         assert_eq!(count, 1);
 
         let content = tokio::fs::read_to_string(&training_path).await.unwrap();

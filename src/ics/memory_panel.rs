@@ -401,11 +401,7 @@ impl<'a> MemoryPanel<'a> {
         ];
 
         // Split content into lines
-        let content_lines: Vec<Line> = memory
-            .content
-            .lines()
-            .map(Line::from)
-            .collect();
+        let content_lines: Vec<Line> = memory.content.lines().map(Line::from).collect();
 
         let all_lines: Vec<Line> = lines.into_iter().chain(content_lines).collect();
 

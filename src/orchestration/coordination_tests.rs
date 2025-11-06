@@ -20,7 +20,7 @@ mod e2e_tests {
     use crate::orchestration::conflict_detector::ConflictDetector;
     use crate::orchestration::conflict_notifier::{ConflictNotifier, NotificationConfig};
     use crate::orchestration::file_tracker::{FileTracker, ModificationType};
-    
+
     use crate::orchestration::git_wrapper::GitWrapper;
     use crate::orchestration::identity::{AgentId, AgentIdentity};
     use crate::types::Namespace;

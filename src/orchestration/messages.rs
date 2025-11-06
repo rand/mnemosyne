@@ -178,9 +178,7 @@ pub enum ReviewerMessage {
     /// Register Python reviewer for LLM validation (feature-gated)
     #[cfg(feature = "python")]
     #[serde(skip)]
-    RegisterPythonReviewer {
-        py_reviewer: StdArc<PyObject>,
-    },
+    RegisterPythonReviewer { py_reviewer: StdArc<PyObject> },
 
     /// Review work item results (with full work item for context)
     ReviewWork {

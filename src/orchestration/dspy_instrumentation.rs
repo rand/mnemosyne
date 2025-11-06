@@ -187,7 +187,8 @@ impl DSpyInstrumentation {
 
         // Create request event
         let mut request_event = DSpyEvent::request(module_name, version.clone(), module_name);
-        request_event = request_event.with_metadata("request_id".to_string(), request_id.to_string());
+        request_event =
+            request_event.with_metadata("request_id".to_string(), request_id.to_string());
 
         // Record request event
         self.telemetry.record(request_event.clone()).await;
@@ -443,17 +444,15 @@ mod tests {
 
         // Create mock instrumentation for testing sampling logic
         let bridge = Arc::new(DSpyBridge::new().unwrap());
-        let logger = tokio::runtime::Runtime::new()
+        let logger = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
             .unwrap()
-            .block_on(async {
-                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
-                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
-                    buffer_size: 1,
-                    enable_telemetry: false,
-                })
-                .await
-                .unwrap()
-            });
+        });
         let telemetry = Arc::new(TelemetryCollector::new());
 
         let inst = DSpyInstrumentation::new(bridge, Arc::new(logger), telemetry, config);
@@ -473,17 +472,15 @@ mod tests {
         };
 
         let bridge = Arc::new(DSpyBridge::new().unwrap());
-        let logger = tokio::runtime::Runtime::new()
+        let logger = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
             .unwrap()
-            .block_on(async {
-                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
-                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
-                    buffer_size: 1,
-                    enable_telemetry: false,
-                })
-                .await
-                .unwrap()
-            });
+        });
         let telemetry = Arc::new(TelemetryCollector::new());
 
         let inst = DSpyInstrumentation::new(bridge, Arc::new(logger), telemetry, config);
@@ -509,24 +506,23 @@ mod tests {
     #[test]
     fn test_sampling_edge_cases() {
         let bridge = Arc::new(DSpyBridge::new().unwrap());
-        let logger = tokio::runtime::Runtime::new()
+        let logger = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
             .unwrap()
-            .block_on(async {
-                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
-                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
-                    buffer_size: 1,
-                    enable_telemetry: false,
-                })
-                .await
-                .unwrap()
-            });
+        });
         let telemetry = Arc::new(TelemetryCollector::new());
 
         let config = InstrumentationConfig {
             sampling_rate: 0.0,
             enabled: true,
         };
-        let inst = DSpyInstrumentation::new(bridge.clone(), Arc::new(logger), telemetry.clone(), config);
+        let inst =
+            DSpyInstrumentation::new(bridge.clone(), Arc::new(logger), telemetry.clone(), config);
 
         // 0% sampling should never sample
         assert!(!inst.should_sample("test", 0.0));
@@ -539,17 +535,15 @@ mod tests {
     #[test]
     fn test_token_estimation() {
         let bridge = Arc::new(DSpyBridge::new().unwrap());
-        let logger = tokio::runtime::Runtime::new()
+        let logger = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
             .unwrap()
-            .block_on(async {
-                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
-                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
-                    buffer_size: 1,
-                    enable_telemetry: false,
-                })
-                .await
-                .unwrap()
-            });
+        });
         let telemetry = Arc::new(TelemetryCollector::new());
 
         let config = InstrumentationConfig::default();
@@ -566,7 +560,10 @@ mod tests {
         // 400 chars ≈ 100 tokens, 800 chars ≈ 200 tokens (rough estimate)
         assert!(tokens.input_tokens >= 90 && tokens.input_tokens <= 110);
         assert!(tokens.output_tokens >= 190 && tokens.output_tokens <= 210);
-        assert_eq!(tokens.total_tokens, tokens.input_tokens + tokens.output_tokens);
+        assert_eq!(
+            tokens.total_tokens,
+            tokens.input_tokens + tokens.output_tokens
+        );
     }
 
     #[tokio::test]
@@ -637,17 +634,15 @@ mod tests {
     #[test]
     fn test_telemetry_accessor() {
         let bridge = Arc::new(DSpyBridge::new().unwrap());
-        let logger = tokio::runtime::Runtime::new()
+        let logger = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
             .unwrap()
-            .block_on(async {
-                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
-                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
-                    buffer_size: 1,
-                    enable_telemetry: false,
-                })
-                .await
-                .unwrap()
-            });
+        });
         let telemetry = Arc::new(TelemetryCollector::new());
 
         let config = InstrumentationConfig::default();
@@ -661,19 +656,15 @@ mod tests {
     #[test]
     fn test_logger_accessor() {
         let bridge = Arc::new(DSpyBridge::new().unwrap());
-        let logger = Arc::new(
-            tokio::runtime::Runtime::new()
-                .unwrap()
-                .block_on(async {
-                    ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
-                        sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
-                        buffer_size: 1,
-                        enable_telemetry: false,
-                    })
-                    .await
-                    .unwrap()
-                }),
-        );
+        let logger = Arc::new(tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
+            .unwrap()
+        }));
         let telemetry = Arc::new(TelemetryCollector::new());
 
         let config = InstrumentationConfig::default();
@@ -694,17 +685,15 @@ mod tests {
     #[test]
     fn test_sampling_hash_distribution() {
         let bridge = Arc::new(DSpyBridge::new().unwrap());
-        let logger = tokio::runtime::Runtime::new()
+        let logger = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
             .unwrap()
-            .block_on(async {
-                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
-                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
-                    buffer_size: 1,
-                    enable_telemetry: false,
-                })
-                .await
-                .unwrap()
-            });
+        });
         let telemetry = Arc::new(TelemetryCollector::new());
 
         let config = InstrumentationConfig {
@@ -745,17 +734,15 @@ mod tests {
     #[test]
     fn test_token_estimation_empty_inputs() {
         let bridge = Arc::new(DSpyBridge::new().unwrap());
-        let logger = tokio::runtime::Runtime::new()
+        let logger = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
             .unwrap()
-            .block_on(async {
-                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
-                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
-                    buffer_size: 1,
-                    enable_telemetry: false,
-                })
-                .await
-                .unwrap()
-            });
+        });
         let telemetry = Arc::new(TelemetryCollector::new());
 
         let config = InstrumentationConfig::default();
@@ -769,23 +756,24 @@ mod tests {
         // Empty inputs/outputs should result in minimal tokens
         assert!(tokens.input_tokens < 10);
         assert!(tokens.output_tokens < 10);
-        assert_eq!(tokens.total_tokens, tokens.input_tokens + tokens.output_tokens);
+        assert_eq!(
+            tokens.total_tokens,
+            tokens.input_tokens + tokens.output_tokens
+        );
     }
 
     #[test]
     fn test_token_estimation_complex_json() {
         let bridge = Arc::new(DSpyBridge::new().unwrap());
-        let logger = tokio::runtime::Runtime::new()
+        let logger = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
+                sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
+                buffer_size: 1,
+                enable_telemetry: false,
+            })
+            .await
             .unwrap()
-            .block_on(async {
-                ProductionLogger::new(crate::orchestration::dspy_production_logger::LogConfig {
-                    sink: crate::orchestration::dspy_production_logger::LogSink::Stdout,
-                    buffer_size: 1,
-                    enable_telemetry: false,
-                })
-                .await
-                .unwrap()
-            });
+        });
         let telemetry = Arc::new(TelemetryCollector::new());
 
         let config = InstrumentationConfig::default();
@@ -811,6 +799,9 @@ mod tests {
         // Complex JSON should result in reasonable token count
         assert!(tokens.input_tokens > 10);
         assert!(tokens.output_tokens > 0);
-        assert_eq!(tokens.total_tokens, tokens.input_tokens + tokens.output_tokens);
+        assert_eq!(
+            tokens.total_tokens,
+            tokens.input_tokens + tokens.output_tokens
+        );
     }
 }

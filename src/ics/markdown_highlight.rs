@@ -284,9 +284,9 @@ impl MarkdownHighlighter {
     fn style_for_node(&self, node: &tree_sitter::Node) -> Style {
         match node.kind() {
             // Headings
-            "atx_heading" | "setext_heading" => {
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
-            }
+            "atx_heading" | "setext_heading" => Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
             // Code
             "fenced_code_block" | "indented_code_block" | "code_span" => {
                 Style::default().fg(Color::Green)
@@ -297,7 +297,9 @@ impl MarkdownHighlighter {
             // Lists
             "list_item" | "list_marker" => Style::default().fg(Color::Yellow),
             // Links
-            "link" | "uri" => Style::default().fg(Color::Blue).add_modifier(Modifier::UNDERLINED),
+            "link" | "uri" => Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::UNDERLINED),
             // Default
             _ => Style::default(),
         }
@@ -334,7 +336,9 @@ mod tests {
     #[test]
     fn test_file_reference_highlighting() {
         let highlighter = MarkdownHighlighter::new().unwrap();
-        let spans = highlighter.highlight_semantic_patterns("#path/to/file.rs").unwrap();
+        let spans = highlighter
+            .highlight_semantic_patterns("#path/to/file.rs")
+            .unwrap();
 
         // Should have blue color for file reference
         assert!(spans.iter().any(|s| {
@@ -349,7 +353,9 @@ mod tests {
     #[test]
     fn test_symbol_reference_highlighting() {
         let highlighter = MarkdownHighlighter::new().unwrap();
-        let spans = highlighter.highlight_semantic_patterns("@my_function").unwrap();
+        let spans = highlighter
+            .highlight_semantic_patterns("@my_function")
+            .unwrap();
 
         // Should have green color for symbol reference
         assert!(spans.iter().any(|s| {
@@ -364,7 +370,9 @@ mod tests {
     #[test]
     fn test_typed_hole_highlighting() {
         let highlighter = MarkdownHighlighter::new().unwrap();
-        let spans = highlighter.highlight_semantic_patterns("?interface_name").unwrap();
+        let spans = highlighter
+            .highlight_semantic_patterns("?interface_name")
+            .unwrap();
 
         // Should have yellow color for typed hole
         assert!(spans.iter().any(|s| {

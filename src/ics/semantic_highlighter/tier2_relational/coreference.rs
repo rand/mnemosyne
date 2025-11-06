@@ -12,8 +12,8 @@ use crate::ics::semantic_highlighter::{
     visualization::{Connection, ConnectionType},
     Result,
 };
-use std::ops::Range;
 use std::collections::HashMap;
+use std::ops::Range;
 
 /// Coreference mention
 #[derive(Debug, Clone, PartialEq)]
@@ -55,7 +55,7 @@ pub struct CoreferenceResolver {
 impl CoreferenceResolver {
     pub fn new() -> Self {
         Self {
-            max_distance: 500,  // 500 characters
+            max_distance: 500, // 500 characters
             threshold: 0.6,
         }
     }
@@ -128,9 +128,20 @@ impl CoreferenceResolver {
         let text_lower = text.to_lowercase();
 
         let pronouns = [
-            "he", "she", "it", "they", "them",
-            "his", "her", "its", "their",
-            "him", "himself", "herself", "itself", "themselves",
+            "he",
+            "she",
+            "it",
+            "they",
+            "them",
+            "his",
+            "her",
+            "its",
+            "their",
+            "him",
+            "himself",
+            "herself",
+            "itself",
+            "themselves",
         ];
 
         for pronoun in pronouns.iter() {
@@ -269,16 +280,21 @@ impl CoreferenceResolver {
             score += 0.5;
 
             // If previous mention is a name, boost score
-            if matches!(m1.mention_type, MentionType::ProperName | MentionType::PartialName) {
+            if matches!(
+                m1.mention_type,
+                MentionType::ProperName | MentionType::PartialName
+            ) {
                 score += 0.3;
             }
         }
 
         // Partial name matching
-        if m1.mention_type == MentionType::ProperName && m2.mention_type == MentionType::PartialName
-            && m1.text.contains(&m2.text) {
-                score += 0.8;
-            }
+        if m1.mention_type == MentionType::ProperName
+            && m2.mention_type == MentionType::PartialName
+            && m1.text.contains(&m2.text)
+        {
+            score += 0.8;
+        }
 
         // Same text (but different positions)
         if m1.text.to_lowercase() == m2.text.to_lowercase() {
@@ -306,7 +322,9 @@ impl CoreferenceResolver {
     /// Check if a capitalized word is likely a name
     fn is_likely_name(&self, word: &str) -> bool {
         // Simple heuristic: not a common word
-        let common_words = ["The", "This", "That", "These", "Those", "When", "Where", "Who", "What"];
+        let common_words = [
+            "The", "This", "That", "These", "Those", "When", "Where", "Who", "What",
+        ];
         !common_words.contains(&word)
     }
 }

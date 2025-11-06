@@ -9,7 +9,7 @@
 //! in structured text (code, markdown).
 
 use crate::ics::semantic_highlighter::{
-    visualization::{HighlightSpan, HighlightSource, Connection, ConnectionType},
+    visualization::{Connection, ConnectionType, HighlightSource, HighlightSpan},
     Result,
 };
 use ratatui::style::{Color, Modifier, Style};
@@ -69,9 +69,7 @@ pub struct RelationshipExtractor {
 
 impl RelationshipExtractor {
     pub fn new() -> Self {
-        Self {
-            threshold: 0.5,
-        }
+        Self { threshold: 0.5 }
     }
 
     /// Set confidence threshold
@@ -96,7 +94,11 @@ impl RelationshipExtractor {
     }
 
     /// Convert relationships to highlight spans
-    pub fn relationships_to_spans(&self, relationships: &[Relationship], _text: &str) -> Vec<HighlightSpan> {
+    pub fn relationships_to_spans(
+        &self,
+        relationships: &[Relationship],
+        _text: &str,
+    ) -> Vec<HighlightSpan> {
         let mut spans = Vec::new();
 
         for rel in relationships {
@@ -160,9 +162,21 @@ impl RelationshipExtractor {
 
         // Common action verbs
         let action_verbs = [
-            "calls", "uses", "creates", "implements", "defines",
-            "returns", "takes", "performs", "executes", "processes",
-            "sends", "receives", "reads", "writes", "updates",
+            "calls",
+            "uses",
+            "creates",
+            "implements",
+            "defines",
+            "returns",
+            "takes",
+            "performs",
+            "executes",
+            "processes",
+            "sends",
+            "receives",
+            "reads",
+            "writes",
+            "updates",
         ];
 
         // Attribution verbs

@@ -36,11 +36,7 @@ impl ArtifactStorage {
     }
 
     /// Write artifact to file
-    pub async fn write_artifact<P: AsRef<Path>>(
-        &self,
-        path: P,
-        content: &str,
-    ) -> Result<()> {
+    pub async fn write_artifact<P: AsRef<Path>>(&self, path: P, content: &str) -> Result<()> {
         let full_path = self.base_path.join(path);
 
         // Ensure parent directory exists
@@ -96,9 +92,11 @@ impl ArtifactStorage {
         })?;
 
         let mut artifacts = Vec::new();
-        while let Some(entry) = entries.next_entry().await.map_err(|e| {
-            MnemosyneError::Other(format!("Failed to read directory entry: {}", e))
-        })? {
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| MnemosyneError::Other(format!("Failed to read directory entry: {}", e)))?
+        {
             let path = entry.path();
             if path.is_file() && path.extension().map_or(false, |ext| ext == "md") {
                 artifacts.push(path);
@@ -150,10 +148,8 @@ pub fn parse_frontmatter(content: &str) -> Result<(serde_yaml::Value, String)> {
     // Extract frontmatter
     let frontmatter_lines = &lines[1..closing_index];
     let frontmatter_str = frontmatter_lines.join("\n");
-    let frontmatter: serde_yaml::Value =
-        serde_yaml::from_str(&frontmatter_str).map_err(|e| {
-            MnemosyneError::Other(format!("Failed to parse YAML frontmatter: {}", e))
-        })?;
+    let frontmatter: serde_yaml::Value = serde_yaml::from_str(&frontmatter_str)
+        .map_err(|e| MnemosyneError::Other(format!("Failed to parse YAML frontmatter: {}", e)))?;
 
     // Extract markdown content (skip frontmatter + empty line)
     let content_start = closing_index + 1;
@@ -167,10 +163,7 @@ pub fn parse_frontmatter(content: &str) -> Result<(serde_yaml::Value, String)> {
 }
 
 /// Serialize YAML frontmatter and markdown content
-pub fn serialize_frontmatter(
-    frontmatter: &serde_yaml::Value,
-    content: &str,
-) -> Result<String> {
+pub fn serialize_frontmatter(frontmatter: &serde_yaml::Value, content: &str) -> Result<String> {
     let yaml = serde_yaml::to_string(frontmatter).map_err(|e| {
         MnemosyneError::Other(format!("Failed to serialize YAML frontmatter: {}", e))
     })?;

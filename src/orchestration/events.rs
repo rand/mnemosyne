@@ -33,6 +33,7 @@ pub enum AgentEvent {
     WorkItemStarted {
         agent: AgentRole,
         item_id: WorkItemId,
+        description: String,
     },
 
     /// Work item completed successfully
@@ -166,8 +167,8 @@ impl AgentEvent {
             } => {
                 format!("{:?} assigned: {}", agent, description)
             }
-            AgentEvent::WorkItemStarted { agent, .. } => {
-                format!("{:?} started work", agent)
+            AgentEvent::WorkItemStarted { agent, description, .. } => {
+                format!("{:?} started: {}", agent, description)
             }
             AgentEvent::WorkItemCompleted {
                 agent, duration_ms, ..
@@ -279,23 +280,26 @@ impl EventPersistence {
         use crate::api::Event;
 
         match event {
-            AgentEvent::WorkItemStarted { agent, .. } => {
-                Some(Event::agent_started(format!("{:?}", agent)))
+            AgentEvent::WorkItemStarted { agent, description, .. } => {
+                Some(Event::agent_started_with_task(
+                    format!("{:?}", agent),
+                    description.clone(),
+                ))
             }
-            AgentEvent::WorkItemCompleted { agent, .. } => {
-                Some(Event::agent_completed(format!("{:?}", agent), event.summary()))
-            }
+            AgentEvent::WorkItemCompleted { agent, .. } => Some(Event::agent_completed(
+                format!("{:?}", agent),
+                event.summary(),
+            )),
             AgentEvent::WorkItemFailed { agent, error, .. } => {
                 Some(Event::agent_failed(format!("{:?}", agent), error.clone()))
             }
-            AgentEvent::PhaseTransition { from, to, .. } => {
-                Some(Event::phase_changed(format!("{:?}", from), format!("{:?}", to)))
-            }
-            AgentEvent::DeadlockDetected { blocked_items, .. } => {
-                Some(Event::deadlock_detected(
-                    blocked_items.iter().map(|id| format!("{:?}", id)).collect(),
-                ))
-            }
+            AgentEvent::PhaseTransition { from, to, .. } => Some(Event::phase_changed(
+                format!("{:?}", from),
+                format!("{:?}", to),
+            )),
+            AgentEvent::DeadlockDetected { blocked_items, .. } => Some(Event::deadlock_detected(
+                blocked_items.iter().map(|id| format!("{:?}", id)).collect(),
+            )),
             AgentEvent::ContextCheckpoint {
                 agent,
                 usage_pct,
@@ -526,6 +530,7 @@ mod tests {
         let event = AgentEvent::WorkItemStarted {
             agent: AgentRole::Executor,
             item_id: WorkItemId::new(),
+            description: "Test work".to_string(),
         };
 
         let memory_id = persistence.persist(event).await.unwrap();
@@ -561,6 +566,7 @@ mod tests {
             .persist(AgentEvent::WorkItemStarted {
                 agent: AgentRole::Executor,
                 item_id: item_id.clone(),
+                description: "Test work".to_string(),
             })
             .await
             .unwrap();
@@ -591,7 +597,7 @@ mod tests {
         let storage = Arc::new(
             LibsqlStorage::new(crate::ConnectionMode::InMemory)
                 .await
-                .expect("Failed to create in-memory storage")
+                .expect("Failed to create in-memory storage"),
         );
 
         let persistence = EventPersistence::new_with_broadcaster(
@@ -607,11 +613,18 @@ mod tests {
         let event = AgentEvent::WorkItemStarted {
             agent: AgentRole::Executor,
             item_id: WorkItemId::new(),
+            description: "Test task".to_string(),
         };
         let api_event = persistence.to_api_event(&event);
         assert!(api_event.is_some());
         if let Some(api_event) = api_event {
-            assert!(matches!(api_event.event_type, crate::api::EventType::AgentStarted { .. }));
+            match &api_event.event_type {
+                crate::api::EventType::AgentStarted { agent_id, task, .. } => {
+                    assert_eq!(agent_id, "Executor");
+                    assert_eq!(task.as_ref().unwrap(), "Test task");
+                }
+                _ => panic!("Wrong event type"),
+            }
         }
 
         // Test WorkItemCompleted mapping
@@ -624,7 +637,10 @@ mod tests {
         let api_event = persistence.to_api_event(&event);
         assert!(api_event.is_some());
         if let Some(api_event) = api_event {
-            assert!(matches!(api_event.event_type, crate::api::EventType::AgentCompleted { .. }));
+            assert!(matches!(
+                api_event.event_type,
+                crate::api::EventType::AgentCompleted { .. }
+            ));
         }
 
         // Test WorkItemFailed mapping
@@ -636,7 +652,10 @@ mod tests {
         let api_event = persistence.to_api_event(&event);
         assert!(api_event.is_some());
         if let Some(api_event) = api_event {
-            assert!(matches!(api_event.event_type, crate::api::EventType::AgentFailed { .. }));
+            assert!(matches!(
+                api_event.event_type,
+                crate::api::EventType::AgentFailed { .. }
+            ));
         }
 
         // Test that other events are not mapped
@@ -680,18 +699,20 @@ mod tests {
         let event = AgentEvent::WorkItemStarted {
             agent: AgentRole::Executor,
             item_id: WorkItemId::new(),
+            description: "Test work".to_string(),
         };
 
         persistence.persist(event).await.unwrap();
 
         // Check that the event was broadcast
-        let api_event = tokio::time::timeout(
-            tokio::time::Duration::from_millis(100),
-            subscriber.recv()
-        ).await;
+        let api_event =
+            tokio::time::timeout(tokio::time::Duration::from_millis(100), subscriber.recv()).await;
 
         assert!(api_event.is_ok(), "Event should have been broadcast");
         let api_event = api_event.unwrap().unwrap();
-        assert!(matches!(api_event.event_type, crate::api::EventType::AgentStarted { .. }));
+        assert!(matches!(
+            api_event.event_type,
+            crate::api::EventType::AgentStarted { .. }
+        ));
     }
 }

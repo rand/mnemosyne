@@ -112,14 +112,7 @@ mod optimizer_adapter_tests {
         let adapter = create_test_adapter().await;
 
         let result = adapter
-            .consolidate_context(
-                "Test task",
-                vec![],
-                vec![],
-                vec![],
-                1,
-                "detailed",
-            )
+            .consolidate_context("Test task", vec![], vec![], vec![], 1, "detailed")
             .await;
 
         // Should handle gracefully
@@ -157,12 +150,7 @@ mod optimizer_adapter_tests {
         ];
 
         let result = adapter
-            .discover_skills(
-                "Build async REST API with database",
-                skills,
-                2,
-                0.5,
-            )
+            .discover_skills("Build async REST API with database", skills, 2, 0.5)
             .await;
 
         assert!(result.is_ok() || result.is_err());
@@ -210,14 +198,7 @@ mod optimizer_adapter_tests {
     async fn test_discover_skills_empty_list() {
         let adapter = create_test_adapter().await;
 
-        let result = adapter
-            .discover_skills(
-                "Any task",
-                vec![],
-                5,
-                0.5,
-            )
-            .await;
+        let result = adapter.discover_skills("Any task", vec![], 5, 0.5).await;
 
         // Should handle gracefully
         assert!(result.is_ok() || result.is_err());
@@ -265,7 +246,9 @@ mod optimizer_adapter_tests {
         assert!(result.is_ok() || result.is_err());
 
         if let Ok(plan) = result {
-            assert!(!plan.optimization_rationale.is_empty() || plan.optimization_rationale.is_empty());
+            assert!(
+                !plan.optimization_rationale.is_empty() || plan.optimization_rationale.is_empty()
+            );
         }
     }
 
@@ -347,12 +330,7 @@ mod optimizer_adapter_tests {
                 1,
                 "detailed",
             ),
-            adapter2.discover_skills(
-                "Task 2",
-                vec![],
-                3,
-                0.5,
-            ),
+            adapter2.discover_skills("Task 2", vec![], 3, 0.5,),
             adapter3.optimize_context_budget(
                 ContextUsage {
                     critical_pct: 0.4,

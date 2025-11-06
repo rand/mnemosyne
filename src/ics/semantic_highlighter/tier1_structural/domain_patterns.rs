@@ -12,8 +12,8 @@
 //! and technical documentation.
 
 use crate::ics::semantic_highlighter::{
-    visualization::{HighlightSpan, HighlightSource, AnnotationType, Annotation},
     utils::CommonPatterns,
+    visualization::{Annotation, AnnotationType, HighlightSource, HighlightSpan},
     Result,
 };
 use ratatui::style::{Color, Modifier, Style};
@@ -82,7 +82,7 @@ impl DomainPatternMatcher {
     pub fn new() -> Self {
         Self {
             show_annotations: false, // Default to false to reduce noise
-            validate_paths: false,    // File validation can be expensive
+            validate_paths: false,   // File validation can be expensive
         }
     }
 
@@ -303,7 +303,8 @@ mod tests {
         let spans = matcher.analyze(text).unwrap();
 
         assert!(spans.len() > 0);
-        let path_span = spans.iter()
+        let path_span = spans
+            .iter()
             .find(|s| text[s.range.clone()].contains("src/main.rs"))
             .expect("Should find file path");
 
@@ -317,8 +318,12 @@ mod tests {
         let spans = matcher.analyze(text).unwrap();
 
         // Should find both symbols
-        let has_calculate = spans.iter().any(|s| text[s.range.clone()].contains("calculate_total"));
-        let has_user_new = spans.iter().any(|s| text[s.range.clone()].contains("User::new"));
+        let has_calculate = spans
+            .iter()
+            .any(|s| text[s.range.clone()].contains("calculate_total"));
+        let has_user_new = spans
+            .iter()
+            .any(|s| text[s.range.clone()].contains("User::new"));
 
         assert!(has_calculate);
         assert!(has_user_new);
@@ -331,8 +336,12 @@ mod tests {
         let spans = matcher.analyze(text).unwrap();
 
         // Should find both typed holes
-        let has_auth = spans.iter().any(|s| text[s.range.clone()].contains("auth_handler"));
-        let has_db = spans.iter().any(|s| text[s.range.clone()].contains("database_connection"));
+        let has_auth = spans
+            .iter()
+            .any(|s| text[s.range.clone()].contains("auth_handler"));
+        let has_db = spans
+            .iter()
+            .any(|s| text[s.range.clone()].contains("database_connection"));
 
         assert!(has_auth);
         assert!(has_db);
@@ -344,7 +353,8 @@ mod tests {
         let text = "Visit https://example.com for more info";
         let spans = matcher.analyze(text).unwrap();
 
-        let url_span = spans.iter()
+        let url_span = spans
+            .iter()
             .find(|s| text[s.range.clone()].contains("https://example.com"))
             .expect("Should find URL");
 
@@ -357,7 +367,8 @@ mod tests {
         let text = "```rust\nfn main() {}\n```";
         let spans = matcher.analyze(text).unwrap();
 
-        let fence_span = spans.iter()
+        let fence_span = spans
+            .iter()
             .find(|s| text[s.range.clone()].contains("```rust"))
             .expect("Should find code fence");
 
@@ -370,7 +381,8 @@ mod tests {
         let text = "Use the `async fn` syntax";
         let spans = matcher.analyze(text).unwrap();
 
-        let code_span = spans.iter()
+        let code_span = spans
+            .iter()
             .find(|s| text[s.range.clone()].contains("`async fn`"))
             .expect("Should find inline code");
 
@@ -386,9 +398,15 @@ mod tests {
         // Should find all three pattern types
         assert!(spans.len() >= 3);
 
-        let has_file = spans.iter().any(|s| text[s.range.clone()].contains("src/lib.rs"));
-        let has_symbol = spans.iter().any(|s| text[s.range.clone()].contains("@main"));
-        let has_hole = spans.iter().any(|s| text[s.range.clone()].contains("?todo"));
+        let has_file = spans
+            .iter()
+            .any(|s| text[s.range.clone()].contains("src/lib.rs"));
+        let has_symbol = spans
+            .iter()
+            .any(|s| text[s.range.clone()].contains("@main"));
+        let has_hole = spans
+            .iter()
+            .any(|s| text[s.range.clone()].contains("?todo"));
 
         assert!(has_file);
         assert!(has_symbol);

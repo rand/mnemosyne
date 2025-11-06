@@ -10,8 +10,8 @@
 //! These keywords are commonly used in specifications, RFCs, and technical documentation.
 
 use crate::ics::semantic_highlighter::{
-    visualization::{HighlightSpan, HighlightSource, AnnotationType, Annotation},
     utils::CommonPatterns,
+    visualization::{Annotation, AnnotationType, HighlightSource, HighlightSpan},
     Result,
 };
 use ratatui::style::{Color, Modifier, Style};
@@ -101,8 +101,10 @@ impl ConstraintDetector {
                 .add_modifier(Modifier::UNDERLINED);
 
             let annotation = if self.show_annotations {
-                Some(Annotation::new(AnnotationType::Information)
-                    .with_tooltip(format!("RFC 2119: {}", level.description())))
+                Some(
+                    Annotation::new(AnnotationType::Information)
+                        .with_tooltip(format!("RFC 2119: {}", level.description())),
+                )
             } else {
                 None
             };
@@ -188,10 +190,22 @@ mod tests {
 
     #[test]
     fn test_constraint_levels() {
-        assert_eq!(ConstraintLevel::from_keyword("MUST"), ConstraintLevel::Mandatory);
-        assert_eq!(ConstraintLevel::from_keyword("SHALL NOT"), ConstraintLevel::Prohibited);
-        assert_eq!(ConstraintLevel::from_keyword("SHOULD"), ConstraintLevel::Recommended);
-        assert_eq!(ConstraintLevel::from_keyword("MAY"), ConstraintLevel::Optional);
+        assert_eq!(
+            ConstraintLevel::from_keyword("MUST"),
+            ConstraintLevel::Mandatory
+        );
+        assert_eq!(
+            ConstraintLevel::from_keyword("SHALL NOT"),
+            ConstraintLevel::Prohibited
+        );
+        assert_eq!(
+            ConstraintLevel::from_keyword("SHOULD"),
+            ConstraintLevel::Recommended
+        );
+        assert_eq!(
+            ConstraintLevel::from_keyword("MAY"),
+            ConstraintLevel::Optional
+        );
     }
 
     #[test]
@@ -202,7 +216,14 @@ mod tests {
 
         assert_eq!(spans.len(), 1);
         assert!(spans[0].annotation.is_some());
-        assert!(spans[0].annotation.as_ref().unwrap().tooltip.as_ref().unwrap().contains("RFC 2119"));
+        assert!(spans[0]
+            .annotation
+            .as_ref()
+            .unwrap()
+            .tooltip
+            .as_ref()
+            .unwrap()
+            .contains("RFC 2119"));
     }
 
     #[test]

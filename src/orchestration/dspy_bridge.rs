@@ -144,7 +144,10 @@ impl DSpyBridge {
                     .call_method1("get_agent_module", (&agent_name_clone,))
                     .map_err(|e| {
                         error!("Failed to get agent module '{}': {}", agent_name_clone, e);
-                        MnemosyneError::Other(format!("Agent module '{}' not found: {}", agent_name_clone, e))
+                        MnemosyneError::Other(format!(
+                            "Agent module '{}' not found: {}",
+                            agent_name_clone, e
+                        ))
                     })?;
 
                 // Convert inputs to Python dict
@@ -194,12 +197,10 @@ impl DSpyBridge {
                 let service_guard = service.blocking_lock();
                 let service_ref = service_guard.bind(py);
 
-                let modules = service_ref
-                    .call_method0("list_modules")
-                    .map_err(|e| {
-                        error!("Failed to list agent modules: {}", e);
-                        MnemosyneError::Other(format!("Failed to list modules: {}", e))
-                    })?;
+                let modules = service_ref.call_method0("list_modules").map_err(|e| {
+                    error!("Failed to list agent modules: {}", e);
+                    MnemosyneError::Other(format!("Failed to list modules: {}", e))
+                })?;
 
                 // Convert Python list to Vec<String>
                 let py_list: &Bound<PyList> = modules.downcast().map_err(|e| {
@@ -294,12 +295,16 @@ fn extract_dspy_outputs(_py: Python, prediction: &Bound<PyAny>) -> Result<HashMa
     let dir_list = prediction.dir();
 
     for attr_name in dir_list.iter() {
-        let name: String = attr_name.extract().map_err(|e| {
-            MnemosyneError::Other(format!("Attribute name is not a string: {}", e))
-        })?;
+        let name: String = attr_name
+            .extract()
+            .map_err(|e| MnemosyneError::Other(format!("Attribute name is not a string: {}", e)))?;
 
         // Skip private attributes and methods
-        if name.starts_with('_') || name == "forward" || name == "dump_state" || name == "load_state" {
+        if name.starts_with('_')
+            || name == "forward"
+            || name == "dump_state"
+            || name == "load_state"
+        {
             continue;
         }
 
@@ -343,9 +348,9 @@ fn python_to_json(obj: &Bound<PyAny>) -> Result<Value> {
     } else if let Ok(py_dict) = obj.downcast::<PyDict>() {
         let mut map = serde_json::Map::new();
         for (key, value) in py_dict.iter() {
-            let key_str: String = key.extract().map_err(|e| {
-                MnemosyneError::Other(format!("Dict key is not a string: {}", e))
-            })?;
+            let key_str: String = key
+                .extract()
+                .map_err(|e| MnemosyneError::Other(format!("Dict key is not a string: {}", e)))?;
             map.insert(key_str, python_to_json(&value)?);
         }
         Ok(Value::Object(map))
@@ -430,7 +435,10 @@ mod tests {
         Python::with_gil(|py| {
             // Test nested object
             let mut inner_obj = serde_json::Map::new();
-            inner_obj.insert("nested_key".to_string(), Value::String("nested_value".to_string()));
+            inner_obj.insert(
+                "nested_key".to_string(),
+                Value::String("nested_value".to_string()),
+            );
 
             let mut outer_obj = serde_json::Map::new();
             outer_obj.insert("inner".to_string(), Value::Object(inner_obj));
@@ -474,7 +482,10 @@ mod tests {
             let inner_json = obj.get("inner").unwrap();
             assert!(inner_json.is_object());
             let inner_obj = inner_json.as_object().unwrap();
-            assert_eq!(inner_obj.get("nested_key").unwrap().as_str().unwrap(), "nested_value");
+            assert_eq!(
+                inner_obj.get("nested_key").unwrap().as_str().unwrap(),
+                "nested_value"
+            );
         });
     }
 
@@ -491,9 +502,26 @@ mod tests {
             let py_list_bound: &Bound<PyList> = py_list.downcast_bound(py).unwrap();
 
             assert_eq!(py_list_bound.len(), 3);
-            assert_eq!(py_list_bound.get_item(0).unwrap().extract::<String>().unwrap(), "item1");
-            assert_eq!(py_list_bound.get_item(1).unwrap().extract::<i64>().unwrap(), 2);
-            assert_eq!(py_list_bound.get_item(2).unwrap().extract::<bool>().unwrap(), true);
+            assert_eq!(
+                py_list_bound
+                    .get_item(0)
+                    .unwrap()
+                    .extract::<String>()
+                    .unwrap(),
+                "item1"
+            );
+            assert_eq!(
+                py_list_bound.get_item(1).unwrap().extract::<i64>().unwrap(),
+                2
+            );
+            assert_eq!(
+                py_list_bound
+                    .get_item(2)
+                    .unwrap()
+                    .extract::<bool>()
+                    .unwrap(),
+                true
+            );
         });
     }
 

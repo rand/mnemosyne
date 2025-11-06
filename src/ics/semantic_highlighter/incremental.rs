@@ -200,7 +200,7 @@ mod tests {
         dirty.mark_dirty(0..10);
         dirty.mark_dirty(20..30);
 
-        assert!(dirty.overlaps(&(5..15)));  // Overlaps first region
+        assert!(dirty.overlaps(&(5..15))); // Overlaps first region
         assert!(dirty.overlaps(&(15..25))); // Overlaps second region
         assert!(!dirty.overlaps(&(10..20))); // Between regions
     }

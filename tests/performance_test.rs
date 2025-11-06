@@ -23,11 +23,17 @@ fn test_rapid_file_creation() {
     let elapsed = start.elapsed();
 
     // Should complete in under 1 second on modern hardware
-    assert!(elapsed < Duration::from_secs(1),
-            "File creation too slow: {:?}", elapsed);
+    assert!(
+        elapsed < Duration::from_secs(1),
+        "File creation too slow: {:?}",
+        elapsed
+    );
 
-    println!("Created 100 files in {:?} ({:.2} files/sec)",
-             elapsed, 100.0 / elapsed.as_secs_f64());
+    println!(
+        "Created 100 files in {:?} ({:.2} files/sec)",
+        elapsed,
+        100.0 / elapsed.as_secs_f64()
+    );
 }
 
 #[test]
@@ -208,7 +214,11 @@ fn test_pathbuf_operations_performance() {
 
     // Create and manipulate many PathBufs
     for i in 0..10000 {
-        let path = temp_dir.path().join(format!("dir{}", i)).join("subdir").join("file.md");
+        let path = temp_dir
+            .path()
+            .join(format!("dir{}", i))
+            .join("subdir")
+            .join("file.md");
         let _parent = path.parent();
         let _filename = path.file_name();
         let _extension = path.extension();
@@ -253,7 +263,8 @@ fn test_json_parse_error_recovery_performance() {
 #[test]
 fn test_directory_creation_idempotency() {
     let temp_dir = TempDir::new().unwrap();
-    let nested_dir = temp_dir.path()
+    let nested_dir = temp_dir
+        .path()
         .join("level1")
         .join("level2")
         .join("level3")

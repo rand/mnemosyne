@@ -11,12 +11,12 @@
 //! Uses pattern-based heuristics for role assignment.
 
 use crate::ics::semantic_highlighter::{
-    visualization::{HighlightSpan, HighlightSource},
+    visualization::{HighlightSource, HighlightSpan},
     Result,
 };
+use once_cell::sync::Lazy;
 use ratatui::style::{Color, Modifier, Style};
 use regex::Regex;
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
@@ -40,11 +40,11 @@ pub enum SemanticRole {
 impl SemanticRole {
     fn color(&self) -> Color {
         match self {
-            SemanticRole::Agent => Color::Rgb(255, 140, 0),      // Orange
-            SemanticRole::Patient => Color::Rgb(135, 206, 250),  // Sky blue
+            SemanticRole::Agent => Color::Rgb(255, 140, 0), // Orange
+            SemanticRole::Patient => Color::Rgb(135, 206, 250), // Sky blue
             SemanticRole::Instrument => Color::Rgb(144, 238, 144), // Light green
-            SemanticRole::Location => Color::Rgb(221, 160, 221),  // Plum
-            SemanticRole::Time => Color::Rgb(255, 215, 0),        // Gold
+            SemanticRole::Location => Color::Rgb(221, 160, 221), // Plum
+            SemanticRole::Time => Color::Rgb(255, 215, 0),  // Gold
             SemanticRole::Beneficiary => Color::Rgb(255, 182, 193), // Light pink
         }
     }
@@ -106,9 +106,7 @@ static PATTERNS: Lazy<RolePatterns> = Lazy::new(RolePatterns::new);
 
 impl SemanticRoleLabeler {
     pub fn new() -> Self {
-        Self {
-            threshold: 0.5,
-        }
+        Self { threshold: 0.5 }
     }
 
     /// Set confidence threshold
@@ -312,7 +310,8 @@ mod tests {
         let text = "The data was processed by the server";
         let roles = labeler.label(text).unwrap();
 
-        let agents: Vec<_> = roles.iter()
+        let agents: Vec<_> = roles
+            .iter()
             .filter(|r| r.role == SemanticRole::Agent)
             .collect();
 
@@ -326,7 +325,8 @@ mod tests {
         let text = "The task is done using a specialized tool";
         let roles = labeler.label(text).unwrap();
 
-        let instruments: Vec<_> = roles.iter()
+        let instruments: Vec<_> = roles
+            .iter()
             .filter(|r| r.role == SemanticRole::Instrument)
             .collect();
 
@@ -339,7 +339,8 @@ mod tests {
         let text = "The meeting occurs in the conference room";
         let roles = labeler.label(text).unwrap();
 
-        let locations: Vec<_> = roles.iter()
+        let locations: Vec<_> = roles
+            .iter()
             .filter(|r| r.role == SemanticRole::Location)
             .collect();
 
@@ -352,7 +353,8 @@ mod tests {
         let text = "The process runs during initialization";
         let roles = labeler.label(text).unwrap();
 
-        let times: Vec<_> = roles.iter()
+        let times: Vec<_> = roles
+            .iter()
             .filter(|r| r.role == SemanticRole::Time)
             .collect();
 
@@ -365,7 +367,8 @@ mod tests {
         let text = "The system creates reports for the users";
         let roles = labeler.label(text).unwrap();
 
-        let beneficiaries: Vec<_> = roles.iter()
+        let beneficiaries: Vec<_> = roles
+            .iter()
             .filter(|r| r.role == SemanticRole::Beneficiary)
             .collect();
 
@@ -403,9 +406,7 @@ mod tests {
         let roles = labeler.label(text).unwrap();
 
         // Should detect multiple different role types
-        let role_types: std::collections::HashSet<_> = roles.iter()
-            .map(|r| r.role)
-            .collect();
+        let role_types: std::collections::HashSet<_> = roles.iter().map(|r| r.role).collect();
 
         assert!(role_types.len() >= 2);
     }

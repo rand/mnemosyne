@@ -3,10 +3,10 @@
 //! Verifies that when memory content is updated, embeddings are regenerated
 
 use mnemosyne_core::services::embeddings::EmbeddingService;
-use mnemosyne_core::LlmConfig;
 use mnemosyne_core::storage::libsql::{ConnectionMode, LibsqlStorage};
 use mnemosyne_core::storage::StorageBackend;
 use mnemosyne_core::types::{MemoryId, MemoryNote, MemoryType, Namespace};
+use mnemosyne_core::LlmConfig;
 use std::sync::Arc;
 use tempfile::TempDir;
 
@@ -122,7 +122,11 @@ async fn test_embedding_regeneration_on_content_update() {
         .map(|(a, b)| a * b)
         .sum();
     let mag_a: f32 = initial_embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
-    let mag_b: f32 = retrieved_embedding.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let mag_b: f32 = retrieved_embedding
+        .iter()
+        .map(|x| x * x)
+        .sum::<f32>()
+        .sqrt();
     let similarity = dot_product / (mag_a * mag_b);
 
     // Embeddings for different content should have lower similarity
@@ -153,10 +157,7 @@ async fn test_embedding_consistency() {
     );
 
     let llm_config = LlmConfig::default();
-    let embeddings = Arc::new(EmbeddingService::new(
-        "test-key".to_string(),
-        llm_config,
-    ));
+    let embeddings = Arc::new(EmbeddingService::new("test-key".to_string(), llm_config));
 
     // Test that same content produces similar embeddings
     let content = "Database architecture decisions";
@@ -165,7 +166,11 @@ async fn test_embedding_consistency() {
     let embedding2 = embeddings.generate_embedding(content).await.unwrap();
 
     // Calculate similarity
-    let dot_product: f32 = embedding1.iter().zip(embedding2.iter()).map(|(a, b)| a * b).sum();
+    let dot_product: f32 = embedding1
+        .iter()
+        .zip(embedding2.iter())
+        .map(|(a, b)| a * b)
+        .sum();
     let mag_a: f32 = embedding1.iter().map(|x| x * x).sum::<f32>().sqrt();
     let mag_b: f32 = embedding2.iter().map(|x| x * x).sum::<f32>().sqrt();
     let similarity = dot_product / (mag_a * mag_b);
@@ -177,5 +182,8 @@ async fn test_embedding_consistency() {
         similarity
     );
 
-    println!("✅ Embedding consistency test passed (similarity: {:.3})", similarity);
+    println!(
+        "✅ Embedding consistency test passed (similarity: {:.3})",
+        similarity
+    );
 }

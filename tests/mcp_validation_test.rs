@@ -49,7 +49,10 @@ async fn test_recall_empty_query() {
             assert!(msg.contains("query"), "Error should mention query field");
             assert!(msg.contains("empty"), "Error should mention empty");
         }
-        _ => panic!("Expected ValidationError for empty query, got: {:?}", result),
+        _ => panic!(
+            "Expected ValidationError for empty query, got: {:?}",
+            result
+        ),
     }
 }
 
@@ -86,7 +89,10 @@ async fn test_recall_zero_max_results() {
 
     match result {
         Err(MnemosyneError::ValidationError(msg)) => {
-            assert!(msg.contains("max_results"), "Error should mention max_results");
+            assert!(
+                msg.contains("max_results"),
+                "Error should mention max_results"
+            );
             assert!(msg.contains("at least 1"), "Error should mention minimum");
         }
         _ => panic!("Expected ValidationError for max_results=0"),
@@ -107,7 +113,10 @@ async fn test_recall_excessive_max_results() {
     let result = handler.execute("mnemosyne.recall", params).await;
 
     // Should not error, just cap silently
-    assert!(result.is_ok(), "Large max_results should be capped, not error");
+    assert!(
+        result.is_ok(),
+        "Large max_results should be capped, not error"
+    );
 }
 
 #[tokio::test]
@@ -124,7 +133,10 @@ async fn test_recall_invalid_min_importance() {
 
     match result {
         Err(MnemosyneError::ValidationError(msg)) => {
-            assert!(msg.contains("Importance"), "Error should mention importance");
+            assert!(
+                msg.contains("Importance"),
+                "Error should mention importance"
+            );
             assert!(msg.contains("1-10"), "Error should mention valid range");
         }
         _ => panic!("Expected ValidationError for min_importance=15"),
@@ -144,7 +156,10 @@ async fn test_remember_empty_content() {
 
     match result {
         Err(MnemosyneError::ValidationError(msg)) => {
-            assert!(msg.contains("content"), "Error should mention content field");
+            assert!(
+                msg.contains("content"),
+                "Error should mention content field"
+            );
             assert!(msg.contains("empty"), "Error should mention empty");
         }
         _ => panic!("Expected ValidationError for empty content"),
@@ -166,7 +181,10 @@ async fn test_remember_excessive_content_length() {
 
     match result {
         Err(MnemosyneError::ValidationError(msg)) => {
-            assert!(msg.contains("Content too large"), "Error should mention size");
+            assert!(
+                msg.contains("Content too large"),
+                "Error should mention size"
+            );
             assert!(msg.contains("100000"), "Error should mention max size");
         }
         _ => panic!("Expected ValidationError for large content"),
@@ -187,7 +205,10 @@ async fn test_remember_invalid_importance() {
 
     match result {
         Err(MnemosyneError::ValidationError(msg)) => {
-            assert!(msg.contains("Importance"), "Error should mention importance");
+            assert!(
+                msg.contains("Importance"),
+                "Error should mention importance"
+            );
             assert!(msg.contains("1-10"), "Error should mention valid range");
         }
         _ => panic!("Expected ValidationError for importance=0"),
@@ -206,7 +227,10 @@ async fn test_context_empty_memory_ids() {
 
     match result {
         Err(MnemosyneError::ValidationError(msg)) => {
-            assert!(msg.contains("memory_ids"), "Error should mention memory_ids");
+            assert!(
+                msg.contains("memory_ids"),
+                "Error should mention memory_ids"
+            );
             assert!(msg.contains("empty"), "Error should mention empty");
         }
         _ => panic!("Expected ValidationError for empty memory_ids"),

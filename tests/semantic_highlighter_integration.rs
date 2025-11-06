@@ -3,9 +3,7 @@
 //! Tests the complete three-tier system working together.
 
 use mnemosyne_core::ics::semantic_highlighter::{
-    SemanticHighlightEngine, HighlightSettings,
-    tier1_structural::*,
-    tier2_relational::*,
+    tier1_structural::*, tier2_relational::*, HighlightSettings, SemanticHighlightEngine,
 };
 
 #[tokio::test]
@@ -74,7 +72,9 @@ async fn test_tier2_entity_recognition() {
     assert!(!entities.is_empty());
 
     let has_person = entities.iter().any(|e| e.entity_type == EntityType::Person);
-    let has_concept = entities.iter().any(|e| e.entity_type == EntityType::Concept);
+    let has_concept = entities
+        .iter()
+        .any(|e| e.entity_type == EntityType::Concept);
 
     assert!(has_person || has_concept);
 }

@@ -10,15 +10,17 @@
 
 #![allow(dead_code)]
 
+#[cfg(feature = "python")]
+use super::dspy_integration::DSpySemanticBridge;
 use crate::{
     ics::semantic_highlighter::{
-        visualization::{HighlightSpan, HighlightSource, Connection, ConnectionType, AnnotationType, Annotation},
+        visualization::{
+            Annotation, AnnotationType, Connection, ConnectionType, HighlightSource, HighlightSpan,
+        },
         Result, SemanticError,
     },
     LlmService,
 };
-#[cfg(feature = "python")]
-use super::dspy_integration::DSpySemanticBridge;
 use ratatui::style::{Color, Modifier, Style};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
@@ -139,11 +141,13 @@ impl ContradictionDetector {
         #[cfg(feature = "python")]
         if let Some(bridge) = &self.dspy_bridge {
             debug!("Using DSPy for contradiction detection");
-            let contradictions = bridge.detect_contradictions(text).await
-                .map_err(|e| SemanticError::AnalysisFailed(format!("DSPy contradiction detection failed: {}", e)))?;
+            let contradictions = bridge.detect_contradictions(text).await.map_err(|e| {
+                SemanticError::AnalysisFailed(format!("DSPy contradiction detection failed: {}", e))
+            })?;
 
             // Filter by threshold
-            let filtered: Vec<_> = contradictions.into_iter()
+            let filtered: Vec<_> = contradictions
+                .into_iter()
                 .filter(|c| c.confidence >= self.threshold)
                 .collect();
 
@@ -153,12 +157,17 @@ impl ContradictionDetector {
         // Fallback: Direct LLM call (not yet implemented)
         debug!("DSPy not available, using direct LLM call (not implemented yet)");
         Err(SemanticError::AnalysisFailed(
-            "Contradiction detection requires DSPy integration (enable 'python' feature)".to_string()
+            "Contradiction detection requires DSPy integration (enable 'python' feature)"
+                .to_string(),
         ))
     }
 
     /// Parse contradiction response from LLM
-    fn parse_contradiction_response(&self, json: &str, text_len: usize) -> Result<Vec<Contradiction>> {
+    fn parse_contradiction_response(
+        &self,
+        json: &str,
+        text_len: usize,
+    ) -> Result<Vec<Contradiction>> {
         #[derive(Deserialize)]
         struct ContradictionJson {
             statement1_start: usize,
@@ -174,21 +183,26 @@ impl ContradictionDetector {
         }
 
         let contradictions: Vec<ContradictionJson> = serde_json::from_str(json)
-            .map_err(|e| SemanticError::AnalysisFailed(
-                format!("JSON parse error: {}", e)
-            ))?;
+            .map_err(|e| SemanticError::AnalysisFailed(format!("JSON parse error: {}", e)))?;
 
         // Convert and validate
         let result = contradictions
             .into_iter()
             .filter_map(|c| {
                 // Validate ranges
-                if c.statement1_end > text_len || c.statement2_end > text_len ||
-                   c.statement1_start >= c.statement1_end || c.statement2_start >= c.statement2_end {
-                    warn!("Invalid contradiction ranges: {}..{} and {}..{} (text len: {})",
-                        c.statement1_start, c.statement1_end,
-                        c.statement2_start, c.statement2_end,
-                        text_len);
+                if c.statement1_end > text_len
+                    || c.statement2_end > text_len
+                    || c.statement1_start >= c.statement1_end
+                    || c.statement2_start >= c.statement2_end
+                {
+                    warn!(
+                        "Invalid contradiction ranges: {}..{} and {}..{} (text len: {})",
+                        c.statement1_start,
+                        c.statement1_end,
+                        c.statement2_start,
+                        c.statement2_end,
+                        text_len
+                    );
                     return None;
                 }
 
@@ -268,7 +282,10 @@ impl ContradictionDetector {
     }
 
     /// Create connections between contradicting statements
-    pub fn contradictions_to_connections(&self, contradictions: &[Contradiction]) -> Vec<Connection> {
+    pub fn contradictions_to_connections(
+        &self,
+        contradictions: &[Contradiction],
+    ) -> Vec<Connection> {
         contradictions
             .iter()
             .filter(|c| c.confidence >= self.threshold)
@@ -328,16 +345,34 @@ mod tests {
 
     #[test]
     fn test_contradiction_type_descriptions() {
-        assert_eq!(ContradictionType::Direct._description(), "Direct contradiction");
-        assert_eq!(ContradictionType::Temporal._description(), "Temporal inconsistency");
-        assert_eq!(ContradictionType::Semantic._description(), "Semantic inconsistency");
+        assert_eq!(
+            ContradictionType::Direct._description(),
+            "Direct contradiction"
+        );
+        assert_eq!(
+            ContradictionType::Temporal._description(),
+            "Temporal inconsistency"
+        );
+        assert_eq!(
+            ContradictionType::Semantic._description(),
+            "Semantic inconsistency"
+        );
     }
 
     #[test]
     fn test_contradiction_severity() {
-        assert_eq!(ContradictionType::Direct.severity(), ContradictionSeverity::High);
-        assert_eq!(ContradictionType::Temporal.severity(), ContradictionSeverity::Medium);
-        assert_eq!(ContradictionType::Implication.severity(), ContradictionSeverity::Low);
+        assert_eq!(
+            ContradictionType::Direct.severity(),
+            ContradictionSeverity::High
+        );
+        assert_eq!(
+            ContradictionType::Temporal.severity(),
+            ContradictionSeverity::Medium
+        );
+        assert_eq!(
+            ContradictionType::Implication.severity(),
+            ContradictionSeverity::Low
+        );
     }
 
     #[test]

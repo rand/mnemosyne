@@ -11,15 +11,15 @@
 
 #![allow(dead_code)]
 
+#[cfg(feature = "python")]
+use super::dspy_integration::DSpySemanticBridge;
 use crate::{
     ics::semantic_highlighter::{
-        visualization::{HighlightSpan, HighlightSource, AnnotationType, Annotation},
+        visualization::{Annotation, AnnotationType, HighlightSource, HighlightSpan},
         Result, SemanticError,
     },
     LlmService,
 };
-#[cfg(feature = "python")]
-use super::dspy_integration::DSpySemanticBridge;
 use ratatui::style::{Color, Modifier, Style};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
@@ -140,11 +140,13 @@ impl PragmaticsAnalyzer {
         #[cfg(feature = "python")]
         if let Some(bridge) = &self.dspy_bridge {
             debug!("Using DSPy for pragmatics analysis");
-            let elements = bridge.extract_pragmatics(text).await
-                .map_err(|e| SemanticError::AnalysisFailed(format!("DSPy pragmatics analysis failed: {}", e)))?;
+            let elements = bridge.extract_pragmatics(text).await.map_err(|e| {
+                SemanticError::AnalysisFailed(format!("DSPy pragmatics analysis failed: {}", e))
+            })?;
 
             // Filter by threshold
-            let filtered: Vec<_> = elements.into_iter()
+            let filtered: Vec<_> = elements
+                .into_iter()
                 .filter(|e| e.confidence >= self.threshold)
                 .collect();
 
@@ -154,12 +156,16 @@ impl PragmaticsAnalyzer {
         // Fallback: Direct LLM call (not yet implemented)
         debug!("DSPy not available, using direct LLM call (not implemented yet)");
         Err(SemanticError::AnalysisFailed(
-            "Pragmatics analysis requires DSPy integration (enable 'python' feature)".to_string()
+            "Pragmatics analysis requires DSPy integration (enable 'python' feature)".to_string(),
         ))
     }
 
     /// Parse pragmatics response from LLM
-    fn parse_pragmatics_response(&self, json: &str, text_len: usize) -> Result<Vec<PragmaticElement>> {
+    fn parse_pragmatics_response(
+        &self,
+        json: &str,
+        text_len: usize,
+    ) -> Result<Vec<PragmaticElement>> {
         #[derive(Deserialize)]
         struct PragmaticJson {
             start: usize,
@@ -174,9 +180,7 @@ impl PragmaticsAnalyzer {
         }
 
         let elements: Vec<PragmaticJson> = serde_json::from_str(json)
-            .map_err(|e| SemanticError::AnalysisFailed(
-                format!("JSON parse error: {}", e)
-            ))?;
+            .map_err(|e| SemanticError::AnalysisFailed(format!("JSON parse error: {}", e)))?;
 
         // Convert and validate
         let result = elements
@@ -184,7 +188,10 @@ impl PragmaticsAnalyzer {
             .filter_map(|e| {
                 // Validate range
                 if e.end > text_len || e.start >= e.end {
-                    warn!("Invalid pragmatic element range: {}..{} (text len: {})", e.start, e.end, text_len);
+                    warn!(
+                        "Invalid pragmatic element range: {}..{} (text len: {})",
+                        e.start, e.end, text_len
+                    );
                     return None;
                 }
 
@@ -240,13 +247,15 @@ impl PragmaticsAnalyzer {
                     .add_modifier(Modifier::ITALIC);
 
                 let annotation_text = if let Some(ref implied) = element.implied_meaning {
-                    format!("{}: {} (implies: {})",
+                    format!(
+                        "{}: {} (implies: {})",
                         element.pragmatic_type._description(),
                         element.explanation,
                         implied
                     )
                 } else {
-                    format!("{}: {}",
+                    format!(
+                        "{}: {}",
                         element.pragmatic_type._description(),
                         element.explanation
                     )
@@ -321,7 +330,10 @@ mod tests {
 
     #[test]
     fn test_pragmatic_type_descriptions() {
-        assert_eq!(PragmaticType::Presupposition._description(), "Presupposition");
+        assert_eq!(
+            PragmaticType::Presupposition._description(),
+            "Presupposition"
+        );
         assert_eq!(PragmaticType::Implicature._description(), "Implicature");
     }
 
@@ -379,9 +391,7 @@ mod tests {
         ];
 
         // With threshold 0.6, only first should pass
-        let high_conf: Vec<_> = elements.iter()
-            .filter(|e| e.confidence >= 0.6)
-            .collect();
+        let high_conf: Vec<_> = elements.iter().filter(|e| e.confidence >= 0.6).collect();
 
         assert_eq!(high_conf.len(), 1);
         assert_eq!(high_conf[0].confidence, 0.9);

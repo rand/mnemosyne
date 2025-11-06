@@ -22,11 +22,17 @@ async fn test_editor_to_semantic_analysis_workflow() {
 
     // Insert text with semantic patterns
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "The system is distributed.\n").expect("Should insert");
+    buffer
+        .insert(pos, "The system is distributed.\n")
+        .expect("Should insert");
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "The agent has memory.\n").expect("Should insert");
+    buffer
+        .insert(pos, "The agent has memory.\n")
+        .expect("Should insert");
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "Service requires authentication.\n").expect("Should insert");
+    buffer
+        .insert(pos, "Service requires authentication.\n")
+        .expect("Should insert");
 
     // Get buffer content
     let text = buffer.text().expect("Should get text");
@@ -440,13 +446,17 @@ fn test_editor_multiple_buffers() {
     // Add text to buffer 2
     let buffer = editor.active_buffer_mut();
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "Buffer 2 content").expect("Should insert");
+    buffer
+        .insert(pos, "Buffer 2 content")
+        .expect("Should insert");
 
     // Switch to buffer 3
     editor.set_active_buffer(buffer3_id);
     let buffer = editor.active_buffer_mut();
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "Buffer 3 content").expect("Should insert");
+    buffer
+        .insert(pos, "Buffer 3 content")
+        .expect("Should insert");
 
     // Verify buffer contents are independent
     assert!(editor
@@ -471,11 +481,17 @@ async fn test_full_ics_workflow() {
     let buffer = editor.active_buffer_mut();
 
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "TODO: Add authentication\n").expect("Should insert");
+    buffer
+        .insert(pos, "TODO: Add authentication\n")
+        .expect("Should insert");
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "The system is fast. However, the system is slow.\n").expect("Should insert");
+    buffer
+        .insert(pos, "The system is fast. However, the system is slow.\n")
+        .expect("Should insert");
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "Service requires authentication.\n").expect("Should insert");
+    buffer
+        .insert(pos, "Service requires authentication.\n")
+        .expect("Should insert");
 
     let text = buffer.text().expect("Should get text");
 

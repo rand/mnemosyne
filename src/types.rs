@@ -175,25 +175,25 @@ impl MemoryType {
     pub fn type_factor(&self) -> f32 {
         match self {
             // Core architectural types (highest value)
-            MemoryType::Constitution => 1.3,           // Project principles
+            MemoryType::Constitution => 1.3, // Project principles
             MemoryType::ArchitectureDecision => 1.2,
             MemoryType::Constraint => 1.1,
 
             // Workflow and coordination types
-            MemoryType::FeatureSpec => 1.1,            // Feature requirements
-            MemoryType::ImplementationPlan => 1.0,     // Technical design
-            MemoryType::AgentEvent => 1.0,             // Orchestration events
+            MemoryType::FeatureSpec => 1.1, // Feature requirements
+            MemoryType::ImplementationPlan => 1.0, // Technical design
+            MemoryType::AgentEvent => 1.0,  // Orchestration events
             MemoryType::CodePattern => 1.0,
 
             // Execution and validation types
-            MemoryType::TaskBreakdown => 0.9,          // Task lists
-            MemoryType::QualityChecklist => 0.9,       // Validation criteria
+            MemoryType::TaskBreakdown => 0.9,    // Task lists
+            MemoryType::QualityChecklist => 0.9, // Validation criteria
             MemoryType::BugFix => 0.9,
             MemoryType::Insight => 0.9,
             MemoryType::Task => 0.9,
 
             // Reference and clarification types
-            MemoryType::Clarification => 0.8,          // Resolved ambiguities
+            MemoryType::Clarification => 0.8, // Resolved ambiguities
             _ => 0.8,
         }
     }

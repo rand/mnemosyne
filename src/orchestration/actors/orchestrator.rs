@@ -74,7 +74,13 @@ impl OrchestratorState {
     }
 
     /// Register event broadcaster for real-time observability
-    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, storage: Arc<dyn StorageBackend>, namespace: Namespace, agent_id: String) {
+    pub fn register_event_broadcaster(
+        &mut self,
+        broadcaster: crate::api::EventBroadcaster,
+        storage: Arc<dyn StorageBackend>,
+        namespace: Namespace,
+        agent_id: String,
+    ) {
         // Reconstruct EventPersistence with broadcaster
         self.events = EventPersistence::new_with_broadcaster(
             storage,
@@ -92,7 +98,11 @@ impl OrchestratorState {
                 interval.tick().await;
                 let event = crate::api::Event::heartbeat(agent_id_clone.clone());
                 if let Err(e) = broadcaster.broadcast(event) {
-                    tracing::warn!("Failed to broadcast heartbeat for {}: {}", agent_id_clone, e);
+                    tracing::warn!(
+                        "Failed to broadcast heartbeat for {}: {}",
+                        agent_id_clone,
+                        e
+                    );
                 }
             }
         });
@@ -468,7 +478,9 @@ impl OrchestratorActor {
                 let mut queue = state.work_queue.write().await;
                 if let Some(work_item) = queue.get_mut(&item_id) {
                     // Store extracted requirements if not already present
-                    if work_item.requirements.is_empty() && !feedback.extracted_requirements.is_empty() {
+                    if work_item.requirements.is_empty()
+                        && !feedback.extracted_requirements.is_empty()
+                    {
                         work_item.requirements = feedback.extracted_requirements.clone();
                     }
 
@@ -476,7 +488,7 @@ impl OrchestratorActor {
                     for req in &work_item.requirements {
                         work_item.requirement_status.insert(
                             req.clone(),
-                            crate::orchestration::state::RequirementStatus::Satisfied
+                            crate::orchestration::state::RequirementStatus::Satisfied,
                         );
                     }
 
@@ -498,7 +510,10 @@ impl OrchestratorActor {
                 })
                 .await?;
 
-            tracing::info!("Work item passed all quality gates and satisfied all requirements: {:?}", item_id);
+            tracing::info!(
+                "Work item passed all quality gates and satisfied all requirements: {:?}",
+                item_id
+            );
 
             // Dispatch next items
             Self::dispatch_work(state).await?;
@@ -531,7 +546,8 @@ impl OrchestratorActor {
                 work_item.suggested_tests = Some(all_tests);
 
                 // Store extracted requirements if not already present
-                if work_item.requirements.is_empty() && !feedback.extracted_requirements.is_empty() {
+                if work_item.requirements.is_empty() && !feedback.extracted_requirements.is_empty()
+                {
                     work_item.requirements = feedback.extracted_requirements.clone();
                 }
 
@@ -539,7 +555,7 @@ impl OrchestratorActor {
                 for req in &feedback.unsatisfied_requirements {
                     work_item.requirement_status.insert(
                         req.clone(),
-                        crate::orchestration::state::RequirementStatus::InProgress
+                        crate::orchestration::state::RequirementStatus::InProgress,
                     );
                 }
 
@@ -547,9 +563,11 @@ impl OrchestratorActor {
                 for (req, evidence) in &feedback.satisfied_requirements {
                     work_item.requirement_status.insert(
                         req.clone(),
-                        crate::orchestration::state::RequirementStatus::Satisfied
+                        crate::orchestration::state::RequirementStatus::Satisfied,
                     );
-                    work_item.implementation_evidence.insert(req.clone(), evidence.clone());
+                    work_item
+                        .implementation_evidence
+                        .insert(req.clone(), evidence.clone());
                 }
 
                 // Send to Optimizer for context consolidation
@@ -656,7 +674,10 @@ impl OrchestratorActor {
             // Dispatch work (will pick up re-queued item)
             Self::dispatch_work(state).await?;
         } else {
-            tracing::error!("Work item not found for context consolidation: {:?}", item_id);
+            tracing::error!(
+                "Work item not found for context consolidation: {:?}",
+                item_id
+            );
         }
 
         Ok(())
@@ -721,8 +742,15 @@ impl Actor for OrchestratorActor {
             OrchestratorMessage::RegisterEventBroadcaster(broadcaster) => {
                 tracing::debug!("Registering event broadcaster with Orchestrator");
                 let agent_id = format!("{}-orchestrator", self.namespace);
-                state.register_event_broadcaster(broadcaster, self.storage.clone(), self.namespace.clone(), agent_id);
-                tracing::info!("Event broadcaster registered with Orchestrator - events will now be broadcast");
+                state.register_event_broadcaster(
+                    broadcaster,
+                    self.storage.clone(),
+                    self.namespace.clone(),
+                    agent_id,
+                );
+                tracing::info!(
+                    "Event broadcaster registered with Orchestrator - events will now be broadcast"
+                );
             }
             OrchestratorMessage::SubmitWork(item) => {
                 Self::handle_submit_work(state, item)
@@ -802,8 +830,8 @@ impl Actor for OrchestratorActor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::LibsqlStorage;
     use crate::orchestration::state::RequirementStatus;
+    use crate::LibsqlStorage;
     use tempfile::TempDir;
 
     #[tokio::test]
@@ -889,7 +917,10 @@ mod tests {
 
         // Verify enforcement logic
         let all_requirements_satisfied = feedback.unsatisfied_requirements.is_empty();
-        assert!(all_requirements_satisfied, "All requirements should be satisfied");
+        assert!(
+            all_requirements_satisfied,
+            "All requirements should be satisfied"
+        );
 
         let should_complete = true && all_requirements_satisfied;
         assert!(should_complete, "Work should be marked complete");
@@ -940,10 +971,16 @@ mod tests {
 
         // Verify enforcement logic
         let all_requirements_satisfied = feedback.unsatisfied_requirements.is_empty();
-        assert!(!all_requirements_satisfied, "Not all requirements should be satisfied");
+        assert!(
+            !all_requirements_satisfied,
+            "Not all requirements should be satisfied"
+        );
 
         let should_complete = true && all_requirements_satisfied;
-        assert!(!should_complete, "Work should NOT be marked complete with unsatisfied requirements");
+        assert!(
+            !should_complete,
+            "Work should NOT be marked complete with unsatisfied requirements"
+        );
     }
 
     #[tokio::test]
@@ -977,10 +1014,9 @@ mod tests {
         work_item.requirements = vec!["Req 1".to_string(), "Req 2".to_string()];
 
         for req in &work_item.requirements {
-            work_item.requirement_status.insert(
-                req.clone(),
-                RequirementStatus::Satisfied
-            );
+            work_item
+                .requirement_status
+                .insert(req.clone(), RequirementStatus::Satisfied);
         }
 
         // Verify all requirements marked as satisfied
@@ -1035,18 +1071,18 @@ mod tests {
 
         // Track status
         for (req, evidence) in &satisfied_requirements {
-            work_item.requirement_status.insert(
-                req.clone(),
-                RequirementStatus::Satisfied
-            );
-            work_item.implementation_evidence.insert(req.clone(), evidence.clone());
+            work_item
+                .requirement_status
+                .insert(req.clone(), RequirementStatus::Satisfied);
+            work_item
+                .implementation_evidence
+                .insert(req.clone(), evidence.clone());
         }
 
         for req in &unsatisfied_requirements {
-            work_item.requirement_status.insert(
-                req.clone(),
-                RequirementStatus::InProgress
-            );
+            work_item
+                .requirement_status
+                .insert(req.clone(), RequirementStatus::InProgress);
         }
 
         // Verify partial satisfaction tracked

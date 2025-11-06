@@ -114,7 +114,10 @@ impl LibsqlStorage {
         // If file doesn't exist, check if parent directory is writable
         if !path.exists() {
             if let Some(parent) = path.parent() {
-                return parent.exists() && fs::metadata(parent).map(|m| !m.permissions().readonly()).unwrap_or(false);
+                return parent.exists()
+                    && fs::metadata(parent)
+                        .map(|m| !m.permissions().readonly())
+                        .unwrap_or(false);
             }
             return false;
         }
@@ -229,7 +232,10 @@ impl LibsqlStorage {
             ConnectionMode::Local(ref path) => {
                 let exists = std::path::Path::new(path).exists();
                 if exists && !Self::is_file_writable(path) {
-                    info!("Database is read-only, switching to read-only mode: {}", path);
+                    info!(
+                        "Database is read-only, switching to read-only mode: {}",
+                        path
+                    );
                     ConnectionMode::LocalReadOnly(path.clone())
                 } else {
                     mode
@@ -370,9 +376,9 @@ impl LibsqlStorage {
             ConnectionMode::Remote { .. } | ConnectionMode::EmbeddedReplica { .. } => {
                 SchemaType::LibSQL
             }
-            ConnectionMode::Local(_) | ConnectionMode::LocalReadOnly(_) | ConnectionMode::InMemory => {
-                SchemaType::StandardSQLite
-            }
+            ConnectionMode::Local(_)
+            | ConnectionMode::LocalReadOnly(_)
+            | ConnectionMode::InMemory => SchemaType::StandardSQLite,
         };
 
         // Extract database path for health checks
@@ -498,7 +504,7 @@ impl LibsqlStorage {
             embedding_service: None,
             search_config: crate::config::SearchConfig::default(),
             schema_type: SchemaType::StandardSQLite, // Default for tests
-            db_path: ":memory:".to_string(), // Test databases typically use in-memory
+            db_path: ":memory:".to_string(),         // Test databases typically use in-memory
         }
     }
 
@@ -575,7 +581,10 @@ impl LibsqlStorage {
             .join("migrations")
             .join(migration_folder);
 
-        debug!("Migrations path: {:?} (schema type: {:?})", migrations_path, self.schema_type);
+        debug!(
+            "Migrations path: {:?} (schema type: {:?})",
+            migrations_path, self.schema_type
+        );
 
         // Read and execute migration files in order - different files for each schema type
         let migration_files: Vec<&str> = match self.schema_type {
@@ -856,17 +865,21 @@ impl LibsqlStorage {
         Ok(migrations)
     }
 
-
     /// Get importance distribution as a HashMap<importance_level, count>
-    pub async fn get_importance_distribution(&self) -> Result<std::collections::HashMap<u8, usize>> {
+    pub async fn get_importance_distribution(
+        &self,
+    ) -> Result<std::collections::HashMap<u8, usize>> {
         let conn = self.get_conn()?;
 
         // Check if archived_at column exists (added in later migrations)
         // If it doesn't exist, just get all memories
-        let has_archived = match conn.query(
-            "SELECT COUNT(*) FROM pragma_table_info('memories') WHERE name='archived_at'",
-            ()
-        ).await {
+        let has_archived = match conn
+            .query(
+                "SELECT COUNT(*) FROM pragma_table_info('memories') WHERE name='archived_at'",
+                (),
+            )
+            .await
+        {
             Ok(mut rows) => {
                 if let Some(row) = rows.next().await? {
                     let count: i64 = row.get(0)?;
@@ -1572,10 +1585,7 @@ impl LibsqlStorage {
         "#;
 
         let mut rows = conn
-            .query(
-                sql,
-                params![days_threshold, days_threshold, limit as i64],
-            )
+            .query(sql, params![days_threshold, days_threshold, limit as i64])
             .await?;
 
         let mut links = Vec::new();
@@ -1851,9 +1861,9 @@ impl StorageBackend for LibsqlStorage {
         for link in &memory.links {
             let link_type_str = serde_json::to_value(link.link_type)?
                 .as_str()
-                .ok_or_else(|| MnemosyneError::Database(
-                    "Failed to serialize link_type as string".to_string()
-                ))?
+                .ok_or_else(|| {
+                    MnemosyneError::Database("Failed to serialize link_type as string".to_string())
+                })?
                 .to_string();
 
             tx.execute(
@@ -1974,8 +1984,8 @@ impl StorageBackend for LibsqlStorage {
                 strength: strength as f32,
                 reason,
                 created_at,
-                last_traversed_at: None,  // Will be populated on first traversal
-                user_created: false,      // Default to system-created
+                last_traversed_at: None, // Will be populated on first traversal
+                user_created: false,     // Default to system-created
             });
         }
 
@@ -2077,9 +2087,9 @@ impl StorageBackend for LibsqlStorage {
         for link in &memory.links {
             let link_type_str = serde_json::to_value(link.link_type)?
                 .as_str()
-                .ok_or_else(|| MnemosyneError::Database(
-                    "Failed to serialize link_type as string".to_string()
-                ))?
+                .ok_or_else(|| {
+                    MnemosyneError::Database("Failed to serialize link_type as string".to_string())
+                })?
                 .to_string();
 
             tx.execute(
@@ -2643,7 +2653,9 @@ impl StorageBackend for LibsqlStorage {
         // Sort by score and limit results
         // Handle potential NaN values gracefully - treat them as lowest priority
         scored_results.sort_by(|a, b| {
-            b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Less)
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Less)
         });
         scored_results.truncate(max_results);
 
@@ -2852,18 +2864,14 @@ impl StorageBackend for LibsqlStorage {
     }
 
     /// Store a work item for cross-session persistence
-    async fn store_work_item(
-        &self,
-        item: &crate::orchestration::state::WorkItem,
-    ) -> Result<()> {
+    async fn store_work_item(&self, item: &crate::orchestration::state::WorkItem) -> Result<()> {
         debug!("Storing work item: {:?}", item.id);
         let conn = self.get_conn()?;
 
         // Serialize complex fields to JSON
-        let dependencies_json =
-            serde_json::to_string(&item.dependencies).map_err(|e| {
-                MnemosyneError::Database(format!("Failed to serialize dependencies: {}", e))
-            })?;
+        let dependencies_json = serde_json::to_string(&item.dependencies).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize dependencies: {}", e))
+        })?;
 
         let review_feedback_json = serde_json::to_string(&item.review_feedback).map_err(|e| {
             MnemosyneError::Database(format!("Failed to serialize review_feedback: {}", e))
@@ -2887,13 +2895,18 @@ impl StorageBackend for LibsqlStorage {
             MnemosyneError::Database(format!("Failed to serialize requirements: {}", e))
         })?;
 
-        let requirement_status_json = serde_json::to_string(&item.requirement_status).map_err(|e| {
-            MnemosyneError::Database(format!("Failed to serialize requirement_status: {}", e))
-        })?;
+        let requirement_status_json =
+            serde_json::to_string(&item.requirement_status).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to serialize requirement_status: {}", e))
+            })?;
 
-        let implementation_evidence_json = serde_json::to_string(&item.implementation_evidence).map_err(|e| {
-            MnemosyneError::Database(format!("Failed to serialize implementation_evidence: {}", e))
-        })?;
+        let implementation_evidence_json = serde_json::to_string(&item.implementation_evidence)
+            .map_err(|e| {
+                MnemosyneError::Database(format!(
+                    "Failed to serialize implementation_evidence: {}",
+                    e
+                ))
+            })?;
 
         // Convert timestamps to Unix epoch milliseconds
         let created_at = item.created_at.timestamp_millis();
@@ -3034,13 +3047,22 @@ impl StorageBackend for LibsqlStorage {
             MnemosyneError::Database(format!("Failed to get review_attempt from row: {}", e))
         })?;
         let execution_memory_ids_json: String = row.get(16).map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get execution_memory_ids from row: {}", e))
+            MnemosyneError::Database(format!(
+                "Failed to get execution_memory_ids from row: {}",
+                e
+            ))
         })?;
         let consolidated_context_id_str: Option<String> = row.get(17).map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get consolidated_context_id from row: {}", e))
+            MnemosyneError::Database(format!(
+                "Failed to get consolidated_context_id from row: {}",
+                e
+            ))
         })?;
         let estimated_context_tokens: i64 = row.get(18).map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get estimated_context_tokens from row: {}", e))
+            MnemosyneError::Database(format!(
+                "Failed to get estimated_context_tokens from row: {}",
+                e
+            ))
         })?;
         let assigned_branch: Option<String> = row.get(19).map_err(|e| {
             MnemosyneError::Database(format!("Failed to get assigned_branch from row: {}", e))
@@ -3055,7 +3077,10 @@ impl StorageBackend for LibsqlStorage {
             MnemosyneError::Database(format!("Failed to get requirement_status from row: {}", e))
         })?;
         let implementation_evidence_json: String = row.get(23).map_err(|e| {
-            MnemosyneError::Database(format!("Failed to get implementation_evidence from row: {}", e))
+            MnemosyneError::Database(format!(
+                "Failed to get implementation_evidence from row: {}",
+                e
+            ))
         })?;
 
         // Deserialize JSON fields
@@ -3064,13 +3089,13 @@ impl StorageBackend for LibsqlStorage {
                 MnemosyneError::Database(format!("Failed to deserialize dependencies: {}", e))
             })?;
 
-        let review_feedback: Option<Vec<String>> =
-            serde_json::from_str(&review_feedback_json).map_err(|e| {
+        let review_feedback: Option<Vec<String>> = serde_json::from_str(&review_feedback_json)
+            .map_err(|e| {
                 MnemosyneError::Database(format!("Failed to deserialize review_feedback: {}", e))
             })?;
 
-        let suggested_tests: Option<Vec<String>> =
-            serde_json::from_str(&suggested_tests_json).map_err(|e| {
+        let suggested_tests: Option<Vec<String>> = serde_json::from_str(&suggested_tests_json)
+            .map_err(|e| {
                 MnemosyneError::Database(format!("Failed to deserialize suggested_tests: {}", e))
             })?;
 
@@ -3082,8 +3107,8 @@ impl StorageBackend for LibsqlStorage {
                 ))
             })?;
 
-        let file_scope: Option<Vec<std::path::PathBuf>> =
-            serde_json::from_str(&file_scope_json).map_err(|e| {
+        let file_scope: Option<Vec<std::path::PathBuf>> = serde_json::from_str(&file_scope_json)
+            .map_err(|e| {
                 MnemosyneError::Database(format!("Failed to deserialize file_scope: {}", e))
             })?;
 
@@ -3098,13 +3123,15 @@ impl StorageBackend for LibsqlStorage {
             MnemosyneError::Database(format!("Failed to deserialize requirement_status: {}", e))
         })?;
 
-        let implementation_evidence: std::collections::HashMap<String, Vec<crate::types::MemoryId>> =
-            serde_json::from_str(&implementation_evidence_json).map_err(|e| {
-                MnemosyneError::Database(format!(
-                    "Failed to deserialize implementation_evidence: {}",
-                    e
-                ))
-            })?;
+        let implementation_evidence: std::collections::HashMap<
+            String,
+            Vec<crate::types::MemoryId>,
+        > = serde_json::from_str(&implementation_evidence_json).map_err(|e| {
+            MnemosyneError::Database(format!(
+                "Failed to deserialize implementation_evidence: {}",
+                e
+            ))
+        })?;
 
         // Parse enums using string matching
         let agent = match agent_role_str.as_str() {
@@ -3222,18 +3249,14 @@ impl StorageBackend for LibsqlStorage {
     }
 
     /// Update an existing work item
-    async fn update_work_item(
-        &self,
-        item: &crate::orchestration::state::WorkItem,
-    ) -> Result<()> {
+    async fn update_work_item(&self, item: &crate::orchestration::state::WorkItem) -> Result<()> {
         debug!("Updating work item: {:?}", item.id);
         let conn = self.get_conn()?;
 
         // Serialize complex fields to JSON
-        let dependencies_json =
-            serde_json::to_string(&item.dependencies).map_err(|e| {
-                MnemosyneError::Database(format!("Failed to serialize dependencies: {}", e))
-            })?;
+        let dependencies_json = serde_json::to_string(&item.dependencies).map_err(|e| {
+            MnemosyneError::Database(format!("Failed to serialize dependencies: {}", e))
+        })?;
 
         let review_feedback_json = serde_json::to_string(&item.review_feedback).map_err(|e| {
             MnemosyneError::Database(format!("Failed to serialize review_feedback: {}", e))
@@ -3261,8 +3284,8 @@ impl StorageBackend for LibsqlStorage {
                 MnemosyneError::Database(format!("Failed to serialize requirement_status: {}", e))
             })?;
 
-        let implementation_evidence_json =
-            serde_json::to_string(&item.implementation_evidence).map_err(|e| {
+        let implementation_evidence_json = serde_json::to_string(&item.implementation_evidence)
+            .map_err(|e| {
                 MnemosyneError::Database(format!(
                     "Failed to serialize implementation_evidence: {}",
                     e
@@ -3375,12 +3398,9 @@ impl StorageBackend for LibsqlStorage {
                 ))
             })?;
 
-        let mut rows = stmt
-            .query(params![state_str])
-            .await
-            .map_err(|e| {
-                MnemosyneError::Database(format!("Failed to query work items by state: {}", e))
-            })?;
+        let mut rows = stmt.query(params![state_str]).await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to query work items by state: {}", e))
+        })?;
 
         let mut work_items = Vec::new();
 
@@ -3401,15 +3421,15 @@ impl StorageBackend for LibsqlStorage {
             let agent_role_str: String = row.get(3).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to get agent_role: {}", e))
             })?;
-            let state_str: String = row.get(4).map_err(|e| {
-                MnemosyneError::Database(format!("Failed to get state: {}", e))
-            })?;
-            let phase_str: String = row.get(5).map_err(|e| {
-                MnemosyneError::Database(format!("Failed to get phase: {}", e))
-            })?;
-            let priority: i64 = row.get(6).map_err(|e| {
-                MnemosyneError::Database(format!("Failed to get priority: {}", e))
-            })?;
+            let state_str: String = row
+                .get(4)
+                .map_err(|e| MnemosyneError::Database(format!("Failed to get state: {}", e)))?;
+            let phase_str: String = row
+                .get(5)
+                .map_err(|e| MnemosyneError::Database(format!("Failed to get phase: {}", e)))?;
+            let priority: i64 = row
+                .get(6)
+                .map_err(|e| MnemosyneError::Database(format!("Failed to get priority: {}", e)))?;
             let dependencies_json: String = row.get(7).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to get dependencies: {}", e))
             })?;
@@ -3422,9 +3442,9 @@ impl StorageBackend for LibsqlStorage {
             let completed_at_ms: Option<i64> = row.get(10).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to get completed_at: {}", e))
             })?;
-            let error: Option<String> = row.get(11).map_err(|e| {
-                MnemosyneError::Database(format!("Failed to get error: {}", e))
-            })?;
+            let error: Option<String> = row
+                .get(11)
+                .map_err(|e| MnemosyneError::Database(format!("Failed to get error: {}", e)))?;
             let timeout_secs: Option<i64> = row.get(12).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to get timeout_secs: {}", e))
             })?;
@@ -3468,16 +3488,16 @@ impl StorageBackend for LibsqlStorage {
                     MnemosyneError::Database(format!("Failed to deserialize dependencies: {}", e))
                 })?;
 
-            let review_feedback: Option<Vec<String>> =
-                serde_json::from_str(&review_feedback_json).map_err(|e| {
+            let review_feedback: Option<Vec<String>> = serde_json::from_str(&review_feedback_json)
+                .map_err(|e| {
                     MnemosyneError::Database(format!(
                         "Failed to deserialize review_feedback: {}",
                         e
                     ))
                 })?;
 
-            let suggested_tests: Option<Vec<String>> =
-                serde_json::from_str(&suggested_tests_json).map_err(|e| {
+            let suggested_tests: Option<Vec<String>> = serde_json::from_str(&suggested_tests_json)
+                .map_err(|e| {
                     MnemosyneError::Database(format!(
                         "Failed to deserialize suggested_tests: {}",
                         e
@@ -3497,9 +3517,10 @@ impl StorageBackend for LibsqlStorage {
                     MnemosyneError::Database(format!("Failed to deserialize file_scope: {}", e))
                 })?;
 
-            let requirements: Vec<String> = serde_json::from_str(&requirements_json).map_err(|e| {
-                MnemosyneError::Database(format!("Failed to deserialize requirements: {}", e))
-            })?;
+            let requirements: Vec<String> =
+                serde_json::from_str(&requirements_json).map_err(|e| {
+                    MnemosyneError::Database(format!("Failed to deserialize requirements: {}", e))
+                })?;
 
             let requirement_status: std::collections::HashMap<
                 String,
@@ -3508,13 +3529,15 @@ impl StorageBackend for LibsqlStorage {
                 MnemosyneError::Database(format!("Failed to deserialize requirement_status: {}", e))
             })?;
 
-            let implementation_evidence: std::collections::HashMap<String, Vec<crate::types::MemoryId>> =
-                serde_json::from_str(&implementation_evidence_json).map_err(|e| {
-                    MnemosyneError::Database(format!(
-                        "Failed to deserialize implementation_evidence: {}",
-                        e
-                    ))
-                })?;
+            let implementation_evidence: std::collections::HashMap<
+                String,
+                Vec<crate::types::MemoryId>,
+            > = serde_json::from_str(&implementation_evidence_json).map_err(|e| {
+                MnemosyneError::Database(format!(
+                    "Failed to deserialize implementation_evidence: {}",
+                    e
+                ))
+            })?;
 
             // Parse ID (WorkItemId wraps a UUID)
             let uuid = uuid::Uuid::parse_str(&id_str).map_err(|e| {
@@ -3568,15 +3591,13 @@ impl StorageBackend for LibsqlStorage {
             };
 
             // Parse timestamps
-            let created_at =
-                chrono::DateTime::<chrono::Utc>::from_timestamp_millis(created_at_ms).ok_or_else(
-                    || {
-                        MnemosyneError::Database(format!(
-                            "Invalid created_at timestamp: {}",
-                            created_at_ms
-                        ))
-                    },
-                )?;
+            let created_at = chrono::DateTime::<chrono::Utc>::from_timestamp_millis(created_at_ms)
+                .ok_or_else(|| {
+                    MnemosyneError::Database(format!(
+                        "Invalid created_at timestamp: {}",
+                        created_at_ms
+                    ))
+                })?;
 
             let started_at = started_at_ms
                 .map(|ms| {
@@ -3641,15 +3662,16 @@ impl StorageBackend for LibsqlStorage {
             work_items.push(work_item);
         }
 
-        debug!("Loaded {} work items by state: {:?}", work_items.len(), state);
+        debug!(
+            "Loaded {} work items by state: {:?}",
+            work_items.len(),
+            state
+        );
         Ok(work_items)
     }
 
     /// Delete a work item (when permanently completed)
-    async fn delete_work_item(
-        &self,
-        id: &crate::orchestration::state::WorkItemId,
-    ) -> Result<()> {
+    async fn delete_work_item(&self, id: &crate::orchestration::state::WorkItemId) -> Result<()> {
         debug!("Deleting work item: {:?}", id);
         let conn = self.get_conn()?;
 

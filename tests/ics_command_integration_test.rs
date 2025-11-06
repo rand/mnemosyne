@@ -194,10 +194,7 @@ fn test_panel_options() {
 
     for panel in valid_panels {
         assert!(
-            panel == "memory"
-                || panel == "diagnostics"
-                || panel == "proposals"
-                || panel == "holes"
+            panel == "memory" || panel == "diagnostics" || panel == "proposals" || panel == "holes"
         );
     }
 }

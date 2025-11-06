@@ -66,8 +66,7 @@ impl WorkIntent {
 }
 
 /// Coordination mode - how should agents coordinate on this branch?
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CoordinationMode {
     /// Isolated: Agent is the only one on this branch (default)
     #[default]
@@ -76,7 +75,6 @@ pub enum CoordinationMode {
     /// Coordinated: Multiple agents allowed with conflict detection
     Coordinated,
 }
-
 
 /// Agent assignment to a branch
 ///
@@ -272,10 +270,7 @@ impl BranchRegistry {
 
         let assignment = AgentAssignment::new(agent_id, branch.clone(), intent, mode);
 
-        self.assignments
-            .entry(branch)
-            .or_default()
-            .push(assignment);
+        self.assignments.entry(branch).or_default().push(assignment);
 
         self.persist()?;
 

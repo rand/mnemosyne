@@ -20,11 +20,16 @@ async fn w1_complete_document_lifecycle() {
     let file_path = temp_dir.path().join("document.md");
 
     // Phase 1: Creation
-    let mut buffer = CrdtBuffer::new(0, Actor::Human, Some(file_path.clone())).expect("Should create buffer");
+    let mut buffer =
+        CrdtBuffer::new(0, Actor::Human, Some(file_path.clone())).expect("Should create buffer");
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "# Project Plan\n\n").expect("Should insert");
+    buffer
+        .insert(pos, "# Project Plan\n\n")
+        .expect("Should insert");
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "TODO: Define objectives\n").expect("Should insert");
+    buffer
+        .insert(pos, "TODO: Define objectives\n")
+        .expect("Should insert");
 
     // Phase 2: Analysis
     let mut ctx = TestContext::new();
@@ -47,7 +52,9 @@ async fn w1_complete_document_lifecycle() {
 
     // Phase 5: Save
     let pos = buffer.text_len().expect("Should get text length");
-    buffer.insert(pos, "Objectives defined based on analysis.\n").expect("Should insert");
+    buffer
+        .insert(pos, "Objectives defined based on analysis.\n")
+        .expect("Should insert");
     buffer.save_file().expect("Should save");
     assert!(!buffer.dirty);
     assert!(file_path.exists());

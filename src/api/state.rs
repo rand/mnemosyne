@@ -144,7 +144,10 @@ impl StateManager {
     ///
     /// This creates a single source of truth: events drive state updates.
     /// Spawns a background task that receives events and projects them to state.
-    pub fn subscribe_to_events(&self, mut event_rx: tokio::sync::broadcast::Receiver<crate::api::Event>) {
+    pub fn subscribe_to_events(
+        &self,
+        mut event_rx: tokio::sync::broadcast::Receiver<crate::api::Event>,
+    ) {
         let agents = self.agents.clone();
         let context_files = self.context_files.clone();
 
@@ -170,20 +173,26 @@ impl StateManager {
         use crate::api::EventType;
 
         match event.event_type {
-            EventType::AgentStarted { agent_id, .. } => {
+            EventType::AgentStarted { agent_id, task, .. } => {
                 let mut agents_map = agents.write().await;
                 agents_map.insert(
                     agent_id.clone(),
                     AgentInfo {
-                        id: agent_id,
-                        state: AgentState::Idle,
+                        id: agent_id.clone(),
+                        state: if let Some(task_desc) = task {
+                            AgentState::Active { task: task_desc }
+                        } else {
+                            AgentState::Idle
+                        },
                         updated_at: Utc::now(),
                         metadata: HashMap::new(),
                     },
                 );
-                tracing::debug!("State updated: agent started");
+                tracing::debug!("State updated: agent {} started", agent_id);
             }
-            EventType::AgentCompleted { agent_id, result, .. } => {
+            EventType::AgentCompleted {
+                agent_id, result, ..
+            } => {
                 let mut agents_map = agents.write().await;
                 if let Some(agent) = agents_map.get_mut(&agent_id) {
                     agent.state = AgentState::Completed { result };
@@ -191,7 +200,9 @@ impl StateManager {
                     tracing::debug!("State updated: agent completed");
                 }
             }
-            EventType::AgentFailed { agent_id, error, .. } => {
+            EventType::AgentFailed {
+                agent_id, error, ..
+            } => {
                 let mut agents_map = agents.write().await;
                 if let Some(agent) = agents_map.get_mut(&agent_id) {
                     agent.state = AgentState::Failed { error };
@@ -215,7 +226,10 @@ impl StateManager {
                             metadata: HashMap::new(),
                         },
                     );
-                    tracing::debug!("State initialized: agent {} auto-created from heartbeat", instance_id);
+                    tracing::debug!(
+                        "State initialized: agent {} auto-created from heartbeat",
+                        instance_id
+                    );
                 }
             }
             EventType::MemoryStored { .. } => {
@@ -297,7 +311,12 @@ impl StateManager {
                 attempt,
                 ..
             } => {
-                tracing::info!("Work item {} retried (attempt {}): {}", item_id, attempt, reason);
+                tracing::info!(
+                    "Work item {} retried (attempt {}): {}",
+                    item_id,
+                    attempt,
+                    reason
+                );
                 // Could track retries for dashboard metrics
             }
             EventType::HealthUpdate { .. } | EventType::SessionStarted { .. } => {

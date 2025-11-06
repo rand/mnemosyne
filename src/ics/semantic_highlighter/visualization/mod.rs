@@ -4,12 +4,12 @@ use ratatui::style::Style;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
-pub mod colors;
 pub mod annotations;
+pub mod colors;
 pub mod connections;
 
+pub use annotations::{Annotation, AnnotationType, UnderlineStyle};
 pub use colors::ColorScheme;
-pub use annotations::{AnnotationType, Annotation, UnderlineStyle};
 pub use connections::{Connection, ConnectionType};
 
 /// A highlighted span of text with styling and metadata
@@ -265,6 +265,8 @@ mod tests {
 
         let result = merger.merge();
         // Should prefer higher priority (Relational)
-        assert!(result.iter().any(|s| s.source == HighlightSource::Relational));
+        assert!(result
+            .iter()
+            .any(|s| s.source == HighlightSource::Relational));
     }
 }

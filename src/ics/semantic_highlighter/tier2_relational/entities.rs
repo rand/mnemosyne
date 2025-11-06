@@ -10,8 +10,8 @@
 //! Uses dictionary-based matching, capitalization patterns, and context clues.
 
 use crate::ics::semantic_highlighter::{
-    visualization::{HighlightSpan, HighlightSource, SpanMetadata},
     utils::EntityDictionaries,
+    visualization::{HighlightSource, HighlightSpan, SpanMetadata},
     Result,
 };
 use ratatui::style::{Color, Modifier, Style};
@@ -32,11 +32,11 @@ impl EntityType {
     /// Get color for this entity type
     pub fn color(&self) -> Color {
         match self {
-            EntityType::Person => Color::Rgb(255, 215, 0),      // Warm yellow
+            EntityType::Person => Color::Rgb(255, 215, 0), // Warm yellow
             EntityType::Organization => Color::Rgb(65, 105, 225), // Corporate blue
-            EntityType::Location => Color::Rgb(46, 139, 87),     // Earth green
-            EntityType::Temporal => Color::Rgb(255, 140, 0),     // Clock orange
-            EntityType::Concept => Color::Rgb(147, 112, 219),    // Abstract purple
+            EntityType::Location => Color::Rgb(46, 139, 87), // Earth green
+            EntityType::Temporal => Color::Rgb(255, 140, 0), // Clock orange
+            EntityType::Concept => Color::Rgb(147, 112, 219), // Abstract purple
         }
     }
 
@@ -324,7 +324,9 @@ impl EntityRecognizer {
 
         // Sort by start position, then by confidence (descending)
         entities.sort_by(|a, b| {
-            a.range.start.cmp(&b.range.start)
+            a.range
+                .start
+                .cmp(&b.range.start)
                 .then_with(|| b.confidence.partial_cmp(&a.confidence).unwrap())
         });
 
@@ -358,7 +360,8 @@ mod tests {
         let text = "Dr. Smith presented the research to Prof. Johnson";
         let entities = recognizer.recognize(text).unwrap();
 
-        let persons: Vec<_> = entities.iter()
+        let persons: Vec<_> = entities
+            .iter()
             .filter(|e| e.entity_type == EntityType::Person)
             .collect();
 
@@ -373,7 +376,8 @@ mod tests {
         let text = "The meeting is on 2024-01-15 at 3:30 PM";
         let entities = recognizer.recognize(text).unwrap();
 
-        let temporal: Vec<_> = entities.iter()
+        let temporal: Vec<_> = entities
+            .iter()
             .filter(|e| e.entity_type == EntityType::Temporal)
             .collect();
 
@@ -386,7 +390,8 @@ mod tests {
         let text = "Apple Inc and Google Corporation are competitors";
         let entities = recognizer.recognize(text).unwrap();
 
-        let orgs: Vec<_> = entities.iter()
+        let orgs: Vec<_> = entities
+            .iter()
             .filter(|e| e.entity_type == EntityType::Organization)
             .collect();
 
@@ -399,7 +404,8 @@ mod tests {
         let text = "The algorithm uses a tree-based approach with caching";
         let entities = recognizer.recognize(text).unwrap();
 
-        let concepts: Vec<_> = entities.iter()
+        let concepts: Vec<_> = entities
+            .iter()
             .filter(|e| e.entity_type == EntityType::Concept)
             .collect();
 
@@ -449,14 +455,12 @@ mod tests {
     #[test]
     fn test_entities_to_spans() {
         let recognizer = EntityRecognizer::new();
-        let entities = vec![
-            Entity {
-                entity_type: EntityType::Person,
-                text: "Smith".to_string(),
-                range: 0..5,
-                confidence: 0.9,
-            },
-        ];
+        let entities = vec![Entity {
+            entity_type: EntityType::Person,
+            text: "Smith".to_string(),
+            range: 0..5,
+            confidence: 0.9,
+        }];
 
         let spans = recognizer.entities_to_spans(&entities);
         assert_eq!(spans.len(), 1);

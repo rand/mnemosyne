@@ -163,11 +163,8 @@ impl McpDaemon {
             unsafe {
                 cmd.pre_exec(|| {
                     // Create new session
-                    nix::unistd::setsid().map_err(|e| {
-                        std::io::Error::other(
-                            format!("setsid failed: {}", e),
-                        )
-                    })?;
+                    nix::unistd::setsid()
+                        .map_err(|e| std::io::Error::other(format!("setsid failed: {}", e)))?;
                     Ok(())
                 });
             }

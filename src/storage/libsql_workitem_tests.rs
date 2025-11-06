@@ -14,9 +14,9 @@ mod work_item_persistence_tests {
     use crate::storage::StorageBackend;
     use crate::types::MemoryId;
     use crate::{ConnectionMode, LibsqlStorage};
-    
+
     use std::path::PathBuf;
-    
+
     use std::time::Duration;
     use tempfile::TempDir;
 
@@ -54,10 +54,7 @@ mod work_item_persistence_tests {
             PathBuf::from("/test/file1.rs"),
             PathBuf::from("/test/file2.rs"),
         ]);
-        item.review_feedback = Some(vec![
-            "Issue 1".to_string(),
-            "Issue 2".to_string(),
-        ]);
+        item.review_feedback = Some(vec!["Issue 1".to_string(), "Issue 2".to_string()]);
         item.suggested_tests = Some(vec![
             "Test async behavior".to_string(),
             "Test error handling".to_string(),
@@ -107,7 +104,10 @@ mod work_item_persistence_tests {
             format!("{:?}", original_item.phase)
         );
         assert_eq!(loaded_item.priority, original_item.priority);
-        assert_eq!(loaded_item.dependencies.len(), original_item.dependencies.len());
+        assert_eq!(
+            loaded_item.dependencies.len(),
+            original_item.dependencies.len()
+        );
         assert_eq!(loaded_item.error, original_item.error);
         assert_eq!(loaded_item.assigned_branch, original_item.assigned_branch);
         assert_eq!(loaded_item.review_feedback, original_item.review_feedback);
@@ -119,7 +119,9 @@ mod work_item_persistence_tests {
         );
         assert_eq!(
             loaded_item.consolidated_context_id.map(|id| id.to_string()),
-            original_item.consolidated_context_id.map(|id| id.to_string())
+            original_item
+                .consolidated_context_id
+                .map(|id| id.to_string())
         );
         assert_eq!(
             loaded_item.estimated_context_tokens,
@@ -244,7 +246,10 @@ mod work_item_persistence_tests {
         // Try to load non-existent work item
         let fake_id = WorkItemId::new();
         let result = storage.load_work_item(&fake_id).await;
-        assert!(result.is_err(), "Loading non-existent work item should error");
+        assert!(
+            result.is_err(),
+            "Loading non-existent work item should error"
+        );
     }
 
     #[tokio::test]
@@ -255,11 +260,7 @@ mod work_item_persistence_tests {
         let mut item = create_test_work_item();
 
         // Multiple dependencies
-        item.dependencies = vec![
-            WorkItemId::new(),
-            WorkItemId::new(),
-            WorkItemId::new(),
-        ];
+        item.dependencies = vec![WorkItemId::new(), WorkItemId::new(), WorkItemId::new()];
 
         // Multiple review feedback entries
         item.review_feedback = Some(vec![

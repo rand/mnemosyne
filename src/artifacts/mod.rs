@@ -40,27 +40,25 @@
 //! # }
 //! ```
 
-pub mod types;
-pub mod storage;
-pub mod memory_link;
-pub mod workflow;
-pub mod constitution;
-pub mod feature_spec;
-pub mod plan;
-pub mod tasks;
 pub mod checklist;
 pub mod clarification;
+pub mod constitution;
+pub mod feature_spec;
+pub mod memory_link;
+pub mod plan;
+pub mod storage;
+pub mod tasks;
+pub mod types;
+pub mod workflow;
 
 // Re-export core types
-pub use types::{
-    Artifact, ArtifactMetadata, ArtifactType, ArtifactStatus, ArtifactVersion,
-};
-pub use storage::{ArtifactStorage, parse_frontmatter, serialize_frontmatter};
-pub use memory_link::MemoryLinker;
-pub use workflow::ArtifactWorkflow;
+pub use checklist::{ChecklistItem, ChecklistSection, QualityChecklist};
+pub use clarification::{Clarification, ClarificationItem};
 pub use constitution::{Constitution, ConstitutionBuilder};
 pub use feature_spec::{FeatureSpec, FeatureSpecBuilder, UserScenario};
-pub use plan::{ImplementationPlan, ArchitectureDecision};
-pub use tasks::{TaskBreakdown, TaskPhase, Task};
-pub use checklist::{QualityChecklist, ChecklistSection, ChecklistItem};
-pub use clarification::{Clarification, ClarificationItem};
+pub use memory_link::MemoryLinker;
+pub use plan::{ArchitectureDecision, ImplementationPlan};
+pub use storage::{parse_frontmatter, serialize_frontmatter, ArtifactStorage};
+pub use tasks::{Task, TaskBreakdown, TaskPhase};
+pub use types::{Artifact, ArtifactMetadata, ArtifactStatus, ArtifactType, ArtifactVersion};
+pub use workflow::ArtifactWorkflow;

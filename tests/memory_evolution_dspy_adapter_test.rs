@@ -168,7 +168,10 @@ mod memory_evolution_adapter_tests {
 
         if let Ok(recalibration) = result {
             assert!(recalibration.new_importance >= 1 && recalibration.new_importance <= 10);
-            assert!(!recalibration.adjustment_reason.is_empty() || recalibration.adjustment_reason.is_empty());
+            assert!(
+                !recalibration.adjustment_reason.is_empty()
+                    || recalibration.adjustment_reason.is_empty()
+            );
         }
     }
 

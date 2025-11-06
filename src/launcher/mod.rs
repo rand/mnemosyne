@@ -167,7 +167,10 @@ impl ClaudeCodeLauncher {
         // STEP 1.25: Setup git worktree for branch isolation (if in git repo)
         let worktree_info = self.setup_worktree_isolation()?;
         if let Some((ref agent_id, ref worktree_path, ref repo_root)) = worktree_info {
-            debug!("Using git worktree for isolation: {}", worktree_path.display());
+            debug!(
+                "Using git worktree for isolation: {}",
+                worktree_path.display()
+            );
             // Change directory to worktree
             std::env::set_current_dir(worktree_path).map_err(|e| {
                 // Cleanup worktree if we fail to change directory
@@ -386,7 +389,9 @@ impl ClaudeCodeLauncher {
     /// Setup git worktree for branch isolation
     ///
     /// Returns (agent_id, worktree_path, repo_root) for cleanup, or None if not in git repo
-    fn setup_worktree_isolation(&self) -> Result<Option<(crate::orchestration::AgentId, PathBuf, PathBuf)>> {
+    fn setup_worktree_isolation(
+        &self,
+    ) -> Result<Option<(crate::orchestration::AgentId, PathBuf, PathBuf)>> {
         use crate::orchestration::{identity::AgentId, WorktreeManager};
 
         // Check if we're in a git repository
@@ -421,7 +426,9 @@ impl ClaudeCodeLauncher {
             .ok()
             .and_then(|o| {
                 if o.status.success() {
-                    String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
+                    String::from_utf8(o.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
                 } else {
                     None
                 }
@@ -465,7 +472,12 @@ impl ClaudeCodeLauncher {
     }
 
     /// Register worktree with process coordinator for active session tracking
-    fn register_worktree(&self, agent_id: &crate::orchestration::AgentId, worktree_path: &PathBuf, repo_root: &PathBuf) {
+    fn register_worktree(
+        &self,
+        agent_id: &crate::orchestration::AgentId,
+        worktree_path: &PathBuf,
+        repo_root: &PathBuf,
+    ) {
         use crate::orchestration::CrossProcessCoordinator;
 
         let mnemosyne_dir = repo_root.join(".mnemosyne");

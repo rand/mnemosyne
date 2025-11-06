@@ -182,10 +182,7 @@ impl WorktreeManager {
 
             // Provide contextual error messages
             let error_msg = if stderr.contains("not a valid") {
-                format!(
-                    "Branch '{}' is not valid. Error: {}",
-                    branch, stderr
-                )
+                format!("Branch '{}' is not valid. Error: {}", branch, stderr)
             } else if stderr.contains("already used") {
                 format!(
                     "Branch '{}' is already used by another worktree. Error: {}",
@@ -236,9 +233,7 @@ impl WorktreeManager {
             .args(["branch", branch])
             .current_dir(&self.repo_root)
             .output()
-            .map_err(|e| {
-                MnemosyneError::Other(format!("Failed to create branch: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Other(format!("Failed to create branch: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -258,9 +253,7 @@ impl WorktreeManager {
             .args(["worktree", "prune"])
             .current_dir(&self.repo_root)
             .output()
-            .map_err(|e| {
-                MnemosyneError::Other(format!("Failed to prune worktrees: {}", e))
-            })?;
+            .map_err(|e| MnemosyneError::Other(format!("Failed to prune worktrees: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -464,15 +457,12 @@ impl WorktreeManager {
 
             // Check if this directory matches any active agent
             // AgentId Display shows first 8 chars, so check if any active agent starts with this
-            let is_active = active_agent_ids.iter().any(|id| {
-                id.to_string().starts_with(dir_name)
-            });
+            let is_active = active_agent_ids
+                .iter()
+                .any(|id| id.to_string().starts_with(dir_name));
 
             if !is_active {
-                tracing::info!(
-                    "Cleaning up stale worktree: {}",
-                    path.display()
-                );
+                tracing::info!("Cleaning up stale worktree: {}", path.display());
 
                 // Remove using git worktree remove
                 let output = Command::new("git")
@@ -483,7 +473,10 @@ impl WorktreeManager {
                     .current_dir(&self.repo_root)
                     .output()
                     .map_err(|e| {
-                        MnemosyneError::Other(format!("Failed to execute git worktree remove: {}", e))
+                        MnemosyneError::Other(format!(
+                            "Failed to execute git worktree remove: {}",
+                            e
+                        ))
                     })?;
 
                 if !output.status.success() {
@@ -749,10 +742,13 @@ mod tests {
         assert_eq!(worktrees.len(), 2);
 
         // Find the created worktree by checking the path contains agent ID
-        let created = worktrees.iter().find(|wt| {
-            wt.path.to_string_lossy().contains(&agent_id.to_string())
-        });
-        assert!(created.is_some(), "Should find worktree with agent ID in path");
+        let created = worktrees
+            .iter()
+            .find(|wt| wt.path.to_string_lossy().contains(&agent_id.to_string()));
+        assert!(
+            created.is_some(),
+            "Should find worktree with agent ID in path"
+        );
         assert_eq!(created.unwrap().branch, "feature-test");
     }
 
@@ -781,8 +777,10 @@ mod tests {
         let worktrees = manager.list_worktrees().unwrap();
         eprintln!("Worktrees before cleanup:");
         for wt in &worktrees {
-            eprintln!("  Path: {:?}, Branch: {}, Owner: {:?}",
-                wt.path, wt.branch, wt.owner_agent_id);
+            eprintln!(
+                "  Path: {:?}, Branch: {}, Owner: {:?}",
+                wt.path, wt.branch, wt.owner_agent_id
+            );
         }
 
         // Cleanup with only agent1 active
@@ -798,8 +796,14 @@ mod tests {
         // Instead, verify the functional outcome: agent1 still exists, agent2 doesn't.
 
         // Verify agent1 worktree still exists, agent2 doesn't
-        assert!(manager.worktree_exists(&agent1), "Agent1's worktree should still exist");
-        assert!(!manager.worktree_exists(&agent2), "Agent2's worktree should be removed");
+        assert!(
+            manager.worktree_exists(&agent1),
+            "Agent1's worktree should still exist"
+        );
+        assert!(
+            !manager.worktree_exists(&agent2),
+            "Agent2's worktree should be removed"
+        );
     }
 
     #[test]
@@ -852,7 +856,10 @@ mod tests {
             .expect("Failed to switch branch");
 
         if !output.status.success() {
-            panic!("Branch switch failed: {}", String::from_utf8_lossy(&output.stderr));
+            panic!(
+                "Branch switch failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
 
         // Verify wt2 switched to feature-c
@@ -860,7 +867,10 @@ mod tests {
 
         // THE KEY TEST: Verify wt1 is STILL on feature-test (isolation works!)
         // Without worktrees, both would now be on feature-c
-        assert_eq!(get_branch(&wt1), "feature-test",
-            "Worktree 1 should still be on feature-test despite worktree 2 switching to feature-c");
+        assert_eq!(
+            get_branch(&wt1),
+            "feature-test",
+            "Worktree 1 should still be on feature-test despite worktree 2 switching to feature-c"
+        );
     }
 }

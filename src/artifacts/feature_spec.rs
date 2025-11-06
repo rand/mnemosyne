@@ -1,8 +1,8 @@
 //! Feature specification artifact
 #![allow(clippy::useless_format, clippy::single_char_add_str)]
 
-use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use super::storage::{parse_frontmatter, serialize_frontmatter};
+use super::types::{Artifact, ArtifactMetadata, ArtifactType};
 use crate::error::{MnemosyneError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -60,14 +60,22 @@ fn parse_scenarios(markdown: &str) -> Vec<UserScenario> {
                             i += 1;
                             while i < lines.len() {
                                 let crit_line = lines[i].trim();
-                                if crit_line.starts_with("###") || crit_line.starts_with("##") ||
-                                   crit_line.starts_with("**") {
+                                if crit_line.starts_with("###")
+                                    || crit_line.starts_with("##")
+                                    || crit_line.starts_with("**")
+                                {
                                     i -= 1; // Back up to let outer loop handle it
                                     break;
                                 }
-                                if let Some(content) = crit_line.strip_prefix('-').or_else(|| crit_line.strip_prefix('*')) {
+                                if let Some(content) = crit_line
+                                    .strip_prefix('-')
+                                    .or_else(|| crit_line.strip_prefix('*'))
+                                {
                                     let mut cleaned = content.trim();
-                                    if let Some(after) = cleaned.strip_prefix("[ ]").or_else(|| cleaned.strip_prefix("[x]")) {
+                                    if let Some(after) = cleaned
+                                        .strip_prefix("[ ]")
+                                        .or_else(|| cleaned.strip_prefix("[x]"))
+                                    {
                                         cleaned = after.trim();
                                     }
                                     if !cleaned.is_empty() {
@@ -149,9 +157,15 @@ fn parse_success_criteria(markdown: &str) -> Vec<String> {
             }
 
             // Match bullet items with optional checkboxes
-            if let Some(content) = trimmed.strip_prefix('-').or_else(|| trimmed.strip_prefix('*')) {
+            if let Some(content) = trimmed
+                .strip_prefix('-')
+                .or_else(|| trimmed.strip_prefix('*'))
+            {
                 let mut cleaned = content.trim();
-                if let Some(after) = cleaned.strip_prefix("[ ]").or_else(|| cleaned.strip_prefix("[x]")) {
+                if let Some(after) = cleaned
+                    .strip_prefix("[ ]")
+                    .or_else(|| cleaned.strip_prefix("[x]"))
+                {
                     cleaned = after.trim();
                 }
                 if !cleaned.is_empty() {
@@ -211,11 +225,8 @@ pub struct UserScenario {
 
 impl FeatureSpec {
     pub fn new(feature_id: String, feature_name: String) -> Self {
-        let metadata = ArtifactMetadata::new(
-            ArtifactType::FeatureSpec,
-            feature_id.clone(),
-            feature_name,
-        );
+        let metadata =
+            ArtifactMetadata::new(ArtifactType::FeatureSpec, feature_id.clone(), feature_name);
 
         Self {
             metadata,
@@ -397,10 +408,7 @@ mod tests {
 
     #[test]
     fn test_feature_spec_creation() {
-        let spec = FeatureSpec::new(
-            "user-auth".to_string(),
-            "User Authentication".to_string(),
-        );
+        let spec = FeatureSpec::new("user-auth".to_string(), "User Authentication".to_string());
 
         assert_eq!(spec.feature_id, "user-auth");
         assert_eq!(spec.metadata.name, "User Authentication");
@@ -408,10 +416,7 @@ mod tests {
 
     #[test]
     fn test_feature_spec_to_markdown() {
-        let mut spec = FeatureSpec::new(
-            "user-auth".to_string(),
-            "User Authentication".to_string(),
-        );
+        let mut spec = FeatureSpec::new("user-auth".to_string(), "User Authentication".to_string());
 
         spec.add_scenario(UserScenario {
             priority: "P1".to_string(),
@@ -429,10 +434,8 @@ mod tests {
 
     #[test]
     fn test_feature_spec_round_trip_simple() {
-        let mut original = FeatureSpec::new(
-            "user-auth".to_string(),
-            "User Authentication".to_string(),
-        );
+        let mut original =
+            FeatureSpec::new("user-auth".to_string(), "User Authentication".to_string());
 
         original.add_scenario(UserScenario {
             priority: "P0".to_string(),
@@ -458,16 +461,20 @@ mod tests {
         assert_eq!(loaded.scenarios[0].goal, "authenticate with JWT tokens");
         assert_eq!(loaded.scenarios[0].benefit, "maintain stateless sessions");
         assert_eq!(loaded.scenarios[0].acceptance_criteria.len(), 2);
-        assert_eq!(loaded.scenarios[0].acceptance_criteria[0], "Token issued on successful login");
-        assert_eq!(loaded.scenarios[0].acceptance_criteria[1], "Token validated on protected endpoints");
+        assert_eq!(
+            loaded.scenarios[0].acceptance_criteria[0],
+            "Token issued on successful login"
+        );
+        assert_eq!(
+            loaded.scenarios[0].acceptance_criteria[1],
+            "Token validated on protected endpoints"
+        );
     }
 
     #[test]
     fn test_feature_spec_round_trip_complete() {
-        let mut original = FeatureSpec::new(
-            "user-auth".to_string(),
-            "User Authentication".to_string(),
-        );
+        let mut original =
+            FeatureSpec::new("user-auth".to_string(), "User Authentication".to_string());
 
         // Add multiple scenarios
         original.add_scenario(UserScenario {
@@ -513,12 +520,24 @@ mod tests {
         assert_eq!(loaded.scenarios[1].goal, "refresh authentication tokens");
 
         assert_eq!(loaded.requirements.len(), 2);
-        assert_eq!(loaded.requirements[0], "Use RS256 algorithm for JWT signing");
-        assert_eq!(loaded.requirements[1], "Store refresh tokens in HTTP-only cookies");
+        assert_eq!(
+            loaded.requirements[0],
+            "Use RS256 algorithm for JWT signing"
+        );
+        assert_eq!(
+            loaded.requirements[1],
+            "Store refresh tokens in HTTP-only cookies"
+        );
 
         assert_eq!(loaded.success_criteria.len(), 2);
-        assert_eq!(loaded.success_criteria[0], "Authentication latency < 100ms p95");
-        assert_eq!(loaded.success_criteria[1], "Support 10,000 concurrent sessions");
+        assert_eq!(
+            loaded.success_criteria[0],
+            "Authentication latency < 100ms p95"
+        );
+        assert_eq!(
+            loaded.success_criteria[1],
+            "Support 10,000 concurrent sessions"
+        );
     }
 
     #[test]

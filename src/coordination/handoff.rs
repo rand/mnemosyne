@@ -121,8 +121,9 @@ impl HandoffCoordinator {
     pub fn new(session_dir: PathBuf) -> Result<Self> {
         // Ensure session directory exists
         if !session_dir.exists() {
-            std::fs::create_dir_all(&session_dir)
-                .with_context(|| format!("Failed to create session directory: {:?}", session_dir))?;
+            std::fs::create_dir_all(&session_dir).with_context(|| {
+                format!("Failed to create session directory: {:?}", session_dir)
+            })?;
         }
 
         Ok(Self { session_dir })
@@ -132,8 +133,8 @@ impl HandoffCoordinator {
     pub fn write_intent(&self, intent: &EditIntent) -> Result<PathBuf> {
         let intent_path = self.session_dir.join("edit-intent.json");
 
-        let json = serde_json::to_string_pretty(intent)
-            .context("Failed to serialize edit intent")?;
+        let json =
+            serde_json::to_string_pretty(intent).context("Failed to serialize edit intent")?;
 
         std::fs::write(&intent_path, json)
             .with_context(|| format!("Failed to write intent to {:?}", intent_path))?;
@@ -186,8 +187,8 @@ impl HandoffCoordinator {
     pub fn write_result(&self, result: &EditResult) -> Result<PathBuf> {
         let result_path = self.session_dir.join("edit-result.json");
 
-        let json = serde_json::to_string_pretty(result)
-            .context("Failed to serialize edit result")?;
+        let json =
+            serde_json::to_string_pretty(result).context("Failed to serialize edit result")?;
 
         std::fs::write(&result_path, json)
             .with_context(|| format!("Failed to write result to {:?}", result_path))?;
@@ -202,8 +203,7 @@ impl HandoffCoordinator {
         let json = std::fs::read_to_string(&intent_path)
             .with_context(|| format!("Failed to read intent from {:?}", intent_path))?;
 
-        serde_json::from_str(&json)
-            .context("Failed to parse edit intent JSON")
+        serde_json::from_str(&json).context("Failed to parse edit intent JSON")
     }
 
     /// Clean up coordination files
@@ -212,13 +212,11 @@ impl HandoffCoordinator {
         let result_path = self.session_dir.join("edit-result.json");
 
         if intent_path.exists() {
-            std::fs::remove_file(&intent_path)
-                .context("Failed to remove intent file")?;
+            std::fs::remove_file(&intent_path).context("Failed to remove intent file")?;
         }
 
         if result_path.exists() {
-            std::fs::remove_file(&result_path)
-                .context("Failed to remove result file")?;
+            std::fs::remove_file(&result_path).context("Failed to remove result file")?;
         }
 
         Ok(())
@@ -288,9 +286,9 @@ mod tests {
 
         // Read it back (using a small timeout for testing)
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        let read_result = runtime.block_on(async {
-            coordinator.read_result(Duration::from_secs(1)).await
-        }).unwrap();
+        let read_result = runtime
+            .block_on(async { coordinator.read_result(Duration::from_secs(1)).await })
+            .unwrap();
 
         assert_eq!(read_result.session_id, "test-123");
         assert_eq!(read_result.status, "completed");

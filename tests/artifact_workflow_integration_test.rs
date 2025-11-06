@@ -3,9 +3,9 @@
 //! Tests complete workflow including file I/O and memory creation
 
 use mnemosyne_core::artifacts::{
-    Constitution, FeatureSpec, ImplementationPlan, TaskBreakdown, QualityChecklist,
-    Clarification, ClarificationItem, UserScenario, TaskPhase, Task, ChecklistSection,
-    ChecklistItem, ArtifactWorkflow,
+    ArtifactWorkflow, ChecklistItem, ChecklistSection, Clarification, ClarificationItem,
+    Constitution, FeatureSpec, ImplementationPlan, QualityChecklist, Task, TaskBreakdown,
+    TaskPhase, UserScenario,
 };
 use mnemosyne_core::types::Namespace;
 use mnemosyne_core::{ConnectionMode, LibsqlStorage};
@@ -18,7 +18,14 @@ async fn setup_workflow() -> (tempfile::TempDir, ArtifactWorkflow) {
     std::fs::create_dir_all(&artifacts_dir).unwrap();
 
     // Create subdirectories
-    for subdir in &["constitution", "specs", "plans", "tasks", "checklists", "clarifications"] {
+    for subdir in &[
+        "constitution",
+        "specs",
+        "plans",
+        "tasks",
+        "checklists",
+        "clarifications",
+    ] {
         std::fs::create_dir_all(artifacts_dir.join(subdir)).unwrap();
     }
 
@@ -30,7 +37,7 @@ async fn setup_workflow() -> (tempfile::TempDir, ArtifactWorkflow) {
             true,
         )
         .await
-        .unwrap()
+        .unwrap(),
     );
 
     let workflow = ArtifactWorkflow::new(artifacts_dir, storage).unwrap();
@@ -75,20 +82,17 @@ async fn test_constitution_round_trip_workflow() {
 async fn test_feature_spec_workflow() {
     let (_temp_dir, workflow) = setup_workflow().await;
 
-    let mut spec = FeatureSpec::builder(
-        "test-feature".to_string(),
-        "Test Feature".to_string(),
-    )
-    .scenario(UserScenario {
-        priority: "P0".to_string(),
-        actor: "user".to_string(),
-        goal: "do something".to_string(),
-        benefit: "gain value".to_string(),
-        acceptance_criteria: vec!["criterion 1".to_string()],
-    })
-    .requirement("Requirement 1")
-    .success_criterion("Success 1")
-    .build();
+    let mut spec = FeatureSpec::builder("test-feature".to_string(), "Test Feature".to_string())
+        .scenario(UserScenario {
+            priority: "P0".to_string(),
+            actor: "user".to_string(),
+            goal: "do something".to_string(),
+            benefit: "gain value".to_string(),
+            acceptance_criteria: vec!["criterion 1".to_string()],
+        })
+        .requirement("Requirement 1")
+        .success_criterion("Success 1")
+        .build();
 
     let namespace = Namespace::Project {
         name: "test-project".to_string(),
@@ -149,23 +153,19 @@ async fn test_implementation_plan_workflow() {
 async fn test_task_breakdown_workflow() {
     let (_temp_dir, workflow) = setup_workflow().await;
 
-    let mut tasks = TaskBreakdown::new(
-        "test-feature".to_string(),
-        "Test Feature Tasks".to_string(),
-    );
+    let mut tasks =
+        TaskBreakdown::new("test-feature".to_string(), "Test Feature Tasks".to_string());
 
     tasks.phases.push(TaskPhase {
         name: "Phase 1".to_string(),
-        tasks: vec![
-            Task {
-                id: "T001".to_string(),
-                description: "Task 1".to_string(),
-                parallelizable: false,
-                story: None,
-                completed: false,
-                depends_on: vec![],
-            },
-        ],
+        tasks: vec![Task {
+            id: "T001".to_string(),
+            description: "Task 1".to_string(),
+            parallelizable: false,
+            story: None,
+            completed: false,
+            depends_on: vec![],
+        }],
     });
 
     let namespace = Namespace::Project {
@@ -182,10 +182,7 @@ async fn test_task_breakdown_workflow() {
     assert!(tasks.metadata.memory_id.is_some());
 
     // Load
-    let loaded = workflow
-        .load_task_breakdown("test-feature")
-        .await
-        .unwrap();
+    let loaded = workflow.load_task_breakdown("test-feature").await.unwrap();
 
     assert_eq!(loaded.feature_id, "test-feature");
     assert_eq!(loaded.phases.len(), 1);
@@ -203,13 +200,11 @@ async fn test_quality_checklist_workflow() {
 
     checklist.add_section(ChecklistSection {
         name: "Tests".to_string(),
-        items: vec![
-            ChecklistItem {
-                description: "Unit tests".to_string(),
-                completed: true,
-                notes: None,
-            },
-        ],
+        items: vec![ChecklistItem {
+            description: "Unit tests".to_string(),
+            completed: true,
+            notes: None,
+        }],
     });
 
     let namespace = Namespace::Project {
@@ -268,10 +263,7 @@ async fn test_clarification_workflow() {
     assert!(clarification.metadata.memory_id.is_some());
 
     // Load
-    let loaded = workflow
-        .load_clarification("test-feature")
-        .await
-        .unwrap();
+    let loaded = workflow.load_clarification("test-feature").await.unwrap();
 
     assert_eq!(loaded.feature_id, "test-feature");
     assert_eq!(loaded.items.len(), 1);
@@ -297,12 +289,9 @@ async fn test_complete_workflow_chain() {
         .unwrap();
 
     // 2. Feature Spec (linked to constitution)
-    let mut spec = FeatureSpec::builder(
-        "chain-feature".to_string(),
-        "Chain Feature".to_string(),
-    )
-    .requirement("Req 1")
-    .build();
+    let mut spec = FeatureSpec::builder("chain-feature".to_string(), "Chain Feature".to_string())
+        .requirement("Req 1")
+        .build();
 
     let spec_id = workflow
         .save_feature_spec(
@@ -313,7 +302,10 @@ async fn test_complete_workflow_chain() {
         .await
         .unwrap();
 
-    assert!(spec.metadata.references.contains(&constitution_id.to_string()));
+    assert!(spec
+        .metadata
+        .references
+        .contains(&constitution_id.to_string()));
 
     // 3. Implementation Plan (linked to spec)
     let mut plan = ImplementationPlan::new(
@@ -323,45 +315,28 @@ async fn test_complete_workflow_chain() {
     );
 
     let plan_id = workflow
-        .save_implementation_plan(
-            &mut plan,
-            namespace.clone(),
-            Some(spec_id.to_string()),
-        )
+        .save_implementation_plan(&mut plan, namespace.clone(), Some(spec_id.to_string()))
         .await
         .unwrap();
 
     assert!(plan.metadata.references.contains(&spec_id.to_string()));
 
     // 4. Task Breakdown (linked to plan)
-    let mut tasks = TaskBreakdown::new(
-        "chain-feature".to_string(),
-        "Chain Tasks".to_string(),
-    );
+    let mut tasks = TaskBreakdown::new("chain-feature".to_string(), "Chain Tasks".to_string());
 
     let _tasks_id = workflow
-        .save_task_breakdown(
-            &mut tasks,
-            namespace.clone(),
-            Some(plan_id.to_string()),
-        )
+        .save_task_breakdown(&mut tasks, namespace.clone(), Some(plan_id.to_string()))
         .await
         .unwrap();
 
     assert!(tasks.metadata.references.contains(&plan_id.to_string()));
 
     // 5. Quality Checklist (linked to spec)
-    let mut checklist = QualityChecklist::new(
-        "chain-feature".to_string(),
-        "Chain Checklist".to_string(),
-    );
+    let mut checklist =
+        QualityChecklist::new("chain-feature".to_string(), "Chain Checklist".to_string());
 
     let _checklist_id = workflow
-        .save_quality_checklist(
-            &mut checklist,
-            namespace.clone(),
-            Some(spec_id.to_string()),
-        )
+        .save_quality_checklist(&mut checklist, namespace.clone(), Some(spec_id.to_string()))
         .await
         .unwrap();
 
@@ -382,13 +357,22 @@ async fn test_complete_workflow_chain() {
         .await
         .unwrap();
 
-    assert!(clarification.metadata.references.contains(&spec_id.to_string()));
+    assert!(clarification
+        .metadata
+        .references
+        .contains(&spec_id.to_string()));
 
     // Verify all artifacts can be loaded
     let _loaded_constitution = workflow.load_constitution().await.unwrap();
     let _loaded_spec = workflow.load_feature_spec("chain-feature").await.unwrap();
-    let _loaded_plan = workflow.load_implementation_plan("chain-feature").await.unwrap();
+    let _loaded_plan = workflow
+        .load_implementation_plan("chain-feature")
+        .await
+        .unwrap();
     let _loaded_tasks = workflow.load_task_breakdown("chain-feature").await.unwrap();
-    let _loaded_checklist = workflow.load_quality_checklist("chain-feature").await.unwrap();
+    let _loaded_checklist = workflow
+        .load_quality_checklist("chain-feature")
+        .await
+        .unwrap();
     let _loaded_clarification = workflow.load_clarification("chain-feature").await.unwrap();
 }

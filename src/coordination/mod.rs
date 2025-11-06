@@ -9,4 +9,6 @@
 
 mod handoff;
 
-pub use handoff::{EditIntent, EditResult, ExitReason, HandoffCoordinator, SemanticAnalysisSummary};
+pub use handoff::{
+    EditIntent, EditResult, ExitReason, HandoffCoordinator, SemanticAnalysisSummary,
+};

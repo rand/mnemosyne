@@ -246,17 +246,23 @@ impl WorkItem {
     pub fn add_requirement(&mut self, requirement: String) {
         if !self.requirements.contains(&requirement) {
             self.requirements.push(requirement.clone());
-            self.requirement_status.insert(requirement, RequirementStatus::NotStarted);
+            self.requirement_status
+                .insert(requirement, RequirementStatus::NotStarted);
         }
     }
 
     /// Update requirement status
     pub fn update_requirement_status(&mut self, requirement: &str, status: RequirementStatus) {
-        self.requirement_status.insert(requirement.to_string(), status);
+        self.requirement_status
+            .insert(requirement.to_string(), status);
     }
 
     /// Add implementation evidence for a requirement
-    pub fn add_implementation_evidence(&mut self, requirement: &str, memory_id: crate::types::MemoryId) {
+    pub fn add_implementation_evidence(
+        &mut self,
+        requirement: &str,
+        memory_id: crate::types::MemoryId,
+    ) {
         self.implementation_evidence
             .entry(requirement.to_string())
             .or_default()

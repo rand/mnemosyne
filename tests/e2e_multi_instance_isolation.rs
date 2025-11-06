@@ -43,12 +43,18 @@ fn setup_realistic_repo() -> (TempDir, WorktreeManager) {
         .expect("Failed to set git name");
 
     // Create initial commit on main
-    fs::write(repo_path.join("README.md"), "# Test Project\n\nInitial commit.")
-        .expect("Failed to write README");
+    fs::write(
+        repo_path.join("README.md"),
+        "# Test Project\n\nInitial commit.",
+    )
+    .expect("Failed to write README");
 
     fs::create_dir_all(repo_path.join("src")).expect("Failed to create src dir");
-    fs::write(repo_path.join("src/main.rs"), "fn main() {\n    println!(\"v1.0\");\n}\n")
-        .expect("Failed to write main.rs");
+    fs::write(
+        repo_path.join("src/main.rs"),
+        "fn main() {\n    println!(\"v1.0\");\n}\n",
+    )
+    .expect("Failed to write main.rs");
 
     Command::new("git")
         .args(["add", "."])
@@ -75,8 +81,8 @@ fn setup_realistic_repo() -> (TempDir, WorktreeManager) {
         .output()
         .expect("Failed to create branch");
 
-    let manager = WorktreeManager::new(repo_path.to_path_buf())
-        .expect("Failed to create worktree manager");
+    let manager =
+        WorktreeManager::new(repo_path.to_path_buf()).expect("Failed to create worktree manager");
 
     (temp_dir, manager)
 }
@@ -135,11 +141,8 @@ fn test_e2e_multi_instance_complete_isolation() {
     // === PHASE 2: Instance A Makes Changes ===
     println!("Phase 2: Instance A makes changes on feature-alpha...");
 
-    fs::write(
-        worktree_a.join("feature-a.txt"),
-        "Feature A implementation",
-    )
-    .expect("Failed to write A file");
+    fs::write(worktree_a.join("feature-a.txt"), "Feature A implementation")
+        .expect("Failed to write A file");
 
     Command::new("git")
         .args(["add", "."])
@@ -169,11 +172,8 @@ fn test_e2e_multi_instance_complete_isolation() {
     // === PHASE 3: Instance B Makes Independent Changes ===
     println!("Phase 3: Instance B makes independent changes on feature-beta...");
 
-    fs::write(
-        worktree_b.join("feature-b.txt"),
-        "Feature B implementation",
-    )
-    .expect("Failed to write B file");
+    fs::write(worktree_b.join("feature-b.txt"), "Feature B implementation")
+        .expect("Failed to write B file");
 
     Command::new("git")
         .args(["add", "."])
@@ -244,7 +244,10 @@ fn test_e2e_multi_instance_complete_isolation() {
     let branch_a_switched = get_branch_name(&worktree_a);
     let branch_b_unchanged = get_branch_name(&worktree_b);
 
-    assert_eq!(branch_a_switched, "feature-gamma", "Instance A should be on feature-gamma");
+    assert_eq!(
+        branch_a_switched, "feature-gamma",
+        "Instance A should be on feature-gamma"
+    );
     assert_eq!(
         branch_b_unchanged, "feature-beta",
         "Instance B should still be on feature-beta"
@@ -258,10 +261,7 @@ fn test_e2e_multi_instance_complete_isolation() {
     println!("Phase 6: Verifying main worktree unaffected...");
 
     let main_branch = get_branch_name(repo_path);
-    assert_eq!(
-        main_branch, "main",
-        "Main worktree should still be on main"
-    );
+    assert_eq!(main_branch, "main", "Main worktree should still be on main");
 
     let main_has_feature_a = repo_path.join("feature-a.txt").exists();
     let main_has_feature_b = repo_path.join("feature-b.txt").exists();

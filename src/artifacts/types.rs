@@ -132,11 +132,7 @@ pub struct ArtifactMetadata {
 }
 
 impl ArtifactMetadata {
-    pub fn new(
-        artifact_type: ArtifactType,
-        id: String,
-        name: String,
-    ) -> Self {
+    pub fn new(artifact_type: ArtifactType, id: String, name: String) -> Self {
         let now = Utc::now();
         Self {
             artifact_type,

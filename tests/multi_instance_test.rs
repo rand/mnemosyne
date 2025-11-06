@@ -22,17 +22,13 @@ async fn test_multiple_instances_dynamic_ports() {
     assert_ne!(server1.instance_id(), server2.instance_id());
 
     // Spawn first server - should get port 3000
-    let handle1 = tokio::spawn(async move {
-        server1.serve().await
-    });
+    let handle1 = tokio::spawn(async move { server1.serve().await });
 
     // Give it time to bind
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Spawn second server - should get port 3001
-    let handle2 = tokio::spawn(async move {
-        server2.serve().await
-    });
+    let handle2 = tokio::spawn(async move { server2.serve().await });
 
     // Give it time to bind
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -58,9 +54,7 @@ async fn test_instance_id_in_health_response() {
     let instance_id = server.instance_id().to_string();
 
     // Spawn server
-    let handle = tokio::spawn(async move {
-        server.serve().await
-    });
+    let handle = tokio::spawn(async move { server.serve().await });
 
     // Give it time to start
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -69,7 +63,7 @@ async fn test_instance_id_in_health_response() {
     let client = reqwest::Client::new();
     let response = timeout(
         Duration::from_secs(2),
-        client.get("http://127.0.0.1:3050/health").send()
+        client.get("http://127.0.0.1:3050/health").send(),
     )
     .await;
 

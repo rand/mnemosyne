@@ -67,12 +67,11 @@ impl PyReviewer {
                 }
 
                 // Call Python method
-                let result = agent
-                    .call_method1(
-                        py,
-                        "semantic_intent_check",
-                        (original_intent, implementation_content, memories),
-                    )?;
+                let result = agent.call_method1(
+                    py,
+                    "semantic_intent_check",
+                    (original_intent, implementation_content, memories),
+                )?;
 
                 // Extract tuple result
                 let tuple = result.extract::<(bool, Vec<String>)>(py)?;
@@ -109,12 +108,11 @@ impl PyReviewer {
                 }
 
                 // Call Python method
-                let result = agent
-                    .call_method1(
-                        py,
-                        "semantic_completeness_check",
-                        (requirements, implementation_content, memories),
-                    )?;
+                let result = agent.call_method1(
+                    py,
+                    "semantic_completeness_check",
+                    (requirements, implementation_content, memories),
+                )?;
 
                 let tuple = result.extract::<(bool, Vec<String>)>(py)?;
                 Ok(tuple)
@@ -147,8 +145,7 @@ impl PyReviewer {
                 } else {
                     // Parse JSON string to dict
                     let json_module = py.import_bound("json")?;
-                    let parsed = json_module
-                        .call_method1("loads", (test_results_json,))?;
+                    let parsed = json_module.call_method1("loads", (test_results_json,))?;
                     parsed.downcast::<PyDict>()?.clone()
                 };
 
@@ -161,12 +158,11 @@ impl PyReviewer {
                 }
 
                 // Call Python method
-                let result = agent
-                    .call_method1(
-                        py,
-                        "semantic_correctness_check",
-                        (implementation_content, test_results, memories),
-                    )?;
+                let result = agent.call_method1(
+                    py,
+                    "semantic_correctness_check",
+                    (implementation_content, test_results, memories),
+                )?;
 
                 let tuple = result.extract::<(bool, Vec<String>)>(py)?;
                 Ok(tuple)
@@ -210,12 +206,11 @@ impl PyReviewer {
                 }
 
                 // Call Python method
-                let result = agent
-                    .call_method1(
-                        py,
-                        "generate_improvement_guidance",
-                        (gates_dict, issues, original_intent, memories),
-                    )?;
+                let result = agent.call_method1(
+                    py,
+                    "generate_improvement_guidance",
+                    (gates_dict, issues, original_intent, memories),
+                )?;
 
                 let guidance = result.extract::<String>(py)?;
                 Ok(guidance)
@@ -248,12 +243,11 @@ impl PyReviewer {
                 };
 
                 // Call Python method
-                let result = agent
-                    .call_method1(
-                        py,
-                        "extract_requirements_from_intent",
-                        (original_intent, context_arg),
-                    )?;
+                let result = agent.call_method1(
+                    py,
+                    "extract_requirements_from_intent",
+                    (original_intent, context_arg),
+                )?;
 
                 // Extract list of requirements
                 let requirements = result.extract::<Vec<String>>(py)?;
@@ -319,7 +313,11 @@ pub async fn execution_memories_to_python_format(
                 memories.push(mem_map);
             }
             Err(e) => {
-                tracing::warn!("Failed to retrieve memory {} for Python format: {:?}", mem_id, e);
+                tracing::warn!(
+                    "Failed to retrieve memory {} for Python format: {:?}",
+                    mem_id,
+                    e
+                );
             }
         }
     }

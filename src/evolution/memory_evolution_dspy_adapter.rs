@@ -65,9 +65,7 @@ impl MemoryEvolutionDSpyAdapter {
         let scores_json: Vec<Value> = cluster
             .similarity_scores
             .iter()
-            .map(|(id1, id2, score)| {
-                json!([id1.to_string(), id2.to_string(), score])
-            })
+            .map(|(id1, id2, score)| json!([id1.to_string(), id2.to_string(), score]))
             .collect();
 
         let mut inputs = HashMap::new();
@@ -170,12 +168,21 @@ impl MemoryEvolutionDSpyAdapter {
         let mut inputs = HashMap::new();
         inputs.insert("memory_id".to_string(), json!(memory.id.to_string()));
         inputs.insert("memory_summary".to_string(), json!(memory.summary));
-        inputs.insert("memory_type".to_string(), json!(format!("{:?}", memory.memory_type)));
+        inputs.insert(
+            "memory_type".to_string(),
+            json!(format!("{:?}", memory.memory_type)),
+        );
         inputs.insert("current_importance".to_string(), json!(memory.importance));
         inputs.insert("access_count".to_string(), json!(memory.access_count));
         inputs.insert("days_since_created".to_string(), json!(days_since_created));
-        inputs.insert("days_since_accessed".to_string(), json!(days_since_accessed));
-        inputs.insert("linked_memories_count".to_string(), json!(memory.links.len()));
+        inputs.insert(
+            "days_since_accessed".to_string(),
+            json!(days_since_accessed),
+        );
+        inputs.insert(
+            "linked_memories_count".to_string(),
+            json!(memory.links.len()),
+        );
         inputs.insert("namespace".to_string(), json!(memory.namespace.to_string()));
 
         let result = self
@@ -255,7 +262,10 @@ impl MemoryEvolutionDSpyAdapter {
 
         let mut inputs = HashMap::new();
         inputs.insert("memories".to_string(), json!(memories_json));
-        inputs.insert("archival_threshold_days".to_string(), json!(config.archival_threshold_days));
+        inputs.insert(
+            "archival_threshold_days".to_string(),
+            json!(config.archival_threshold_days),
+        );
         inputs.insert("min_importance".to_string(), json!(config.min_importance));
 
         let result = self

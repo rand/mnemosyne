@@ -56,7 +56,12 @@ impl ExecutorState {
     }
 
     /// Register event broadcaster for real-time observability
-    pub fn register_event_broadcaster(&mut self, broadcaster: crate::api::EventBroadcaster, namespace: Namespace, agent_id: String) {
+    pub fn register_event_broadcaster(
+        &mut self,
+        broadcaster: crate::api::EventBroadcaster,
+        namespace: Namespace,
+        agent_id: String,
+    ) {
         // Reconstruct EventPersistence with broadcaster
         self.events = EventPersistence::new_with_broadcaster(
             self.storage.clone(),
@@ -74,7 +79,11 @@ impl ExecutorState {
                 interval.tick().await;
                 let event = crate::api::Event::heartbeat(agent_id_clone.clone());
                 if let Err(e) = broadcaster.broadcast(event) {
-                    tracing::warn!("Failed to broadcast heartbeat for {}: {}", agent_id_clone, e);
+                    tracing::warn!(
+                        "Failed to broadcast heartbeat for {}: {}",
+                        agent_id_clone,
+                        e
+                    );
                 }
             }
         });
@@ -111,6 +120,7 @@ impl ExecutorActor {
             .persist(AgentEvent::WorkItemStarted {
                 agent: AgentRole::Executor,
                 item_id: item_id.clone(),
+                description: item.description.clone(),
             })
             .await?;
 
@@ -277,7 +287,9 @@ impl Actor for ExecutorActor {
                 tracing::debug!("Registering event broadcaster with Executor");
                 let agent_id = format!("{}-executor", self.namespace);
                 state.register_event_broadcaster(broadcaster, self.namespace.clone(), agent_id);
-                tracing::info!("Event broadcaster registered with Executor - events will now be broadcast");
+                tracing::info!(
+                    "Event broadcaster registered with Executor - events will now be broadcast"
+                );
             }
             ExecutorMessage::RegisterOrchestrator(orchestrator_ref) => {
                 tracing::debug!("Registering orchestrator reference");

@@ -60,24 +60,24 @@
 //! let engine_with_llm = SemanticHighlightEngine::new(Some(llm_service));
 //! ```
 
-pub mod engine;
-pub mod settings;
 pub mod cache;
+pub mod engine;
 pub mod incremental;
+pub mod settings;
 
 pub mod tier1_structural;
 pub mod tier2_relational;
 pub mod tier3_analytical;
-pub mod visualization;
 pub mod utils;
+pub mod visualization;
 
 // Re-exports
-pub use engine::{SemanticHighlightEngine, EngineBuilder};
-pub use settings::{HighlightSettings, AnalyticalSettings, RelationalSettings};
-pub use cache::{SemanticCache, CacheStats};
+pub use cache::{CacheStats, SemanticCache};
+pub use engine::{EngineBuilder, SemanticHighlightEngine};
+pub use settings::{AnalyticalSettings, HighlightSettings, RelationalSettings};
 
 // Core types
-pub use visualization::{HighlightSpan, HighlightSource, AnnotationType};
+pub use visualization::{AnnotationType, HighlightSource, HighlightSpan};
 
 /// Result type for semantic highlighting operations
 pub type Result<T> = std::result::Result<T, SemanticError>;

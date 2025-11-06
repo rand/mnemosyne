@@ -51,9 +51,7 @@ pub enum AnalysisRequest {
     },
 
     /// Analyze full document
-    Full {
-        text: String,
-    },
+    Full { text: String },
 
     /// Clear all caches
     ClearCache,
@@ -86,14 +84,12 @@ impl SemanticHighlightEngine {
         };
 
         // Tier 3: Requires LLM service and configuration
-        let (analytical, analysis_tx) = if let (true, Some(llm)) = (settings.enable_analytical, llm_service) {
+        let (analytical, analysis_tx) = if let (true, Some(llm)) =
+            (settings.enable_analytical, llm_service)
+        {
             let (tx, rx) = mpsc::channel(32);
-            let processor = AnalyticalProcessor::new(
-                llm,
-                settings.analytical.clone(),
-                Arc::clone(&cache),
-                rx,
-            );
+            let processor =
+                AnalyticalProcessor::new(llm, settings.analytical.clone(), Arc::clone(&cache), rx);
             (Some(processor), Some(tx))
         } else {
             (None, None)
