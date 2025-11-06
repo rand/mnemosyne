@@ -5,9 +5,8 @@
 //! and dashboard connection.
 
 use mnemosyne_core::{
-    api::{EventBroadcaster, StateManager},
+    api::{Event, EventBroadcaster, StateManager},
     orchestration::*,
-    storage::StorageBackend,
     ConnectionMode, LibsqlStorage,
 };
 use reqwest::Client;
@@ -62,11 +61,11 @@ async fn test_agents_visible_within_one_second() {
     engine.start().await.expect("Failed to start engine");
 
     // Poll state manager until all 4 agents are visible or timeout
-    let result = timeout(Duration::from_secs(1), async {
+    let result: Result<Result<(), ()>, _> = timeout(Duration::from_secs(1), async {
         loop {
             let agents = state_manager.list_agents().await;
             if agents.len() >= 4 {
-                return Ok(());
+                return Ok::<(), ()>(());
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
@@ -155,11 +154,11 @@ async fn test_late_dashboard_connection_sees_agents() {
     // State manager should see agents immediately (from querying state)
     let start = std::time::Instant::now();
 
-    let result = timeout(Duration::from_millis(500), async {
+    let result: Result<Result<(), ()>, _> = timeout(Duration::from_millis(500), async {
         loop {
             let agents = state_manager.list_agents().await;
             if agents.len() >= 4 {
-                return Ok(());
+                return Ok::<(), ()>(());
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
@@ -219,4 +218,263 @@ async fn test_http_api_shows_agents_immediately() {
     );
 
     println!("✅ HTTP API shows {} agents", agents_obj.len());
+}
+
+// ============================================================================
+// Phase 3: Comprehensive Timing Tests
+// ============================================================================
+
+/// Test agents become visible within strict time bounds (100ms)
+#[tokio::test]
+async fn test_agents_visible_within_100ms() {
+    let (storage, _temp) = create_test_storage().await;
+
+    let event_broadcaster = EventBroadcaster::default();
+    let state_manager = Arc::new(StateManager::new());
+
+    let event_rx = event_broadcaster.subscribe();
+    state_manager.subscribe_to_events(event_rx);
+
+    let config = SupervisionConfig::default();
+    let mut engine = OrchestrationEngine::new_with_state(
+        storage,
+        config,
+        Some(event_broadcaster),
+        Some(state_manager.clone()),
+    )
+    .await
+    .expect("Failed to create engine");
+
+    let start = std::time::Instant::now();
+    engine.start().await.expect("Failed to start engine");
+
+    // Stricter timeout: 100ms
+    let result: Result<Result<(), ()>, _> = timeout(Duration::from_millis(100), async {
+        loop {
+            let agents = state_manager.list_agents().await;
+            if agents.len() >= 4 {
+                return Ok::<(), ()>(());
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+
+    let elapsed = start.elapsed();
+
+    assert!(
+        result.is_ok(),
+        "Agents should be visible within 100ms, but timed out after {:?}",
+        elapsed
+    );
+
+    println!("✅ All 4 agents visible in {:?} (< 100ms)", elapsed);
+
+    engine.stop().await.expect("Failed to stop engine");
+}
+
+/// Test multiple concurrent dashboard connections all see agents
+#[tokio::test]
+async fn test_concurrent_dashboard_connections() {
+    let (storage, _temp) = create_test_storage().await;
+
+    let event_broadcaster = EventBroadcaster::default();
+    let state_manager = Arc::new(StateManager::new());
+
+    let config = SupervisionConfig::default();
+    let mut engine = OrchestrationEngine::new_with_state(
+        storage,
+        config,
+        Some(event_broadcaster.clone()),
+        Some(state_manager.clone()),
+    )
+    .await
+    .expect("Failed to create engine");
+
+    engine.start().await.expect("Failed to start engine");
+
+    // Wait for agents to stabilize
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    // Simulate 5 concurrent dashboard connections
+    let mut handles = vec![];
+
+    for i in 0..5 {
+        let event_rx = event_broadcaster.subscribe();
+        let state_mgr = state_manager.clone();
+
+        let handle = tokio::spawn(async move {
+            // Each "dashboard" subscribes to events
+            let test_state_manager = Arc::new(StateManager::new());
+            test_state_manager.subscribe_to_events(event_rx);
+
+            // Query agents immediately (simulating dashboard startup)
+            let agents = state_mgr.list_agents().await;
+
+            assert_eq!(
+                agents.len(),
+                4,
+                "Dashboard connection {} should see all 4 agents",
+                i
+            );
+        });
+
+        handles.push(handle);
+    }
+
+    // All dashboard connections should succeed
+    for handle in handles {
+        handle.await.expect("Dashboard connection should succeed");
+    }
+
+    println!("✅ All 5 concurrent dashboard connections saw 4 agents");
+
+    engine.stop().await.expect("Failed to stop engine");
+}
+
+/// Test dashboard reconnect after disconnect still sees agents
+#[tokio::test]
+async fn test_dashboard_reconnect_sees_agents() {
+    let (storage, _temp) = create_test_storage().await;
+
+    let event_broadcaster = EventBroadcaster::default();
+    let state_manager = Arc::new(StateManager::new());
+
+    let config = SupervisionConfig::default();
+    let mut engine = OrchestrationEngine::new_with_state(
+        storage,
+        config,
+        Some(event_broadcaster.clone()),
+        Some(state_manager.clone()),
+    )
+    .await
+    .expect("Failed to create engine");
+
+    engine.start().await.expect("Failed to start engine");
+
+    // First connection
+    let event_rx1 = event_broadcaster.subscribe();
+    let dashboard1 = Arc::new(StateManager::new());
+    dashboard1.subscribe_to_events(event_rx1);
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let agents1 = state_manager.list_agents().await;
+    assert_eq!(agents1.len(), 4, "First connection should see 4 agents");
+
+    // Drop first connection (simulating disconnect)
+    drop(dashboard1);
+
+    // Wait a bit
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    // Reconnect (second connection)
+    let event_rx2 = event_broadcaster.subscribe();
+    let dashboard2 = Arc::new(StateManager::new());
+    dashboard2.subscribe_to_events(event_rx2);
+
+    // Should still see all agents
+    let agents2 = state_manager.list_agents().await;
+    assert_eq!(agents2.len(), 4, "Reconnection should see 4 agents");
+
+    println!("✅ Dashboard reconnection sees all 4 agents");
+
+    engine.stop().await.expect("Failed to stop engine");
+}
+
+/// Test performance: measure exact timing of agent visibility
+#[tokio::test]
+async fn test_performance_benchmarks() {
+    let (storage, _temp) = create_test_storage().await;
+
+    let event_broadcaster = EventBroadcaster::default();
+    let state_manager = Arc::new(StateManager::new());
+
+    let event_rx = event_broadcaster.subscribe();
+    state_manager.subscribe_to_events(event_rx);
+
+    let config = SupervisionConfig::default();
+    let mut engine = OrchestrationEngine::new_with_state(
+        storage,
+        config,
+        Some(event_broadcaster),
+        Some(state_manager.clone()),
+    )
+    .await
+    .expect("Failed to create engine");
+
+    // Measure time to first agent visible
+    let start = std::time::Instant::now();
+    engine.start().await.expect("Failed to start engine");
+
+    let first_agent_time = loop {
+        if state_manager.list_agents().await.len() >= 1 {
+            break start.elapsed();
+        }
+        tokio::time::sleep(Duration::from_millis(1)).await;
+    };
+
+    // Measure time to all agents visible
+    let all_agents_time = loop {
+        if state_manager.list_agents().await.len() >= 4 {
+            break start.elapsed();
+        }
+        tokio::time::sleep(Duration::from_millis(1)).await;
+    };
+
+    println!("📊 Performance Benchmarks:");
+    println!("  • Time to first agent: {:?}", first_agent_time);
+    println!("  • Time to all 4 agents: {:?}", all_agents_time);
+    println!("  • Difference: {:?}", all_agents_time - first_agent_time);
+
+    // Verify performance targets (relaxed for CI environments)
+    assert!(
+        first_agent_time < Duration::from_millis(100),
+        "First agent should be visible within 100ms, took {:?}",
+        first_agent_time
+    );
+    assert!(
+        all_agents_time < Duration::from_millis(150),
+        "All agents should be visible within 150ms, took {:?}",
+        all_agents_time
+    );
+
+    engine.stop().await.expect("Failed to stop engine");
+}
+
+/// Test heartbeat auto-creation mechanism
+#[tokio::test]
+async fn test_heartbeat_auto_creates_agent() {
+    let (storage, _temp) = create_test_storage().await;
+
+    let event_broadcaster = EventBroadcaster::default();
+    let state_manager = Arc::new(StateManager::new());
+
+    let event_rx = event_broadcaster.subscribe();
+    state_manager.subscribe_to_events(event_rx);
+
+    // Verify no agents initially
+    assert_eq!(state_manager.list_agents().await.len(), 0);
+
+    // Broadcast a heartbeat event for a non-existent agent
+    let event = Event::heartbeat("test-agent-999".to_string());
+    event_broadcaster
+        .broadcast(event)
+        .expect("Failed to broadcast heartbeat");
+
+    // Wait for event processing
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    // Agent should be auto-created
+    let agents = state_manager.list_agents().await;
+    assert_eq!(
+        agents.len(),
+        1,
+        "Heartbeat should auto-create agent"
+    );
+
+    let agent = &agents[0];
+    assert_eq!(agent.id, "test-agent-999");
+
+    println!("✅ Heartbeat auto-creation verified");
 }
