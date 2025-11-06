@@ -12,7 +12,7 @@
     --border: #eaeaea;
     --background: #fff;
     --background-subtle: #fafafa;
-    --accent: #0070f3;
+    --accent: #ff006e;  /* Vibrant pink accent */
     --code-bg: #fafafa;
     --code-border: #eaeaea;
     /* Mnemosyne gradient colors */
@@ -20,7 +20,7 @@
     --gradient-2: #1e90ff;  /* blue */
     --gradient-3: #00ced1;  /* cyan */
     --gradient-4: #40e0d0;  /* bright cyan */
-    --gradient-5: #ba55d3;  /* bright magenta */
+    --gradient-5: #ff006e;  /* pink accent */
     --gradient-6: #9370db;  /* medium purple */
 }
 
@@ -31,7 +31,7 @@
         --border: #333;
         --background: #000;
         --background-subtle: #111;
-        --accent: #3291ff;
+        --accent: #ff1a8c;  /* Brighter pink for dark mode */
         --code-bg: #111;
         --code-border: #333;
         /* Adjusted for dark mode */
@@ -39,9 +39,44 @@
         --gradient-2: #3291ff;
         --gradient-3: #00ced1;
         --gradient-4: #40e0d0;
-        --gradient-5: #ba55d3;
+        --gradient-5: #ff1a8c;
         --gradient-6: #9370db;
     }
+}
+
+/* Manual theme override classes */
+body.light-theme {
+    --text-primary: #000;
+    --text-secondary: #666;
+    --border: #eaeaea;
+    --background: #fff;
+    --background-subtle: #fafafa;
+    --accent: #ff006e;
+    --code-bg: #fafafa;
+    --code-border: #eaeaea;
+    --gradient-1: #5a9fd4;
+    --gradient-2: #1e90ff;
+    --gradient-3: #00ced1;
+    --gradient-4: #40e0d0;
+    --gradient-5: #ff006e;
+    --gradient-6: #9370db;
+}
+
+body.dark-theme {
+    --text-primary: #ededed;
+    --text-secondary: #888;
+    --border: #333;
+    --background: #000;
+    --background-subtle: #111;
+    --accent: #ff1a8c;
+    --code-bg: #111;
+    --code-border: #333;
+    --gradient-1: #5a9fd4;
+    --gradient-2: #3291ff;
+    --gradient-3: #00ced1;
+    --gradient-4: #40e0d0;
+    --gradient-5: #ff1a8c;
+    --gradient-6: #9370db;
 }
 
 body {
@@ -92,7 +127,9 @@ body {
 }
 
 .logo-glyph {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 1em;
     height: 1em;
     position: relative;
@@ -103,10 +140,63 @@ body {
     font-family: "Font Awesome 6 Free";
     font-weight: 900;
     font-size: 1.125rem;
+    line-height: 1;
     background: linear-gradient(135deg, var(--gradient-1), var(--gradient-3), var(--gradient-5));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+.theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.375rem 0.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.theme-toggle:hover {
+    background: var(--background-subtle);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.theme-toggle-icon {
+    width: 1em;
+    height: 1em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-toggle-icon::before {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 400;
+    line-height: 1;
+}
+
+/* Light mode shows moon icon (to switch to dark) */
+body.light-theme .theme-toggle-icon::before,
+body:not(.dark-theme):not(.light-theme) .theme-toggle-icon::before {
+    content: "\f186"; /* moon icon */
+}
+
+/* Dark mode shows sun icon (to switch to light) */
+body.dark-theme .theme-toggle-icon::before {
+    content: "\f185"; /* sun icon */
+}
+
+/* System preference: dark mode shows sun */
+@media (prefers-color-scheme: dark) {
+    body:not(.light-theme):not(.dark-theme) .theme-toggle-icon::before {
+        content: "\f185"; /* sun icon when system is dark */
+    }
 }
 
 .nav-links {
@@ -252,7 +342,7 @@ body {
     font-weight: 600;
     margin-bottom: 1.5rem;
     letter-spacing: -0.02em;
-    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-3));
+    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-3), var(--gradient-5));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -479,6 +569,16 @@ pre code {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.75rem;
+    }
+
+    .theme-toggle {
+        padding: 0.5rem;
+        border-radius: 50%;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 }
 

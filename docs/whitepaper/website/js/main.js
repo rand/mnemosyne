@@ -75,6 +75,37 @@
         }
     }
 
+    // Theme management
+    function initTheme() {
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // Apply saved theme or system preference
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.body.classList.add('dark-theme');
+        } else if (savedTheme === 'light') {
+            document.body.classList.add('light-theme');
+        }
+
+        // Set up theme toggle button
+        const toggleBtn = document.querySelector('.theme-toggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                const isDark = document.body.classList.contains('dark-theme');
+
+                if (isDark) {
+                    document.body.classList.remove('dark-theme');
+                    document.body.classList.add('light-theme');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.body.classList.remove('light-theme');
+                    document.body.classList.add('dark-theme');
+                    localStorage.setItem('theme', 'dark');
+                }
+            });
+        }
+    }
+
     // Smooth scroll for anchor links
     function initSmoothScroll() {
         const links = document.querySelectorAll('a[href^="#"]');
@@ -105,6 +136,7 @@
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
             initSmoothScroll();
 
             // Set initial glyphs
@@ -118,6 +150,7 @@
             setInterval(rotateLogoGlyph, 8000);
         });
     } else {
+        initTheme();
         initSmoothScroll();
         rotateLogoGlyph();
         rotateSidebarStatus();
