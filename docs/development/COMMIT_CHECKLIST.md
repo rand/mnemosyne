@@ -55,14 +55,18 @@ Use this checklist before every commit to ensure quality and consistency.
 
 - [ ] **Beads issue updated** if linked
   ```bash
-  bd update bd-XXX --status in_progress
-  bd update bd-XXX --comment "Progress note"
+  bd update bd-a1b2 --status in_progress
+  bd update bd-a1b2 --comment "Progress note"
   ```
 
-- [ ] **Export Beads** after commit
+- [ ] **Auto-sync active** (Beads v0.20.1+)
   ```bash
-  bd export -o .beads/issues.jsonl
-  git add .beads/issues.jsonl
+  # No manual export needed - auto-sync handles it
+  # Changes auto-exported to .beads/issues.jsonl (5s debounce)
+
+  # Optional: Check sync status
+  bd info
+  ./scripts/beads-sync.sh status
   ```
 
 ## Track-Specific Checks
@@ -109,8 +113,9 @@ Use this checklist before every commit to ensure quality and consistency.
   git status  # Should show "nothing to commit"
   ```
 
-- [ ] **Beads exported** and committed
+- [ ] **Beads auto-synced** and committed
   ```bash
+  ./scripts/beads-sync.sh commit  # Commit auto-synced changes
   git log -1 --oneline  # Verify commit message
   ```
 
@@ -135,10 +140,11 @@ pytest src/orchestration/dspy_modules/ -v --tb=short
 cargo run --example specification_workflow
 cargo run --example semantic_highlighting
 
-# Beads workflow
-bd list --status in_progress --json
-bd update bd-XX --status in_progress
-bd export -o .beads/issues.jsonl
+# Beads workflow (auto-sync enabled)
+bd ready --json --limit 5
+bd update bd-a1b2 --status in_progress
+bd close bd-a1b2 --reason "Complete"
+# Auto-exported to .beads/issues.jsonl
 ```
 
 ---

@@ -19,8 +19,8 @@ I will guide you through executing tasks for a feature implementation plan inter
 # Read implementation plan
 cat .mnemosyne/artifacts/plans/<feature-id>-plan.md
 
-# Get Beads tasks for feature
-bd list --tags feature:<feature-id> --json
+# Get Beads tasks for feature (using hash IDs)
+bd list --label feature:<feature-id> --json
 ```
 
 **Validate**:
@@ -37,30 +37,30 @@ Plan: .mnemosyne/artifacts/plans/<feature-id>-plan.md
 Tasks: <total> (<completed> complete, <in-progress> in progress, <open> ready)
 
 Critical Path:
-  ✅ bd-42: Database Schema (4h) - COMPLETE
-  🔄 bd-43: JWT Generation (6h) - IN PROGRESS
-  ⏸️  bd-44: Middleware Integration (4h) - BLOCKED by bd-43
-  ⬜ bd-45: Testing (3h) - READY
+  ✅ bd-a1b2: Database Schema (4h) - COMPLETE
+  🔄 bd-c3d4: JWT Generation (6h) - IN PROGRESS
+  ⏸️  bd-e5f6: Middleware Integration (4h) - BLOCKED by bd-c3d4
+  ⬜ bd-g7h8: Testing (3h) - READY
 
 Parallel Streams:
   Stream A (Core Auth):
-    ✅ bd-46: Password Hashing (2h) - COMPLETE
-    🔄 bd-47: Login Endpoint (3h) - IN PROGRESS
+    ✅ bd-i9j0: Password Hashing (2h) - COMPLETE
+    🔄 bd-k1l2: Login Endpoint (3h) - IN PROGRESS
 
   Stream B (Documentation):
-    ⬜ bd-48: API Documentation (2h) - READY
-    ⬜ bd-49: Integration Guide (1h) - BLOCKED by bd-48
+    ⬜ bd-m3n4: API Documentation (2h) - READY
+    ⬜ bd-o5p6: Integration Guide (1h) - BLOCKED by bd-m3n4
 
 Progress: ████████░░░░░░░░ 40% (2/5 critical path)
 Estimated Time Remaining: 12h (critical path), 6h (parallel)
 
 Next Ready Tasks:
-  1. bd-43 (IN PROGRESS): JWT Generation (6h)
-  2. bd-48 (READY): API Documentation (2h)
+  1. bd-c3d4 (IN PROGRESS): JWT Generation (6h)
+  2. bd-m3n4 (READY): API Documentation (2h)
 
 What would you like to do?
-  [c] Continue current task (bd-43)
-  [s] Start next ready task (bd-48)
+  [c] Continue current task (bd-c3d4)
+  [s] Start next ready task (bd-m3n4)
   [v] View task details (enter task ID)
   [p] Show full progress
   [q] Quit checklist mode
@@ -251,7 +251,7 @@ bd update <task-id> --comment "Completed in 5.5h (estimated 6h)" --json
 
 Summary:
   Total Time: 16.5h (estimated 17h, 97% accurate)
-  Tasks: 8/8 complete
+  Tasks: 8/8 complete (all hash IDs: bd-a1b2 through bd-o5p6)
   Critical Path: 100%
   Parallel Streams: 100%
 
@@ -262,7 +262,8 @@ Velocity Metrics:
   Least accurate: Testing tasks (1.3x estimate)
 
 Next Steps:
-  - Export Beads state: ./scripts/beads-sync.sh commit
+  - Commit Beads state: ./scripts/beads-sync.sh commit
+    (auto-sync already exported to .beads/issues.jsonl)
   - Update spec status: echo "Status: COMPLETE" >> .mnemosyne/artifacts/specs/<feature-id>.md
   - Create PR: /create-pr <feature-id>
   - Archive plan: git add .mnemosyne/artifacts/plans/<feature-id>-plan.md

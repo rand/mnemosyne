@@ -115,38 +115,55 @@ I will help you convert a feature implementation plan into concrete, trackable B
    - For critical path:
      - Each task blocks next task
 
-6. **Create tasks in Beads**:
+6. **Create tasks in Beads** (auto-synced):
    ```bash
-   # Foundation task (no dependencies)
+   # Foundation task (no dependencies) - Hash ID assigned
    bd create "[jwt-auth] Database Schema: Create users table with auth fields" \
-     -t feature -p 0 --json \
-     --description "$(cat task_desc.md)" \
-     --tags "feature:jwt-auth,plan:1.0.0,database"
+     -d "$(cat task_desc.md)" \
+     -t feature -p 0 -l "feature:jwt-auth,plan:1.0.0,database" \
+     --json
+   # Returns: {"id": "bd-a1b2", ...}
 
-   # Task with dependency
+   # Task with dependency (using hash ID)
    bd create "[jwt-auth] JWT Generation: Implement RS256 signing" \
-     -t feature -p 0 --json \
-     --blocked-by bd-42 \
-     --description "$(cat task_desc.md)" \
-     --tags "feature:jwt-auth,plan:1.0.0,auth"
+     -d "$(cat task_desc.md)" \
+     -t feature -p 0 -l "feature:jwt-auth,plan:1.0.0,auth" \
+     --json
+   # Returns: {"id": "bd-c3d4", ...}
+
+   # Add dependency using bd dep
+   bd dep add bd-c3d4 bd-a1b2 --type blocks
 
    # Parallel stream task
    bd create "[jwt-auth] Middleware: Token validation for protected routes" \
-     -t feature -p 1 --json \
-     --blocked-by bd-43 \
-     --description "$(cat task_desc.md)" \
-     --tags "feature:jwt-auth,plan:1.0.0,middleware"
+     -d "$(cat task_desc.md)" \
+     -t feature -p 1 -l "feature:jwt-auth,plan:1.0.0,middleware" \
+     --json
+   # Returns: {"id": "bd-e5f6", ...}
+
+   bd dep add bd-e5f6 bd-c3d4 --type blocks
+
+   # All tasks auto-synced to .beads/issues.jsonl (5-second debounce)
    ```
 
 7. **Handle typed holes**:
    For each integration point (typed hole):
    - Create interface definition task (P0, blocks both sides)
    - Create implementation tasks for each side (depend on interface)
+   - Link with bd dep
    - Example:
      ```
-     bd-50: Define TokenValidator interface (P0)
-       ├─> bd-51: Implement JWT validation (depends on bd-50)
-       └─> bd-52: Add middleware integration (depends on bd-50)
+     bd create "Define TokenValidator interface" -t feature -p 0 --json
+     # Returns: bd-a7b8
+
+     bd create "Implement JWT validation" -t feature -p 0 --json
+     # Returns: bd-c9d0
+
+     bd create "Add middleware integration" -t feature -p 0 --json
+     # Returns: bd-e1f2
+
+     bd dep add bd-c9d0 bd-a7b8 --type blocks
+     bd dep add bd-e1f2 bd-a7b8 --type blocks
      ```
 
 8. **Create test tasks**:
@@ -160,26 +177,27 @@ I will help you convert a feature implementation plan into concrete, trackable B
 
 9. **Update plan with task IDs**:
    - Update `.mnemosyne/artifacts/plans/<feature-id>-plan.md`
-   - Add Tasks section:
+   - Add Tasks section with hash IDs:
      ```markdown
      ## Beads Tasks
 
      Generated: <timestamp>
      Total: <count> tasks
+     ID Format: Hash-based (bd-a1b2)
 
      ### Critical Path
-     - bd-42: Database Schema (P0, 4h)
-     - bd-43: JWT Generation (P0, 6h) [depends: bd-42]
-     - bd-44: Middleware Integration (P0, 4h) [depends: bd-43]
+     - bd-a1b2: Database Schema (P0, 4h)
+     - bd-c3d4: JWT Generation (P0, 6h) [blocks: bd-a1b2]
+     - bd-e5f6: Middleware Integration (P0, 4h) [blocks: bd-c3d4]
 
      ### Parallel Streams
      #### Stream A: Core Auth
-     - bd-45: Password Hashing (P1, 2h) [depends: bd-42]
-     - bd-46: Login Endpoint (P1, 3h) [depends: bd-45]
+     - bd-g7h8: Password Hashing (P1, 2h) [blocks: bd-a1b2]
+     - bd-i9j0: Login Endpoint (P1, 3h) [blocks: bd-g7h8]
 
      #### Stream B: Testing
-     - bd-47: Unit Tests (P1, 4h) [depends: bd-43]
-     - bd-48: Integration Tests (P1, 3h) [depends: bd-44]
+     - bd-k1l2: Unit Tests (P1, 4h) [blocks: bd-c3d4]
+     - bd-m3n4: Integration Tests (P1, 3h) [blocks: bd-e5f6]
 
      ### Total Estimated Effort
      26 hours (critical path: 14h, parallel: +12h)
@@ -187,11 +205,12 @@ I will help you convert a feature implementation plan into concrete, trackable B
 
 10. **Display summary**:
     ```
-    ✓ Beads tasks created successfully
+    ✓ Beads tasks created successfully (auto-synced)
 
     Feature ID: <feature-id>
     Plan: .mnemosyne/artifacts/plans/<feature-id>-plan.md
     Total Tasks: <count>
+    ID Format: Hash-based (bd-a1b2, bd-c3d4, ...)
 
     Tasks by Priority:
     - P0 (Critical): <count> tasks (<hours>h)
@@ -199,9 +218,9 @@ I will help you convert a feature implementation plan into concrete, trackable B
     - P2 (Medium): <count> tasks (<hours>h)
 
     Critical Path:
-    1. bd-42: Database Schema (4h)
-    2. bd-43: JWT Generation (6h) → depends on bd-42
-    3. bd-44: Middleware Integration (4h) → depends on bd-43
+    1. bd-a1b2: Database Schema (4h)
+    2. bd-c3d4: JWT Generation (6h) → blocks: bd-a1b2
+    3. bd-e5f6: Middleware Integration (4h) → blocks: bd-c3d4
 
     Critical Path Duration: 14 hours
 
@@ -212,10 +231,13 @@ I will help you convert a feature implementation plan into concrete, trackable B
     Estimated Total Time: 14h (critical path)
     With parallelization: ~17h (critical + longest parallel stream)
 
+    Auto-Sync: ✓ Tasks synced to .beads/issues.jsonl
+
     Next steps:
-    - Export and commit: ./scripts/beads-sync.sh commit
-    - View tasks: bd list --tags feature:<feature-id> --json
-    - Start work: bd update bd-42 --status in_progress --json
+    - Commit: ./scripts/beads-sync.sh commit
+    - View tasks: bd list --label feature:<feature-id> --json
+    - Check dependencies: bd dep tree bd-a1b2
+    - Start work: bd update bd-a1b2 --status in_progress --json
     - Track progress: /feature-checklist <feature-id>
     - See workflow: docs/BEADS_INTEGRATION.md
     ```
@@ -223,8 +245,9 @@ I will help you convert a feature implementation plan into concrete, trackable B
 11. **Error handling**:
     - If plan not found: "Error: Plan '<feature-id>' not found. Run /feature-plan first."
     - If tasks already exist: Offer to view, sync, or recreate
-    - If Beads not available: "Error: Beads CLI not installed. Install: go install github.com/steveyegge/beads/cmd/bd@latest"
-    - If dependencies circular: Detect and report circular dependency chain
+    - If Beads not available: "Error: Beads CLI not installed. Install:\n  npm install -g @beads/bd\n  OR: curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash\n  Then run: bd init"
+    - If Beads not initialized: "Error: Run 'bd init' first to set up Beads."
+    - If dependencies circular: Detect and report circular dependency chain with bd dep tree
     - If estimate missing: Use default 4h and log warning
 
 **Special behaviors**:

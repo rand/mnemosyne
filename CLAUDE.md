@@ -246,46 +246,186 @@ Fundamental issues? → Roll back to earlier phase
 
 **Tool**: Beads (https://github.com/steveyegge/beads) - AI-native task tracking
 
-### Setup
+### Installation
+
+**NPM (Node.js environments)**:
+```bash
+npm install -g @beads/bd
+```
+
+**Quick Install (All Platforms)**:
+```bash
+curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+```
+
+**Homebrew (macOS/Linux)**:
+```bash
+brew tap steveyegge/beads
+brew install bd
+```
+
+**Go Install (Alternative)**:
 ```bash
 go install github.com/steveyegge/beads/cmd/bd@latest
-bd import -i .beads/issues.jsonl
+```
+
+### Initial Setup
+
+**One-time initialization**:
+```bash
+# Basic setup (creates .beads/, imports issues, installs git hooks, starts auto-sync)
+bd init
+
+# For open-source contributors (fork workflow)
+bd init --contributor
+
+# For team members (branch workflow)
+bd init --team
+
+# For protected branches (GitHub/GitLab)
+bd init --branch beads-metadata
+
+# Non-interactive for agents
+bd init --quiet
 ```
 
 ### Workflow
 
-**Session Start**:
+**Session Start** (optional - auto-sync handles this):
 ```bash
-bd import -i .beads/issues.jsonl
+bd doctor                                    # Validate installation
+bd ready --json --limit 5                    # Get ready tasks
 ```
 
 **Task Discovery**:
 ```bash
-bd ready --json --limit 5                    # Get ready tasks
-bd list --type bug --status open --json      # Filter by type
+bd ready --json --limit 5                    # Unblocked tasks
+bd list --status open --json                 # All open issues
+bd list --type bug --priority 0 --json       # Critical bugs
+bd list --assignee alice --json              # User's tasks
+bd list --label backend,urgent --json        # AND label filter
+bd list --label-any frontend,backend --json  # OR label filter
+bd list --no-assignee --json                 # Unassigned
+bd list --created-after 2024-01-01 --json    # Date filters
+bd show bd-a1b2                              # Full details
+```
+
+**Task Creation**:
+```bash
+# Basic creation (auto-syncs to git)
+bd create "Implement rate limiting" -t feature -p 1 --json
+bd create "Fix auth bug" -t bug -p 0 -a alice --json
+bd create "Security review" -l security,urgent --json
+
+# From templates
+bd create --from-template epic "Q4 Platform Improvements"
+bd create --from-template bug "Token validation fails"
+bd create --from-template feature "Add OAuth support"
+
+# From markdown file
+bd create -f feature-plan.md --json
+
+# Hierarchical children (dot notation for structured work)
+bd create "Auth System" -t epic --id bd-a3f8               # Parent epic
+bd create "Design login UI" -t task --id bd-a3f8.1         # Child task
+bd create "Backend validation" -t task --id bd-a3f8.2      # Child task
 ```
 
 **Task Execution**:
 ```bash
-bd update bd-5 --status in_progress --json
-bd update bd-5 --comment "Progress note" --json
-bd update bd-5 --blocked-by bd-7 --json
+bd update bd-a1b2 --status in_progress --json
+bd update bd-a1b2 --priority 0 --json
+bd update bd-a1b2 --assignee alice --json
+bd update bd-a1b2 --comment "Implemented auth layer" --json
+```
+
+**Dependency Management**:
+```bash
+# Link dependencies (types: blocks, related, parent-child, discovered-from)
+bd dep add bd-a1b2 bd-c3d4 --type blocks
+bd dep add bd-new bd-parent --type discovered-from
+bd dep tree bd-a1b2                          # Visualize dependencies
+bd ready --json                              # Auto-filters blocked tasks
 ```
 
 **Task Completion**:
 ```bash
-bd close bd-5 --reason "Complete" --json     # After Reviewer approval
+bd close bd-a1b2 --reason "Complete" --json     # After Reviewer approval
+bd close bd-a1b2 --reason "Duplicate" --json
+bd close bd-a1b2 --reason "Wontfix" --json
 ```
 
-**Session End**:
+**Git Synchronization** (automatic with 5-second debounce):
 ```bash
-bd export -o .beads/issues.jsonl
+# Auto-sync on changes (default behavior)
+bd create "Issue"                            # Auto-exports to .beads/issues.jsonl
+git add .beads/issues.jsonl
+git commit -m "Working on issue"
+git push
+
+# Pull and auto-import
+git pull                                     # Auto-imports on next bd command
+bd ready --json                              # Fresh data from git
+
+# Manual sync (rarely needed)
+bd sync                                      # Force immediate sync
+
+# Skip auto-sync (advanced)
+bd --no-auto-flush create "Issue"            # Skip auto-export
+bd --no-auto-import list --json              # Skip auto-import check
 ```
 
-**Creating Tasks**:
+### Hash-Based Issue IDs
+
+Version 0.20.1+ uses collision-resistant hash IDs:
+- **Old format**: bd-1, bd-2, bd-152 (sequential)
+- **New format**: bd-a1b2, bd-f14c, bd-3e7a (4-6 character hashes)
+
+**Progressive scaling**:
+- 0-500 issues: 4-character hashes
+- 500-1,500 issues: 5-character hashes
+- 1,500-10,000 issues: 6-character hashes
+
+**Migration**:
 ```bash
-bd create "Task description" -t feature -p 1 --json
-bd update bd-10 --blocked-by bd-9 --json     # Link dependencies
+bd migrate --dry-run                         # Preview migration
+bd migrate --inspect --json                  # Inspect plan (for agents)
+bd migrate                                   # Execute migration
+```
+
+### Templates
+
+```bash
+bd template list                             # Available templates
+bd help template                             # Template management
+```
+
+### Advanced Features
+
+**Health & Diagnostics**:
+```bash
+bd doctor                                    # Validate installation and database
+bd info                                      # Database path, daemon status
+bd info --json                               # JSON output
+bd info --schema                             # Schema version
+```
+
+**Agent Workflow**:
+```bash
+# Find ready work
+bd ready --json | jq '.[0]'
+
+# Create discovered issues
+bd create "Discovered bug" -t bug -p 0 --json
+
+# Link back to parent
+bd dep add <new-id> <parent-id> --type discovered-from
+
+# Update work status
+bd update <issue-id> --status in_progress --json
+
+# Complete work
+bd close <issue-id> --reason "Implemented" --json
 ```
 
 ---
@@ -736,13 +876,38 @@ gh pr create --title "Title" --body "Description"
 
 ### Beads Commands
 ```bash
-go install github.com/steveyegge/beads/cmd/bd@latest
-bd import -i .beads/issues.jsonl
-bd ready --json --limit 5
-bd create "Task" -t bug -p 1 --json
-bd update bd-5 --status in_progress --json
-bd close bd-5 --reason "Complete" --json
-bd export -o .beads/issues.jsonl
+# Installation & Setup
+npm install -g @beads/bd
+# OR: curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+# OR: brew tap steveyegge/beads && brew install bd
+bd init                                      # One-time setup
+
+# Health & Info
+bd doctor                                    # Validate installation
+bd info --json                               # Database status
+
+# Discovery
+bd ready --json --limit 5                    # Unblocked tasks
+bd list --status open --type bug --json      # Filter tasks
+bd show bd-a1b2                              # Full details
+
+# Creation
+bd create "Task" -t feature -p 1 --json
+bd create --from-template bug "Description"
+bd create "Epic" -t epic --id bd-a1b2        # Parent
+bd create "Subtask" -t task --id bd-a1b2.1   # Child
+
+# Updates
+bd update bd-a1b2 --status in_progress --json
+bd update bd-a1b2 --priority 0 --json
+bd close bd-a1b2 --reason "Complete" --json
+
+# Dependencies
+bd dep add bd-a1b2 bd-c3d4 --type blocks
+bd dep tree bd-a1b2                          # Visualize
+
+# Sync (auto-sync enabled by default)
+bd sync                                      # Force sync (rarely needed)
 ```
 
 ### Testing Flow
@@ -765,15 +930,19 @@ cat skills/_INDEX.md             # View catalog
 
 ### Multi-Agent Commands
 ```bash
-# Session start
-go install github.com/steveyegge/beads/cmd/bd@latest && bd import -i .beads/issues.jsonl
+# Session start (one-time setup)
+npm install -g @beads/bd && bd init
+# OR: curl -fsSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash && bd init
+
+# Session start (regular)
+bd doctor && bd ready --json --limit 5
 
 # Context checkpoint
 mkdir -p .claude/context-snapshots && \
 date +%Y%m%d_%H%M%S | xargs -I {} cp context-current.json .claude/context-snapshots/session-{}.json
 
-# Session end
-bd export -o .beads/issues.jsonl && git add . && git commit -m "Session complete"
+# Session end (auto-sync handles Beads)
+git add . && git commit -m "Session complete"
 ```
 
 ---
@@ -805,7 +974,7 @@ Making changes? YES → Feature branch
 Need validation? YES → Testing protocol (commit first!)
 Context > 75%? YES → Compression, unload low-priority skills
 Work complete? → Submit to Reviewer
-Session ending? YES → Export, commit, cleanup
+Session ending? YES → Commit, cleanup (auto-sync handles Beads)
   ↓
 Execute
 ```
@@ -832,7 +1001,7 @@ Before completing ANY task:
 [ ] Testing protocol: commit first
 [ ] Context managed proactively
 [ ] Cloud resources cleaned up
-[ ] Beads state exported
+[ ] Beads state synced (auto-sync enabled)
 [ ] Changes committed (NO AI attribution unless user explicitly requests it)
 [ ] ✅ AUTOMATIC: Memory debt cleared before push (pre-destructive hook blocks otherwise)
 [ ] All agents checkpointed before session end
