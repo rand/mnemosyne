@@ -377,9 +377,8 @@ impl ClaudeCodeLauncher {
             args.push(startup_prompt.to_string());
         }
 
-        // Add initial prompt if provided
+        // Add initial prompt if provided (as positional argument)
         if let Some(ref prompt) = self.config.initial_prompt {
-            args.push("--prompt".to_string());
             args.push(prompt.clone());
         }
 
