@@ -275,23 +275,46 @@ impl EventPersistence {
         }
     }
 
+    /// Convert AgentRole to agent ID string
+    fn agent_role_to_id(&self, agent: &AgentRole) -> String {
+        let role_str = match agent {
+            AgentRole::Orchestrator => "orchestrator",
+            AgentRole::Optimizer => "optimizer",
+            AgentRole::Reviewer => "reviewer",
+            AgentRole::Executor => "executor",
+        };
+        format!("{}-{}", self.namespace, role_str)
+    }
+
     /// Convert orchestration event to API event for real-time broadcasting
     fn to_api_event(&self, event: &AgentEvent) -> Option<crate::api::Event> {
         use crate::api::Event;
 
         match event {
+            AgentEvent::WorkItemAssigned {
+                agent,
+                item_id,
+                description,
+                ..
+            } => Some(Event::work_item_assigned(
+                self.agent_role_to_id(agent),
+                format!("{:?}", item_id),
+                description.clone(),
+            )),
             AgentEvent::WorkItemStarted { agent, description, .. } => {
                 Some(Event::agent_started_with_task(
-                    format!("{:?}", agent),
+                    self.agent_role_to_id(agent),
                     description.clone(),
                 ))
             }
-            AgentEvent::WorkItemCompleted { agent, .. } => Some(Event::agent_completed(
-                format!("{:?}", agent),
-                event.summary(),
-            )),
+            AgentEvent::WorkItemCompleted { agent, item_id, .. } => {
+                Some(Event::work_item_completed(
+                    self.agent_role_to_id(agent),
+                    format!("{:?}", item_id),
+                ))
+            }
             AgentEvent::WorkItemFailed { agent, error, .. } => {
-                Some(Event::agent_failed(format!("{:?}", agent), error.clone()))
+                Some(Event::agent_failed(self.agent_role_to_id(agent), error.clone()))
             }
             AgentEvent::PhaseTransition { from, to, .. } => Some(Event::phase_changed(
                 format!("{:?}", from),
@@ -306,7 +329,7 @@ impl EventPersistence {
                 snapshot_id,
                 ..
             } => Some(Event::context_checkpointed(
-                format!("{:?}", agent),
+                self.agent_role_to_id(agent),
                 *usage_pct,
                 snapshot_id.to_string(),
             )),

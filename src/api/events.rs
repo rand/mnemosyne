@@ -98,6 +98,19 @@ pub enum EventType {
         attempt: u32,
         timestamp: DateTime<Utc>,
     },
+    /// Work item assigned to agent
+    WorkItemAssigned {
+        agent_id: String,
+        item_id: String,
+        task: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Work item completed by agent
+    WorkItemCompleted {
+        agent_id: String,
+        item_id: String,
+        timestamp: DateTime<Utc>,
+    },
 }
 
 /// Event wrapper with metadata
@@ -271,6 +284,25 @@ impl Event {
             item_id,
             reason,
             attempt,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create work item assigned event
+    pub fn work_item_assigned(agent_id: String, item_id: String, task: String) -> Self {
+        Self::new(EventType::WorkItemAssigned {
+            agent_id,
+            item_id,
+            task,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create work item completed event
+    pub fn work_item_completed(agent_id: String, item_id: String) -> Self {
+        Self::new(EventType::WorkItemCompleted {
+            agent_id,
+            item_id,
             timestamp: Utc::now(),
         })
     }

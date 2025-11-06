@@ -319,6 +319,38 @@ impl StateManager {
                 );
                 // Could track retries for dashboard metrics
             }
+            EventType::WorkItemAssigned {
+                agent_id,
+                item_id,
+                task,
+                ..
+            } => {
+                let mut agents_map = agents.write().await;
+                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                    agent.state = AgentState::Active { task: task.clone() };
+                    agent.updated_at = Utc::now();
+                    tracing::debug!(
+                        "State updated: agent {} assigned work item {} ({})",
+                        agent_id,
+                        item_id,
+                        task
+                    );
+                }
+            }
+            EventType::WorkItemCompleted {
+                agent_id, item_id, ..
+            } => {
+                let mut agents_map = agents.write().await;
+                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                    agent.state = AgentState::Idle;
+                    agent.updated_at = Utc::now();
+                    tracing::debug!(
+                        "State updated: agent {} completed work item {}",
+                        agent_id,
+                        item_id
+                    );
+                }
+            }
             EventType::HealthUpdate { .. } | EventType::SessionStarted { .. } => {
                 // System-level events, no state update needed
                 tracing::trace!("System event received (no state update)");
