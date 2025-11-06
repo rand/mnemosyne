@@ -15,13 +15,13 @@
     --accent: #ff006e;  /* Vibrant pink accent */
     --code-bg: #fafafa;
     --code-border: #eaeaea;
-    /* Mnemosyne gradient colors */
-    --gradient-1: #5a9fd4;  /* bright blue */
-    --gradient-2: #1e90ff;  /* blue */
-    --gradient-3: #00ced1;  /* cyan */
-    --gradient-4: #40e0d0;  /* bright cyan */
+    /* Pink gradient colors only */
+    --gradient-1: #ff006e;  /* pink */
+    --gradient-2: #ff1a8c;  /* bright pink */
+    --gradient-3: #ff3399;  /* hot pink */
+    --gradient-4: #c71585;  /* medium violet red */
     --gradient-5: #ff006e;  /* pink accent */
-    --gradient-6: #9370db;  /* medium purple */
+    --gradient-6: #d946ef;  /* fuchsia */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,13 +34,13 @@
         --accent: #ff1a8c;  /* Brighter pink for dark mode */
         --code-bg: #111;
         --code-border: #333;
-        /* Adjusted for dark mode */
-        --gradient-1: #5a9fd4;
-        --gradient-2: #3291ff;
-        --gradient-3: #00ced1;
-        --gradient-4: #40e0d0;
+        /* Pink gradient colors for dark mode */
+        --gradient-1: #ff1a8c;
+        --gradient-2: #ff3399;
+        --gradient-3: #ff4db8;
+        --gradient-4: #d946ef;
         --gradient-5: #ff1a8c;
-        --gradient-6: #9370db;
+        --gradient-6: #e879f9;
     }
 }
 
@@ -54,12 +54,12 @@ body.light-theme {
     --accent: #ff006e;
     --code-bg: #fafafa;
     --code-border: #eaeaea;
-    --gradient-1: #5a9fd4;
-    --gradient-2: #1e90ff;
-    --gradient-3: #00ced1;
-    --gradient-4: #40e0d0;
+    --gradient-1: #ff006e;
+    --gradient-2: #ff1a8c;
+    --gradient-3: #ff3399;
+    --gradient-4: #c71585;
     --gradient-5: #ff006e;
-    --gradient-6: #9370db;
+    --gradient-6: #d946ef;
 }
 
 body.dark-theme {
@@ -71,12 +71,12 @@ body.dark-theme {
     --accent: #ff1a8c;
     --code-bg: #111;
     --code-border: #333;
-    --gradient-1: #5a9fd4;
-    --gradient-2: #3291ff;
-    --gradient-3: #00ced1;
-    --gradient-4: #40e0d0;
+    --gradient-1: #ff1a8c;
+    --gradient-2: #ff3399;
+    --gradient-3: #ff4db8;
+    --gradient-4: #d946ef;
     --gradient-5: #ff1a8c;
-    --gradient-6: #9370db;
+    --gradient-6: #e879f9;
 }
 
 body {
@@ -94,17 +94,10 @@ body {
 .navbar {
     position: sticky;
     top: 0;
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(10px);
+    background: var(--background);
     border-bottom: 1px solid var(--border);
     z-index: 100;
     transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-
-@media (prefers-color-scheme: dark) {
-    .navbar {
-        background: rgba(0, 0, 0, 0.8);
-    }
 }
 
 .navbar .container {
