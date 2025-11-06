@@ -11,6 +11,11 @@
 mod reviewer_adapter_tests {
     use mnemosyne_core::orchestration::actors::reviewer_dspy_adapter::ReviewerDSpyAdapter;
     use mnemosyne_core::orchestration::dspy_bridge::DSpyBridge;
+    use mnemosyne_core::orchestration::dspy_instrumentation::{
+        DSpyInstrumentation, InstrumentationConfig,
+    };
+    use mnemosyne_core::orchestration::dspy_production_logger::{LogConfig, ProductionLogger};
+    use mnemosyne_core::orchestration::dspy_telemetry::TelemetryCollector;
     use serde_json::json;
     use std::sync::Arc;
 
@@ -20,7 +25,16 @@ mod reviewer_adapter_tests {
         pyo3::prepare_freethreaded_python();
 
         let bridge = Arc::new(DSpyBridge::new().expect("Failed to create DSPy bridge"));
-        ReviewerDSpyAdapter::new(bridge)
+        let logger = Arc::new(
+            ProductionLogger::new(LogConfig::default())
+                .await
+                .expect("Failed to create logger"),
+        );
+        let telemetry = Arc::new(TelemetryCollector::new());
+        let config = InstrumentationConfig::default();
+
+        let instrumentation = Arc::new(DSpyInstrumentation::new(bridge, logger, telemetry, config));
+        ReviewerDSpyAdapter::new(instrumentation)
     }
 
     #[tokio::test]
