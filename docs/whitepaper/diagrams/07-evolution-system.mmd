@@ -1,0 +1,49 @@
+```mermaid
+flowchart TD
+    START[Idle Detection<br/>No ops for 5min] --> SCHEDULER{Evolution Scheduler}
+
+    SCHEDULER -->|Highest Priority| CONSOLIDATION[Consolidation Job]
+    SCHEDULER -->|High Priority| IMPORTANCE[Importance Recalibration]
+    SCHEDULER -->|Medium Priority| LINKDECAY[Link Decay & Pruning]
+    SCHEDULER -->|Low Priority| ARCHIVAL[Archival Job]
+
+    CONSOLIDATION --> C1[Find duplicate candidates<br/>Tag overlap >60%]
+    C1 --> C2[LLM Analysis<br/>Claude Haiku]
+    C2 --> C3{Decision}
+
+    C3 -->|Merge| C4[Combine content<br/>Preserve all links]
+    C3 -->|Supersede| C5[Keep one<br/>Mark other superseded]
+    C3 -->|KeepBoth| C6[Add References link]
+
+    C4 --> AUDIT1[Audit Trail]
+    C5 --> AUDIT1
+    C6 --> AUDIT1
+
+    IMPORTANCE --> I1[Recency Decay<br/>importance × e^-age/30]
+    I1 --> I2[Access Boost<br/>+ access_count × 0.1]
+    I2 --> I3[Graph Proximity<br/>+ neighbor_count × 0.05]
+    I3 --> I4[Clamp to 1-10]
+    I4 --> AUDIT2[Update Scores]
+
+    LINKDECAY --> L1[Decay Inactive Links<br/>strength × 1 - 0.01 × days]
+    L1 --> L2{Strength < 0.2?}
+    L2 -->|Yes| L3[Archive Link]
+    L2 -->|No| L4[Keep Link]
+    L3 --> AUDIT3[Preserve Audit]
+
+    ARCHIVAL --> A1{Criteria Met?<br/>importance<2 AND age>90<br/>OR superseded AND age>7}
+    A1 -->|Yes| A2[Soft Delete<br/>is_archived = TRUE]
+    A1 -->|No| A3[Skip]
+    A2 --> AUDIT4[Archive Event]
+
+    AUDIT1 --> COMPLETE[Job Complete]
+    AUDIT2 --> COMPLETE
+    AUDIT3 --> COMPLETE
+    AUDIT4 --> COMPLETE
+    COMPLETE --> START
+
+    style CONSOLIDATION fill:#3b82f6,color:#fff
+    style IMPORTANCE fill:#10b981,color:#fff
+    style LINKDECAY fill:#f59e0b,color:#fff
+    style ARCHIVAL fill:#8b5cf6,color:#fff
+```

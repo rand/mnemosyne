@@ -1,0 +1,43 @@
+```mermaid
+graph TB
+    subgraph "Developer Interaction"
+        CLI[CLI Commands<br/>remember recall context]
+        HOOKS[Automatic Hooks<br/>session-start post-tool-use]
+    end
+
+    subgraph "Claude Code Integration"
+        MCP[MCP Protocol<br/>8 OODA Tools]
+        SETTINGS[.claude/settings.json<br/>Hook Configuration]
+    end
+
+    subgraph "Core System"
+        SERVER[Mnemosyne Server<br/>LibSQL Storage]
+    end
+
+    subgraph "Observability"
+        API[HTTP API Server<br/>Port 3000+]
+        SSE[Server-Sent Events<br/>Real-time Stream]
+        DASH[Dashboard<br/>mnemosyne-dash]
+    end
+
+    subgraph "Editor"
+        ICS[Interactive Context Space<br/>mnemosyne-ics<br/>CRDT Semantic Highlighting]
+    end
+
+    CLI --> SERVER
+    HOOKS --> SERVER
+    MCP --> SERVER
+    SETTINGS --> HOOKS
+
+    SERVER --> API
+    API --> SSE
+    SSE --> DASH
+
+    SERVER -.Optional.-> ICS
+
+    style CLI fill:#3b82f6,color:#fff
+    style MCP fill:#10b981,color:#fff
+    style SERVER fill:#f59e0b,color:#fff
+    style DASH fill:#8b5cf6,color:#fff
+    style ICS fill:#64748b,color:#fff
+```

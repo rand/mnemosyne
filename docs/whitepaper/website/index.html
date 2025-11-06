@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mnemosyne: Semantic Memory and Multi-Agent Orchestration for LLM Systems</title>
+    <meta name="description" content="A production-ready semantic memory system with multi-agent orchestration for LLM-based systems. Technical whitepaper.">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/geist.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#e8eaed',
+                primaryTextColor: '#000',
+                primaryBorderColor: '#5f6368',
+                lineColor: '#5f6368',
+                secondaryColor: '#f1f3f4',
+                tertiaryColor: '#fff'
+            }
+        });
+    </script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <span class="logo-glyph"></span>
+                <strong>Mnemosyne</strong> v2.1.1
+            </div>
+            <div class="nav-links">
+                <a href="#abstract">Abstract</a>
+                <a href="#architecture">Architecture</a>
+                <a href="#comparison">Comparison</a>
+                <a href="#validation">Validation</a>
+                <a href="https://github.com/rand/mnemosyne/tree/v2.1.1" target="_blank">Source</a>
+                <button class="theme-toggle" aria-label="Toggle theme">
+                    <span class="theme-toggle-icon"></span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <aside class="sidebar">
+        <div class="sidebar-content">
+            <div class="sidebar-tagline">Intelligent Agentic Memory and Orchestration</div>
+            <div class="sidebar-status">
+                <span class="status-glyph"></span>
+                <span class="status-message">Reticulating splines</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="container">
+        <header class="paper-header">
+            <h1>Mnemosyne: Semantic Memory and Multi-Agent Orchestration for LLM Systems</h1>
+            <p class="paper-meta">
+                <span>Version 2.1.1</span> ·
+                <span>November 5, 2025</span> ·
+                <a href="https://github.com/rand/mnemosyne">github.com/rand/mnemosyne</a>
+            </p>
+        </header>
+
+        <section id="abstract" class="section">
+            <h2>Abstract</h2>
+            <p>Large language models face fundamental limitations: context windows bound working memory, coordination between agents lacks persistence, and knowledge evaporates between sessions. Mnemosyne addresses these challenges through a production-ready semantic memory system with multi-agent orchestration.</p>
+
+            <p>Built in Rust with LibSQL storage, it provides sub-millisecond retrieval (0.88ms list operations, 1.61ms search), LLM-guided memory evolution, and a four-agent coordination framework composed of Orchestrator, Optimizer, Reviewer, and Executor agents. The system integrates with Claude Code via Model Context Protocol, automatic hooks, and real-time monitoring.</p>
+
+            <p>Hybrid search combines keyword matching (FTS5), graph traversal, and vector similarity with weighted scoring. The system includes 702 passing tests, privacy-preserving evaluation, and enables persistent context across sessions, autonomous agent coordination, and continuous memory optimization.</p>
+
+            <p>This paper presents the architecture, validates claims against tagged source code (v2.1.1), compares with existing solutions (MemGPT, Mem0, LangChain Memory), and demonstrates production readiness through comprehensive testing and real-world integration.</p>
+        </section>
+
+        <section id="challenge" class="section">
+            <h2>The Challenge</h2>
+
+            <h3>Context Window Mathematics</h3>
+            <p>Context windows constrain LLM working memory. Modern systems provide 32K-200K tokens, but effective memory drops to 10-15K tokens after system instructions (2-3K), conversation history (3-10K), and code context (10-20K)—roughly 10-15 pages of unique information.</p>
+
+            <p>Cost compounds the challenge. GPT-4 charges $0.03/1K input tokens; a 32K context costs $1 per request. Repeated loading across sessions creates financial pressure to minimize context.</p>
+
+            <h3>The Re-initialization Tax</h3>
+            <p>Every session starts with zero context. Developers spend 5-15 minutes reconstructing relevant information: identifying files (2-3 min), explaining tasks (1-2 min), providing architectural context (2-5 min), referencing decisions (0-3 min).</p>
+
+            <p>For 40 sessions over a 2-week feature (4/day), that's 200-520 minutes (3.3-8.7 hours) spent on context management. At $100/hour, inefficiency costs $330-$870 per feature.</p>
+
+            <h3>Multi-Agent Coordination Failures</h3>
+            <p>Without shared memory: Agent A completes work but Agent B can't access results, requiring re-transmission. Race conditions occur when agents duplicate work without knowledge of each other. Deadlocks happen when agents wait on each other circularly. Debugging coordination failures becomes impossible without audit trails.</p>
+        </section>
+
+        <section id="architecture" class="section">
+            <h2>Architecture</h2>
+
+            <h3>Core Memory System</h3>
+            <p><strong>Hybrid Search</strong>: Three complementary techniques provide multi-modal retrieval:</p>
+            <ul>
+                <li><strong>FTS5 Keyword Search</strong> (20% weight): SQLite's full-text search with BM25 ranking, &lt;0.5ms typical latency</li>
+                <li><strong>Graph Expansion</strong> (10% weight): Recursive CTEs traverse memory links with strength weighting, ~5ms for 1-hop traversal</li>
+                <li><strong>Vector Semantics</strong> (70% weight, planned v2.2+): Embedding-based similarity using fastembed or Voyage AI</li>
+            </ul>
+
+            <p><strong>Storage</strong>: LibSQL provides ACID guarantees, B-tree indexes on namespace/importance/created_at, FTS5 virtual tables, and ~800KB per 1,000 memories. Performance: 0.5ms get-by-ID, 0.88ms list-recent, 1.61ms hybrid-search.</p>
+
+            <div class="diagram-container">
+                <pre class="mermaid">
+graph TB
+    subgraph "Claude Code"
+        CC[MCP Client]
+    end
+    subgraph "Mnemosyne Core"
+        MCP[MCP Server<br/>JSON-RPC 2.0]
+        STORE[LibSQL Storage<br/>FTS5 + Graph]
+        ORCH[4-Agent Framework<br/>Ractor Supervision]
+        EVOL[Evolution System<br/>LLM-Guided]
+    end
+    CC -->|stdio| MCP
+    MCP --> STORE
+    MCP --> ORCH
+    STORE --> EVOL
+    style CC fill:#e8eaed
+    style STORE fill:#e8eaed
+    style ORCH fill:#e8eaed
+                </pre>
+            </div>
+
+            <h3>Four-Agent Framework</h3>
+            <p>Specialized agents coordinate through Ractor actor supervision:</p>
+            <ul>
+                <li><strong>Orchestrator</strong>: Prioritized work queue (0=highest), dependency tracking, 60s deadlock detection with cycle resolution</li>
+                <li><strong>Optimizer</strong>: Context budget allocation (40% critical, 30% skills, 20% project, 10% general), dynamic skill discovery, prefetching</li>
+                <li><strong>Reviewer</strong>: Quality gates (intent satisfied, tests passing, docs complete, no anti-patterns), DSPy-based semantic validation</li>
+                <li><strong>Executor</strong>: Work execution with timeout/retry, sub-agent spawning for parallel work, graceful failure with rollback</li>
+            </ul>
+
+            <h3>Autonomous Evolution</h3>
+            <p>LLM-guided optimization runs during idle periods:</p>
+            <ul>
+                <li><strong>Consolidation</strong>: Claude Haiku analyzes memory pairs for merge/supersede/keep-both decisions</li>
+                <li><strong>Importance Recalibration</strong>: Recency decay (e^(-age/30)), access boost (+0.1 per retrieval, max +2.0), graph proximity (+0.05 per neighbor)</li>
+                <li><strong>Link Decay</strong>: -1% strength per day inactive, access reinforcement, prune &lt;0.2 strength</li>
+                <li><strong>Archival</strong>: Soft-delete memories with importance &lt;2 AND age &gt;90 days, or superseded memories after 7 days</li>
+            </ul>
+
+            <h3>Technology Stack</h3>
+            <p><strong>Core</strong>: Rust 1.75+ (type safety, zero-cost abstractions), Tokio (async runtime), LibSQL (SQLite-compatible with vector support), PyO3 0.22 (Python bindings, 10-20x faster than subprocess)</p>
+            <p><strong>LLM</strong>: Claude Haiku 4.5 for enrichment, linking, consolidation (&lt;500ms typical, 4-5x cheaper than Sonnet)</p>
+            <p><strong>Protocols</strong>: MCP (JSON-RPC 2.0 over stdio), SSE (real-time events), Ractor message passing</p>
+        </section>
+
+        <section id="comparison" class="section">
+            <h2>Comparison with Existing Systems</h2>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Mnemosyne</th>
+                        <th>MemGPT</th>
+                        <th>Mem0</th>
+                        <th>LangChain Memory</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Memory Model</td>
+                        <td>Hybrid (FTS5 + Graph, Vector planned)</td>
+                        <td>Virtual context (RAM/disk pages)</td>
+                        <td>Graph nodes</td>
+                        <td>Conversation buffers</td>
+                    </tr>
+                    <tr>
+                        <td>Multi-Agent Coordination</td>
+                        <td><strong>4-agent framework</strong></td>
+                        <td>Single-agent focus</td>
+                        <td>Limited (application layer)</td>
+                        <td>None</td>
+                    </tr>
+                    <tr>
+                        <td>Evolution System</td>
+                        <td><strong>Autonomous (LLM-guided)</strong></td>
+                        <td>Manual management</td>
+                        <td>Limited automation</td>
+                        <td>Manual cleanup</td>
+                    </tr>
+                    <tr>
+                        <td>Integration</td>
+                        <td>MCP + Hooks + CLI + Dashboard</td>
+                        <td>Python library + API</td>
+                        <td>REST API + SDKs</td>
+                        <td>Python library</td>
+                    </tr>
+                    <tr>
+                        <td>Implementation</td>
+                        <td>Rust + Python bindings</td>
+                        <td>Python</td>
+                        <td>Python + Go</td>
+                        <td>Python</td>
+                    </tr>
+                    <tr>
+                        <td>Production Readiness</td>
+                        <td><strong>702 tests, type safety</strong></td>
+                        <td>Research/experimental</td>
+                        <td>Beta (production-ready)</td>
+                        <td>Production (stable)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>Mnemosyne treats memory and agents as unified concerns. Where MemGPT provides sophisticated single-agent memory management and Mem0 offers production-grade graph storage, Mnemosyne integrates persistent memory with multi-agent orchestration and autonomous evolution.</p>
+        </section>
+
+        <section id="validation" class="section">
+            <h2>Validation & Evidence</h2>
+
+            <h3>Test Coverage</h3>
+            <p><strong>702 passing tests</strong> (100% pass rate) across categories:</p>
+            <ul>
+                <li>~250 unit tests: Type system, storage operations, evolution algorithms, serialization</li>
+                <li>~150 integration tests: MCP server, orchestration, DSPy bridge, LLM service</li>
+                <li>~80 E2E tests: Human workflows, agent coordination, recovery scenarios</li>
+                <li>~50 specialized tests: File descriptor safety, process management, ICS integration</li>
+            </ul>
+
+            <h3>Performance Metrics</h3>
+            <p>Benchmarks from <code>tests/performance/</code>:</p>
+            <ul>
+                <li>Store memory: 2.25ms (includes async LLM enrichment dispatch)</li>
+                <li>Get by ID: 0.5ms (direct UUID lookup)</li>
+                <li>List recent: 0.88ms (indexed query)</li>
+                <li>Hybrid search: 1.61ms (FTS5 + graph on 1K memories)</li>
+                <li>Graph traversal: ~5ms (1-hop), ~12ms (2-hop)</li>
+            </ul>
+
+            <h3>Production Readiness</h3>
+            <p>Stability established through:</p>
+            <ul>
+                <li><a href="https://github.com/rand/mnemosyne/commit/87b7a33">File descriptor leak prevention</a> (commit 87b7a33): Hooks close all FDs, validation in test suite</li>
+                <li><a href="https://github.com/rand/mnemosyne/commit/eec1a33">Terminal corruption prevention</a> (commit eec1a33): Clean process management, proper signal handling</li>
+                <li>Robust error handling: Result&lt;T,E&gt; throughout, custom error types, graceful degradation</li>
+            </ul>
+
+            <h3>Code Validation</h3>
+            <p>Complete validation matrix available: <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/docs/whitepaper/validation.md">validation.md</a></p>
+            <p>Every technical claim maps to v2.1.1 source code and tests. Sample mappings:</p>
+            <ul>
+                <li>Sub-ms retrieval (0.88ms) → <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/src/storage/libsql.rs#L420-450">src/storage/libsql.rs:420-450</a> + <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/tests/performance/storage_perf.rs#L89-110">tests</a></li>
+                <li>4-agent orchestration → <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/mod.rs#L89-150">src/orchestration/mod.rs:89-150</a> + <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/tests/orchestration_e2e.rs">tests</a></li>
+            </ul>
+        </section>
+
+        <section id="conclusion" class="section">
+            <h2>Summary</h2>
+            <p>Mnemosyne demonstrates that semantic memory and multi-agent orchestration form a unified system. The architecture delivers persistent context through hybrid search, multi-agent coordination via specialized agents with Ractor supervision, autonomous evolution through LLM-guided consolidation, and production integration via MCP protocol.</p>
+
+            <p>The system addresses fundamental challenges: context loss elimination (sessions maintain complete state), coordination infrastructure (shared memory enables debugging), cognitive load reduction (automatic context loading), and long-running workflow support (accumulation over weeks).</p>
+
+            <h3>Resources</h3>
+            <ul>
+                <li><a href="https://github.com/rand/mnemosyne">Repository</a></li>
+                <li><a href="https://github.com/rand/mnemosyne/blob/main/docs/whitepaper/whitepaper.md">Full Whitepaper (Markdown)</a></li>
+                <li><a href="https://github.com/rand/mnemosyne/blob/v2.1.1/docs/whitepaper/validation.md">Validation Matrix</a></li>
+                <li><a href="https://github.com/rand/mnemosyne/tree/v2.1.1/docs">Documentation</a></li>
+            </ul>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Mnemosyne v2.1.1 · November 5, 2025 · <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/LICENSE">MIT License</a></p>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+```mermaid
+sequenceDiagram
+    participant U as User Request
+    participant O as Orchestrator
+    participant OP as Optimizer
+    participant R as Reviewer
+    participant E as Executor
+    participant M as Memory Store
+
+    U->>O: Start work session
+    O->>M: Load project memories
+    M-->>O: Important memories
+
+    O->>OP: Estimate context needs
+    OP->>M: Query relevant skills
+    M-->>OP: Discovered skills
+    OP-->>O: Context budget allocated
+
+    O->>E: Assign work item
+    E->>M: Recall context
+    M-->>E: Relevant memories
+    E->>E: Execute work
+    E->>M: Store results
+
+    E->>R: Request validation
+    R->>M: Check quality gates
+    M-->>R: Requirements specs
+    R->>R: Validate implementation
+
+    alt Quality gates pass
+        R-->>E: Approved
+        E-->>O: Work completed
+        O->>M: Persist completion event
+    else Quality gates fail
+        R-->>E: Rejected with feedback
+        E-->>O: Work needs revision
+    end
+```

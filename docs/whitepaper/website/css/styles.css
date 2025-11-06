@@ -1,0 +1,609 @@
+/* Vercel-inspired Technical Documentation - Light & Dark Mode */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --text-primary: #000;
+    --text-secondary: #666;
+    --border: #eaeaea;
+    --background: #fff;
+    --background-subtle: #fafafa;
+    --accent: #ff006e;  /* Vibrant pink accent */
+    --code-bg: #fafafa;
+    --code-border: #eaeaea;
+    /* Pink gradient colors only */
+    --gradient-1: #ff006e;  /* pink */
+    --gradient-2: #ff1a8c;  /* bright pink */
+    --gradient-3: #ff3399;  /* hot pink */
+    --gradient-4: #c71585;  /* medium violet red */
+    --gradient-5: #ff006e;  /* pink accent */
+    --gradient-6: #d946ef;  /* fuchsia */
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --text-primary: #ededed;
+        --text-secondary: #888;
+        --border: #333;
+        --background: #000;
+        --background-subtle: #111;
+        --accent: #ff1a8c;  /* Brighter pink for dark mode */
+        --code-bg: #111;
+        --code-border: #333;
+        /* Pink gradient colors for dark mode */
+        --gradient-1: #ff1a8c;
+        --gradient-2: #ff3399;
+        --gradient-3: #ff4db8;
+        --gradient-4: #d946ef;
+        --gradient-5: #ff1a8c;
+        --gradient-6: #e879f9;
+    }
+}
+
+/* Manual theme override classes */
+body.light-theme {
+    --text-primary: #000;
+    --text-secondary: #666;
+    --border: #eaeaea;
+    --background: #fff;
+    --background-subtle: #fafafa;
+    --accent: #ff006e;
+    --code-bg: #fafafa;
+    --code-border: #eaeaea;
+    --gradient-1: #ff006e;
+    --gradient-2: #ff1a8c;
+    --gradient-3: #ff3399;
+    --gradient-4: #c71585;
+    --gradient-5: #ff006e;
+    --gradient-6: #d946ef;
+}
+
+body.dark-theme {
+    --text-primary: #ededed;
+    --text-secondary: #888;
+    --border: #333;
+    --background: #000;
+    --background-subtle: #111;
+    --accent: #ff1a8c;
+    --code-bg: #111;
+    --code-border: #333;
+    --gradient-1: #ff1a8c;
+    --gradient-2: #ff3399;
+    --gradient-3: #ff4db8;
+    --gradient-4: #d946ef;
+    --gradient-5: #ff1a8c;
+    --gradient-6: #e879f9;
+}
+
+body {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background: var(--background);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Navigation */
+.navbar {
+    position: sticky;
+    top: 0;
+    background: var(--background);
+    border-bottom: 1px solid var(--border);
+    z-index: 100;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.navbar .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.nav-brand {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.logo-glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    position: relative;
+}
+
+.logo-glyph::before {
+    content: "\f5dc";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 1.125rem;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-3), var(--gradient-5));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.theme-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.375rem 0.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.theme-toggle:hover {
+    background: var(--background-subtle);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.theme-toggle-icon {
+    width: 1em;
+    height: 1em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-toggle-icon::before {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 400;
+    line-height: 1;
+}
+
+/* Light mode shows moon icon (to switch to dark) */
+body.light-theme .theme-toggle-icon::before,
+body:not(.dark-theme):not(.light-theme) .theme-toggle-icon::before {
+    content: "\f186"; /* moon icon */
+}
+
+/* Dark mode shows sun icon (to switch to light) */
+body.dark-theme .theme-toggle-icon::before {
+    content: "\f185"; /* sun icon */
+}
+
+/* System preference: dark mode shows sun */
+@media (prefers-color-scheme: dark) {
+    body:not(.light-theme):not(.dark-theme) .theme-toggle-icon::before {
+        content: "\f185"; /* sun icon when system is dark */
+    }
+}
+
+.nav-links {
+    display: flex;
+    gap: 2rem;
+}
+
+.nav-links a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 400;
+    transition: color 0.2s ease;
+}
+
+.nav-links a:hover {
+    color: var(--text-primary);
+}
+
+/* Container */
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: 5rem;
+    right: 2rem;
+    width: 280px;
+    padding: 1.5rem;
+    background: var(--background-subtle);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    opacity: 0.85;
+    transition: opacity 0.2s ease;
+    z-index: 50;
+}
+
+.sidebar:hover {
+    opacity: 1;
+}
+
+.sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.sidebar-tagline {
+    font-size: 0.875rem;
+    font-weight: 500;
+    font-style: italic;
+    color: var(--gradient-6);
+    letter-spacing: -0.01em;
+    line-height: 1.4;
+}
+
+.sidebar-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    font-family: 'Geist Mono', monospace;
+}
+
+.status-glyph {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    animation: glyphRotate 3s ease-in-out infinite;
+}
+
+.status-glyph::before {
+    content: "\f013";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-5));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+@keyframes glyphRotate {
+    0%, 100% { transform: rotate(0deg); opacity: 1; }
+    50% { transform: rotate(180deg); opacity: 0.7; }
+}
+
+.status-message {
+    animation: messageFade 4s ease-in-out infinite;
+}
+
+@keyframes messageFade {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+
+/* Paper Header */
+.paper-header {
+    padding: 4rem 0 2.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 3rem;
+}
+
+.paper-header h1 {
+    font-size: 2.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.03em;
+}
+
+.paper-meta {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 400;
+}
+
+.paper-meta a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.paper-meta a:hover {
+    opacity: 0.8;
+}
+
+/* Sections */
+.section {
+    padding: 2.5rem 0;
+}
+
+.section + .section {
+    border-top: 1px solid var(--border);
+}
+
+.section h2 {
+    font-size: 1.875rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-3), var(--gradient-5));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.section h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 2.5rem 0 1rem;
+    letter-spacing: -0.01em;
+}
+
+.section h3:first-child {
+    margin-top: 0;
+}
+
+.section p {
+    margin-bottom: 1.25rem;
+    color: var(--text-primary);
+    font-size: 1rem;
+    line-height: 1.7;
+    max-width: 70ch;
+}
+
+.section ul {
+    margin: 1.25rem 0;
+    padding-left: 1.5rem;
+    max-width: 70ch;
+}
+
+.section li {
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
+    line-height: 1.7;
+}
+
+.section li strong {
+    font-weight: 600;
+}
+
+.section a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.section a:hover {
+    opacity: 0.8;
+}
+
+/* Code */
+code {
+    font-family: 'Geist Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 0.875em;
+    background: var(--code-bg);
+    padding: 0.125em 0.375em;
+    border-radius: 4px;
+    border: 1px solid var(--code-border);
+    font-weight: 400;
+}
+
+pre code {
+    display: block;
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    line-height: 1.6;
+    border-radius: 8px;
+}
+
+/* Tables */
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2rem 0;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.comparison-table th,
+.comparison-table td {
+    text-align: left;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.comparison-table th {
+    background: var(--background-subtle);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    letter-spacing: -0.01em;
+}
+
+.comparison-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.comparison-table tbody tr:hover {
+    background: var(--background-subtle);
+}
+
+.comparison-table td {
+    vertical-align: top;
+    color: var(--text-primary);
+}
+
+.comparison-table strong {
+    font-weight: 600;
+}
+
+/* Diagrams */
+.diagram-container {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: var(--background-subtle);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.diagram-container pre {
+    margin: 0;
+}
+
+/* Footer */
+.footer {
+    border-top: 1px solid var(--border);
+    margin-top: 4rem;
+    padding: 2rem 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.footer a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.footer a:hover {
+    opacity: 0.8;
+}
+
+/* Responsive */
+@media (max-width: 1280px) {
+    /* Hide sidebar on smaller screens */
+    .sidebar {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar .container,
+    .container {
+        padding: 0 1rem;
+    }
+
+    .paper-header {
+        padding: 3rem 0 2rem;
+    }
+
+    .paper-header h1 {
+        font-size: 1.75rem;
+    }
+
+    .section h2 {
+        font-size: 1.5rem;
+    }
+
+    .section h3 {
+        font-size: 1.125rem;
+    }
+
+    .nav-links {
+        gap: 1.25rem;
+        font-size: 0.8125rem;
+    }
+
+    .nav-brand {
+        font-size: 0.875rem;
+    }
+
+    .logo-glyph {
+        display: none;
+    }
+
+    .comparison-table {
+        font-size: 0.75rem;
+        overflow-x: auto;
+        display: block;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+        padding: 0.625rem 0.75rem;
+    }
+}
+
+@media (max-width: 640px) {
+    body {
+        font-size: 15px;
+    }
+
+    .paper-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .section h2 {
+        font-size: 1.25rem;
+    }
+
+    .section p,
+    .section ul {
+        max-width: 100%;
+    }
+
+    .nav-links {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .navbar .container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .theme-toggle {
+        padding: 0.5rem;
+        border-radius: 50%;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
+
+/* Print styles */
+@media print {
+    :root {
+        --text-primary: #000;
+        --text-secondary: #666;
+        --border: #eaeaea;
+        --background: #fff;
+        --background-subtle: #fafafa;
+        --accent: #0070f3;
+        --code-bg: #fafafa;
+        --code-border: #eaeaea;
+    }
+
+    .navbar,
+    .footer {
+        display: none;
+    }
+
+    body {
+        font-size: 12pt;
+        line-height: 1.5;
+    }
+
+    .section {
+        page-break-inside: avoid;
+    }
+
+    a {
+        color: var(--text-primary);
+        text-decoration: underline;
+    }
+}

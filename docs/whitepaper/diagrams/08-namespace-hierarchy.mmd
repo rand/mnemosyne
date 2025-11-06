@@ -1,0 +1,27 @@
+```mermaid
+graph TD
+    GLOBAL[Global Namespace<br/>Cross-project knowledge<br/>Rust patterns debugging]
+
+    GLOBAL --> PROJECT_A[Project: webapp<br/>Project-specific context<br/>Auth flow database]
+    GLOBAL --> PROJECT_B[Project: cli-tool<br/>Project-specific context<br/>Argument parsing]
+
+    PROJECT_A --> SESSION_A1[Session: 2024-11-06-morning<br/>Current work<br/>Implement OAuth]
+    PROJECT_A --> SESSION_A2[Session: 2024-11-05-afternoon<br/>Previous work<br/>Setup database]
+
+    PROJECT_B --> SESSION_B1[Session: 2024-11-06-morning<br/>Current work<br/>Add subcommands]
+
+    SESSION_A1 -.Inherits.-> PROJECT_A
+    SESSION_A2 -.Inherits.-> PROJECT_A
+    SESSION_B1 -.Inherits.-> PROJECT_B
+    PROJECT_A -.Inherits.-> GLOBAL
+    PROJECT_B -.Inherits.-> GLOBAL
+
+    style GLOBAL fill:#8b5cf6,color:#fff
+    style PROJECT_A fill:#3b82f6,color:#fff
+    style PROJECT_B fill:#3b82f6,color:#fff
+    style SESSION_A1 fill:#10b981,color:#fff
+    style SESSION_A2 fill:#64748b,color:#fff
+    style SESSION_B1 fill:#10b981,color:#fff
+
+    note1[Search Priority:<br/>1. Current session<br/>2. Current project<br/>3. Global]
+```

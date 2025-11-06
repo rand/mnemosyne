@@ -1,0 +1,36 @@
+```mermaid
+graph TB
+    subgraph "Claude Code Frontend"
+        CC[Claude Code<br/>Multi-Agent System]
+    end
+
+    subgraph "MCP Server stdio"
+        MCP[MCP Server<br/>JSON-RPC 2.0]
+        TOOLS[8 OODA Tools<br/>Observe Orient Decide Act]
+    end
+
+    subgraph "Core Systems"
+        STORAGE[Storage LibSQL<br/>Hybrid Search FTS5 + Graph]
+        SERVICES[Services<br/>LLM Claude Haiku<br/>Embeddings]
+        ORCH[Orchestration Ractor<br/>4 Agents EventBroadcaster]
+    end
+
+    subgraph "Background"
+        EVOLUTION[Evolution System<br/>Consolidation Decay Archival]
+        EVALUATION[Evaluation Privacy<br/>Online Learning]
+    end
+
+    CC -->|stdio| MCP
+    MCP --> TOOLS
+    TOOLS --> STORAGE
+    TOOLS --> SERVICES
+    TOOLS --> ORCH
+    STORAGE --> EVOLUTION
+    ORCH --> EVALUATION
+
+    style CC fill:#2563eb,color:#fff
+    style MCP fill:#10b981,color:#fff
+    style STORAGE fill:#f59e0b,color:#fff
+    style ORCH fill:#8b5cf6,color:#fff
+    style EVOLUTION fill:#64748b,color:#fff
+```

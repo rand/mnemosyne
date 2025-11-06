@@ -1,0 +1,35 @@
+```mermaid
+stateDiagram-v2
+    [*] --> Created: Store memory
+
+    Created --> Enriched: LLM analysis
+    note right of Enriched
+        Summary keywords tags
+        type importance
+    end note
+
+    Enriched --> Linked: Semantic linking
+    note right of Linked
+        Find related
+        Create graph edges
+    end note
+
+    Linked --> Active: Available for recall
+
+    Active --> Consolidated: Merge with duplicates
+    Active --> Recalibrated: Update importance
+    Active --> Recalled: Search query match
+
+    Recalled --> Active: Access boost
+
+    Recalibrated --> Active: Importance adjusted
+    Consolidated --> Superseded: Replaced by merge
+
+    Active --> Archived: Low value OR superseded
+    Archived --> [*]
+
+    note right of Consolidated
+        LLM decides:
+        Merge Supersede KeepBoth
+    end note
+```

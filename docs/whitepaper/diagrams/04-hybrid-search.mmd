@@ -1,0 +1,29 @@
+```mermaid
+flowchart TD
+    START[User Query] --> PARALLEL{Run in Parallel}
+
+    PARALLEL --> FTS[FTS5 Keyword Search<br/>20% weight]
+    PARALLEL --> GRAPH[Graph Traversal<br/>10% weight]
+    PARALLEL --> VECTOR[Vector Similarity<br/>70% weight conceptual]
+
+    FTS --> FTS_RESULT[BM25 Ranked Results]
+    GRAPH --> GRAPH_RESULT[Link-weighted Paths<br/>Max 2 hops]
+    VECTOR --> VECTOR_RESULT[Cosine Similarity<br/>Future: fastembed]
+
+    FTS_RESULT --> MERGE[Weighted Score Merging]
+    GRAPH_RESULT --> MERGE
+    VECTOR_RESULT --> MERGE
+
+    MERGE --> NAMESPACE[Namespace Priority Boost<br/>Session > Project > Global]
+
+    NAMESPACE --> FILTER[Filter by Importance<br/>Default: ≥1]
+
+    FILTER --> LIMIT[Return Top N<br/>Default: 10]
+
+    LIMIT --> RESULT[Ranked Memory List<br/>With metadata links]
+
+    style FTS fill:#3b82f6,color:#fff
+    style GRAPH fill:#10b981,color:#fff
+    style VECTOR fill:#8b5cf6,color:#fff
+    style MERGE fill:#f59e0b,color:#fff
+```
