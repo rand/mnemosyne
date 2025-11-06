@@ -27,6 +27,10 @@ use tokio::time::{timeout, Duration};
 
 #[tokio::test]
 async fn test_orchestration_event_flow() {
+    // Initialize Python interpreter (required for orchestration engine)
+    #[cfg(feature = "python")]
+    pyo3::prepare_freethreaded_python();
+
     // Setup: Create storage and event broadcaster
     let temp_dir = TempDir::new().unwrap();
     let db_path = temp_dir.path().join("test.db");
@@ -132,7 +136,7 @@ async fn test_orchestration_event_flow() {
     let api_event = result.unwrap().unwrap();
     assert!(matches!(
         api_event.event_type,
-        EventType::AgentCompleted { .. }
+        EventType::WorkItemCompleted { .. }
     ));
 
     // Test 3: WorkItemFailed event
