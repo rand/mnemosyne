@@ -163,6 +163,24 @@ impl OrchestratorActor {
         for item in ready_items {
             let item = item.clone();
 
+            // First, discover relevant skills for the work item (unless it's for Optimizer itself)
+            if item.agent != AgentRole::Optimizer {
+                if let Some(ref optimizer) = state.optimizer {
+                    tracing::debug!(
+                        "Discovering skills for work item: {}",
+                        item.description
+                    );
+                    let _ = optimizer
+                        .cast(OptimizerMessage::DiscoverSkills {
+                            task_description: item.description.clone(),
+                            max_skills: 7, // Load top 7 most relevant skills
+                        })
+                        .map_err(|e| {
+                            tracing::warn!("Failed to discover skills: {:?}", e)
+                        });
+                }
+            }
+
             // Send to appropriate agent
             match item.agent {
                 AgentRole::Executor => {
