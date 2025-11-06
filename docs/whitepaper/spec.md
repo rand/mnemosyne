@@ -205,10 +205,9 @@ Every technical claim must have:
 ### 4.2 Code Link Format
 All code references use this format:
 ```
-https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/path/to/file.rs#L123
+https://github.com/rand/mnemosyne/blob/v2.1.1/src/path/to/file.rs#L123
 ```
 
-**Note**: Replace USERNAME with actual GitHub username before publication
 
 ### 4.3 Validation Categories
 - Architecture claims → Link to implementation

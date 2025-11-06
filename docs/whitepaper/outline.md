@@ -75,8 +75,8 @@ Provide busy readers with complete picture in 2-3 minutes. Standalone summary th
 None (executive summary is text-only for quick scanning)
 
 ### Code References
-- Main repository structure: [src/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src)
-- Test suite: [tests/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/tests)
+- Main repository structure: [src/](https://github.com/rand/mnemosyne/tree/v2.1.1/src)
+- Test suite: [tests/](https://github.com/rand/mnemosyne/tree/v2.1.1/tests)
 
 ---
 
@@ -122,7 +122,7 @@ Set context, establish problem significance, position mnemosyne in landscape, pr
 - Shows high-level positioning in stack
 
 ### Code References
-- Architecture overview: [src/lib.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/lib.rs)
+- Architecture overview: [src/lib.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/lib.rs)
 
 ---
 
@@ -201,9 +201,9 @@ Present solution with technical depth, progressive disclosure from concepts to i
 - Covering indexes for sub-millisecond performance
 
 **Code References**:
-- Memory types: [src/types.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/types.rs#L45-120)
-- Storage engine: [src/storage/libsql.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/storage/libsql.rs)
-- Hybrid search: [src/storage/libsql.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/storage/libsql.rs#L450-550)
+- Memory types: [src/types.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/types.rs#L45-120)
+- Storage engine: [src/storage/libsql.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/storage/libsql.rs)
+- Hybrid search: [src/storage/libsql.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/storage/libsql.rs#L450-550)
 
 **4.2 Multi-Agent Orchestration** (320 words)
 
@@ -226,9 +226,9 @@ Present solution with technical depth, progressive disclosure from concepts to i
 - Cross-agent event broadcasting
 
 **Code References**:
-- Orchestrator: [src/orchestration/orchestrator.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/orchestration/orchestrator.rs)
-- Agents: [src/orchestration/agents/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/orchestration/agents)
-- Work items: [src/orchestration/work_items.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/orchestration/work_items.rs)
+- Orchestrator: [src/orchestration/orchestrator.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/orchestrator.rs)
+- Agents: [src/orchestration/agents/](https://github.com/rand/mnemosyne/tree/v2.1.1/src/orchestration/agents)
+- Work items: [src/orchestration/work_items.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/work_items.rs)
 
 **4.3 Evolution System** (280 words)
 
@@ -258,9 +258,9 @@ Present solution with technical depth, progressive disclosure from concepts to i
 - Supersession tracking
 
 **Code References**:
-- Evolution system: [src/evolution/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/evolution)
-- Consolidation: [src/evolution/consolidation.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/evolution/consolidation.rs)
-- Scheduler: [src/evolution/scheduler.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/evolution/scheduler.rs)
+- Evolution system: [src/evolution/](https://github.com/rand/mnemosyne/tree/v2.1.1/src/evolution)
+- Consolidation: [src/evolution/consolidation.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/evolution/consolidation.rs)
+- Scheduler: [src/evolution/scheduler.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/evolution/scheduler.rs)
 
 **4.4 Technology Stack** (280 words)
 
@@ -289,10 +289,10 @@ Present solution with technical depth, progressive disclosure from concepts to i
 - B-tree indexes for namespace/importance filtering
 
 **Code References**:
-- Main library: [src/lib.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/lib.rs)
-- MCP server: [src/mcp/server.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/mcp/server.rs)
-- LLM service: [src/services/llm.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/services/llm.rs)
-- Python bindings: [src/python_bindings/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/python_bindings)
+- Main library: [src/lib.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/lib.rs)
+- MCP server: [src/mcp/server.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/mcp/server.rs)
+- LLM service: [src/services/llm.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/services/llm.rs)
+- Python bindings: [src/python_bindings/](https://github.com/rand/mnemosyne/tree/v2.1.1/src/python_bindings)
 
 ### Diagram Placement
 - **Figure 3: System Architecture Layers** (after 4.1)
@@ -331,8 +331,8 @@ Show how system works in practice, demonstrate real-world usage, highlight integ
 - Background evolution optimizes memory store
 
 **Code References**:
-- CLI commands: [src/cli/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/cli)
-- Workflow handlers: [src/cli/handlers/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/cli/handlers)
+- CLI commands: [src/cli/](https://github.com/rand/mnemosyne/tree/v2.1.1/src/cli)
+- Workflow handlers: [src/cli/handlers/](https://github.com/rand/mnemosyne/tree/v2.1.1/src/cli/handlers)
 
 **5.2 Claude Code Integration** (280 words)
 
@@ -357,10 +357,10 @@ Show how system works in practice, demonstrate real-world usage, highlight integ
 - Dashboard (mnemosyne-dash) connects for visualization
 
 **Code References**:
-- MCP server: [src/mcp/server.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/mcp/server.rs)
-- MCP tools: [src/mcp/tools.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/mcp/tools.rs)
-- Hooks: [.claude/hooks/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/.claude/hooks)
-- API server: [src/api/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/api)
+- MCP server: [src/mcp/server.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/mcp/server.rs)
+- MCP tools: [src/mcp/tools.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/mcp/tools.rs)
+- Hooks: [.claude/hooks/](https://github.com/rand/mnemosyne/tree/v2.1.1/.claude/hooks)
+- API server: [src/api/](https://github.com/rand/mnemosyne/tree/v2.1.1/src/api)
 
 **5.3 Interactive Collaborative Space (ICS)** (180 words)
 
@@ -382,9 +382,9 @@ Show how system works in practice, demonstrate real-world usage, highlight integ
 - `?hole` - Typed holes
 
 **Code References**:
-- ICS binary: [src/bin/ics.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/bin/ics.rs)
-- Editor: [src/ics/editor/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/ics/editor)
-- Semantic highlighting: [src/ics/semantic/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/src/ics/semantic)
+- ICS binary: [src/bin/ics.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/bin/ics.rs)
+- Editor: [src/ics/editor/](https://github.com/rand/mnemosyne/tree/v2.1.1/src/ics/editor)
+- Semantic highlighting: [src/ics/semantic/](https://github.com/rand/mnemosyne/tree/v2.1.1/src/ics/semantic)
 
 ### Diagram Placement
 - **Figure 7: Integration Architecture** (after 5.2.3)
@@ -456,8 +456,8 @@ Build credibility through empirical evidence, demonstrate production readiness, 
 - **CI/CD**: Automated testing on every commit
 
 **Code References**:
-- Test suite: [tests/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/tests)
-- GitHub Actions: [.github/workflows/test.yml](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/.github/workflows/test.yml)
+- Test suite: [tests/](https://github.com/rand/mnemosyne/tree/v2.1.1/tests)
+- GitHub Actions: [.github/workflows/test.yml](https://github.com/rand/mnemosyne/blob/v2.1.1/.github/workflows/test.yml)
 
 **7.2 Performance Metrics** (120 words)
 - **Store memory**: 2.25ms avg (includes LLM enrichment in background)
@@ -469,8 +469,8 @@ Build credibility through empirical evidence, demonstrate production readiness, 
 - **Concurrent requests**: 100+ tested
 
 **Code References**:
-- Performance tests: [tests/performance/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/tests/performance)
-- Benchmarks: [benches/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/benches)
+- Performance tests: [tests/performance/](https://github.com/rand/mnemosyne/tree/v2.1.1/tests/performance)
+- Benchmarks: [benches/](https://github.com/rand/mnemosyne/tree/v2.1.1/benches)
 
 **7.3 Production Readiness** (100 words)
 - **File descriptor safety**: Leak prevention in hooks (87b7a33)
@@ -481,8 +481,8 @@ Build credibility through empirical evidence, demonstrate production readiness, 
 - **Version stability**: v2.1.1 tagged release with semver
 
 **Code References**:
-- Safety commits: [87b7a33](https://github.com/USERNAME/mnemosyne/commit/87b7a33), [eec1a33](https://github.com/USERNAME/mnemosyne/commit/eec1a33)
-- Error handling: [src/error.rs](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/src/error.rs)
+- Safety commits: [87b7a33](https://github.com/rand/mnemosyne/commit/87b7a33), [eec1a33](https://github.com/rand/mnemosyne/commit/eec1a33)
+- Error handling: [src/error.rs](https://github.com/rand/mnemosyne/blob/v2.1.1/src/error.rs)
 
 **7.4 Code Validation** (40 words)
 - All claims linked to specific file:line in v2.1.1 tag
@@ -494,7 +494,7 @@ Build credibility through empirical evidence, demonstrate production readiness, 
 None (metrics presented in table/list format)
 
 ### Code References
-- See validation document: [validation.md](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/docs/whitepaper/validation.md)
+- See validation document: [validation.md](https://github.com/rand/mnemosyne/blob/v2.1.1/docs/whitepaper/validation.md)
 
 ---
 
@@ -544,9 +544,9 @@ Synthesize contributions, discuss impact, outline future directions, provide cal
 None (conclusion is forward-looking text)
 
 ### Code References
-- Installation: [README.md](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/README.md)
-- Documentation: [docs/](https://github.com/USERNAME/mnemosyne/tree/v2.1.1/docs)
-- Contributing: [CONTRIBUTING.md](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/CONTRIBUTING.md)
+- Installation: [README.md](https://github.com/rand/mnemosyne/blob/v2.1.1/README.md)
+- Documentation: [docs/](https://github.com/rand/mnemosyne/tree/v2.1.1/docs)
+- Contributing: [CONTRIBUTING.md](https://github.com/rand/mnemosyne/blob/v2.1.1/CONTRIBUTING.md)
 
 ---
 
@@ -565,7 +565,7 @@ None (conclusion is forward-looking text)
 8. PyO3: Rust bindings for Python
 
 ### Code References
-9. Mnemosyne v2.1.1: https://github.com/USERNAME/mnemosyne/tree/v2.1.1
+9. Mnemosyne v2.1.1: https://github.com/rand/mnemosyne/tree/v2.1.1
 10. Claude Code: https://claude.ai/claude-code
 
 ---

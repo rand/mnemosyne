@@ -74,11 +74,11 @@ website/
    - Branch: `main`, Folder: `/docs/whitepaper/website`
    - Save
 
-2. **Access**: `https://USERNAME.github.io/mnemosyne/docs/whitepaper/website/`
+2. **Access**: `https://rand.github.io/mnemosyne/docs/whitepaper/website/`
 
 3. **Custom domain** (optional):
    - Add `CNAME` file with your domain
-   - Configure DNS: `CNAME` record pointing to `USERNAME.github.io`
+   - Configure DNS: `CNAME` record pointing to `rand.github.io`
 
 ### Option 2: Netlify
 
@@ -361,13 +361,13 @@ Keep website synchronized with markdown whitepaper:
 
 ## License
 
-Same as main repository (MIT). See [LICENSE](https://github.com/USERNAME/mnemosyne/blob/v2.1.1/LICENSE).
+Same as main repository (MIT). See [LICENSE](https://github.com/rand/mnemosyne/blob/v2.1.1/LICENSE).
 
 ## Support
 
-- **Issues**: https://github.com/USERNAME/mnemosyne/issues
-- **Discussions**: https://github.com/USERNAME/mnemosyne/discussions
-- **Documentation**: https://github.com/USERNAME/mnemosyne/tree/v2.1.1/docs
+- **Issues**: https://github.com/rand/mnemosyne/issues
+- **Discussions**: https://github.com/rand/mnemosyne/discussions
+- **Documentation**: https://github.com/rand/mnemosyne/tree/v2.1.1/docs
 
 ---
 

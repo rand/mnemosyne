@@ -2,8 +2,6 @@
 
 **Purpose**: This document maps every technical claim in the whitepaper to specific source code locations and tests in the v2.1.1 tagged release, enabling independent verification.
 
-**Note**: Replace `rand` with the actual GitHub username before publication.
-
 ---
 
 ## Performance Claims

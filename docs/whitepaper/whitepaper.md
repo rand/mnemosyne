@@ -3,14 +3,20 @@
 **A Production-Ready System for Persistent Context and Autonomous Coordination**
 
 **Version**: v2.1.1 (November 5, 2025)
-**Repository**: [github.com/rand/mnemosyne](https://github.com/rand/mnemosyne) *[Note: Replace rand before publication]*
+**Repository**: [github.com/rand/mnemosyne](https://github.com/rand/mnemosyne)
 **Tagged Release**: [v2.1.1](https://github.com/rand/mnemosyne/tree/v2.1.1)
 
 ---
 
 ## Abstract
 
-Large language models face fundamental limitations: context windows bound working memory, coordination between agents lacks persistence, and knowledge evaporates between sessions. Mnemosyne addresses these challenges through a production-ready semantic memory system with multi-agent orchestration. Built in Rust with LibSQL storage, it provides sub-millisecond retrieval (0.88ms list operations, 1.61ms search), LLM-guided memory evolution, and a four-agent coordination framework composed of Orchestrator, Optimizer, Reviewer, and Executor agents. The system integrates seamlessly with Claude Code via Model Context Protocol, automatic hooks, and real-time monitoring. With 702 passing tests, hybrid search combining keyword (FTS5), graph traversal, and vector techniques (conceptual), and privacy-preserving evaluation, Mnemosyne enables persistent context across sessions, autonomous agent coordination, and continuous memory optimization. This paper presents the architecture, validates claims against tagged source code (v2.1.1), compares with existing solutions (MemGPT, Mem0, LangChain Memory), and demonstrates production readiness through comprehensive testing and real-world integration.
+Large language models face fundamental limitations: context windows bound working memory, coordination between agents lacks persistence, and knowledge evaporates between sessions. Mnemosyne addresses these challenges through a production-ready semantic memory system with multi-agent orchestration.
+
+Built in Rust with LibSQL storage, it provides sub-millisecond retrieval (0.88ms list operations, 1.61ms search), LLM-guided memory evolution, and a four-agent coordination framework composed of Orchestrator, Optimizer, Reviewer, and Executor agents. The system integrates with Claude Code via Model Context Protocol, automatic hooks, and real-time monitoring.
+
+Hybrid search combines keyword matching (FTS5), graph traversal, and vector similarity with weighted scoring. The system includes 702 passing tests, privacy-preserving evaluation, and enables persistent context across sessions, autonomous agent coordination, and continuous memory optimization.
+
+This paper presents the architecture, validates claims against tagged source code (v2.1.1), compares with existing solutions (MemGPT, Mem0, LangChain Memory), and demonstrates production readiness through comprehensive testing and real-world integration.
 
 ---
 
@@ -38,7 +44,7 @@ Context window limitations constrain LLM working memory, forcing developers to r
 
 Mnemosyne provides an integrated semantic memory system with multi-agent orchestration, enabling persistent context and autonomous coordination for LLM-based systems. The architecture combines four key innovations:
 
-**Hybrid Search System**: FTS5 keyword search (20% weight), graph traversal via recursive CTE (10% weight), and conceptual vector semantics (70% weight) provide multi-modal retrieval with sub-millisecond latency.
+**Hybrid Search System**: FTS5 keyword search (20% weight) and graph traversal via recursive CTE (10% weight) provide multi-modal retrieval with sub-millisecond latency. Vector semantics (70% weight) planned for v2.2+.
 
 **Four-Agent Framework**: Ractor-based actor supervision with specialized agents:
 - **Orchestrator**: Work queue management, deadlock detection, phase transitions
@@ -128,7 +134,7 @@ This paper presents:
 
 1. **Four-agent orchestration framework** (Section 4.2): Ractor-based supervision with Orchestrator, Optimizer, Reviewer, and Executor agents, providing work queue management, context optimization, quality validation, and parallel execution with dependency tracking.
 
-2. **Hybrid search system** (Section 4.1): FTS5 keyword search, graph traversal via recursive CTE, and conceptual vector semantics combine for multi-modal retrieval with sub-millisecond latency.
+2. **Hybrid search system** (Section 4.1): FTS5 keyword search and graph traversal via recursive CTE provide multi-modal retrieval with sub-millisecond latency. Vector similarity planned for v2.2+.
 
 3. **LLM-guided evolution** (Section 4.3): Automatic memory consolidation, importance recalibration, link decay, and archival reduce manual maintenance while preserving critical information.
 
@@ -410,7 +416,7 @@ Production-ready technologies provide type safety, performance, and interoperabi
 
 **Rust 1.75+** [\[src/lib.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.1/src/lib.rs): Type system prevents memory safety bugs at compile time, zero-cost abstractions provide C-level performance, comprehensive error handling via `Result<T, E>`, strong ecosystem for async I/O, serialization, testing.
 
-**Tokio Async Runtime**: Non-blocking I/O for concurrent operations, spawns lightweight tasks (green threads) for parallelism, integrates with Ractor actors seamlessly, provides timers, channels, synchronization primitives.
+**Tokio Async Runtime**: Non-blocking I/O for concurrent operations, spawns lightweight tasks (green threads) for parallelism, integrates with Ractor actors, provides timers, channels, synchronization primitives.
 
 **LibSQL with Native Vector Search**: SQLite-compatible API, ACID guarantees for consistency, sqlite-vec extension for native vector operations (future), <1MB disk per 1,000 memories, single-file database simplifies deployment.
 
@@ -478,7 +484,7 @@ Parameters: `-i` sets importance (1-10), `-t` provides tags (comma-separated), `
 
 Three retrieval patterns address different needs:
 
-**Search**: Hybrid search across keyword, graph, and conceptual vector space:
+**Search**: Hybrid search across keyword and graph space:
 ```bash
 mnemosyne recall -q "authentication flow" -l 10 --min-importance 7
 ```
@@ -638,8 +644,8 @@ Mnemosyne differs from existing memory systems through integrated multi-agent co
 
 | Feature | Mnemosyne | MemGPT | Mem0 | LangChain Memory |
 |---------|-----------|--------|------|------------------|
-| **Memory Model** | Hybrid (FTS5 + Graph + Vector conceptual) | Virtual context (RAM/disk pages) | Graph nodes with relationships | Conversation buffers + summaries |
-| **Search Approach** | Multi-modal (keyword 20% + graph 10% + vector 70%) | Virtual memory page lookup | Graph traversal with filters | Vector similarity or keyword |
+| **Memory Model** | Hybrid (FTS5 + Graph, Vector planned) | Virtual context (RAM/disk pages) | Graph nodes with relationships | Conversation buffers + summaries |
+| **Search Approach** | Multi-modal (keyword + graph, vector planned) | Virtual memory page lookup | Graph traversal with filters | Vector similarity or keyword |
 | **Multi-Agent Coordination** | 4-agent framework (Ractor supervision) | Single-agent focus | Limited (application layer) | None (chains coordinate) |
 | **Evolution System** | Autonomous (consolidation, importance, decay, archival) | Manual management | Limited automation | None (manual cleanup) |
 | **Integration** | MCP + Hooks + CLI + API + Dashboard | Python library + API | REST API + SDKs | Python library (LangChain ecosystem) |
@@ -759,7 +765,7 @@ All GitHub links resolve to v2.1.1 tagged release, ensuring claims remain verifi
 
 Mnemosyne demonstrates that semantic memory and multi-agent orchestration form a unified system rather than separate concerns. The architecture delivers:
 
-**Persistent Context** through hybrid search (FTS5 + graph + conceptual vector), sub-millisecond retrieval (0.88ms list, 1.61ms search), namespace isolation (Global/Project/Session hierarchy), and 702 tests validating correctness and safety.
+**Persistent Context** through hybrid search (FTS5 + graph, vector planned for v2.2+), sub-millisecond retrieval (0.88ms list, 1.61ms search), namespace isolation (Global/Project/Session hierarchy), and 702 tests validating correctness and safety.
 
 **Multi-Agent Coordination** via four specialized agents (Orchestrator for work queues and deadlock detection, Optimizer for context budgets and skill discovery, Reviewer for quality validation, Executor for parallel work execution), Ractor supervision with automatic restart, event persistence for audit trails, and dependency tracking preventing race conditions.
 
