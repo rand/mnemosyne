@@ -1,0 +1,46 @@
+```mermaid
+sequenceDiagram
+    participant Dev as Developer
+    participant CC as Claude Code
+    participant Hook as Hooks
+    participant Mnem as Mnemosyne
+    participant Dash as Dashboard
+
+    Note over Dev,Dash: Session Start
+    Dev->>CC: Start Claude Code
+    CC->>Hook: Trigger session-start hook
+    Hook->>Mnem: Load important memories
+    Mnem-->>Hook: Project context (importance ≥7)
+    Hook-->>CC: Inject memories into context
+    CC->>Dash: Session started event
+
+    Note over Dev,Dash: Development Work
+    Dev->>CC: Request: Implement feature X
+    CC->>Mnem: Recall relevant memories
+    Mnem-->>CC: Architecture decisions + patterns
+    CC->>Dev: Generate implementation
+
+    Dev->>CC: Commit changes
+    CC->>Hook: Trigger post-tool-use hook
+    Hook->>Mnem: Store commit as architectural memory
+    Mnem->>Dash: Memory stored event
+
+    Note over Dev,Dash: Quality Check
+    CC->>Mnem: Validate against past decisions
+    Mnem-->>CC: Consistency checks pass
+
+    Note over Dev,Dash: Session End
+    Dev->>CC: Push changes
+    CC->>Hook: Trigger pre-destructive hook
+    Hook->>Mnem: Check memory debt
+
+    alt Debt cleared
+        Hook-->>CC: Allow push
+        CC->>Dash: Session complete event
+    else Debt exists
+        Hook-->>CC: Block push + prompt
+        Dev->>Mnem: Store remaining insights
+        Mnem-->>Hook: Debt cleared
+        Hook-->>CC: Allow push
+    end
+```
