@@ -197,10 +197,16 @@ impl ClaudeAgentBridge {
                 let agent_ref = agent_guard.bind(py);
 
                 // Import asyncio to run async Python methods
-                let asyncio = py.import_bound("asyncio")?;
+                let asyncio = py.import_bound("asyncio").map_err(|e| {
+                    error!("Failed to import asyncio: {}", e);
+                    MnemosyneError::Other(format!("asyncio import failed: {}", e))
+                })?;
 
                 // Call start_session() to get coroutine
-                let coro = agent_ref.call_method0("start_session")?;
+                let coro = agent_ref.call_method0("start_session").map_err(|e| {
+                    error!("Failed to call start_session: {}", e);
+                    MnemosyneError::Other(format!("start_session call failed: {}", e))
+                })?;
 
                 // Run coroutine with asyncio.run()
                 asyncio.call_method1("run", (coro,)).map_err(|e| {
@@ -273,10 +279,16 @@ impl ClaudeAgentBridge {
                 let py_work = work_item_to_python(py, &item)?;
 
                 // Import asyncio to run async Python methods
-                let asyncio = py.import_bound("asyncio")?;
+                let asyncio = py.import_bound("asyncio").map_err(|e| {
+                    error!("Failed to import asyncio: {}", e);
+                    MnemosyneError::Other(format!("asyncio import failed: {}", e))
+                })?;
 
                 // Call execute_work to get coroutine
-                let coro = agent_ref.call_method1("execute_work", (py_work,))?;
+                let coro = agent_ref.call_method1("execute_work", (py_work,)).map_err(|e| {
+                    error!("Failed to call execute_work: {}", e);
+                    MnemosyneError::Other(format!("execute_work call failed: {}", e))
+                })?;
 
                 // Run coroutine with asyncio.run()
                 let py_result = asyncio.call_method1("run", (coro,)).map_err(|e| {
