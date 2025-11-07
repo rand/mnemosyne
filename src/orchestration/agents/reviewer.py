@@ -16,6 +16,9 @@ import json
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
+# Import PyO3 bridge interface
+from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
+
 
 class QualityGate(Enum):
     """Quality gates that must pass (8 total: 5 existing + 3 pillars)."""
@@ -72,7 +75,7 @@ class ReviewerConfig:
             ]
 
 
-class ReviewerAgent:
+class ReviewerAgent(AgentExecutionMixin):
     """
     Quality assurance and validation specialist using Claude Agent SDK.
 
@@ -82,6 +85,9 @@ class ReviewerAgent:
     - No anti-patterns
     - Facts verified
     - Intent satisfied
+
+    **PyO3 Bridge Integration**: Inherits from AgentExecutionMixin to provide
+    standard interface for Rust bridge communication.
     """
 
     REVIEWER_SYSTEM_PROMPT = """You are the Reviewer Agent in a multi-agent orchestration system.
@@ -479,6 +485,57 @@ Be thorough but constructive. Focus on real issues.""")
             "strict_mode": self.config.strict_mode,
             "session_active": self._session_active
         }
+
+    async def _execute_work_item(self, work_item: WorkItem) -> WorkResult:
+        """
+        Execute work item for PyO3 bridge integration.
+
+        For Reviewer, "execution" means reviewing the work described
+        in the work item and returning validation results.
+
+        Args:
+            work_item: Work item from Rust (via PyO3 bridge)
+
+        Returns:
+            Work result with review feedback
+        """
+        try:
+            # Convert WorkItem to work artifact for review
+            work_artifact = {
+                "id": work_item.id,
+                "description": work_item.description,
+                "phase": work_item.phase,
+                "review_attempt": work_item.review_attempt,
+                # Reviewer needs context to validate work
+                "context": {
+                    "review_feedback": work_item.review_feedback or [],
+                    "consolidated_context_id": work_item.consolidated_context_id
+                }
+            }
+
+            # Review using existing review method
+            review_result = await self.review(work_artifact)
+
+            # Convert ReviewResult to WorkResult
+            return WorkResult(
+                success=review_result.passed,
+                data=json.dumps({
+                    "gate_results": {gate.value: result for gate, result in review_result.gate_results.items()},
+                    "issues": review_result.issues,
+                    "recommendations": review_result.recommendations,
+                    "suggested_tests": review_result.suggested_tests,
+                    "confidence": review_result.confidence
+                }),
+                memory_ids=review_result.execution_context,
+                error=None if review_result.passed else "Review failed quality gates"
+            )
+
+        except Exception as e:
+            # Handle any errors during review
+            return WorkResult(
+                success=False,
+                error=f"Reviewer error: {type(e).__name__}: {str(e)}"
+            )
 
     async def __aenter__(self):
         """Async context manager entry."""

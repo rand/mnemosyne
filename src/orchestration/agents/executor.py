@@ -18,6 +18,9 @@ import asyncio
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
+# Import PyO3 bridge interface
+from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
+
 
 class ExecutorPhase(Enum):
     """Executor workflow phases."""
@@ -55,7 +58,7 @@ class WorkTask:
     executor_func: Optional[Callable] = None
 
 
-class ExecutorAgent:
+class ExecutorAgent(AgentExecutionMixin):
     """
     Primary work agent and sub-agent manager.
 
@@ -66,6 +69,9 @@ class ExecutorAgent:
     - Phase 4: Plan → Artifacts
 
     Uses ClaudeSDKClient to maintain conversation context and execute tasks.
+
+    **PyO3 Bridge Integration**: Inherits from AgentExecutionMixin to provide
+    standard interface for Rust bridge communication.
     """
 
     EXECUTOR_SYSTEM_PROMPT = """You are the Executor Agent in a multi-agent orchestration system.
@@ -426,6 +432,49 @@ Always follow best practices and validate your work before marking it complete."
             "checkpoints": self._checkpoint_count,
             "session_active": self._session_active
         }
+
+    async def _execute_work_item(self, work_item: WorkItem) -> WorkResult:
+        """
+        Execute work item for PyO3 bridge integration.
+
+        This implements the AgentExecutionMixin interface, allowing the
+        Rust bridge to send work items to this Python agent.
+
+        Args:
+            work_item: Work item from Rust (via PyO3 bridge)
+
+        Returns:
+            Work result to send back to Rust
+        """
+        try:
+            # Convert WorkItem to work plan format
+            work_plan = {
+                "id": work_item.id,
+                "description": work_item.description,
+                "phase": work_item.phase,
+                "priority": work_item.priority,
+                "review_feedback": work_item.review_feedback or [],
+                "review_attempt": work_item.review_attempt,
+                "consolidated_context_id": work_item.consolidated_context_id
+            }
+
+            # Execute using existing execute_work_plan method
+            result = await self.execute_work_plan(work_plan)
+
+            # Convert result to WorkResult format
+            return WorkResult(
+                success=result.get("success", False),
+                data=result.get("output"),
+                memory_ids=result.get("memory_ids", []),
+                error=result.get("error")
+            )
+
+        except Exception as e:
+            # Handle any errors during execution
+            return WorkResult(
+                success=False,
+                error=f"Executor error: {type(e).__name__}: {str(e)}"
+            )
 
     async def __aenter__(self):
         """Async context manager entry."""
