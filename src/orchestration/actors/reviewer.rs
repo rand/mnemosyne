@@ -1378,7 +1378,7 @@ impl Actor for ReviewerActor {
                 let work_item_with_reqs = work_item.clone();
 
                 let feedback =
-                    Self::review_work(state, item_id.clone(), result, work_item_with_reqs.clone())
+                    Self::review_work(state, item_id.clone(), result, (*work_item_with_reqs).clone())
                         .await
                         .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
 

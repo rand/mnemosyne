@@ -47,7 +47,7 @@ pub enum OrchestratorMessage {
     RegisterPythonBridge(crate::orchestration::ClaudeAgentBridge),
 
     /// Submit a new work item to the queue
-    SubmitWork(WorkItem),
+    SubmitWork(Box<WorkItem>),
 
     /// Work item completed by an agent
     WorkCompleted {
@@ -138,7 +138,7 @@ pub enum OptimizerMessage {
     /// Load optimized context for work item dispatch
     LoadWorkItemContext {
         item_id: WorkItemId,
-        work_item: WorkItem,
+        work_item: Box<WorkItem>,
     },
 }
 
@@ -199,7 +199,7 @@ pub enum ReviewerMessage {
     ReviewWork {
         item_id: WorkItemId,
         result: WorkResult,
-        work_item: WorkItem,
+        work_item: Box<WorkItem>,
     },
 
     /// Validate phase transition

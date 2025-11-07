@@ -952,7 +952,7 @@ impl Actor for OptimizerActor {
                 }
             }
             OptimizerMessage::LoadWorkItemContext { item_id, work_item } => {
-                Self::load_work_item_context(state, item_id, work_item)
+                Self::load_work_item_context(state, item_id, *work_item)
                     .await
                     .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
             }

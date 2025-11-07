@@ -567,7 +567,7 @@ impl SupervisionTree {
                 for item in existing_items {
                     tracing::debug!("Resuming work item: {}", item.description);
                     orchestrator
-                        .cast(OrchestratorMessage::SubmitWork(item))
+                        .cast(OrchestratorMessage::SubmitWork(Box::new(item)))
                         .map_err(|e| {
                             crate::error::MnemosyneError::ActorError(format!(
                                 "Failed to resume work: {}",
@@ -589,7 +589,7 @@ impl SupervisionTree {
                 for item in init_items {
                     tracing::debug!("Submitting init work: {}", item.description);
                     orchestrator
-                        .cast(OrchestratorMessage::SubmitWork(item))
+                        .cast(OrchestratorMessage::SubmitWork(Box::new(item)))
                         .map_err(|e| {
                             crate::error::MnemosyneError::ActorError(format!(
                                 "Failed to submit init work: {}",
