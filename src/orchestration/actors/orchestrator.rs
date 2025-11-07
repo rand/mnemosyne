@@ -15,6 +15,7 @@ use crate::orchestration::messages::{
 };
 use crate::orchestration::state::{
     AgentState, Phase, SharedWorkQueue, WorkItem, WorkItemId, WorkQueue,
+    DEFAULT_MAX_WORK_ITEMS,
 };
 use crate::storage::StorageBackend;
 use crate::types::Namespace;
@@ -162,7 +163,24 @@ impl OrchestratorActor {
 
         {
             let mut queue = state.work_queue.write().await;
-            queue.add(item);
+            if let Err(e) = queue.add(item) {
+                tracing::warn!("Work queue at capacity: {}", e);
+                return Err(crate::error::MnemosyneError::Other(format!(
+                    "Work queue full: {}",
+                    e
+                ))
+                .into());
+            }
+
+            // Log warning if nearing capacity
+            if queue.is_near_capacity() {
+                tracing::warn!(
+                    "Work queue nearing capacity: {:.1}% ({}/{})",
+                    queue.capacity_utilization() * 100.0,
+                    queue.stats().total_items,
+                    DEFAULT_MAX_WORK_ITEMS
+                );
+            }
         }
 
         // Persist event
@@ -569,7 +587,11 @@ impl OrchestratorActor {
 
             {
                 let mut queue = state.work_queue.write().await;
-                queue.add(item);
+                if let Err(e) = queue.add(item) {
+                    tracing::error!("Failed to add work item for next phase: {}", e);
+                    // Continue with other items rather than failing entire phase transition
+                    continue;
+                }
             }
 
             // Persist event

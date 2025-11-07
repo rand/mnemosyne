@@ -9,7 +9,7 @@
 use crate::launcher::agents::AgentRole;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
@@ -334,31 +334,74 @@ impl WorkItem {
     }
 }
 
+/// Default maximum work items in queue
+pub const DEFAULT_MAX_WORK_ITEMS: usize = 10_000;
+
+/// Default maximum completed items to retain
+pub const DEFAULT_MAX_COMPLETED: usize = 1_000;
+
 /// Work queue with dependency-aware scheduling
 pub struct WorkQueue {
     /// All work items
     items: HashMap<WorkItemId, WorkItem>,
 
-    /// Completed work item IDs
-    completed: HashSet<WorkItemId>,
+    /// Completed work item IDs (LRU eviction via VecDeque)
+    completed_queue: VecDeque<WorkItemId>,
+
+    /// Completed work item IDs (for fast dependency checking)
+    completed_set: HashSet<WorkItemId>,
 
     /// Current phase
     current_phase: Phase,
+
+    /// Maximum number of work items (prevents unbounded growth)
+    max_items: usize,
+
+    /// Maximum number of completed IDs to retain (LRU eviction)
+    max_completed: usize,
 }
 
 impl WorkQueue {
-    /// Create a new empty work queue
+    /// Create a new empty work queue with default limits
     pub fn new() -> Self {
+        Self::with_limits(DEFAULT_MAX_WORK_ITEMS, DEFAULT_MAX_COMPLETED)
+    }
+
+    /// Create a new work queue with custom limits
+    pub fn with_limits(max_items: usize, max_completed: usize) -> Self {
         Self {
-            items: HashMap::new(),
-            completed: HashSet::new(),
+            items: HashMap::with_capacity(1000), // Pre-allocate some capacity
+            completed_queue: VecDeque::with_capacity(100),
+            completed_set: HashSet::with_capacity(100),
             current_phase: Phase::PromptToSpec,
+            max_items,
+            max_completed,
         }
     }
 
     /// Add a work item
-    pub fn add(&mut self, item: WorkItem) {
+    ///
+    /// Returns an error if the queue is at capacity (backpressure mechanism)
+    pub fn add(&mut self, item: WorkItem) -> Result<(), String> {
+        if self.items.len() >= self.max_items {
+            return Err(format!(
+                "Work queue at capacity ({}/{}). Cannot add item: {}",
+                self.items.len(),
+                self.max_items,
+                item.description
+            ));
+        }
+
         self.items.insert(item.id.clone(), item);
+
+        // Update memory tracker
+        #[cfg(not(test))] // Skip in tests to avoid unnecessary dependencies
+        {
+            use crate::diagnostics::global_memory_tracker;
+            global_memory_tracker().set_work_queue_size(self.items.len());
+        }
+
+        Ok(())
     }
 
     /// Get work item by ID
@@ -372,11 +415,30 @@ impl WorkQueue {
     }
 
     /// Mark work item as completed
+    ///
+    /// Implements LRU eviction: when completed queue reaches max_completed,
+    /// the oldest completed ID is removed
     pub fn mark_completed(&mut self, id: &WorkItemId) {
         if let Some(item) = self.items.get_mut(id) {
             item.transition(AgentState::Complete);
         }
-        self.completed.insert(id.clone());
+
+        // Add to both queue and set
+        self.completed_queue.push_back(id.clone());
+        self.completed_set.insert(id.clone());
+
+        // LRU eviction: remove oldest if over limit
+        while self.completed_queue.len() > self.max_completed {
+            if let Some(oldest_id) = self.completed_queue.pop_front() {
+                self.completed_set.remove(&oldest_id);
+                tracing::debug!(
+                    "Evicted completed work item {} (LRU, {} > {})",
+                    oldest_id,
+                    self.completed_queue.len() + 1,
+                    self.max_completed
+                );
+            }
+        }
     }
 
     /// Re-enqueue a work item (for review failures)
@@ -391,6 +453,16 @@ impl WorkQueue {
             ));
         }
 
+        // Check capacity (re-enqueue uses same limit as add)
+        if !self.items.contains_key(&item.id) && self.items.len() >= self.max_items {
+            return Err(format!(
+                "Work queue at capacity ({}/{}). Cannot re-enqueue item: {}",
+                self.items.len(),
+                self.max_items,
+                item.description
+            ));
+        }
+
         // Update or insert the work item
         self.items.insert(item.id.clone(), item);
 
@@ -402,7 +474,7 @@ impl WorkQueue {
         self.items
             .values()
             .filter(|item| {
-                item.state == AgentState::Ready && item.dependencies_satisfied(&self.completed)
+                item.state == AgentState::Ready && item.dependencies_satisfied(&self.completed_set)
             })
             .collect()
     }
@@ -451,9 +523,19 @@ impl WorkQueue {
             total_items: self.items.len(),
             ready: self.get_ready_items().len(),
             active: self.get_active_items().len(),
-            completed: self.completed.len(),
+            completed: self.completed_set.len(),
             blocked: self.detect_deadlocks().len(),
         }
+    }
+
+    /// Get current capacity utilization (0.0 - 1.0)
+    pub fn capacity_utilization(&self) -> f32 {
+        self.items.len() as f32 / self.max_items as f32
+    }
+
+    /// Check if queue is nearing capacity (> 80%)
+    pub fn is_near_capacity(&self) -> bool {
+        self.capacity_utilization() > 0.8
     }
 }
 
@@ -530,7 +612,7 @@ mod tests {
         );
         let item1_id = item1.id.clone();
 
-        queue.add(item1);
+        queue.add(item1).expect("Should add item successfully");
 
         // Should be ready
         assert_eq!(queue.get_ready_items().len(), 1);
@@ -539,5 +621,142 @@ mod tests {
         queue.mark_completed(&item1_id);
         assert_eq!(queue.get_ready_items().len(), 0);
         assert_eq!(queue.stats().completed, 1);
+    }
+
+    #[test]
+    fn test_work_queue_size_limit() {
+        let mut queue = WorkQueue::with_limits(10, 5); // Small limits for testing
+
+        // Add items up to capacity
+        for i in 0..10 {
+            let item = WorkItem::new(
+                format!("Task {}", i),
+                AgentRole::Executor,
+                Phase::PromptToSpec,
+                5,
+            );
+            assert!(queue.add(item).is_ok(), "Should add item {}", i);
+        }
+
+        // Verify at capacity
+        assert_eq!(queue.stats().total_items, 10);
+        assert!(queue.is_near_capacity());
+
+        // Try to add one more - should fail (backpressure)
+        let overflow_item = WorkItem::new(
+            "Overflow task".to_string(),
+            AgentRole::Executor,
+            Phase::PromptToSpec,
+            5,
+        );
+        assert!(
+            queue.add(overflow_item).is_err(),
+            "Should reject item when at capacity"
+        );
+
+        // Still at 10 items
+        assert_eq!(queue.stats().total_items, 10);
+    }
+
+    #[test]
+    fn test_work_queue_lru_eviction() {
+        let mut queue = WorkQueue::with_limits(100, 5); // Max 5 completed items
+
+        // Add and complete 10 items
+        let mut item_ids = Vec::new();
+        for i in 0..10 {
+            let item = WorkItem::new(
+                format!("Task {}", i),
+                AgentRole::Executor,
+                Phase::PromptToSpec,
+                5,
+            );
+            let id = item.id.clone();
+            item_ids.push(id.clone());
+
+            queue.add(item).expect("Should add item");
+            queue.mark_completed(&id);
+        }
+
+        // Only last 5 should be retained (LRU eviction)
+        let stats = queue.stats();
+        assert_eq!(
+            stats.completed, 5,
+            "Should retain only last 5 completed items"
+        );
+
+        // Verify oldest 5 were evicted, newest 5 retained
+        for i in 0..5 {
+            // Create a dummy item with dependency on old ID
+            let mut item = WorkItem::new(
+                format!("Dependent {}", i),
+                AgentRole::Executor,
+                Phase::PromptToSpec,
+                5,
+            );
+            item.add_dependency(item_ids[i].clone()); // Old ID, should be evicted
+
+            // Dependency should NOT be satisfied (evicted)
+            assert!(
+                !item.dependencies_satisfied(&queue.completed_set),
+                "Old completed item {} should be evicted",
+                i
+            );
+        }
+
+        for i in 5..10 {
+            let mut item = WorkItem::new(
+                format!("Dependent {}", i),
+                AgentRole::Executor,
+                Phase::PromptToSpec,
+                5,
+            );
+            item.add_dependency(item_ids[i].clone()); // Recent ID, should be retained
+
+            // Dependency should be satisfied (retained)
+            assert!(
+                item.dependencies_satisfied(&queue.completed_set),
+                "Recent completed item {} should be retained",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn test_work_queue_capacity_warnings() {
+        let mut queue = WorkQueue::with_limits(10, 5);
+
+        // Add 7 items (70% - not yet warning threshold)
+        for i in 0..7 {
+            let item = WorkItem::new(
+                format!("Task {}", i),
+                AgentRole::Executor,
+                Phase::PromptToSpec,
+                5,
+            );
+            queue.add(item).expect("Should add item");
+        }
+
+        assert!(!queue.is_near_capacity(), "Should not warn at 70%");
+
+        // Add 2 more (90% - should warn)
+        for i in 7..9 {
+            let item = WorkItem::new(
+                format!("Task {}", i),
+                AgentRole::Executor,
+                Phase::PromptToSpec,
+                5,
+            );
+            queue.add(item).expect("Should add item");
+        }
+
+        assert!(
+            queue.is_near_capacity(),
+            "Should warn at 90% (near capacity)"
+        );
+        assert!(
+            queue.capacity_utilization() > 0.8,
+            "Utilization should be > 80%"
+        );
     }
 }
