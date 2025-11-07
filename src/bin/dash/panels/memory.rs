@@ -1,9 +1,10 @@
 //! Memory panel - Display memory operations and evolution metrics
 
-use crate::widgets::{StateIndicator, StateType};
+use crate::time_series::TimeSeriesBuffer;
+use crate::widgets::{Sparkline, StateIndicator, StateType};
 use ratatui::{
     layout::Rect,
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem},
     Frame,
@@ -24,6 +25,8 @@ pub struct MemoryOpsMetrics {
 pub struct MemoryPanel {
     metrics: MemoryOpsMetrics,
     title: String,
+    stores_history: TimeSeriesBuffer<f32>,
+    recalls_history: TimeSeriesBuffer<f32>,
 }
 
 impl MemoryPanel {
@@ -32,11 +35,16 @@ impl MemoryPanel {
         Self {
             metrics: MemoryOpsMetrics::default(),
             title: "Memory Operations".to_string(),
+            stores_history: TimeSeriesBuffer::new(50),
+            recalls_history: TimeSeriesBuffer::new(50),
         }
     }
 
     /// Update memory metrics
     pub fn update(&mut self, metrics: MemoryOpsMetrics) {
+        // Push new values to history buffers
+        self.stores_history.push(metrics.stores_per_minute);
+        self.recalls_history.push(metrics.recalls_per_minute);
         self.metrics = metrics;
     }
 
@@ -48,22 +56,40 @@ impl MemoryPanel {
 
     /// Render the memory panel
     pub fn render(&self, frame: &mut Frame, area: Rect) {
+        // Prepare data for sparklines (must live for entire function)
+        let stores_data = self.stores_history.to_vec();
+        let recalls_data = self.recalls_history.to_vec();
+
         let items = vec![
-            // Stores per minute
+            // Stores per minute with sparkline
             {
                 let indicator = StateIndicator::new(
                     StateType::MemoryStore,
                     format!("Stores: {:.1}/min", self.metrics.stores_per_minute),
                 );
-                ListItem::new(Line::from(vec![indicator.render()]))
+                let sparkline = Sparkline::new(&stores_data)
+                    .width(10)
+                    .style(Style::default().fg(Color::Green));
+
+                let mut spans = vec![indicator.render(), Span::raw("  ")];
+                spans.extend(sparkline.render().spans);
+
+                ListItem::new(Line::from(spans))
             },
-            // Recalls per minute
+            // Recalls per minute with sparkline
             {
                 let indicator = StateIndicator::new(
                     StateType::MemoryRecall,
                     format!("Recalls: {:.1}/min", self.metrics.recalls_per_minute),
                 );
-                ListItem::new(Line::from(vec![indicator.render()]))
+                let sparkline = Sparkline::new(&recalls_data)
+                    .width(10)
+                    .style(Style::default().fg(Color::Cyan));
+
+                let mut spans = vec![indicator.render(), Span::raw("  ")];
+                spans.extend(sparkline.render().spans);
+
+                ListItem::new(Line::from(spans))
             },
             // Evolution events
             {
