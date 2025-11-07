@@ -4,21 +4,29 @@
 //! - rusqlite with sqlite-vec extension for vector operations
 //! - Same database file as libsql (no conflicts)
 //! - Separate vec0 virtual table for embeddings
+//! - Connection pooling for concurrent access (deadpool-sqlite)
 
 use crate::error::{MnemosyneError, Result};
 use crate::types::MemoryId;
-use rusqlite::{Connection, Result as SqliteResult};
+use deadpool_sqlite::{Config, Pool, Runtime};
+use rusqlite::Result as SqliteResult;
 use std::path::Path;
 use tracing::{debug, info};
 
-/// Vector storage backend using sqlite-vec
+/// Default connection pool size
+const DEFAULT_POOL_SIZE: usize = 20;
+
+/// Default idle timeout in seconds
+const DEFAULT_IDLE_TIMEOUT_SECS: u64 = 30;
+
+/// Vector storage backend using sqlite-vec with connection pooling
 pub struct SqliteVectorStorage {
-    conn: Connection,
+    pool: Pool,
     dimensions: usize,
 }
 
 impl SqliteVectorStorage {
-    /// Create a new vector storage instance
+    /// Create a new vector storage instance with connection pooling
     ///
     /// # Arguments
     /// * `db_path` - Path to the SQLite database file (same as libsql)
@@ -29,15 +37,28 @@ impl SqliteVectorStorage {
     /// let vector_storage = SqliteVectorStorage::new("mnemosyne.db", 1536)?;
     /// ```
     pub fn new<P: AsRef<Path>>(db_path: P, dimensions: usize) -> Result<Self> {
-        let path_str = db_path.as_ref().to_string_lossy();
+        Self::with_pool_size(db_path, dimensions, DEFAULT_POOL_SIZE)
+    }
+
+    /// Create a new vector storage instance with custom pool size
+    ///
+    /// # Arguments
+    /// * `db_path` - Path to the SQLite database file
+    /// * `dimensions` - Vector dimension size
+    /// * `pool_size` - Maximum number of connections in the pool
+    pub fn with_pool_size<P: AsRef<Path>>(
+        db_path: P,
+        dimensions: usize,
+        pool_size: usize,
+    ) -> Result<Self> {
+        let path_str = db_path.as_ref().to_string_lossy().to_string();
         info!(
-            "Opening vector storage at: {} (dimensions: {})",
-            path_str, dimensions
+            "Creating vector storage pool at: {} (dimensions: {}, pool_size: {})",
+            path_str, dimensions, pool_size
         );
 
-        // Load sqlite-vec extension BEFORE opening connection
-        // Register it as an auto-extension so it's available for all connections
-        // This pattern is taken directly from sqlite-vec's own tests
+        // Load sqlite-vec extension as auto-extension
+        // This ensures it's available for all connections in the pool
         unsafe {
             use rusqlite::ffi::sqlite3_auto_extension;
 
@@ -47,20 +68,22 @@ impl SqliteVectorStorage {
             )));
         }
 
-        // Open database with rusqlite (extension will be auto-loaded)
-        let conn = Connection::open(db_path)
-            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
+        // Create connection pool configuration
+        let config = Config::new(path_str);
+        let pool = config
+            .create_pool(Runtime::Tokio1)
+            .map_err(|e| MnemosyneError::Database(format!("Failed to create connection pool: {}", e)))?;
 
-        info!("sqlite-vec extension registered and loaded successfully");
+        info!("Vector storage connection pool created successfully");
 
-        Ok(Self { conn, dimensions })
+        Ok(Self { pool, dimensions })
     }
 
     /// Create the vec0 virtual table for vector storage
     ///
     /// This should be called once during initialization or migration.
     /// It's safe to call multiple times (uses IF NOT EXISTS).
-    pub fn create_vec_table(&self) -> Result<()> {
+    pub async fn create_vec_table(&self) -> Result<()> {
         info!(
             "Creating vec0 virtual table for vectors (dimensions: {})",
             self.dimensions
@@ -74,9 +97,16 @@ impl SqliteVectorStorage {
             self.dimensions
         );
 
-        self.conn
-            .execute(&sql, [])
-            .map_err(|e| MnemosyneError::Database(format!("Failed to create vec0 table: {}", e)))?;
+        let conn = self.pool.get().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection from pool: {}", e))
+        })?;
+
+        conn.interact(move |conn| {
+            conn.execute(&sql, [])
+                .map_err(|e| MnemosyneError::Database(format!("Failed to create vec0 table: {}", e)))
+        })
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Pool interaction failed: {}", e)))??;
 
         // Note: Virtual tables don't support traditional indexes
         // The vec0 module handles indexing internally
@@ -94,7 +124,7 @@ impl SqliteVectorStorage {
     /// # Returns
     /// * `Ok(())` on success
     /// * `Err` if dimensions mismatch or database error
-    pub fn store_vector(&self, memory_id: &MemoryId, embedding: &[f32]) -> Result<()> {
+    pub async fn store_vector(&self, memory_id: &MemoryId, embedding: &[f32]) -> Result<()> {
         if embedding.len() != self.dimensions {
             return Err(MnemosyneError::Other(format!(
                 "Embedding dimension mismatch: expected {}, got {}",
@@ -109,26 +139,35 @@ impl SqliteVectorStorage {
         let embedding_json = serde_json::to_string(embedding)
             .map_err(|e| MnemosyneError::Other(format!("Failed to serialize embedding: {}", e)))?;
 
-        // Virtual tables don't support INSERT OR REPLACE, so delete first if exists
-        self.conn
-            .execute(
+        let conn = self.pool.get().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection from pool: {}", e))
+        })?;
+
+        let memory_id_clone = memory_id.clone();
+        conn.interact(move |conn| -> Result<()> {
+            // Virtual tables don't support INSERT OR REPLACE, so delete first if exists
+            conn.execute(
                 "DELETE FROM memory_vectors WHERE memory_id = ?",
-                rusqlite::params![id],
+                rusqlite::params![&id],
             )
             .map_err(|e| {
                 MnemosyneError::Database(format!("Failed to delete existing vector: {}", e))
             })?;
 
-        // Then insert the new vector
-        self.conn
-            .execute(
+            // Then insert the new vector
+            conn.execute(
                 "INSERT INTO memory_vectors (memory_id, embedding)
                  VALUES (?, vec_f32(?))",
-                rusqlite::params![id, embedding_json],
+                rusqlite::params![&id, &embedding_json],
             )
             .map_err(|e| MnemosyneError::Database(format!("Failed to store vector: {}", e)))?;
 
-        debug!("Vector stored successfully for memory: {}", memory_id);
+            Ok(())
+        })
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Pool interaction failed: {}", e)))??;
+
+        debug!("Vector stored successfully for memory: {}", memory_id_clone);
         Ok(())
     }
 
@@ -140,36 +179,51 @@ impl SqliteVectorStorage {
     /// # Returns
     /// * `Some(Vec<f32>)` if vector exists
     /// * `None` if not found
-    pub fn get_vector(&self, memory_id: &MemoryId) -> Result<Option<Vec<f32>>> {
+    pub async fn get_vector(&self, memory_id: &MemoryId) -> Result<Option<Vec<f32>>> {
         debug!("Retrieving vector for memory: {}", memory_id);
 
         let id = memory_id.to_string();
-        let mut stmt = self
-            .conn
-            .prepare("SELECT embedding FROM memory_vectors WHERE memory_id = ?")
-            .map_err(|e| MnemosyneError::Database(format!("Failed to prepare query: {}", e)))?;
 
-        let result: SqliteResult<Vec<u8>> = stmt.query_row(rusqlite::params![id], |row| row.get(0));
+        let conn = self.pool.get().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection from pool: {}", e))
+        })?;
 
-        match result {
-            Ok(blob) => {
-                // Convert blob to Vec<f32>
-                let floats = blob
-                    .chunks_exact(4)
-                    .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-                    .collect();
-                debug!("Vector retrieved successfully for memory: {}", memory_id);
-                Ok(Some(floats))
+        let memory_id_clone = memory_id.clone();
+        let result = conn.interact(move |conn| -> Result<Option<Vec<f32>>> {
+            let mut stmt = conn
+                .prepare("SELECT embedding FROM memory_vectors WHERE memory_id = ?")
+                .map_err(|e| MnemosyneError::Database(format!("Failed to prepare query: {}", e)))?;
+
+            let result: SqliteResult<Vec<u8>> = stmt.query_row(rusqlite::params![id], |row| row.get(0));
+
+            match result {
+                Ok(blob) => {
+                    // Convert blob to Vec<f32>
+                    let floats = blob
+                        .chunks_exact(4)
+                        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                        .collect();
+                    Ok(Some(floats))
+                }
+                Err(rusqlite::Error::QueryReturnedNoRows) => {
+                    Ok(None)
+                }
+                Err(e) => Err(MnemosyneError::Database(format!(
+                    "Failed to retrieve vector: {}",
+                    e
+                ))),
             }
-            Err(rusqlite::Error::QueryReturnedNoRows) => {
-                debug!("No vector found for memory: {}", memory_id);
-                Ok(None)
-            }
-            Err(e) => Err(MnemosyneError::Database(format!(
-                "Failed to retrieve vector: {}",
-                e
-            ))),
+        })
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Pool interaction failed: {}", e)))??;
+
+        if result.is_some() {
+            debug!("Vector retrieved successfully for memory: {}", memory_id_clone);
+        } else {
+            debug!("No vector found for memory: {}", memory_id_clone);
         }
+
+        Ok(result)
     }
 
     /// Search for similar vectors using KNN
@@ -185,7 +239,7 @@ impl SqliteVectorStorage {
     /// # Note
     /// - Similarity is cosine similarity: 1.0 = identical, 0.0 = orthogonal, -1.0 = opposite
     /// - Distance from sqlite-vec is 1 - cosine_similarity, so we convert it back
-    pub fn search_similar(
+    pub async fn search_similar(
         &self,
         query_embedding: &[f32],
         limit: usize,
@@ -207,45 +261,54 @@ impl SqliteVectorStorage {
         let query_json = serde_json::to_string(query_embedding)
             .map_err(|e| MnemosyneError::Other(format!("Failed to serialize query: {}", e)))?;
 
-        let mut stmt = self
-            .conn
-            .prepare(
-                "SELECT memory_id, distance
-                 FROM memory_vectors
-                 WHERE embedding MATCH vec_f32(?)
-                 ORDER BY distance
-                 LIMIT ?",
-            )
-            .map_err(|e| MnemosyneError::Database(format!("Failed to prepare search: {}", e)))?;
-
-        let results: SqliteResult<Vec<(MemoryId, f32)>> = stmt
-            .query_map(rusqlite::params![query_json, limit as i64], |row| {
-                let id_str: String = row.get(0)?;
-                let distance: f32 = row.get(1)?;
-
-                // Convert distance to similarity (distance = 1 - cosine_similarity)
-                // For cosine distance, distance = 1 - similarity
-                let similarity = 1.0 - distance;
-
-                Ok((
-                    MemoryId::from_string(&id_str).map_err(|e| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            0,
-                            rusqlite::types::Type::Text,
-                            Box::new(e),
-                        )
-                    })?,
-                    similarity,
-                ))
-            })
-            .and_then(|mapped| mapped.collect::<SqliteResult<Vec<_>>>());
-
-        let mut results = results.map_err(|e| {
-            MnemosyneError::Database(format!("Failed to execute vector search: {}", e))
+        let conn = self.pool.get().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection from pool: {}", e))
         })?;
 
-        // Filter by minimum similarity
-        results.retain(|(_, sim)| *sim >= min_similarity);
+        let results = conn.interact(move |conn| -> Result<Vec<(MemoryId, f32)>> {
+            let mut stmt = conn
+                .prepare(
+                    "SELECT memory_id, distance
+                     FROM memory_vectors
+                     WHERE embedding MATCH vec_f32(?)
+                     ORDER BY distance
+                     LIMIT ?",
+                )
+                .map_err(|e| MnemosyneError::Database(format!("Failed to prepare search: {}", e)))?;
+
+            let results: SqliteResult<Vec<(MemoryId, f32)>> = stmt
+                .query_map(rusqlite::params![query_json, limit as i64], |row| {
+                    let id_str: String = row.get(0)?;
+                    let distance: f32 = row.get(1)?;
+
+                    // Convert distance to similarity (distance = 1 - cosine_similarity)
+                    // For cosine distance, distance = 1 - similarity
+                    let similarity = 1.0 - distance;
+
+                    Ok((
+                        MemoryId::from_string(&id_str).map_err(|e| {
+                            rusqlite::Error::FromSqlConversionFailure(
+                                0,
+                                rusqlite::types::Type::Text,
+                                Box::new(e),
+                            )
+                        })?,
+                        similarity,
+                    ))
+                })
+                .and_then(|mapped| mapped.collect::<SqliteResult<Vec<_>>>());
+
+            let mut results = results.map_err(|e| {
+                MnemosyneError::Database(format!("Failed to execute vector search: {}", e))
+            })?;
+
+            // Filter by minimum similarity
+            results.retain(|(_, sim)| *sim >= min_similarity);
+
+            Ok(results)
+        })
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Pool interaction failed: {}", e)))??;
 
         debug!("Vector search returned {} results", results.len());
         Ok(results)
@@ -255,18 +318,28 @@ impl SqliteVectorStorage {
     ///
     /// # Arguments
     /// * `memory_id` - The memory identifier
-    pub fn delete_vector(&self, memory_id: &MemoryId) -> Result<()> {
+    pub async fn delete_vector(&self, memory_id: &MemoryId) -> Result<()> {
         debug!("Deleting vector for memory: {}", memory_id);
 
         let id = memory_id.to_string();
-        self.conn
-            .execute(
+
+        let conn = self.pool.get().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection from pool: {}", e))
+        })?;
+
+        let memory_id_clone = memory_id.clone();
+        conn.interact(move |conn| -> Result<()> {
+            conn.execute(
                 "DELETE FROM memory_vectors WHERE memory_id = ?",
                 rusqlite::params![id],
             )
             .map_err(|e| MnemosyneError::Database(format!("Failed to delete vector: {}", e)))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Pool interaction failed: {}", e)))??;
 
-        debug!("Vector deleted successfully for memory: {}", memory_id);
+        debug!("Vector deleted successfully for memory: {}", memory_id_clone);
         Ok(())
     }
 
@@ -274,13 +347,21 @@ impl SqliteVectorStorage {
     ///
     /// # Returns
     /// * Total number of vectors stored
-    pub fn count_vectors(&self) -> Result<usize> {
-        let count: i64 = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM memory_vectors", [], |row| row.get(0))
-            .map_err(|e| MnemosyneError::Database(format!("Failed to count vectors: {}", e)))?;
+    pub async fn count_vectors(&self) -> Result<usize> {
+        let conn = self.pool.get().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection from pool: {}", e))
+        })?;
 
-        Ok(count as usize)
+        let count = conn.interact(|conn| -> Result<usize> {
+            let count: i64 = conn
+                .query_row("SELECT COUNT(*) FROM memory_vectors", [], |row| row.get(0))
+                .map_err(|e| MnemosyneError::Database(format!("Failed to count vectors: {}", e)))?;
+            Ok(count as usize)
+        })
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Pool interaction failed: {}", e)))??;
+
+        Ok(count)
     }
 
     /// Batch store multiple vectors (more efficient than individual stores)
@@ -290,53 +371,67 @@ impl SqliteVectorStorage {
     ///
     /// # Returns
     /// * Number of vectors successfully stored
-    pub fn batch_store_vectors(&mut self, vectors: &[(MemoryId, Vec<f32>)]) -> Result<usize> {
+    pub async fn batch_store_vectors(&self, vectors: &[(MemoryId, Vec<f32>)]) -> Result<usize> {
         info!("Batch storing {} vectors", vectors.len());
 
-        let tx = self
-            .conn
-            .transaction()
-            .map_err(|e| MnemosyneError::Database(format!("Failed to begin transaction: {}", e)))?;
+        let dimensions = self.dimensions;
+        let vectors_owned: Vec<(String, Vec<f32>)> = vectors
+            .iter()
+            .map(|(id, emb)| (id.to_string(), emb.clone()))
+            .collect();
 
-        let mut count = 0;
-        {
-            let mut stmt = tx
-                .prepare(
-                    "INSERT OR REPLACE INTO memory_vectors (memory_id, embedding)
-                     VALUES (?, vec_f32(?))",
-                )
-                .map_err(|e| {
-                    MnemosyneError::Database(format!("Failed to prepare batch insert: {}", e))
-                })?;
+        let conn = self.pool.get().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to get connection from pool: {}", e))
+        })?;
 
-            for (memory_id, embedding) in vectors {
-                if embedding.len() != self.dimensions {
-                    debug!(
-                        "Skipping vector {} due to dimension mismatch: expected {}, got {}",
-                        memory_id,
-                        self.dimensions,
-                        embedding.len()
-                    );
-                    continue;
-                }
+        let count = conn.interact(move |conn| -> Result<usize> {
+            let tx = conn
+                .transaction()
+                .map_err(|e| MnemosyneError::Database(format!("Failed to begin transaction: {}", e)))?;
 
-                let id = memory_id.to_string();
-                let embedding_json = serde_json::to_string(embedding).map_err(|e| {
-                    MnemosyneError::Other(format!("Failed to serialize embedding: {}", e))
-                })?;
-
-                stmt.execute(rusqlite::params![id, embedding_json])
+            let mut count = 0;
+            {
+                let mut stmt = tx
+                    .prepare(
+                        "INSERT OR REPLACE INTO memory_vectors (memory_id, embedding)
+                         VALUES (?, vec_f32(?))",
+                    )
                     .map_err(|e| {
-                        MnemosyneError::Database(format!("Failed to insert vector: {}", e))
+                        MnemosyneError::Database(format!("Failed to prepare batch insert: {}", e))
                     })?;
 
-                count += 1;
-            }
-        }
+                for (id, embedding) in &vectors_owned {
+                    if embedding.len() != dimensions {
+                        debug!(
+                            "Skipping vector {} due to dimension mismatch: expected {}, got {}",
+                            id,
+                            dimensions,
+                            embedding.len()
+                        );
+                        continue;
+                    }
 
-        tx.commit().map_err(|e| {
-            MnemosyneError::Database(format!("Failed to commit transaction: {}", e))
-        })?;
+                    let embedding_json = serde_json::to_string(embedding).map_err(|e| {
+                        MnemosyneError::Other(format!("Failed to serialize embedding: {}", e))
+                    })?;
+
+                    stmt.execute(rusqlite::params![id, embedding_json])
+                        .map_err(|e| {
+                            MnemosyneError::Database(format!("Failed to insert vector: {}", e))
+                        })?;
+
+                    count += 1;
+                }
+            }
+
+            tx.commit().map_err(|e| {
+                MnemosyneError::Database(format!("Failed to commit transaction: {}", e))
+            })?;
+
+            Ok(count)
+        })
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Pool interaction failed: {}", e)))??;
 
         info!("Batch stored {} vectors successfully", count);
         Ok(count)
@@ -348,25 +443,25 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    fn create_test_storage() -> (SqliteVectorStorage, TempDir) {
+    async fn create_test_storage() -> (SqliteVectorStorage, TempDir) {
         let temp_dir = TempDir::new().unwrap();
         let db_path = temp_dir.path().join("test.db");
         let storage = SqliteVectorStorage::new(db_path, 3).unwrap();
-        storage.create_vec_table().unwrap();
+        storage.create_vec_table().await.unwrap();
         (storage, temp_dir)
     }
 
-    #[test]
-    fn test_store_and_retrieve_vector() {
-        let (storage, _temp) = create_test_storage();
+    #[tokio::test]
+    async fn test_store_and_retrieve_vector() {
+        let (storage, _temp) = create_test_storage().await;
         let memory_id = MemoryId::new();
         let embedding = vec![1.0, 2.0, 3.0];
 
         // Store vector
-        storage.store_vector(&memory_id, &embedding).unwrap();
+        storage.store_vector(&memory_id, &embedding).await.unwrap();
 
         // Retrieve vector
-        let retrieved = storage.get_vector(&memory_id).unwrap();
+        let retrieved = storage.get_vector(&memory_id).await.unwrap();
         assert!(retrieved.is_some());
         let retrieved = retrieved.unwrap();
         assert_eq!(retrieved.len(), 3);
@@ -377,13 +472,13 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_dimension_mismatch() {
-        let (storage, _temp) = create_test_storage();
+    #[tokio::test]
+    async fn test_dimension_mismatch() {
+        let (storage, _temp) = create_test_storage().await;
         let memory_id = MemoryId::new();
         let wrong_embedding = vec![1.0, 2.0]; // Wrong dimension (2 instead of 3)
 
-        let result = storage.store_vector(&memory_id, &wrong_embedding);
+        let result = storage.store_vector(&memory_id, &wrong_embedding).await;
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -391,9 +486,9 @@ mod tests {
             .contains("dimension mismatch"));
     }
 
-    #[test]
-    fn test_search_similar() {
-        let (storage, _temp) = create_test_storage();
+    #[tokio::test]
+    async fn test_search_similar() {
+        let (storage, _temp) = create_test_storage().await;
 
         // Store three vectors
         let id1 = MemoryId::new();
@@ -401,15 +496,15 @@ mod tests {
         let id3 = MemoryId::new();
 
         // Similar vectors
-        storage.store_vector(&id1, &[1.0, 0.0, 0.0]).unwrap();
-        storage.store_vector(&id2, &[0.9, 0.1, 0.0]).unwrap();
+        storage.store_vector(&id1, &[1.0, 0.0, 0.0]).await.unwrap();
+        storage.store_vector(&id2, &[0.9, 0.1, 0.0]).await.unwrap();
 
         // Different vector
-        storage.store_vector(&id3, &[0.0, 0.0, 1.0]).unwrap();
+        storage.store_vector(&id3, &[0.0, 0.0, 1.0]).await.unwrap();
 
         // Search for vectors similar to [1.0, 0.0, 0.0]
         let query = [1.0, 0.0, 0.0];
-        let results = storage.search_similar(&query, 3, 0.5).unwrap();
+        let results = storage.search_similar(&query, 3, 0.5).await.unwrap();
 
         // Should find id1 (exact match) and id2 (similar), but not id3 (different)
         assert!(results.len() >= 2);
@@ -425,44 +520,47 @@ mod tests {
         assert!(*similarity > 0.5);
     }
 
-    #[test]
-    fn test_delete_vector() {
-        let (storage, _temp) = create_test_storage();
+    #[tokio::test]
+    async fn test_delete_vector() {
+        let (storage, _temp) = create_test_storage().await;
         let memory_id = MemoryId::new();
         let embedding = vec![1.0, 2.0, 3.0];
 
         // Store and verify
-        storage.store_vector(&memory_id, &embedding).unwrap();
-        assert!(storage.get_vector(&memory_id).unwrap().is_some());
+        storage.store_vector(&memory_id, &embedding).await.unwrap();
+        assert!(storage.get_vector(&memory_id).await.unwrap().is_some());
 
         // Delete and verify
-        storage.delete_vector(&memory_id).unwrap();
-        assert!(storage.get_vector(&memory_id).unwrap().is_none());
+        storage.delete_vector(&memory_id).await.unwrap();
+        assert!(storage.get_vector(&memory_id).await.unwrap().is_none());
     }
 
-    #[test]
-    fn test_count_vectors() {
-        let (storage, _temp) = create_test_storage();
+    #[tokio::test]
+    async fn test_count_vectors() {
+        let (storage, _temp) = create_test_storage().await;
 
-        assert_eq!(storage.count_vectors().unwrap(), 0);
+        assert_eq!(storage.count_vectors().await.unwrap(), 0);
 
         // Store some vectors
         storage
             .store_vector(&MemoryId::new(), &[1.0, 0.0, 0.0])
+            .await
             .unwrap();
         storage
             .store_vector(&MemoryId::new(), &[0.0, 1.0, 0.0])
+            .await
             .unwrap();
         storage
             .store_vector(&MemoryId::new(), &[0.0, 0.0, 1.0])
+            .await
             .unwrap();
 
-        assert_eq!(storage.count_vectors().unwrap(), 3);
+        assert_eq!(storage.count_vectors().await.unwrap(), 3);
     }
 
-    #[test]
-    fn test_batch_store() {
-        let (mut storage, _temp) = create_test_storage();
+    #[tokio::test]
+    async fn test_batch_store() {
+        let (storage, _temp) = create_test_storage().await;
 
         let vectors = vec![
             (MemoryId::new(), vec![1.0, 0.0, 0.0]),
@@ -470,8 +568,8 @@ mod tests {
             (MemoryId::new(), vec![0.0, 0.0, 1.0]),
         ];
 
-        let count = storage.batch_store_vectors(&vectors).unwrap();
+        let count = storage.batch_store_vectors(&vectors).await.unwrap();
         assert_eq!(count, 3);
-        assert_eq!(storage.count_vectors().unwrap(), 3);
+        assert_eq!(storage.count_vectors().await.unwrap(), 3);
     }
 }

@@ -1,7 +1,7 @@
 //! Integration tests for vector storage with sqlite-vec
 //!
 //! Tests the dual storage approach:
-//! - rusqlite with sqlite-vec for vector operations
+//! - rusqlite with sqlite-vec for vector operations with connection pooling
 //! - Same database file as libsql
 //! - Vector search functionality
 
@@ -10,11 +10,11 @@ use mnemosyne_core::types::MemoryId;
 use tempfile::TempDir;
 
 /// Create a test vector storage instance
-fn create_test_storage() -> (SqliteVectorStorage, TempDir) {
+async fn create_test_storage() -> (SqliteVectorStorage, TempDir) {
     let temp_dir = TempDir::new().unwrap();
     let db_path = temp_dir.path().join("test_vectors.db");
     let storage = SqliteVectorStorage::new(db_path, 1536).unwrap();
-    storage.create_vec_table().unwrap();
+    storage.create_vec_table().await.unwrap();
     (storage, temp_dir)
 }
 
