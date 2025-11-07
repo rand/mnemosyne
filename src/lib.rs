@@ -89,7 +89,7 @@ pub use evolution::{
     ArchivalJob, BackgroundScheduler, ConsolidationJob, EvolutionConfig, EvolutionJob,
     ImportanceRecalibrator, JobConfig, JobReport, LinkDecayJob,
 };
-pub use mcp::{McpServer, ToolHandler};
+pub use mcp::{EventSink, McpServer, ToolHandler};
 pub use namespace::{NamespaceDetector, ProjectMetadata};
 pub use orchestration::{AgentEvent, OrchestrationEngine, SupervisionConfig, WorkItem, WorkQueue};
 pub use services::{LlmConfig, LlmService};

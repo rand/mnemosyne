@@ -8,6 +8,9 @@ use ratatui::{
     Frame,
 };
 
+/// Type alias for input validation functions
+type InputValidator = Option<Box<dyn Fn(&str) -> Result<(), String>>>;
+
 /// Dialog trait for modal interactions
 pub trait Dialog {
     /// Render the dialog
@@ -240,7 +243,7 @@ pub struct InputDialog {
     cursor_pos: usize,
     visible: bool,
     result: DialogResult,
-    validator: Option<Box<dyn Fn(&str) -> Result<(), String>>>,
+    validator: InputValidator,
     error: Option<String>,
 }
 
