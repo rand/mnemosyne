@@ -1,0 +1,17 @@
+# Python dependencies for mnemosyne orchestration agents
+#
+# Installation:
+#   uv pip install -r requirements.txt
+#   OR: pip install -r requirements.txt
+#
+# Minimal dependencies for production use
+
+# Anthropic Claude SDK (official Python client)
+anthropic>=0.40.0
+
+# Note: All other dependencies are Python standard library:
+# - dataclasses (Python 3.7+)
+# - typing (Python 3.5+)
+# - pathlib (Python 3.4+)
+# - enum (Python 3.4+)
+# - logging, time, datetime, sys, os, json, hashlib, asyncio

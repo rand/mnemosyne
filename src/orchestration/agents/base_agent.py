@@ -4,8 +4,66 @@ Base Agent Mixin - Common interface for all Claude SDK agents.
 Provides standard interface for Rust PyO3 bridge integration.
 """
 
+import sys
+import os
 from typing import Any, Dict, List
 from dataclasses import dataclass
+
+
+def validate_environment() -> None:
+    """
+    Validate Python environment and dependencies.
+
+    Checks:
+    - Python version >= 3.9
+    - anthropic package installed
+    - ANTHROPIC_API_KEY environment variable set
+
+    Raises:
+        RuntimeError: If environment is invalid
+
+    Example:
+        ```python
+        from base_agent import validate_environment
+
+        # Call at agent initialization
+        validate_environment()
+        ```
+    """
+    # Check Python version
+    if sys.version_info < (3, 9):
+        raise RuntimeError(
+            f"Python 3.9+ required, got {sys.version_info.major}.{sys.version_info.minor}. "
+            f"Install with: brew install python@3.11 or pyenv install 3.11"
+        )
+
+    # Check anthropic package
+    try:
+        import anthropic
+        version = getattr(anthropic, "__version__", "unknown")
+        print(f"✓ anthropic SDK installed: {version}")
+    except ImportError:
+        raise RuntimeError(
+            "anthropic package not installed. "
+            "Install with: uv pip install anthropic OR pip install anthropic"
+        )
+
+    # Check API key (warning only, not fatal)
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        print(
+            "⚠ Warning: ANTHROPIC_API_KEY not set. "
+            "Agent initialization will fail without API key. "
+            "Get your key from: https://console.anthropic.com/settings/keys"
+        )
+    else:
+        print(f"✓ ANTHROPIC_API_KEY configured ({api_key[:7]}...{api_key[-4:]})")
+
+    # Check Python path includes agents directory
+    agents_dir = os.path.dirname(os.path.abspath(__file__))
+    if agents_dir not in sys.path:
+        print(f"ℹ Adding {agents_dir} to PYTHONPATH")
+        sys.path.insert(0, agents_dir)
 
 
 @dataclass
