@@ -521,9 +521,12 @@ Always follow best practices and validate your work before marking it complete."
 
         try:
             # Convert WorkItem to work plan format
+            # Map WorkItem fields to what execute_work_plan expects
             work_plan = {
                 "id": work_item.id,
-                "description": work_item.description,
+                "prompt": work_item.description,  # Map description → prompt for validation
+                "tech_stack": "Python",  # Default for E2E testing
+                "success_criteria": "Code executes without errors",  # Default
                 "phase": work_item.phase,
                 "priority": work_item.priority,
                 "review_feedback": work_item.review_feedback or [],
