@@ -75,6 +75,71 @@ class ClaudeSDKClient:
         # Initialize Anthropic client
         self.client = anthropic.Anthropic(api_key=api_key)
 
+        # Conversation state
+        self._messages = []
+        self._system_prompt = None
+        self._connected = False
+
+    async def connect(self):
+        """Initialize connection (no-op for HTTP API, but tracks state)."""
+        self._connected = True
+
+    async def disconnect(self):
+        """Close connection (no-op for HTTP API, but tracks state)."""
+        self._connected = False
+
+    async def query(self, prompt: str):
+        """
+        Send a query to Claude and store in conversation context.
+
+        Args:
+            prompt: User message or system prompt to send
+        """
+        if not self._connected:
+            raise RuntimeError("Client not connected. Call connect() first.")
+
+        # If this looks like a system prompt, store it
+        if len(self._messages) == 0 and (
+            "You are" in prompt or
+            "Your role" in prompt or
+            "Responsibilities" in prompt
+        ):
+            self._system_prompt = prompt
+        else:
+            # Add as user message
+            self._messages.append({
+                "role": "user",
+                "content": prompt
+            })
+
+    async def receive_response(self):
+        """
+        Get response from Claude (async generator).
+
+        Yields response messages from Claude.
+        """
+        if not self._messages:
+            return
+
+        # Call Claude API
+        response = self.client.messages.create(
+            model=self.options.model,
+            max_tokens=self.options.max_tokens,
+            temperature=self.options.temperature,
+            system=self._system_prompt if self._system_prompt else "",
+            messages=self._messages
+        )
+
+        # Add assistant response to conversation
+        assistant_message = {
+            "role": "assistant",
+            "content": response.content[0].text if response.content else ""
+        }
+        self._messages.append(assistant_message)
+
+        # Yield response
+        yield assistant_message
+
     async def send_message(
         self,
         message: str,
