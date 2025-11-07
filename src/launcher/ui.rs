@@ -371,6 +371,65 @@ pub fn show_loading_step(step_name: &str) {
     progress.show_step_complete(step_name);
 }
 
+/// Check for updates and show notification if available
+/// This is non-blocking and will timeout after 3 seconds
+pub async fn check_and_show_updates() {
+    use crate::version_check::{VersionChecker, Tool};
+
+    // Create version checker
+    let checker = match VersionChecker::new() {
+        Ok(c) => c,
+        Err(_) => return, // Silently fail if we can't create checker
+    };
+
+    // Check all tools with 3-second timeout
+    let check_future = checker.check_all_tools();
+    let results = match tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        check_future
+    ).await {
+        Ok(Ok(results)) => results,
+        _ => return, // Silently fail on timeout or error
+    };
+
+    // Filter to only tools with updates available
+    let updates: Vec<_> = results.iter()
+        .filter(|info| info.update_available)
+        .collect();
+
+    if !updates.is_empty() {
+        println!();
+        println!("   {} Updates available:", icons::system::info());
+        for info in &updates {
+            if let (Some(installed), Some(latest)) = (&info.installed, &info.latest) {
+                println!(
+                    "   {} {}: {} → {}",
+                    icons::system::package(),
+                    info.tool.display_name(),
+                    installed,
+                    latest
+                );
+            }
+        }
+        println!("   Run 'mnemosyne update' to update all tools");
+        println!();
+    }
+
+    // Check for missing tools
+    let missing: Vec<_> = results.iter()
+        .filter(|info| !info.is_installed)
+        .collect();
+
+    if !missing.is_empty() {
+        println!("   {} Optional tools not installed:", icons::system::info());
+        for info in &missing {
+            println!("   {} {}", icons::system::package(), info.tool.display_name());
+        }
+        println!("   Run 'mnemosyne update --install' for installation instructions");
+        println!();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

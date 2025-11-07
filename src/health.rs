@@ -117,6 +117,9 @@ pub async fn run_health_checks(
     // Phase 7: Worktree Cleanup (LOW)
     checks.extend(check_worktree_cleanup(verbose, fix).await?);
 
+    // Phase 8: Version Updates (INFO)
+    checks.extend(check_version_updates(verbose).await?);
+
     // Calculate summary
     let passed = checks
         .iter()
@@ -672,4 +675,87 @@ pub fn print_health_summary(summary: &HealthSummary, verbose: bool) {
         summary.summary.warnings,
         summary.summary.errors
     );
+}
+
+/// Check for available version updates
+async fn check_version_updates(_verbose: bool) -> Result<Vec<CheckResult>> {
+    debug!("Checking for version updates...");
+    let mut results = Vec::new();
+
+    // Create version checker
+    let checker = match crate::version_check::VersionChecker::new() {
+        Ok(c) => c,
+        Err(e) => {
+            results.push(CheckResult::fail(
+                "version_checker_init",
+                format!("Failed to initialize version checker: {}", e),
+            ));
+            return Ok(results);
+        }
+    };
+
+    // Check all tools with 5-second timeout
+    let check_future = checker.check_all_tools();
+    let tool_results = match tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        check_future
+    ).await {
+        Ok(Ok(r)) => r,
+        Ok(Err(e)) => {
+            results.push(CheckResult::warn(
+                "version_check_failed",
+                format!("Version check failed: {}", e),
+            ));
+            return Ok(results);
+        }
+        Err(_) => {
+            results.push(CheckResult::warn(
+                "version_check_timeout",
+                "Version check timed out (network may be unavailable)".to_string(),
+            ));
+            return Ok(results);
+        }
+    };
+
+    // Check each tool
+    for info in tool_results {
+        let tool_name = format!("{}_version", info.tool.name());
+
+        if !info.is_installed {
+            results.push(CheckResult::warn(
+                &tool_name,
+                format!("{} is not installed (optional)", info.tool.display_name()),
+            ));
+            continue;
+        }
+
+        if info.update_available {
+            let message = if let (Some(installed), Some(latest)) = (&info.installed, &info.latest) {
+                format!(
+                    "{} update available: {} → {} (run 'mnemosyne update' to update)",
+                    info.tool.display_name(),
+                    installed,
+                    latest
+                )
+            } else {
+                format!("{} update available", info.tool.display_name())
+            };
+
+            results.push(CheckResult::warn(&tool_name, message));
+        } else if let Some(version) = &info.installed {
+            results.push(CheckResult::pass(
+                &tool_name,
+                format!("{} is up to date ({})", info.tool.display_name(), version),
+            ));
+        }
+    }
+
+    if results.is_empty() {
+        results.push(CheckResult::pass(
+            "version_checks",
+            "All version checks completed".to_string(),
+        ));
+    }
+
+    Ok(results)
 }

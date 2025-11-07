@@ -440,6 +440,9 @@ async fn main() -> Result<()> {
                 &agent_names,
             );
 
+            // Check for updates (non-blocking, 3s timeout)
+            launcher::ui::check_and_show_updates().await;
+
             // Show dashboard availability
             info!("Dashboard available at: http://{}", socket_addr);
             info!("Run 'mnemosyne-dash' in another terminal to monitor activity");
