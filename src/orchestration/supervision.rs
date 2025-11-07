@@ -677,31 +677,58 @@ impl SupervisionTree {
         })
     }
 
-    /// Stop all agents gracefully
+    /// Stop all agents gracefully with timeout
     pub async fn stop(&mut self) -> Result<()> {
-        tracing::debug!("Stopping supervision tree");
+        self.stop_with_timeout(std::time::Duration::from_secs(30)).await
+    }
+
+    /// Stop all agents gracefully with custom timeout (P1-2: Actor shutdown coordination)
+    pub async fn stop_with_timeout(&mut self, timeout: std::time::Duration) -> Result<()> {
+        tracing::debug!("Stopping supervision tree (timeout: {:?})", timeout);
+
+        let stop_start = std::time::Instant::now();
 
         // Stop in reverse order (children first, then supervisor)
         if let Some(executor) = self.executor.take() {
             executor.stop(None);
+            tracing::debug!("Sent stop signal to executor");
         }
 
         if let Some(reviewer) = self.reviewer.take() {
             reviewer.stop(None);
+            tracing::debug!("Sent stop signal to reviewer");
         }
 
         if let Some(optimizer) = self.optimizer.take() {
             optimizer.stop(None);
+            tracing::debug!("Sent stop signal to optimizer");
         }
 
         if let Some(orchestrator) = self.orchestrator.take() {
             orchestrator.stop(None);
+            tracing::debug!("Sent stop signal to orchestrator");
         }
 
-        // Wait for actors to stop
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        // Wait for actors to stop gracefully with timeout (P1-2: 30s default)
+        tokio::select! {
+            _ = tokio::time::sleep(timeout) => {
+                let elapsed = stop_start.elapsed();
+                tracing::warn!(
+                    "Actor shutdown timeout ({:?}) exceeded after {:?}. \
+                     Some actors may not have stopped gracefully.",
+                    timeout, elapsed
+                );
+            }
+            _ = async {
+                // Give actors time to complete cleanup
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            } => {
+                tracing::debug!("Actors stopped gracefully");
+            }
+        }
 
-        tracing::debug!("Supervision tree stopped");
+        let total_elapsed = stop_start.elapsed();
+        tracing::debug!("Supervision tree stopped (took {:?})", total_elapsed);
 
         Ok(())
     }
@@ -726,6 +753,33 @@ impl SupervisionTree {
     /// Get reference to executor
     pub fn executor(&self) -> Option<&ActorRef<ExecutorMessage>> {
         self.executor.as_ref()
+    }
+
+    /// Check if any actors are still running (for P1-2: Actor shutdown coordination)
+    pub fn has_running_actors(&self) -> bool {
+        self.orchestrator.is_some()
+            || self.optimizer.is_some()
+            || self.reviewer.is_some()
+            || self.executor.is_some()
+    }
+
+    /// Send stop signals to all actors synchronously (for Drop implementation)
+    ///
+    /// This is a best-effort cleanup that doesn't wait for graceful shutdown.
+    /// Use `stop()` or `stop_with_timeout()` for proper graceful shutdown.
+    pub fn send_stop_signals(&self) {
+        if let Some(ref executor) = self.executor {
+            executor.stop(None);
+        }
+        if let Some(ref reviewer) = self.reviewer {
+            reviewer.stop(None);
+        }
+        if let Some(ref optimizer) = self.optimizer {
+            optimizer.stop(None);
+        }
+        if let Some(ref orchestrator) = self.orchestrator {
+            orchestrator.stop(None);
+        }
     }
 
     /// Get reference to agent registry

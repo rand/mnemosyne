@@ -292,6 +292,29 @@ impl OrchestrationEngine {
     }
 }
 
+impl Drop for OrchestrationEngine {
+    fn drop(&mut self) {
+        // P1-2: Actor shutdown coordination - ensure cleanup on drop
+        // Check if actors are still running and warn if stop() wasn't called
+        if self.supervision.has_running_actors() {
+            tracing::warn!(
+                "OrchestrationEngine dropped without calling stop(). \
+                 Actors may not have been shut down gracefully. \
+                 This can cause resource leaks. \
+                 Please call engine.stop().await before dropping."
+            );
+
+            // Best-effort cleanup: send stop signals synchronously
+            // Note: This won't wait for graceful shutdown since Drop can't be async
+            self.supervision.send_stop_signals();
+
+            tracing::debug!("OrchestrationEngine Drop: sent stop signals to all actors");
+        } else {
+            tracing::debug!("OrchestrationEngine dropped (actors already stopped)");
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
