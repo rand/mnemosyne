@@ -472,11 +472,18 @@ bd close <issue-id> --reason "Implemented" --json
 
 ### Mnemosyne Build & Installation
 ```bash
-# CRITICAL: Use the build script (NOT cargo build/install directly)
+# Fast rebuild (recommended for development - ~1-3s incremental)
+./scripts/rebuild-and-update-install.sh
+
+# Production build (full optimizations)
+./scripts/rebuild-and-update-install.sh --full-release
+
+# First-time setup (full installation)
 ./scripts/build-and-install.sh
 
-# This ensures proper installation to ~/.local/bin/mnemosyne
-# with correct configuration and permissions
+# CRITICAL: Do NOT use cargo build/install directly
+# The scripts ensure proper installation to ~/.local/bin/mnemosyne
+# with macOS code signing and correct permissions
 ```
 
 ### Python
@@ -647,6 +654,11 @@ gh pr create --title "Title" --body "Description"
 - **Non-destructive changes**: Verify before deleting; use git mv for tracked files
 - **Test after reorganization**: Run tests to ensure functionality is preserved
 - **Update documentation**: Reflect structural changes in docs/INDEX.md and README
+
+**For detailed repository organization guidelines**, see:
+- [AGENT_GUIDE.md: Repository Organization](AGENT_GUIDE.md#repository-organization)
+- [AGENT_GUIDE.md: Documentation Management](AGENT_GUIDE.md#documentation-management)
+- [AGENT_GUIDE.md: Release Management](AGENT_GUIDE.md#release-management)
 
 ---
 
@@ -855,7 +867,7 @@ Complex tasks load multiple skills compositionally:
 ❌ Restructure shadcn components
 ❌ Missing recovery paths for errors
 ❌ Use pip/poetry (use uv for mnemosyne)
-❌ Use cargo build/install directly (use ./scripts/build-and-install.sh)
+❌ Use cargo build/install directly (use ./scripts/rebuild-and-update-install.sh)
 ❌ Skip checking docs/ when encountering challenges
 ❌ Disorganize repository (move/rename without preserving references)
 ❌ Leave cloud resources running
@@ -884,8 +896,8 @@ zig init && zig build && zig build test
 # Rust
 cargo new && cargo add anyhow tokio && cargo build
 
-# Mnemosyne (use build script, NOT cargo directly)
-./scripts/build-and-install.sh
+# Mnemosyne (use fast rebuild script, NOT cargo directly)
+./scripts/rebuild-and-update-install.sh
 
 # Go
 go mod init && go get package && go run .
@@ -950,6 +962,23 @@ git add . && git commit -m "Changes" && git log -1 --oneline
 pkill -f "test"
 ./run_tests.sh > /tmp/test_$(date +%Y%m%d_%H%M%S).log 2>&1 & wait
 tail -f /tmp/test_output.log
+```
+
+### Documentation & Release Commands
+```bash
+# Update documentation
+vim README.md AGENT_GUIDE.md CHANGELOG.md
+vim docs/INDEX.md                            # Update navigation
+
+# Verify cross-references
+grep -r "old-reference" docs/
+
+# Create release
+git tag -a v2.2.0 -m "Release v2.2.0"
+gh release create v2.2.0 --title "v2.2.0" --notes-file RELEASE_NOTES.md
+
+# Verify GitHub Pages deployment
+# https://yourusername.github.io/mnemosyne/
 ```
 
 ### Skills Discovery
@@ -1028,7 +1057,7 @@ Before completing ANY task:
 [ ] Challenged vague requirements
 [ ] Confirmed tech stack and deployment
 [ ] Used correct package manager (uv for Python, NOT pip/poetry)
-[ ] Used build script (./scripts/build-and-install.sh) for mnemosyne builds
+[ ] Used fast rebuild script (./scripts/rebuild-and-update-install.sh) for mnemosyne builds
 [ ] Checked docs/ and skills/ when encountering challenges
 [ ] Mapped experience flows before implementation
 [ ] Designed all states (loading, error, empty, success)
@@ -1039,6 +1068,9 @@ Before completing ANY task:
 [ ] Cloud resources cleaned up
 [ ] Beads state synced (auto-sync enabled)
 [ ] Repository kept tidy (logical organization, preserved references)
+[ ] Documentation updated for significant changes (see AGENT_GUIDE.md)
+[ ] docs/INDEX.md updated if documentation structure changed
+[ ] Release process followed for version milestones (see AGENT_GUIDE.md)
 [ ] Changes committed (NO AI attribution unless user explicitly requests it)
 [ ] ✅ AUTOMATIC: Memory debt cleared before push (pre-destructive hook blocks otherwise)
 [ ] All agents checkpointed before session end
