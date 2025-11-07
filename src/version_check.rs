@@ -98,7 +98,7 @@ struct NpmDistTags {
 /// Version checker service
 pub struct VersionChecker {
     client: Client,
-    cache_max_age_hours: u64,
+    _cache_max_age_hours: u64,
 }
 
 impl VersionChecker {
@@ -112,7 +112,7 @@ impl VersionChecker {
 
         Ok(Self {
             client,
-            cache_max_age_hours: 24,
+            _cache_max_age_hours: 24,
         })
     }
 

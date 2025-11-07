@@ -13,7 +13,7 @@ use mnemosyne_core::{
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::helpers::{get_db_path, get_default_db_path};
+use super::helpers::get_default_db_path;
 
 #[derive(Subcommand)]
 pub enum EvolveJob {

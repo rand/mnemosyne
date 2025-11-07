@@ -3,11 +3,10 @@
 use clap::Subcommand;
 use mnemosyne_core::{
     artifacts::{
-        Artifact as ArtifactTrait, ArtifactWorkflow, Constitution, FeatureSpec, parse_frontmatter,
+        Artifact as ArtifactTrait,
     },
     error::Result,
     icons,
-    types::Namespace,
     ConnectionMode, LibsqlStorage,
 };
 use std::fs;
