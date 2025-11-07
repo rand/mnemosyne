@@ -7,8 +7,14 @@ use mnemosyne_core::orchestration::{OrchestrationEngine, SupervisionConfig};
 use mnemosyne_core::storage::libsql::{ConnectionMode, LibsqlStorage};
 use std::sync::Arc;
 
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+
 #[tokio::test]
 async fn test_agents_start_without_python_import_error() {
+    // Initialize Python interpreter for this test
+    #[cfg(feature = "python")]
+    pyo3::prepare_freethreaded_python();
     // Initialize in-memory storage
     let storage = Arc::new(
         LibsqlStorage::new(ConnectionMode::InMemory)

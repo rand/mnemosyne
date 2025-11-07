@@ -8,7 +8,12 @@ invalid states and provide early error detection.
 from typing import Optional, List, Tuple
 from dataclasses import dataclass
 
-from .base_agent import WorkItem
+try:
+    from .base_agent import WorkItem
+except ImportError:
+    import sys, os
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from base_agent import WorkItem
 
 
 @dataclass
