@@ -156,7 +156,7 @@ impl AgentSpawner {
 
         // Check if script exists
         if !std::path::Path::new(&agent_script).exists() {
-            return Err(MnemosyneError::Configuration(format!(
+            return Err(MnemosyneError::Database(format!(
                 "Agent script not found: {}",
                 agent_script
             )));
@@ -204,8 +204,8 @@ impl AgentSpawner {
 
         // Broadcast agent started event
         if let Some(broadcaster) = &self.event_broadcaster {
-            let event = Event::agent_started(agent_id.to_string(), None);
-            broadcaster.send(event).await;
+            let event = Event::agent_started(agent_id.to_string());
+            let _ = broadcaster.broadcast(event);
         }
 
         // Register with state manager
@@ -302,7 +302,7 @@ impl AgentSpawner {
             // Broadcast agent stopped event
             if let Some(broadcaster) = &self.event_broadcaster {
                 let event = Event::agent_completed(role.as_str().to_string(), "Shutdown".to_string());
-                broadcaster.send(event).await;
+                let _ = broadcaster.broadcast(event);
             }
         }
 
@@ -332,8 +332,8 @@ impl AgentSpawner {
 impl Drop for AgentSpawner {
     fn drop(&mut self) {
         // Emergency cleanup if spawner is dropped without explicit shutdown
-        let agents = self.agents.blocking_write();
-        for (role, mut handle) in agents.iter() {
+        let mut agents = self.agents.blocking_write();
+        for (role, handle) in agents.iter_mut() {
             warn!("Emergency cleanup: killing {} (PID {})", role.as_str(), handle.pid);
             let _ = handle.child.kill();
             let _ = handle.child.wait();

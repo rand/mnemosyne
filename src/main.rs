@@ -11,7 +11,7 @@ use mnemosyne_core::{
     launcher,
 };
 use std::path::PathBuf;
-use tracing::{debug, info, warn, Level};
+use tracing::{debug, error, info, warn, Level};
 use tracing_subscriber::{self, EnvFilter};
 
 // Import helper functions from cli module
@@ -437,8 +437,8 @@ async fn main() -> Result<()> {
                 event_capacity: 1000,
             };
             let api_server = ApiServer::new(api_config);
-            let event_broadcaster = Arc::new(api_server.broadcaster().clone());
-            let state_manager = Arc::new(api_server.state_manager().clone());
+            let event_broadcaster = api_server.broadcaster().clone();
+            let state_manager = api_server.state_manager().clone();
 
             // Spawn API server in background
             let api_handle = tokio::spawn(async move {
@@ -476,10 +476,12 @@ async fn main() -> Result<()> {
             };
 
             // Create agent spawner
+            let event_broadcaster_arc = Arc::new(event_broadcaster.clone());
+            let state_manager_arc = state_manager.clone();
             let spawner = AgentSpawner::new(
                 spawner_config,
-                Some(event_broadcaster.clone()),
-                Some(state_manager.clone()),
+                Some(event_broadcaster_arc),
+                Some(state_manager_arc),
             );
 
             // Spawn all 4 independent agent processes
@@ -515,8 +517,8 @@ async fn main() -> Result<()> {
             let result = launcher::launch_orchestrated_session(
                 Some(db_path.clone()),
                 None,
-                Some(event_broadcaster.as_ref().clone()),
-                Some(state_manager.as_ref().clone()),
+                Some(event_broadcaster.clone()),
+                Some(state_manager.clone()),
             )
             .await;
 
