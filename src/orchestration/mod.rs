@@ -26,6 +26,8 @@ pub mod branch_coordinator;
 
 pub mod branch_guard;
 pub mod branch_registry;
+#[cfg(feature = "python")]
+pub mod claude_agent_bridge;
 pub mod cli;
 pub mod config;
 pub mod conflict_detector;
@@ -94,6 +96,8 @@ pub use cross_process::{
 pub use dspy_ab_testing::{
     ABTestConfig, ABTestMetrics, ABTestRouter, RollbackEvent, RollbackPolicy, VersionMetrics,
 };
+#[cfg(feature = "python")]
+pub use claude_agent_bridge::ClaudeAgentBridge;
 #[cfg(feature = "python")]
 pub use dspy_bridge::DSpyBridge;
 #[cfg(feature = "python")]
