@@ -1,8 +1,8 @@
 # Python Bridge Architecture
 
-**Status**: Phases 1-3 Complete (Infrastructure Ready)
+**Status**: Phases 1-4 Complete (Python Agents Integrated)
 **Last Updated**: 2025-11-07
-**Commits**: 05b0098, e4bbbff, a354fe7, 14d38f4, 8ea8da1, 43b9783
+**Commits**: 05b0098, e4bbbff, a354fe7, 14d38f4, 8ea8da1, 43b9783, 5a728f4, 83b62c3
 
 ---
 
@@ -41,14 +41,13 @@ The mnemosyne multi-agent orchestration system uses a **Rust↔Python bridge arc
 │  │  agent_factory.py: create_agent(role) → Agent instance  │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                  │
-│  ⚠️  MISSING: Agent implementations (Phase 4)                   │
-│  Need to create:                                                │
-│  - orchestrator.py: OrchestratorAgent                           │
-│  - optimizer.py: OptimizerAgent                                 │
-│  - reviewer.py: ReviewerAgent                                   │
-│  - executor.py: ExecutorAgent                                   │
+│  ✅ COMPLETE: All agent implementations integrated (Phase 4)   │
+│  - orchestrator.py: OrchestratorAgent (AgentExecutionMixin)    │
+│  - optimizer.py: OptimizerAgent (AgentExecutionMixin)          │
+│  - reviewer.py: ReviewerAgent (AgentExecutionMixin)            │
+│  - executor.py: ExecutorAgent (AgentExecutionMixin)            │
 │                                                                  │
-│  Each implements: AgentExecutionMixin._execute_work_item()     │
+│  All implement: _execute_work_item(WorkItem) → WorkResult     │
 └─────────────────────────────────────────────────────────────────┘
                   │
                   ▼
@@ -165,7 +164,7 @@ pub struct AgentInfo {
 
 ## Current State
 
-### ✅ **Working**:
+### ✅ **Complete (Phases 1-4)**:
 1. **Supervision tree** spawns Rust actors
 2. **Python bridges** auto-spawn on startup (if Python available)
 3. **Bridges register** with actors via `RegisterPythonBridge` messages
@@ -173,95 +172,83 @@ pub struct AgentInfo {
 5. **Health events** broadcast to dashboard via SSE
 6. **StateManager** updates agent health from events
 7. **Graceful degradation** when Python unavailable
+8. **Python agent implementations** integrated with PyO3 bridge:
+   - `src/orchestration/agents/orchestrator.py` ✅ **COMPLETE**
+   - `src/orchestration/agents/optimizer.py` ✅ **COMPLETE**
+   - `src/orchestration/agents/reviewer.py` ✅ **COMPLETE**
+   - `src/orchestration/agents/executor.py` ✅ **COMPLETE**
 
-### ⚠️ **Missing (Phase 4 - CRITICAL)**:
-1. **Python agent implementations** don't exist yet:
-   - `src/orchestration/agents/orchestrator.py` ← **NEEDED**
-   - `src/orchestration/agents/optimizer.py` ← **NEEDED**
-   - `src/orchestration/agents/reviewer.py` ← **NEEDED**
-   - `src/orchestration/agents/executor.py` ← **NEEDED**
+### ✅ **Agent Integration Pattern**:
+All agents implement the standard PyO3 bridge interface:
+```python
+from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
 
-2. **Each must implement**:
-   ```python
-   from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
+class ExecutorAgent(AgentExecutionMixin):
+    async def _execute_work_item(self, work_item: WorkItem) -> WorkResult:
+        # Convert WorkItem to agent's internal format
+        work_plan = {...}
 
-   class ExecutorAgent(AgentExecutionMixin):
-       async def _execute_work_item(self, work_item: WorkItem) -> WorkResult:
-           # TODO: Integrate with Claude SDK
-           # TODO: Execute work using LLM
-           # TODO: Return result with memory_ids
-           pass
-   ```
+        # Execute using existing agent methods
+        result = await self.execute_work_plan(work_plan)
 
-3. **Claude SDK Integration**:
-   - API key management (use existing secrets system)
-   - Session management (`start_session()`, `stop_session()`)
-   - Prompt engineering for each role
-   - Memory integration (store execution artifacts)
+        # Convert result to WorkResult for Rust bridge
+        return WorkResult(success=True, data=json.dumps(result), ...)
+```
+
+### ⚠️ **Remaining (Phase 5 - Testing & Hardening)**:
+1. **Integration testing** with Python feature enabled
+2. **API key configuration** (already exists in secrets system)
+3. **End-to-end validation** with actual Claude SDK calls
+4. **Production hardening** (error messages, logging, monitoring)
 
 ---
 
-## Next Steps (Phase 4)
+## Next Steps (Phase 5 - Testing & Validation)
 
-### 1. Create Executor Agent (Simplest)
+### 1. Run Integration Tests
+Test the complete Rust↔Python bridge with all agents:
 ```bash
-# Create file: src/orchestration/agents/executor.py
+# Run all integration tests with Python feature
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 cargo test --test orchestration_bridge_integration --features python
 
-from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
-import anthropic
-import os
-
-class ExecutorConfig:
-    agent_id: str = "executor"
-    model: str = "claude-3-7-sonnet-20250219"
-
-class ExecutorAgent(AgentExecutionMixin):
-    def __init__(self, config, storage=None, skills_cache=None):
-        self.config = config
-        self.storage = storage
-        self.client = None
-
-    async def start_session(self):
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY not set")
-        self.client = anthropic.AsyncAnthropic(api_key=api_key)
-
-    async def stop_session(self):
-        self.client = None
-
-    async def _execute_work_item(self, work_item: WorkItem) -> WorkResult:
-        try:
-            # Call Claude SDK
-            response = await self.client.messages.create(
-                model=self.config.model,
-                max_tokens=4096,
-                messages=[{
-                    "role": "user",
-                    "content": work_item.description
-                }]
-            )
-
-            return WorkResult(
-                success=True,
-                data=response.content[0].text,
-                memory_ids=[]
-            )
-        except Exception as e:
-            return WorkResult(
-                success=False,
-                error=str(e)
-            )
-```
-
-### 2. Create Other Agents
-Follow same pattern for Orchestrator, Optimizer, Reviewer.
-
-### 3. Test End-to-End
-```bash
-# With Python agents implemented:
+# Run specific work delegation test (requires API key)
 PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 cargo test --test orchestration_bridge_integration --features python test_work_delegation -- --ignored
 ```
+
+### 2. Verify API Key Configuration
+Ensure Anthropic API key is accessible:
+```bash
+# Check configuration status
+mnemosyne config show-key
+
+# Set API key if needed
+export ANTHROPIC_API_KEY="sk-ant-..."
+# OR
+mnemosyne secrets init
+```
+
+### 3. Test Individual Agents
+Validate each agent's integration:
+```bash
+# Test Executor agent
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 cargo test --features python executor
+
+# Test Reviewer agent
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 cargo test --features python reviewer
+
+# Test Optimizer agent
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 cargo test --features python optimizer
+
+# Test Orchestrator agent
+PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 cargo test --features python orchestrator
+```
+
+### 4. Production Hardening
+- Improve error messages and logging
+- Add health check endpoints
+- Implement graceful shutdown
+- Add metrics and monitoring
+- Document deployment procedures
 
 ---
 
