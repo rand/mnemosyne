@@ -160,6 +160,11 @@ impl RelevanceScorer {
         Self { db_path }
     }
 
+    /// Get database path
+    pub fn db_path(&self) -> &str {
+        &self.db_path
+    }
+
     /// Initialize the database schema
     ///
     /// This should be called once per database to ensure tables exist.
@@ -232,7 +237,7 @@ impl RelevanceScorer {
     }
 
     /// Get weights with hierarchical fallback
-    async fn get_weights_with_fallback(
+    pub async fn get_weights_with_fallback(
         &self,
         scope: Scope,
         scope_id: &str,

@@ -136,7 +136,7 @@ impl ContradictionDetector {
     }
 
     /// Detect contradictions in text
-    pub async fn detect(&self, _text: &str) -> Result<Vec<Contradiction>> {
+    pub async fn detect(&self, text: &str) -> Result<Vec<Contradiction>> {
         // Use DSPy if available (preferred path)
         #[cfg(feature = "python")]
         if let Some(bridge) = &self.dspy_bridge {

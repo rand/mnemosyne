@@ -124,7 +124,7 @@ impl DiscourseAnalyzer {
     }
 
     /// Analyze discourse structure in text
-    pub async fn analyze(&self, _text: &str) -> Result<Vec<DiscourseSegment>> {
+    pub async fn analyze(&self, text: &str) -> Result<Vec<DiscourseSegment>> {
         // Use DSPy if available (preferred path)
         #[cfg(feature = "python")]
         if let Some(bridge) = &self.dspy_bridge {
