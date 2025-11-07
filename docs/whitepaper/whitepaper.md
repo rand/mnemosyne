@@ -14,7 +14,7 @@ Large language models face fundamental limitations: context windows bound workin
 
 Built in Rust with LibSQL storage, it provides sub-millisecond retrieval (0.88ms list operations, 1.61ms search), LLM-guided memory evolution, and a four-agent coordination framework composed of Orchestrator, Optimizer, Reviewer, and Executor agents. The system integrates with Claude Code via Model Context Protocol, automatic hooks, and real-time monitoring.
 
-Hybrid search combines keyword matching (FTS5), graph traversal, and vector similarity with weighted scoring. The system includes 715 passing tests, privacy-preserving evaluation, and enables persistent context across sessions, autonomous agent coordination, and continuous memory optimization.
+Hybrid search combines keyword matching (FTS5), graph traversal, and vector similarity with weighted scoring. Privacy-preserving evaluation, comprehensive testing, and production deployment enable persistent context across sessions, autonomous agent coordination, and continuous memory optimization.
 
 This paper presents the architecture, validates claims against tagged source code (v2.1.2), compares with existing solutions (MemGPT, Mem0, LangChain Memory), and demonstrates production readiness through comprehensive testing and real-world integration.
 
@@ -56,7 +56,7 @@ Mnemosyne provides an integrated semantic memory system with multi-agent orchest
 
 **Production Integration**: Model Context Protocol (MCP) over JSON-RPC 2.0, automatic hooks for Claude Code (session-start, post-tool-use, pre-destructive), real-time Server-Sent Events (SSE) monitoring, and PyO3 Python bindings offering 10-20x speedup over subprocess approaches.
 
-Implementation in Rust with comprehensive testing (715 passing tests) ensures type safety, memory safety, and production reliability.
+Implementation in Rust with comprehensive testing ensures type safety, memory safety, and production reliability. Full test coverage details in Section 7.1.
 
 ### 1.3 Key Capabilities
 
@@ -70,7 +70,7 @@ Mnemosyne delivers production-grade performance and reliability:
 
 **Real-Time Observability**: HTTP API server (port 3000 with auto-increment) broadcasts events via SSE to dashboard clients, supporting owner/client mode for multi-instance coordination [\[src/api/\]](https://github.com/rand/mnemosyne/tree/v2.1.2/src/api).
 
-**Comprehensive Testing**: 715 tests achieve 100% pass rate across unit (type system, storage operations), integration (MCP server, orchestration), E2E (human workflows, agent coordination), and specialized (file descriptor safety, process management) categories [\[tests/\]](https://github.com/rand/mnemosyne/tree/v2.1.2/tests).
+**Comprehensive Testing**: Full coverage across unit (type system, storage operations), integration (MCP server, orchestration), E2E (human workflows, agent coordination), and specialized (file descriptor safety, process management) categories. Details in Section 7.1 [\[tests/\]](https://github.com/rand/mnemosyne/tree/v2.1.2/tests).
 
 ### 1.4 Target Use Cases
 
@@ -126,7 +126,7 @@ Four key innovations distinguish this approach:
 
 **Production Integration**: MCP protocol [\[src/mcp/server.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.2/src/mcp/server.rs) enables Claude Code integration over JSON-RPC 2.0, automatic hooks [\[.claude/hooks/\]](https://github.com/rand/mnemosyne/tree/v2.1.2/.claude/hooks) capture context without explicit commands, and real-time monitoring [\[src/api/\]](https://github.com/rand/mnemosyne/tree/v2.1.2/src/api) provides observability for debugging coordination issues.
 
-**Type-Safe Implementation**: Rust provides memory safety, compile-time guarantees, and zero-cost abstractions [\[src/lib.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.2/src/lib.rs), while comprehensive testing (715 tests) validates correctness and safety properties.
+**Type-Safe Implementation**: Rust provides memory safety, compile-time guarantees, and zero-cost abstractions [\[src/lib.rs\]](https://github.com/rand/mnemosyne/blob/v2.1.2/src/lib.rs), while comprehensive testing validates correctness and safety properties.
 
 ### 2.4 Contributions
 

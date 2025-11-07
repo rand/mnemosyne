@@ -29,14 +29,14 @@
         <div class="container">
             <div class="nav-brand">
                 <span class="logo-glyph"></span>
-                <strong>Mnemosyne</strong> v2.1.1
+                <strong>Mnemosyne</strong> v2.1.2
             </div>
             <div class="nav-links">
                 <a href="#abstract">Abstract</a>
                 <a href="#architecture">Architecture</a>
                 <a href="#comparison">Comparison</a>
                 <a href="#validation">Validation</a>
-                <a href="https://github.com/rand/mnemosyne/tree/v2.1.1" target="_blank">Source</a>
+                <a href="https://github.com/rand/mnemosyne/tree/v2.1.2" target="_blank">Source</a>
                 <button class="theme-toggle" aria-label="Toggle theme">
                     <span class="theme-toggle-icon"></span>
                 </button>
@@ -58,8 +58,8 @@
         <header class="paper-header">
             <h1>Mnemosyne: Semantic Memory and Multi-Agent Orchestration for LLM Systems</h1>
             <p class="paper-meta">
-                <span>Version 2.1.1</span> ·
-                <span>November 5, 2025</span> ·
+                <span>Version 2.1.2</span> ·
+                <span>November 6, 2025</span> ·
                 <a href="https://github.com/rand/mnemosyne">github.com/rand/mnemosyne</a>
             </p>
         </header>
@@ -70,9 +70,9 @@
 
             <p>Built in Rust with LibSQL storage, it provides sub-millisecond retrieval (0.88ms list operations, 1.61ms search), LLM-guided memory evolution, and a four-agent coordination framework composed of Orchestrator, Optimizer, Reviewer, and Executor agents. The system integrates with Claude Code via Model Context Protocol, automatic hooks, and real-time monitoring.</p>
 
-            <p>Hybrid search combines keyword matching (FTS5), graph traversal, and vector similarity with weighted scoring. The system includes 702 passing tests, privacy-preserving evaluation, and enables persistent context across sessions, autonomous agent coordination, and continuous memory optimization.</p>
+            <p>Hybrid search combines keyword matching (FTS5), graph traversal, and vector similarity with weighted scoring. Privacy-preserving evaluation, comprehensive testing, and production deployment enable persistent context across sessions, autonomous agent coordination, and continuous memory optimization.</p>
 
-            <p>This paper presents the architecture, validates claims against tagged source code (v2.1.1), compares with existing solutions (MemGPT, Mem0, LangChain Memory), and demonstrates production readiness through comprehensive testing and real-world integration.</p>
+            <p>This paper presents the architecture, validates claims against tagged source code (v2.1.2), compares with existing solutions (MemGPT, Mem0, LangChain Memory), and demonstrates production readiness through comprehensive testing and real-world integration.</p>
         </section>
 
         <section id="challenge" class="section">
@@ -244,11 +244,11 @@ graph TB
             </ul>
 
             <h3>Code Validation</h3>
-            <p>Complete validation matrix available: <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/docs/whitepaper/validation.md">validation.md</a></p>
-            <p>Every technical claim maps to v2.1.1 source code and tests. Sample mappings:</p>
+            <p>Complete validation matrix available: <a href="https://github.com/rand/mnemosyne/blob/v2.1.2/docs/whitepaper/validation.md">validation.md</a></p>
+            <p>Every technical claim maps to v2.1.2 source code and tests. Sample mappings:</p>
             <ul>
-                <li>Sub-ms retrieval (0.88ms) → <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/src/storage/libsql.rs#L420-450">src/storage/libsql.rs:420-450</a> + <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/tests/performance/storage_perf.rs#L89-110">tests</a></li>
-                <li>4-agent orchestration → <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/src/orchestration/mod.rs#L89-150">src/orchestration/mod.rs:89-150</a> + <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/tests/orchestration_e2e.rs">tests</a></li>
+                <li>Sub-ms retrieval (0.88ms) → <a href="https://github.com/rand/mnemosyne/blob/v2.1.2/src/storage/libsql.rs#L420-450">src/storage/libsql.rs:420-450</a> + <a href="https://github.com/rand/mnemosyne/blob/v2.1.2/tests/performance/storage_perf.rs#L89-110">tests</a></li>
+                <li>4-agent orchestration → <a href="https://github.com/rand/mnemosyne/blob/v2.1.2/src/orchestration/mod.rs#L89-150">src/orchestration/mod.rs:89-150</a> + <a href="https://github.com/rand/mnemosyne/blob/v2.1.2/tests/orchestration_e2e.rs">tests</a></li>
             </ul>
         </section>
 
@@ -262,15 +262,15 @@ graph TB
             <ul>
                 <li><a href="https://github.com/rand/mnemosyne">Repository</a></li>
                 <li><a href="https://github.com/rand/mnemosyne/blob/main/docs/whitepaper/whitepaper.md">Full Whitepaper (Markdown)</a></li>
-                <li><a href="https://github.com/rand/mnemosyne/blob/v2.1.1/docs/whitepaper/validation.md">Validation Matrix</a></li>
-                <li><a href="https://github.com/rand/mnemosyne/tree/v2.1.1/docs">Documentation</a></li>
+                <li><a href="https://github.com/rand/mnemosyne/blob/v2.1.2/docs/whitepaper/validation.md">Validation Matrix</a></li>
+                <li><a href="https://github.com/rand/mnemosyne/tree/v2.1.2/docs">Documentation</a></li>
             </ul>
         </section>
     </main>
 
     <footer class="footer">
         <div class="container">
-            <p>Mnemosyne v2.1.1 · November 5, 2025 · <a href="https://github.com/rand/mnemosyne/blob/v2.1.1/LICENSE">MIT License</a></p>
+            <p>Mnemosyne v2.1.2 · November 6, 2025 · <a href="https://github.com/rand/mnemosyne/blob/v2.1.2/LICENSE">MIT License</a></p>
         </div>
     </footer>
 
