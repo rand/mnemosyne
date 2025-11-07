@@ -541,7 +541,7 @@ mod tests {
 
         // Test spawning bridge
         let bridge_result =
-            ClaudeAgentBridge::spawn(AgentRole::Executor, broadcaster.tx.clone()).await;
+            ClaudeAgentBridge::spawn(AgentRole::Executor, broadcaster.sender()).await;
 
         if let Ok(bridge) = bridge_result {
             // Test state
