@@ -10,7 +10,6 @@ use mnemosyne_core::{
     error::Result,
     launcher,
 };
-use rand;
 use std::path::PathBuf;
 use tracing::{debug, info, warn, Level};
 use tracing_subscriber::{self, EnvFilter};
