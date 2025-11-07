@@ -21,3 +21,4 @@ pub mod models;
 pub mod evolve;
 pub mod artifact;
 pub mod doctor;
+pub mod update;

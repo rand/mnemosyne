@@ -270,6 +270,21 @@ enum Commands {
         #[arg(short, long)]
         json: bool,
     },
+
+    /// Check for and install tool updates
+    Update {
+        /// Specific tools to update (e.g., "mnemosyne", "claude", "beads")
+        /// If not specified, all tools with available updates will be updated
+        tools: Vec<String>,
+
+        /// Show installation instructions instead of updating
+        #[arg(long)]
+        install: bool,
+
+        /// Only check for updates without installing
+        #[arg(long)]
+        check: bool,
+    },
 }
 
 #[tokio::main]
@@ -400,6 +415,9 @@ async fn main() -> Result<()> {
         }
         Some(Commands::Doctor { verbose, fix, json }) => {
             cli::doctor::handle(verbose, fix, json, cli.db_path.clone()).await
+        }
+        Some(Commands::Update { tools, install, check }) => {
+            cli::update::handle(tools, install, check).await
         }
         None => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};
