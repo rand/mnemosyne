@@ -70,6 +70,8 @@ use tracing::{debug, error, info, warn};
 /// Manages Python agent lifecycle and provides async-friendly interface
 /// to Claude SDK for intelligent agent behavior. Thread-safe via Arc<Mutex<>>
 /// for GIL management.
+///
+/// **Error Handling**: Tracks errors and supports automatic restart on failure.
 #[cfg(feature = "python")]
 #[derive(Clone)]
 pub struct ClaudeAgentBridge {
@@ -83,6 +85,10 @@ pub struct ClaudeAgentBridge {
     state: Arc<RwLock<AgentState>>,
     /// Agent ID for event tracking
     agent_id: String,
+    /// Error count for restart logic
+    error_count: Arc<RwLock<usize>>,
+    /// Last error timestamp for rate limiting restarts
+    last_error: Arc<RwLock<Option<std::time::Instant>>>,
 }
 
 #[cfg(feature = "python")]
@@ -163,6 +169,8 @@ impl ClaudeAgentBridge {
             event_tx: event_tx_clone,
             state: Arc::new(RwLock::new(AgentState::Idle)),
             agent_id: agent_id.clone(),
+            error_count: Arc::new(RwLock::new(0)),
+            last_error: Arc::new(RwLock::new(None)),
         };
 
         // Start agent session
@@ -285,7 +293,29 @@ impl ClaudeAgentBridge {
         .map_err(|e| {
             error!("Tokio spawn_blocking failed: {}", e);
             MnemosyneError::Other(format!("Async execution failed: {}", e))
-        })??;
+        });
+
+        // Handle result and track errors
+        let result = match result {
+            Ok(Ok(work_result)) => {
+                // Check if work result itself indicates failure
+                if !work_result.success {
+                    // Work failed at Python level - record error
+                    self.record_error().await;
+                }
+                Ok(work_result)
+            }
+            Ok(Err(e)) => {
+                // Python execution error - record and propagate
+                self.record_error().await;
+                Err(e)
+            }
+            Err(e) => {
+                // Tokio error - record and propagate
+                self.record_error().await;
+                Err(e)
+            }
+        };
 
         // Update state back to Idle
         {
@@ -293,9 +323,13 @@ impl ClaudeAgentBridge {
             *state = AgentState::Idle;
         }
 
-        debug!("Python agent completed work: {:?}", self.role);
+        if result.is_ok() {
+            debug!("Python agent completed work: {:?}", self.role);
+        } else {
+            warn!("Python agent failed work: {:?}", self.role);
+        }
 
-        Ok(result)
+        result
     }
 
     /// Get current agent state
@@ -463,6 +497,147 @@ fn extract_work_result(_py: Python, result: &Bound<PyAny>, item_id: crate::orche
 
 // Note: JSON conversion helpers available in dspy_bridge if needed
 // but not re-exported here since they're private
+
+#[cfg(feature = "python")]
+impl ClaudeAgentBridge {
+    /// Record an error from the Python agent
+    ///
+    /// Increments error count and updates last error timestamp.
+    /// Used for restart logic and health monitoring.
+    pub async fn record_error(&self) {
+        let mut error_count = self.error_count.write().await;
+        *error_count += 1;
+
+        let mut last_error = self.last_error.write().await;
+        *last_error = Some(std::time::Instant::now());
+
+        warn!(
+            "Python agent {} error count: {}",
+            self.agent_id,
+            *error_count
+        );
+    }
+
+    /// Get error count for monitoring
+    pub async fn error_count(&self) -> usize {
+        *self.error_count.read().await
+    }
+
+    /// Reset error count (after successful restart)
+    pub async fn reset_errors(&self) {
+        let mut error_count = self.error_count.write().await;
+        *error_count = 0;
+
+        let mut last_error = self.last_error.write().await;
+        *last_error = None;
+
+        info!("Python agent {} errors reset", self.agent_id);
+    }
+
+    /// Check if bridge is healthy and should be restarted
+    ///
+    /// Returns true if:
+    /// - Error count exceeds threshold (5 errors)
+    /// - Last error was recent (within 60 seconds)
+    pub async fn should_restart(&self) -> bool {
+        let error_count = self.error_count.read().await;
+        let last_error = self.last_error.read().await;
+
+        // Check error threshold
+        if *error_count >= 5 {
+            // Check if errors are recent
+            if let Some(last_err_time) = *last_error {
+                let elapsed = last_err_time.elapsed();
+                if elapsed.as_secs() < 60 {
+                    warn!(
+                        "Python agent {} should restart: {} errors in {}s",
+                        self.agent_id,
+                        *error_count,
+                        elapsed.as_secs()
+                    );
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    /// Attempt to restart the Python agent
+    ///
+    /// Respawns the Python agent instance and restarts the session.
+    /// Returns Ok if restart succeeds, Err otherwise.
+    pub async fn restart(&mut self) -> Result<()> {
+        warn!("Restarting Python agent: {}", self.agent_id);
+
+        // Respawn agent
+        let role_clone = self.role.clone();
+        let event_tx_clone = self.event_tx.clone();
+
+        let new_agent = tokio::task::spawn_blocking(move || {
+            Python::with_gil(|py| {
+                // Import agent factory module
+                let agent_factory = py
+                    .import_bound("mnemosyne.orchestration.agent_factory")
+                    .map_err(|e| {
+                        error!("Failed to import agent_factory module: {}", e);
+                        MnemosyneError::Other(format!("Agent factory import failed: {}", e))
+                    })?;
+
+                // Get create_agent function
+                let create_fn = agent_factory.getattr("create_agent").map_err(|e| {
+                    error!("Failed to get create_agent function: {}", e);
+                    MnemosyneError::Other(format!("create_agent not found: {}", e))
+                })?;
+
+                // Convert role to Python string
+                let role_str = match role_clone {
+                    AgentRole::Orchestrator => "orchestrator",
+                    AgentRole::Optimizer => "optimizer",
+                    AgentRole::Reviewer => "reviewer",
+                    AgentRole::Executor => "executor",
+                };
+
+                // Create agent instance
+                let agent = create_fn.call1((role_str,)).map_err(|e| {
+                    error!("Failed to create agent for role {:?}: {}", role_clone, e);
+                    MnemosyneError::Other(format!("Agent creation failed: {}", e))
+                })?;
+
+                info!("Python agent recreated for role: {:?}", role_clone);
+
+                Ok::<Py<PyAny>, MnemosyneError>(agent.unbind().into())
+            })
+        })
+        .await
+        .map_err(|e| {
+            error!("Tokio spawn_blocking failed: {}", e);
+            MnemosyneError::Other(format!("Async execution failed: {}", e))
+        })??;
+
+        // Replace agent instance
+        {
+            let mut agent = self.agent.lock().await;
+            *agent = new_agent;
+        }
+
+        // Restart session
+        self.start_session().await?;
+
+        // Reset error count
+        self.reset_errors().await;
+
+        // Broadcast restart event
+        let event = Event::agent_started(self.agent_id.clone());
+        if let Err(e) = self.event_tx.send(event) {
+            warn!("Failed to broadcast agent restart event: {}", e);
+        }
+
+        info!("Python agent {} restarted successfully", self.agent_id);
+
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {
