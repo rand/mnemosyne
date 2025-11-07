@@ -16,6 +16,7 @@
 
 mod panel_manager;
 mod panels;
+mod time_series;
 mod widgets;
 
 use anyhow::Result;
