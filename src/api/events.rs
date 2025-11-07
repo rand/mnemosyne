@@ -380,8 +380,8 @@ impl EventBroadcaster {
     }
 
     /// Broadcast event to all subscribers
-    pub fn broadcast(&self, event: Event) -> Result<usize, broadcast::error::SendError<Event>> {
-        self.tx.send(event)
+    pub fn broadcast(&self, event: Event) -> Result<usize, Box<broadcast::error::SendError<Event>>> {
+        self.tx.send(event).map_err(Box::new)
     }
 
     /// Subscribe to events
