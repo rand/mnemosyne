@@ -453,13 +453,31 @@ bd close <issue-id> --reason "Implemented" --json
 
 **Good Pushback**:
 ```
-"Before implementing, let's clarify [specific detail] to avoid 
+"Before implementing, let's clarify [specific detail] to avoid
 [specific risk]. This will prevent [specific bad outcome]."
 ```
+
+### Troubleshooting Protocol
+
+**When encountering challenges in mnemosyne development**:
+1. **Check docs/ first**: `docs/specs/`, `docs/features/`, `docs/guides/`, `docs/INDEX.md`
+2. **Review relevant skills**: Check cc-polymath skills for applicable patterns
+3. **Study existing code**: Look for similar implementations before creating new solutions
+4. **Consult architecture**: Understanding system design prevents anti-patterns
+5. **Ask with context**: If still blocked, provide what you've already checked
 
 ---
 
 ## 5. Language Stack & Tooling
+
+### Mnemosyne Build & Installation
+```bash
+# CRITICAL: Use the build script (NOT cargo build/install directly)
+./scripts/build-and-install.sh
+
+# This ensures proper installation to ~/.local/bin/mnemosyne
+# with correct configuration and permissions
+```
 
 ### Python
 ```bash
@@ -469,6 +487,7 @@ uv run script.py                 # Run
 uv run pytest                    # Test
 ```
 **Best Practices**: Use `uv` (NOT pip/poetry), type hints with mypy, async with asyncio
+**Mnemosyne Tests**: Always use `PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1` for PyO3 tests
 
 ### Zig
 ```bash
@@ -619,6 +638,15 @@ git commit -m "wip"
 git push -u origin feature/name
 gh pr create --title "Title" --body "Description"
 ```
+
+### Repository Organization
+
+**Keep the mnemosyne repository tidy and well-organized**:
+- **Organize logically**: Place files in appropriate directories (docs/, src/, tests/, scripts/)
+- **Preserve references**: Update all links and imports when moving/renaming files
+- **Non-destructive changes**: Verify before deleting; use git mv for tracked files
+- **Test after reorganization**: Run tests to ensure functionality is preserved
+- **Update documentation**: Reflect structural changes in docs/INDEX.md and README
 
 ---
 
@@ -826,7 +854,10 @@ Complex tasks load multiple skills compositionally:
 ❌ Skip shadcn blocks exploration
 ❌ Restructure shadcn components
 ❌ Missing recovery paths for errors
-❌ Use pip/poetry (use uv)
+❌ Use pip/poetry (use uv for mnemosyne)
+❌ Use cargo build/install directly (use ./scripts/build-and-install.sh)
+❌ Skip checking docs/ when encountering challenges
+❌ Disorganize repository (move/rename without preserving references)
 ❌ Leave cloud resources running
 ❌ Add AI attribution to commits (unless explicitly requested by user)
 ```
@@ -844,7 +875,7 @@ Complex tasks load multiple skills compositionally:
 
 ### Language Commands
 ```bash
-# Python
+# Python (use uv, NOT pip/poetry)
 uv init && uv add pkg && uv run script.py
 
 # Zig
@@ -852,6 +883,9 @@ zig init && zig build && zig build test
 
 # Rust
 cargo new && cargo add anyhow tokio && cargo build
+
+# Mnemosyne (use build script, NOT cargo directly)
+./scripts/build-and-install.sh
 
 # Go
 go mod init && go get package && go run .
@@ -993,7 +1027,9 @@ Before completing ANY task:
 [ ] Verified date/time if using timestamps
 [ ] Challenged vague requirements
 [ ] Confirmed tech stack and deployment
-[ ] Used correct package manager
+[ ] Used correct package manager (uv for Python, NOT pip/poetry)
+[ ] Used build script (./scripts/build-and-install.sh) for mnemosyne builds
+[ ] Checked docs/ and skills/ when encountering challenges
 [ ] Mapped experience flows before implementation
 [ ] Designed all states (loading, error, empty, success)
 [ ] Considered shadcn blocks
@@ -1002,6 +1038,7 @@ Before completing ANY task:
 [ ] Context managed proactively
 [ ] Cloud resources cleaned up
 [ ] Beads state synced (auto-sync enabled)
+[ ] Repository kept tidy (logical organization, preserved references)
 [ ] Changes committed (NO AI attribution unless user explicitly requests it)
 [ ] ✅ AUTOMATIC: Memory debt cleared before push (pre-destructive hook blocks otherwise)
 [ ] All agents checkpointed before session end
