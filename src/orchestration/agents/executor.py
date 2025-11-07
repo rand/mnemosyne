@@ -21,6 +21,11 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 # Import PyO3 bridge interface
 from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
 
+# Import logging
+from .logging_config import get_logger
+
+logger = get_logger("executor")
+
 
 class ExecutorPhase(Enum):
     """Executor workflow phases."""
@@ -136,16 +141,20 @@ Always follow best practices and validate your work before marking it complete."
     async def start_session(self):
         """Start Claude agent session."""
         if not self._session_active:
+            logger.info(f"Starting session for agent {self.config.agent_id}")
             await self.claude_client.connect()
             # Initialize with system prompt
             await self.claude_client.query(self.EXECUTOR_SYSTEM_PROMPT)
             self._session_active = True
+            logger.info(f"Session started successfully for {self.config.agent_id}")
 
     async def stop_session(self):
         """Stop Claude agent session."""
         if self._session_active:
+            logger.info(f"Stopping session for agent {self.config.agent_id}")
             await self.claude_client.disconnect()
             self._session_active = False
+            logger.info(f"Session stopped for {self.config.agent_id}")
 
     async def execute_work_plan(self, work_plan: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -157,20 +166,24 @@ Always follow best practices and validate your work before marking it complete."
         Returns:
             Execution results
         """
+        logger.info(f"Starting work plan execution: {work_plan.get('prompt', 'N/A')[:100]}")
         self.coordinator.update_agent_state(self.config.agent_id, "running")
         self._current_phase = ExecutorPhase.ANALYZING
 
         try:
             # Ensure session is active
             if not self._session_active:
+                logger.debug("Session not active, starting new session")
                 await self.start_session()
 
             # Validate work plan
+            logger.debug("Validating work plan")
             validation_result = await self._validate_work_plan(work_plan)
 
             if not validation_result["valid"]:
                 # Challenge vague requirements
                 if self.config.challenge_vague_requirements:
+                    logger.warning(f"Work plan validation failed: {validation_result['issues']}")
                     return {
                         "status": "challenged",
                         "issues": validation_result["issues"],
@@ -209,6 +222,12 @@ Always follow best practices and validate your work before marking it complete."
             self._current_phase = ExecutorPhase.COMPLETED
             self.coordinator.update_agent_state(self.config.agent_id, "complete")
 
+            logger.info(
+                f"Work plan completed successfully: "
+                f"{len(self._completed_tasks)} tasks, "
+                f"{self._checkpoint_count} checkpoints"
+            )
+
             return {
                 "status": "success",
                 "artifacts": artifacts,
@@ -219,6 +238,7 @@ Always follow best practices and validate your work before marking it complete."
 
         except Exception as e:
             self.coordinator.update_agent_state(self.config.agent_id, "failed")
+            logger.error(f"Execution failed: {type(e).__name__}: {str(e)}", exc_info=True)
             raise RuntimeError(f"Execution failed: {e}") from e
 
     def _build_execution_prompt(self, work_plan: Dict[str, Any]) -> str:
@@ -446,6 +466,9 @@ Always follow best practices and validate your work before marking it complete."
         Returns:
             Work result to send back to Rust
         """
+        logger.info(f"Received work item from Rust bridge: {work_item.id} (phase: {work_item.phase})")
+        logger.debug(f"Work item description: {work_item.description[:200]}")
+
         try:
             # Convert WorkItem to work plan format
             work_plan = {
@@ -461,6 +484,8 @@ Always follow best practices and validate your work before marking it complete."
             # Execute using existing execute_work_plan method
             result = await self.execute_work_plan(work_plan)
 
+            logger.info(f"Work item {work_item.id} completed successfully")
+
             # Convert result to WorkResult format
             return WorkResult(
                 success=result.get("success", False),
@@ -471,6 +496,10 @@ Always follow best practices and validate your work before marking it complete."
 
         except Exception as e:
             # Handle any errors during execution
+            logger.error(
+                f"Failed to execute work item {work_item.id}: {type(e).__name__}: {str(e)}",
+                exc_info=True
+            )
             return WorkResult(
                 success=False,
                 error=f"Executor error: {type(e).__name__}: {str(e)}"
