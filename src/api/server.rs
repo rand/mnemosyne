@@ -55,6 +55,10 @@ pub struct ApiServer {
     events: EventBroadcaster,
     state: Arc<StateManager>,
     instance_id: String,
+    /// Shutdown signal for background tasks
+    shutdown_tx: tokio::sync::broadcast::Sender<()>,
+    /// Heartbeat task handle for cleanup
+    heartbeat_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl ApiServer {
@@ -70,11 +74,16 @@ impl ApiServer {
         state.subscribe_to_events(event_rx);
         info!("StateManager subscribed to event stream - state will update automatically");
 
+        // Create shutdown channel for graceful task termination
+        let (shutdown_tx, _) = tokio::sync::broadcast::channel(1);
+
         Self {
             config,
             events,
             state,
             instance_id,
+            shutdown_tx,
+            heartbeat_handle: None,
         }
     }
 
@@ -124,7 +133,7 @@ impl ApiServer {
     ///
     /// Tries the configured address first, then attempts alternative ports
     /// if the primary port is unavailable (e.g., when multiple instances are running).
-    pub async fn serve(self) -> anyhow::Result<()> {
+    pub async fn serve(mut self) -> anyhow::Result<()> {
         let state = AppState {
             events: self.events.clone(),
             state: self.state.clone(),
@@ -138,16 +147,28 @@ impl ApiServer {
             .events
             .broadcast(Event::session_started(self.instance_id.clone()));
 
-        // Spawn heartbeat task (every 10 seconds)
+        // Spawn heartbeat task (every 10 seconds) with shutdown support
         let events_clone = self.events.clone();
         let instance_id_clone = self.instance_id.clone();
-        tokio::spawn(async move {
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
+
+        let heartbeat_handle = tokio::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
             loop {
-                interval.tick().await;
-                let _ = events_clone.broadcast(Event::heartbeat(instance_id_clone.clone()));
+                tokio::select! {
+                    _ = interval.tick() => {
+                        let _ = events_clone.broadcast(Event::heartbeat(instance_id_clone.clone()));
+                    }
+                    _ = shutdown_rx.recv() => {
+                        debug!("Heartbeat task received shutdown signal");
+                        break;
+                    }
+                }
             }
         });
+
+        // Store heartbeat handle for cleanup
+        self.heartbeat_handle = Some(heartbeat_handle);
 
         // Try configured address first
         match tokio::net::TcpListener::bind(self.config.addr).await {
@@ -391,6 +412,19 @@ async fn health_handler(State(state): State<AppState>) -> Json<HealthResponse> {
         instance_id: state.instance_id.clone(),
         subscribers: state.events.subscriber_count(),
     })
+}
+
+impl Drop for ApiServer {
+    fn drop(&mut self) {
+        // Send shutdown signal to background tasks
+        let _ = self.shutdown_tx.send(());
+
+        // Abort heartbeat task if it's still running
+        if let Some(handle) = self.heartbeat_handle.take() {
+            handle.abort();
+            debug!("ApiServer dropped - heartbeat task aborted");
+        }
+    }
 }
 
 #[cfg(test)]
