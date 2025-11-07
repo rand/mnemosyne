@@ -48,6 +48,7 @@ pub mod artifacts; // Specification workflow artifacts
 pub mod config;
 pub mod coordination; // ICS handoff coordination
 pub mod daemon;
+pub mod diagnostics; // Memory profiling and resource tracking
 pub mod embeddings;
 pub mod error;
 pub mod evaluation;
@@ -76,6 +77,7 @@ pub mod python_bindings;
 // Re-export commonly used types
 pub use agents::{AgentMemoryView, AgentRole, CustomImportanceScorer, MemoryAccessControl};
 pub use config::{ConfigManager, EmbeddingConfig, SearchConfig};
+pub use diagnostics::{global_memory_tracker, start_memory_monitoring, MemorySnapshot, MemoryStatus};
 pub use embeddings::{
     cosine_similarity, EmbeddingService, LocalEmbeddingService, RemoteEmbeddingService,
     VOYAGE_EMBEDDING_DIM,

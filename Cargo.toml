@@ -86,6 +86,9 @@ sha2 = "0.10"
 # Optional keyring fallback for backward compatibility
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native"], optional = true }
 
+# Memory profiling (optional, for diagnostics)
+tikv-jemallocator = { version = "0.6", optional = true }
+
 # Python integration (PyO3)
 pyo3 = { version = "0.22", features = ["abi3"], optional = true }
 dirs = "6.0.0"
@@ -141,6 +144,7 @@ default = ["keyring-fallback"]
 python = ["pyo3"]
 keyring-fallback = ["keyring"]
 distributed = ["ractor_cluster"]
+profiling = ["tikv-jemallocator"]
 
 [dev-dependencies]
 mockall = "0.12"
