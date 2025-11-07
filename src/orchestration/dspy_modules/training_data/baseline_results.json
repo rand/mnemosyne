@@ -1,0 +1,173 @@
+{
+  "timestamp": "2025-11-07T09:36:18.316212",
+  "config": {
+    "iterations": 10,
+    "module": "all"
+  },
+  "modules": {
+    "reviewer": {
+      "extract_requirements": {
+        "operation": "extract_requirements",
+        "iterations": 30,
+        "latency_ms": {
+          "p50": 0.7396249566227198,
+          "p95": 1.1697920272126794,
+          "p99": 74.06749995425344,
+          "mean": 3.2120667941247425,
+          "stddev": 13.382913831316303,
+          "min": 0.6632920121774077,
+          "max": 74.06749995425344
+        },
+        "tokens": {
+          "input": 500,
+          "output": 200,
+          "total": 700
+        },
+        "cost_usd": 0.0045000000000000005,
+        "throughput_ops_per_sec": 311.3260290318746
+      },
+      "validate_intent": {
+        "operation": "validate_intent",
+        "iterations": 20,
+        "latency_ms": {
+          "p50": 0.7901249919086695,
+          "p95": 1.2415830278769135,
+          "p99": 1.2415830278769135,
+          "mean": 0.8497895963955671,
+          "stddev": 0.1519063794003097,
+          "min": 0.7320829899981618,
+          "max": 1.2415830278769135
+        },
+        "tokens": {
+          "input": 500,
+          "output": 200,
+          "total": 700
+        },
+        "cost_usd": 0.0045000000000000005,
+        "throughput_ops_per_sec": 1176.7618764004164
+      },
+      "validate_completeness": {
+        "operation": "validate_completeness",
+        "iterations": 10,
+        "latency_ms": {
+          "p50": 0.7505409885197878,
+          "p95": 1.0931669967249036,
+          "p99": 1.0931669967249036,
+          "mean": 0.8137497236020863,
+          "stddev": 0.140648843247074,
+          "min": 0.7332500535994768,
+          "max": 1.0931669967249036
+        },
+        "tokens": {
+          "input": 500,
+          "output": 200,
+          "total": 700
+        },
+        "cost_usd": 0.0045000000000000005,
+        "throughput_ops_per_sec": 1228.8790656339293
+      },
+      "validate_correctness": {
+        "operation": "validate_correctness",
+        "iterations": 10,
+        "latency_ms": {
+          "p50": 0.8310419507324696,
+          "p95": 1.1226249625906348,
+          "p99": 1.1226249625906348,
+          "mean": 0.9041874785907567,
+          "stddev": 0.13471006538584362,
+          "min": 0.7856669835746288,
+          "max": 1.1226249625906348
+        },
+        "tokens": {
+          "input": 500,
+          "output": 200,
+          "total": 700
+        },
+        "cost_usd": 0.0045000000000000005,
+        "throughput_ops_per_sec": 1105.9653265256163
+      },
+      "generate_guidance": {
+        "operation": "generate_guidance",
+        "iterations": 10,
+        "latency_ms": {
+          "p50": 0.8135000243782997,
+          "p95": 1.137667102739215,
+          "p99": 1.137667102739215,
+          "mean": 0.8668875088915229,
+          "stddev": 0.12379895963012603,
+          "min": 0.7791250245645642,
+          "max": 1.137667102739215
+        },
+        "tokens": {
+          "input": 500,
+          "output": 200,
+          "total": 700
+        },
+        "cost_usd": 0.0045000000000000005,
+        "throughput_ops_per_sec": 1153.5522080352573
+      }
+    },
+    "semantic": {
+      "analyze_discourse": {
+        "operation": "analyze_discourse",
+        "iterations": 30,
+        "latency_ms": {
+          "p50": 1.2539169983938336,
+          "p95": 6762.403499917127,
+          "p99": 7146.823375020176,
+          "mean": 570.4751097015105,
+          "stddev": 1829.767874696104,
+          "min": 0.8108749752864242,
+          "max": 7146.823375020176
+        },
+        "tokens": {
+          "input": 500,
+          "output": 200,
+          "total": 700
+        },
+        "cost_usd": 0.0045000000000000005,
+        "throughput_ops_per_sec": 1.752924856832456
+      },
+      "detect_contradictions": {
+        "operation": "detect_contradictions",
+        "iterations": 30,
+        "latency_ms": {
+          "p50": 1.5986250946298242,
+          "p95": 4698.443040950224,
+          "p99": 6764.949082979001,
+          "mean": 506.55727219612646,
+          "stddev": 1594.867724535814,
+          "min": 0.8662090403959155,
+          "max": 6764.949082979001
+        },
+        "tokens": {
+          "input": 500,
+          "output": 200,
+          "total": 700
+        },
+        "cost_usd": 0.0045000000000000005,
+        "throughput_ops_per_sec": 1.974110440986473
+      },
+      "extract_pragmatics": {
+        "operation": "extract_pragmatics",
+        "iterations": 30,
+        "latency_ms": {
+          "p50": 1.326250028796494,
+          "p95": 5760.352959041484,
+          "p99": 69756.3171669608,
+          "mean": 2709.5713529386558,
+          "stddev": 12746.560312207506,
+          "min": 0.8217500289902091,
+          "max": 69756.3171669608
+        },
+        "tokens": {
+          "input": 500,
+          "output": 200,
+          "total": 700
+        },
+        "cost_usd": 0.0045000000000000005,
+        "throughput_ops_per_sec": 0.36906206545011394
+      }
+    }
+  }
+}
