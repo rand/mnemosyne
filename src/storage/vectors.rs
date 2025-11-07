@@ -41,6 +41,7 @@ impl SqliteVectorStorage {
         unsafe {
             use rusqlite::ffi::sqlite3_auto_extension;
 
+            #[allow(clippy::missing_transmute_annotations)]
             sqlite3_auto_extension(Some(std::mem::transmute(
                 sqlite_vec::sqlite3_vec_init as *const (),
             )));

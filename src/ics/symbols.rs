@@ -437,6 +437,7 @@ impl SymbolRegistry {
         let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
 
         // Initialize first column and row
+        #[allow(clippy::needless_range_loop)]
         for i in 0..=len1 {
             matrix[i][0] = i;
         }
