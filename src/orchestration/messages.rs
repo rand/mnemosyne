@@ -209,6 +209,11 @@ pub enum ExecutorMessage {
     #[serde(skip)]
     RegisterOrchestrator(ractor::ActorRef<OrchestratorMessage>),
 
+    /// Register Python Claude SDK agent bridge (if Python feature enabled)
+    #[cfg(feature = "python")]
+    #[serde(skip)]
+    RegisterPythonBridge(crate::orchestration::ClaudeAgentBridge),
+
     /// Execute a work item
     ExecuteWork(WorkItem),
 

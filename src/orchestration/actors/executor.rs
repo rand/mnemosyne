@@ -1,10 +1,15 @@
 //! Executor Actor
 //!
 //! Responsibilities:
-//! - Primary work execution
+//! - Primary work execution via Python Claude SDK agent
 //! - Sub-agent spawning for parallel work
 //! - Deterministic workflow wrapping
 //! - Work result reporting
+//!
+//! Integration with Python:
+//! - Spawns Python Claude SDK agent via PyO3 bridge
+//! - Delegates actual work execution to intelligent Python agent
+//! - Falls back to simple execution if Python feature disabled
 
 use crate::error::Result;
 use crate::launcher::agents::AgentRole;
@@ -17,6 +22,9 @@ use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+#[cfg(feature = "python")]
+use crate::orchestration::ClaudeAgentBridge;
 
 /// Executor actor state
 pub struct ExecutorState {
@@ -37,6 +45,10 @@ pub struct ExecutorState {
 
     /// Max concurrent work items
     max_concurrent: usize,
+
+    /// Python Claude SDK agent bridge (if Python feature enabled)
+    #[cfg(feature = "python")]
+    python_bridge: Option<ClaudeAgentBridge>,
 }
 
 impl ExecutorState {
@@ -48,11 +60,20 @@ impl ExecutorState {
             active_work: HashMap::new(),
             sub_agents: Vec::new(),
             max_concurrent: 4,
+            #[cfg(feature = "python")]
+            python_bridge: None,
         }
     }
 
     pub fn register_orchestrator(&mut self, orchestrator: ActorRef<OrchestratorMessage>) {
         self.orchestrator = Some(orchestrator);
+    }
+
+    /// Register Python Claude SDK agent bridge
+    #[cfg(feature = "python")]
+    pub fn register_python_bridge(&mut self, bridge: ClaudeAgentBridge) {
+        tracing::info!("Registering Python agent bridge for Executor");
+        self.python_bridge = Some(bridge);
     }
 
     /// Register event broadcaster for real-time observability
@@ -135,21 +156,55 @@ impl ExecutorActor {
             })
             .await?;
 
-        // Simulate work execution
-        // In production, this would:
-        // 1. Load relevant context
-        // 2. Execute the actual work
-        // 3. Persist intermediate results
-        // 4. Handle errors gracefully
+        // Execute work via Python agent bridge (if available) or fallback to simulation
+        let result = {
+            #[cfg(feature = "python")]
+            {
+                if let Some(ref bridge) = state.python_bridge {
+                    // Delegate to Python Claude SDK agent for intelligent execution
+                    tracing::info!("Delegating work to Python Claude SDK agent");
+                    match bridge.send_work(item.clone()).await {
+                        Ok(mut python_result) => {
+                            // Update duration to actual elapsed time
+                            python_result.duration = start_time.elapsed();
+                            python_result
+                        }
+                        Err(e) => {
+                            tracing::error!("Python agent execution failed: {}", e);
+                            // Create error result
+                            WorkResult {
+                                item_id: item_id.clone(),
+                                success: false,
+                                data: None,
+                                error: Some(format!("Python agent error: {}", e)),
+                                duration: start_time.elapsed(),
+                                memory_ids: Vec::new(),
+                            }
+                        }
+                    }
+                } else {
+                    // Python bridge not available - use simple execution
+                    tracing::warn!("Python bridge not available, using simple execution");
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    WorkResult::success(item_id.clone(), start_time.elapsed())
+                }
+            }
 
-        tokio::time::sleep(Duration::from_millis(100)).await;
-
-        // Create result
-        let duration = start_time.elapsed();
-        let result = WorkResult::success(item_id.clone(), duration);
+            #[cfg(not(feature = "python"))]
+            {
+                // Python feature disabled - simulate work
+                tracing::debug!("Python feature disabled, simulating work execution");
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                WorkResult::success(item_id.clone(), start_time.elapsed())
+            }
+        };
 
         // Remove from active
         state.active_work.remove(&item_id);
+
+        // Save values needed for event persistence before moving result
+        let duration_ms = result.duration.as_millis() as u64;
+        let memory_ids = result.memory_ids.clone();
 
         // Notify orchestrator
         if let Some(ref orchestrator) = state.orchestrator {
@@ -167,8 +222,8 @@ impl ExecutorActor {
             .persist(AgentEvent::WorkItemCompleted {
                 agent: AgentRole::Executor,
                 item_id,
-                duration_ms: duration.as_millis() as u64,
-                memory_ids: Vec::new(),
+                duration_ms,
+                memory_ids,
             })
             .await?;
 
@@ -305,6 +360,11 @@ impl Actor for ExecutorActor {
             ExecutorMessage::RegisterOrchestrator(orchestrator_ref) => {
                 tracing::debug!("Registering orchestrator reference");
                 state.register_orchestrator(orchestrator_ref);
+            }
+            #[cfg(feature = "python")]
+            ExecutorMessage::RegisterPythonBridge(bridge) => {
+                tracing::info!("Registering Python Claude SDK agent bridge");
+                state.register_python_bridge(bridge);
             }
             ExecutorMessage::ExecuteWork(item) => {
                 Self::execute_work(state, item)

@@ -344,6 +344,19 @@ impl ClaudeAgentBridge {
     }
 }
 
+/// Debug implementation for ClaudeAgentBridge
+#[cfg(feature = "python")]
+impl std::fmt::Debug for ClaudeAgentBridge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ClaudeAgentBridge")
+            .field("role", &self.role)
+            .field("agent_id", &self.agent_id)
+            .field("state", &"<RwLock>")
+            .field("agent", &"<Python Object>")
+            .finish()
+    }
+}
+
 /// Convert WorkItem to Python dict
 #[cfg(feature = "python")]
 fn work_item_to_python(py: Python, item: &WorkItem) -> Result<PyObject> {
