@@ -18,6 +18,16 @@ use ratatui::{
 };
 use std::collections::HashMap;
 
+/// Context for rendering a single line
+struct LineRenderContext {
+    x: u16,
+    y: u16,
+    line_num: usize,
+    h_scroll: usize,
+    start_char_pos: usize,
+    show_attribution: bool,
+}
+
 /// Editor widget state
 pub struct EditorState {
     /// Vertical scroll offset (line number)
@@ -307,16 +317,15 @@ impl<'a> EditorWidget<'a> {
                     .collect();
 
                 // Render line with both attribution and diagnostics
-                self.render_line_with_diagnostics(
-                    area.x,
-                    area.y + i as u16,
-                    &visible_text,
+                let ctx = LineRenderContext {
+                    x: area.x,
+                    y: area.y + i as u16,
                     line_num,
-                    state.h_scroll_offset,
-                    char_pos,
-                    state.show_attribution,
-                    buf,
-                );
+                    h_scroll: state.h_scroll_offset,
+                    start_char_pos: char_pos,
+                    show_attribution: state.show_attribution,
+                };
+                self.render_line_with_diagnostics(&ctx, &visible_text, buf);
 
                 // Render cursor if on this line
                 if is_cursor_line && self.focused {
@@ -346,27 +355,22 @@ impl<'a> EditorWidget<'a> {
     /// Render line with diagnostics (and optionally attribution + semantic highlighting)
     fn render_line_with_diagnostics(
         &self,
-        x: u16,
-        y: u16,
+        ctx: &LineRenderContext,
         text: &str,
-        line_num: usize,
-        h_scroll: usize,
-        start_char_pos: usize,
-        show_attribution: bool,
         buf: &mut RatatuiBuffer,
     ) {
         // Get semantic styles for the entire line if enabled
         let semantic_styles = self.semantic_styles_for_line(text);
 
         for (i, ch) in text.chars().enumerate() {
-            let column = h_scroll + i;
-            let char_pos = start_char_pos + i;
+            let column = ctx.h_scroll + i;
+            let char_pos = ctx.start_char_pos + i;
 
             // Priority: semantic > attribution > default
             let base_style = if let Some(&semantic_style) = semantic_styles.get(&i) {
                 // Semantic highlighting takes priority
                 semantic_style
-            } else if show_attribution {
+            } else if ctx.show_attribution {
                 // Fall back to attribution color
                 let color = self.attribution_color(char_pos).unwrap_or(Color::White);
                 Style::default().fg(color)
@@ -376,7 +380,7 @@ impl<'a> EditorWidget<'a> {
             };
 
             // Check for diagnostic at this position
-            let has_diagnostic = self.diagnostic_at(line_num, column).is_some();
+            let has_diagnostic = self.diagnostic_at(ctx.line_num, column).is_some();
 
             // Apply diagnostic underline if present
             let mut style = base_style;
@@ -384,7 +388,7 @@ impl<'a> EditorWidget<'a> {
                 style = style.add_modifier(Modifier::UNDERLINED);
             }
 
-            buf.set_string(x + i as u16, y, ch.to_string(), style);
+            buf.set_string(ctx.x + i as u16, ctx.y, ch.to_string(), style);
         }
     }
 
