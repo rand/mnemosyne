@@ -41,6 +41,7 @@ pub struct PtyOutput {
 }
 
 /// PTY session wrapping a subprocess
+#[allow(clippy::arc_with_non_send_sync)]
 pub struct PtySession {
     /// PTY system
     pty_system: NativePtySystem,
