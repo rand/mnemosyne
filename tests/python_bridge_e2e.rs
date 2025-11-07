@@ -83,6 +83,10 @@ mod python_e2e_tests {
         println!("Response received in {:?}", duration);
 
         // Validate result
+        if let Err(ref e) = result {
+            println!("\n⚠️  Work execution returned error: {:?}", e);
+            println!("Error details: {}", e);
+        }
         assert!(result.is_ok(), "Work execution should succeed");
         let result = result.unwrap();
 

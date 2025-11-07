@@ -471,22 +471,35 @@ fn work_item_to_python(py: Python, item: &WorkItem) -> Result<PyObject> {
 /// Extract WorkResult from Python result dict
 #[cfg(feature = "python")]
 fn extract_work_result(_py: Python, result: &Bound<PyAny>, item_id: crate::orchestration::state::WorkItemId) -> Result<WorkResult> {
+    // Result is a Python dict, so we need to use dict item access
+    let result_dict = result
+        .downcast::<PyDict>()
+        .map_err(|e| MnemosyneError::Other(format!("Result is not a dict: {}", e)))?;
+
     // Extract success status (required)
-    let success = result
-        .getattr("success")
+    let success = result_dict
+        .get_item("success")
         .map_err(|e| MnemosyneError::Other(format!("Failed to get success: {}", e)))?
+        .ok_or_else(|| MnemosyneError::Other("Missing 'success' key in result".to_string()))?
         .extract::<bool>()
         .map_err(|e| MnemosyneError::Other(format!("Failed to extract success: {}", e)))?;
 
     // Extract data (optional serialized result)
-    let data = result
-        .getattr("data")
+    let data = result_dict
+        .get_item("data")
         .ok()
-        .and_then(|d| d.extract::<String>().ok());
+        .flatten()
+        .and_then(|d| {
+            if d.is_none() {
+                None
+            } else {
+                d.extract::<String>().ok()
+            }
+        });
 
     // Extract memory IDs (optional list)
-    let memory_ids = if let Ok(memory_ids_attr) = result.getattr("memory_ids") {
-        if let Ok(memory_ids_list) = memory_ids_attr.downcast::<PyList>() {
+    let memory_ids = if let Ok(Some(memory_ids_item)) = result_dict.get_item("memory_ids") {
+        if let Ok(memory_ids_list) = memory_ids_item.downcast::<PyList>() {
             let mut ids = Vec::new();
             for item in memory_ids_list.iter() {
                 if let Ok(memory_id_str) = item.extract::<String>() {
@@ -504,10 +517,17 @@ fn extract_work_result(_py: Python, result: &Bound<PyAny>, item_id: crate::orche
     };
 
     // Extract error if present (optional)
-    let error = result
-        .getattr("error")
+    let error = result_dict
+        .get_item("error")
         .ok()
-        .and_then(|e| e.extract::<String>().ok());
+        .flatten()
+        .and_then(|e| {
+            if e.is_none() {
+                None
+            } else {
+                e.extract::<String>().ok()
+            }
+        });
 
     Ok(WorkResult {
         item_id,
