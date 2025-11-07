@@ -269,7 +269,6 @@ impl AgentSpawner {
             {
                 use nix::sys::signal::{kill, Signal};
                 use nix::unistd::Pid;
-                use nix::errno::Errno;
 
                 let pid = Pid::from_raw(handle.pid as i32);
                 match kill(pid, Signal::SIGTERM) {
