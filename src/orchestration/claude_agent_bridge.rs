@@ -196,8 +196,14 @@ impl ClaudeAgentBridge {
                 let agent_guard = agent.blocking_lock();
                 let agent_ref = agent_guard.bind(py);
 
-                // Call start_session() method
-                agent_ref.call_method0("start_session").map_err(|e| {
+                // Import asyncio to run async Python methods
+                let asyncio = py.import_bound("asyncio")?;
+
+                // Call start_session() to get coroutine
+                let coro = agent_ref.call_method0("start_session")?;
+
+                // Run coroutine with asyncio.run()
+                asyncio.call_method1("run", (coro,)).map_err(|e| {
                     error!("Failed to start agent session: {}", e);
                     MnemosyneError::Other(format!("Session start failed: {}", e))
                 })?;
@@ -266,8 +272,14 @@ impl ClaudeAgentBridge {
                 // Convert work item to Python dict
                 let py_work = work_item_to_python(py, &item)?;
 
-                // Call execute_work method
-                let py_result = agent_ref.call_method1("execute_work", (py_work,)).map_err(|e| {
+                // Import asyncio to run async Python methods
+                let asyncio = py.import_bound("asyncio")?;
+
+                // Call execute_work to get coroutine
+                let coro = agent_ref.call_method1("execute_work", (py_work,))?;
+
+                // Run coroutine with asyncio.run()
+                let py_result = asyncio.call_method1("run", (coro,)).map_err(|e| {
                     error!("Python agent execution failed: {}", e);
 
                     // Broadcast agent failed event
