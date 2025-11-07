@@ -35,13 +35,18 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 # Import PyO3 bridge interface
 from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
 
+# Import logging
+from .logging_config import get_logger
+
+logger = get_logger("optimizer")
+
 # Import evaluation system (requires mnemosyne_core PyO3 bindings)
 try:
     from mnemosyne_core import FeedbackCollector, RelevanceScorer, FeatureExtractor
     EVALUATION_AVAILABLE = True
 except ImportError:
     EVALUATION_AVAILABLE = False
-    print("Warning: Evaluation system not available. Install mnemosyne_core PyO3 bindings.")
+    logger.warning("Evaluation system not available. Install mnemosyne_core PyO3 bindings.")
 
 
 @dataclass
@@ -173,9 +178,9 @@ Provide reasoning for your optimization decisions."""
                 self.feedback_collector = FeedbackCollector(db_path)
                 self.relevance_scorer = RelevanceScorer(db_path)
                 self.feature_extractor = FeatureExtractor(db_path)
-                print(f"Evaluation system initialized with database: {db_path}")
+                logger.info(f"Evaluation system initialized with database: {db_path}")
             except Exception as e:
-                print(f"Warning: Could not initialize evaluation system: {e}")
+                logger.warning(f"Could not initialize evaluation system: {e}")
                 self.evaluation_enabled = False
         else:
             self.feedback_collector = None
@@ -619,7 +624,7 @@ Keep your response concise and structured."""
                     return min(score, 1.0)
 
                 except Exception as e:
-                    print(f"Warning: Could not use learned weights: {e}. Falling back to basic scoring.")
+                    logger.warning(f"Could not use learned weights: {e}. Falling back to basic scoring.")
                     # Fall through to basic scoring
 
             # Fallback: Basic keyword matching
@@ -630,7 +635,7 @@ Keep your response concise and structured."""
             return min(score, 1.0)
 
         except Exception as e:
-            print(f"Error scoring skill {skill_file}: {e}")
+            logger.error(f"Error scoring skill {skill_file}: {e}")
             return 0.0
 
     def _extract_categories(self, filename: str) -> List[str]:

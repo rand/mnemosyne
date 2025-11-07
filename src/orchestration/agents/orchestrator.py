@@ -19,6 +19,11 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 # Import PyO3 bridge interface
 from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
 
+# Import logging
+from .logging_config import get_logger
+
+logger = get_logger("orchestrator")
+
 
 class OrchestratorPhase(Enum):
     """Orchestration phases."""
