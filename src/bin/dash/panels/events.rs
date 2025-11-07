@@ -149,7 +149,7 @@ impl EventLogPanel {
         } else {
             // Get visible events (reverse order: most recent at top)
             let start_idx = self.scroll_offset;
-            let end_idx = (start_idx + available_height).min(self.events.len());
+            let _end_idx = (start_idx + available_height).min(self.events.len());
 
             self.events
                 .iter()

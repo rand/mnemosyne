@@ -10,9 +10,9 @@ pub mod memory;
 pub mod skills;
 pub mod work;
 
-pub use agents::{AgentInfo, AgentState, AgentsPanel};
-pub use context::{ContextPanel, ContextState};
-pub use events::{EventEntry, EventLogPanel};
+pub use agents::{AgentInfo, AgentsPanel};
+pub use context::ContextPanel;
+pub use events::EventLogPanel;
 pub use memory::{MemoryOpsMetrics, MemoryPanel};
 pub use skills::{SkillsMetrics, SkillsPanel};
 pub use work::{WorkMetrics, WorkPanel};
