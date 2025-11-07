@@ -521,10 +521,12 @@ async def main():
 
     # Graceful shutdown handler
     shutdown_event = asyncio.Event()
+    loop = asyncio.get_event_loop()
 
     def signal_handler(signum, frame):
         logger.info(f"Received signal {signum}, initiating graceful shutdown...")
-        shutdown_event.set()
+        # Use call_soon_threadsafe to safely interact with asyncio from signal handler
+        loop.call_soon_threadsafe(shutdown_event.set)
 
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)

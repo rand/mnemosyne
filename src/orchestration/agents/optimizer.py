@@ -830,10 +830,12 @@ async def main():
             await asyncio.sleep(10)
 
     shutdown_event = asyncio.Event()
+    loop = asyncio.get_event_loop()
 
     def signal_handler(signum, frame):
         logger.info(f"Received signal {signum}, shutting down...")
-        shutdown_event.set()
+        # Use call_soon_threadsafe to safely interact with asyncio from signal handler
+        loop.call_soon_threadsafe(shutdown_event.set)
 
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)

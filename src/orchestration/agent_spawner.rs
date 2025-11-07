@@ -8,6 +8,7 @@ use crate::error::{MnemosyneError, Result};
 use crate::launcher::agents::AgentRole;
 use std::collections::HashMap;
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
@@ -75,6 +76,8 @@ pub struct AgentSpawner {
     event_broadcaster: Option<Arc<EventBroadcaster>>,
     /// State manager for tracking agent state
     state_manager: Option<Arc<StateManager>>,
+    /// Flag to track if shutdown_all() was called
+    shutdown_called: Arc<AtomicBool>,
 }
 
 impl AgentSpawner {
@@ -89,6 +92,7 @@ impl AgentSpawner {
             agents: Arc::new(RwLock::new(HashMap::new())),
             event_broadcaster,
             state_manager,
+            shutdown_called: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -259,6 +263,9 @@ impl AgentSpawner {
     pub async fn shutdown_all(&self) -> Result<()> {
         info!("Shutting down all agents...");
 
+        // Mark that shutdown was called explicitly
+        self.shutdown_called.store(true, Ordering::SeqCst);
+
         let mut agents_guard = self.agents.write().await;
 
         for (role, handle) in agents_guard.iter_mut() {
@@ -287,8 +294,8 @@ impl AgentSpawner {
                 }
             }
 
-            // Wait a bit for graceful shutdown
-            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            // Wait for graceful shutdown (increased to 2s to allow Python cleanup)
+            tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
 
             // Force kill if still running
             match handle.child.try_wait() {
@@ -342,13 +349,22 @@ impl AgentSpawner {
 
 impl Drop for AgentSpawner {
     fn drop(&mut self) {
+        // Skip cleanup if shutdown_all() was already called
+        if self.shutdown_called.load(Ordering::SeqCst) {
+            debug!("AgentSpawner dropped after explicit shutdown - no cleanup needed");
+            return;
+        }
+
         // Emergency cleanup if spawner is dropped without explicit shutdown
         // Use try_write() instead of blocking_write() to avoid panics in async context
         if let Ok(mut agents) = self.agents.try_write() {
-            for (role, handle) in agents.iter_mut() {
-                warn!("Emergency cleanup: killing {} (PID {})", role.as_str(), handle.pid);
-                let _ = handle.child.kill();
-                let _ = handle.child.wait();
+            if !agents.is_empty() {
+                warn!("AgentSpawner dropped without calling shutdown_all()");
+                for (role, handle) in agents.iter_mut() {
+                    warn!("Emergency cleanup: killing {} (PID {})", role.as_str(), handle.pid);
+                    let _ = handle.child.kill();
+                    let _ = handle.child.wait();
+                }
             }
         } else {
             // Lock is held, spawner is being used - skip emergency cleanup
