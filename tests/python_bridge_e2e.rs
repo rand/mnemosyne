@@ -18,7 +18,28 @@ mod python_e2e_tests {
     use mnemosyne_core::launcher::agents::AgentRole;
     use mnemosyne_core::orchestration::state::{Phase, WorkItem};
     use mnemosyne_core::orchestration::ClaudeAgentBridge;
+    use mnemosyne_core::secrets::SecretsManager;
+    use secrecy::ExposeSecret;
     use std::time::Duration;
+
+    /// Setup helper: Ensure API key is available before Python initialization
+    ///
+    /// This function must be called BEFORE pyo3::prepare_freethreaded_python()
+    /// because Python caches os.environ at initialization time.
+    ///
+    /// Priority order (from SECRETS_MANAGEMENT.md):
+    /// 1. Environment variable (if already set)
+    /// 2. Age-encrypted config (~/.config/mnemosyne/secrets.age)
+    /// 3. OS keychain (fallback)
+    fn ensure_api_key() {
+        if std::env::var("ANTHROPIC_API_KEY").is_err() {
+            let secrets = SecretsManager::new()
+                .expect("Failed to initialize secrets manager");
+            let api_key = secrets.get_secret("ANTHROPIC_API_KEY")
+                .expect("Failed to load ANTHROPIC_API_KEY from secrets. Run: mnemosyne secrets init");
+            std::env::set_var("ANTHROPIC_API_KEY", api_key.expose_secret());
+        }
+    }
 
     /// Test simple work execution with Claude SDK
     ///
@@ -29,7 +50,9 @@ mod python_e2e_tests {
     #[tokio::test]
     #[ignore] // Requires API key and makes actual API calls
     async fn test_simple_work_execution_with_claude() {
-        // Initialize Python interpreter
+        // Load API key from secrets system BEFORE Python initialization
+        ensure_api_key();
+        ensure_api_key();
         pyo3::prepare_freethreaded_python();
 
         // Create event broadcaster
@@ -107,6 +130,7 @@ mod python_e2e_tests {
     #[tokio::test]
     #[ignore] // Requires API key
     async fn test_error_recovery_with_invalid_work() {
+        ensure_api_key();
         pyo3::prepare_freethreaded_python();
 
         let broadcaster = EventBroadcaster::new(10);
@@ -160,6 +184,7 @@ mod python_e2e_tests {
     #[tokio::test]
     #[ignore] // Requires API key and makes multiple API calls
     async fn test_concurrent_work_processing() {
+        ensure_api_key();
         pyo3::prepare_freethreaded_python();
 
         let broadcaster = EventBroadcaster::new(10);
@@ -238,6 +263,7 @@ mod python_e2e_tests {
     #[tokio::test]
     #[ignore] // Requires API key
     async fn test_reviewer_agent_quality_checks() {
+        ensure_api_key();
         pyo3::prepare_freethreaded_python();
 
         let broadcaster = EventBroadcaster::new(10);
@@ -295,6 +321,7 @@ def calculate_total(items):
     #[tokio::test]
     #[ignore] // Requires API key
     async fn test_work_timeout_handling() {
+        ensure_api_key();
         pyo3::prepare_freethreaded_python();
 
         let broadcaster = EventBroadcaster::new(10);
