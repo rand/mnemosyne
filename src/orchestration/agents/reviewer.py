@@ -32,6 +32,9 @@ from .error_context import (
 # Import validation
 from .validation import validate_work_item, validate_agent_state, validate_review_artifact
 
+# Import metrics
+from .metrics import get_metrics_collector
+
 logger = get_logger("reviewer")
 
 
@@ -521,10 +524,19 @@ Be thorough but constructive. Focus on real issues.""")
         logger.info(f"Received review request from Rust bridge: {work_item.id} (attempt {work_item.review_attempt})")
         logger.debug(f"Work item description: {work_item.description[:200]}")
 
+        # Start metrics tracking
+        metrics_collector = get_metrics_collector()
+        work_metrics = metrics_collector.start_work_item(
+            work_item_id=work_item.id,
+            agent_id=self.config.agent_id,
+            phase="review"
+        )
+
         # Validate work item
         validation_result = validate_work_item(work_item)
         if not validation_result.valid:
             logger.error(f"Work item validation failed: {validation_result.errors}")
+            metrics_collector.finish_work_item(work_item.id, success=False, error_type="ValidationError")
             return WorkResult(
                 success=False,
                 error=f"Invalid work item for review:\n" + "\n".join(f"  • {err}" for err in validation_result.errors)
@@ -543,6 +555,7 @@ Be thorough but constructive. Focus on real issues.""")
         )
         if not state_validation.valid:
             logger.error(f"Agent state validation failed: {state_validation.errors}")
+            metrics_collector.finish_work_item(work_item.id, success=False, error_type="StateValidationError")
             return WorkResult(
                 success=False,
                 error=f"Invalid agent state:\n" + "\n".join(f"  • {err}" for err in state_validation.errors)
@@ -574,6 +587,24 @@ Be thorough but constructive. Focus on real issues.""")
                 # Identify which gates failed
                 failed_gates = [gate.value for gate, passed in review_result.gate_results.items() if not passed]
 
+            # Update metrics with review-specific data
+            work_metrics.review_passed = review_result.passed
+            work_metrics.review_confidence = review_result.confidence
+            work_metrics.quality_gates_passed = sum(1 for passed in review_result.gate_results.values() if passed)
+            work_metrics.quality_gates_failed = sum(1 for passed in review_result.gate_results.values() if not passed)
+
+            # Finish metrics tracking
+            metrics_collector.finish_work_item(
+                work_item.id,
+                success=True,  # Review completed (even if review failed gates)
+                error_type=None
+            )
+
+            # Log metrics
+            completed_metrics = metrics_collector.get_work_item_metrics(work_item.id)
+            if completed_metrics and completed_metrics.duration_seconds:
+                logger.info(f"Review completed in {completed_metrics.duration_seconds:.2f}s (confidence: {review_result.confidence:.2f})")
+
             # Convert ReviewResult to WorkResult
             error_msg = None
             if not review_result.passed:
@@ -602,6 +633,15 @@ Be thorough but constructive. Focus on real issues.""")
                 f"Failed to review work item {work_item.id}: {type(e).__name__}: {str(e)}",
                 exc_info=True
             )
+
+            # Finish metrics tracking with error
+            error_type = type(e).__name__
+            metrics_collector.finish_work_item(work_item.id, success=False, error_type=error_type)
+
+            # Log metrics
+            completed_metrics = metrics_collector.get_work_item_metrics(work_item.id)
+            if completed_metrics and completed_metrics.duration_seconds:
+                logger.info(f"Review failed after {completed_metrics.duration_seconds:.2f}s")
 
             # Create enhanced error context
             error_context = create_work_item_error_context(

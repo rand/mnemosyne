@@ -34,6 +34,9 @@ from .error_context import (
 # Import validation
 from .validation import validate_work_item, validate_agent_state
 
+# Import metrics
+from .metrics import get_metrics_collector
+
 logger = get_logger("executor")
 
 
@@ -479,10 +482,19 @@ Always follow best practices and validate your work before marking it complete."
         logger.info(f"Received work item from Rust bridge: {work_item.id} (phase: {work_item.phase})")
         logger.debug(f"Work item description: {work_item.description[:200]}")
 
+        # Start metrics tracking
+        metrics_collector = get_metrics_collector()
+        work_metrics = metrics_collector.start_work_item(
+            work_item_id=work_item.id,
+            agent_id=self.config.agent_id,
+            phase=work_item.phase
+        )
+
         # Validate work item
         validation_result = validate_work_item(work_item)
         if not validation_result.valid:
             logger.error(f"Work item validation failed: {validation_result.errors}")
+            metrics_collector.finish_work_item(work_item.id, success=False, error_type="ValidationError")
             return WorkResult(
                 success=False,
                 error=f"Invalid work item:\n" + "\n".join(f"  • {err}" for err in validation_result.errors)
@@ -501,6 +513,7 @@ Always follow best practices and validate your work before marking it complete."
         )
         if not state_validation.valid:
             logger.error(f"Agent state validation failed: {state_validation.errors}")
+            metrics_collector.finish_work_item(work_item.id, success=False, error_type="StateValidationError")
             return WorkResult(
                 success=False,
                 error=f"Invalid agent state:\n" + "\n".join(f"  • {err}" for err in state_validation.errors)
@@ -521,11 +534,26 @@ Always follow best practices and validate your work before marking it complete."
             # Execute using existing execute_work_plan method
             result = await self.execute_work_plan(work_plan)
 
-            logger.info(f"Work item {work_item.id} completed successfully")
+            # Determine success
+            success = result.get("status") == "success" if "status" in result else result.get("success", False)
+
+            logger.info(f"Work item {work_item.id} completed {'successfully' if success else 'with errors'}")
+
+            # Finish metrics tracking
+            metrics_collector.finish_work_item(
+                work_item.id,
+                success=success,
+                error_type=None if success else "ExecutionError"
+            )
+
+            # Log metrics
+            completed_metrics = metrics_collector.get_work_item_metrics(work_item.id)
+            if completed_metrics and completed_metrics.duration_seconds:
+                logger.info(f"Work item {work_item.id} duration: {completed_metrics.duration_seconds:.2f}s")
 
             # Convert result to WorkResult format
             return WorkResult(
-                success=result.get("success", False),
+                success=success,
                 data=result.get("output"),
                 memory_ids=result.get("memory_ids", []),
                 error=result.get("error")
@@ -537,6 +565,15 @@ Always follow best practices and validate your work before marking it complete."
                 f"Failed to execute work item {work_item.id}: {type(e).__name__}: {str(e)}",
                 exc_info=True
             )
+
+            # Finish metrics tracking with error
+            error_type = type(e).__name__
+            metrics_collector.finish_work_item(work_item.id, success=False, error_type=error_type)
+
+            # Log metrics
+            completed_metrics = metrics_collector.get_work_item_metrics(work_item.id)
+            if completed_metrics and completed_metrics.duration_seconds:
+                logger.info(f"Work item {work_item.id} failed after {completed_metrics.duration_seconds:.2f}s")
 
             # Create enhanced error context
             error_context = create_work_item_error_context(
