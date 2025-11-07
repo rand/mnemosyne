@@ -26,38 +26,93 @@ The mnemosyne dashboard provides live visibility into the orchestration system's
 
 ## Dashboard Features
 
-### Agent Status Panel
+The dashboard provides a **6-panel layout** with real-time sparkline visualizations showing time-series trends for all metrics.
 
-The dashboard displays real-time status for all 4 agents:
+### Panel 1: Memory Panel
+
+Monitors memory usage and recall performance:
+
+- **Memory Count**: Total memories in current namespace
+- **Recent Recalls**: Number of recent memory queries (with sparkline trend)
+- **Cache Hit Rate**: Percentage of cache hits vs misses (with sparkline trend)
+- **Recent Writes**: Number of recent memory stores (with sparkline trend)
+
+**Time-series visualization**: Each metric includes a compact sparkline (Unicode block characters: ▁▂▃▄▅▆▇█) showing the last 50 data points.
+
+### Panel 2: Context Panel
+
+Tracks context budget and utilization:
+
+- **Context Usage**: Current context utilization percentage (with sparkline trend)
+- **File Tracking**: Number of context files being monitored (with sparkline trend)
+- **Budget Status**: Remaining context budget with color-coded warning levels:
+  - Green: < 75% usage
+  - Yellow: 75-90% usage
+  - Red: > 90% usage (triggers automatic compression)
+
+**Features**:
+- Real-time sparklines show context pressure over time
+- Automatic checkpoint detection when usage exceeds 75%
+- Visual warnings before context exhaustion
+
+### Panel 3: Work Panel
+
+Displays orchestration progress with critical path tracking:
+
+- **Progress Bar**: Overall completion (completed/total tasks)
+- **Current Phase**: Active Work Plan Protocol phase
+- **Completion Trend**: Sparkline showing task completion velocity
+- **Critical Path Progress**: Percentage complete on critical path (with sparkline)
+- **Parallel Streams**: Active parallel work streams (up to 3 shown, with count)
+
+**Color-coded progress**:
+- Red: < 33% complete
+- Yellow: 33-66% complete
+- Green: > 66% complete
+
+### Panel 4: Active Agents Panel
+
+Real-time status for all 4 orchestration agents:
 
 - **Orchestrator**: Coordinates work distribution and phase transitions
 - **Optimizer**: Manages context budget and skill discovery
 - **Reviewer**: Validates completeness and quality gates
 - **Executor**: Implements code, tests, and documentation
 
-Each agent shows:
-- Current state (Idle, Active, Waiting, Completed, Failed)
-- Active task (when working)
-- Last updated timestamp
+**Each agent displays**:
+- State indicator with icon (●=Active, ○=Idle, ◐=Waiting, ✓=Completed, ✗=Failed)
+- Current task or status message (truncated to 40 chars)
+- Health indicator (❤=Healthy, ⚠=Degraded with error count)
+- Activity sparkline showing agent active/idle pattern over time
 
-### Event Stream
+**Agent count sparkline**: Shows total active agents over time at top of panel.
 
-Live feed of orchestration events:
+### Panel 5: Beads Panel (Task Tracking)
+
+Integrates with Beads task management:
+
+- **Open Issues**: Number of unresolved tasks
+- **Ready Tasks**: Unblocked tasks available for work (with sparkline trend)
+- **Recent Completions**: Number of recently closed tasks (with sparkline trend)
+- **Task Velocity**: Rate of task completion over time
+
+**Note**: Requires Beads to be initialized in the project.
+
+### Panel 6: Event Log Panel
+
+Scrollable event stream with real-time updates:
 
 - **Agent Events**: Started, completed, failed
 - **Work Item Events**: Assigned, started, completed, retried
 - **Phase Transitions**: PromptToSpec → SpecToFullSpec → FullSpecToPlan → PlanToArtifacts
-- **Context Events**: Checkpoints, skill discoveries
-- **System Events**: Heartbeats (every 10s)
+- **Context Events**: Checkpoints, skill discoveries, optimizations
+- **System Events**: Heartbeats (every 30s maintain connection)
 
-### System Statistics
-
-Real-time metrics:
-- Active agents count
-- Total agents in session
-- Completed tasks
-- Failed tasks
-- Context usage percentage
+**Features**:
+- Auto-scroll with latest events at bottom
+- Color-coded event types
+- Timestamp for each event
+- Scrollable history (last 100 events)
 
 ## Command Options
 
