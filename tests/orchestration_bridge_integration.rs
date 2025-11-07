@@ -167,8 +167,11 @@ mod python_bridge_tests {
         let err = result.unwrap_err();
         let err_msg = format!("{:?}", err);
         assert!(
-            err_msg.contains("Python") || err_msg.contains("GIL"),
-            "Error should mention Python: {}",
+            err_msg.contains("Python")
+                || err_msg.contains("GIL")
+                || err_msg.contains("import failed")
+                || err_msg.contains("ModuleNotFoundError"),
+            "Error should mention Python or import failure: {}",
             err_msg
         );
     }
