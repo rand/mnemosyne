@@ -105,6 +105,7 @@ impl ApiServer {
             .route("/state/context-files", get(list_context_files_handler))
             .route("/state/context-files", post(update_context_file_handler))
             .route("/state/stats", get(stats_handler))
+            .route("/state/metrics", get(metrics_handler))
             // Health check
             .route("/health", get(health_handler))
             // State
@@ -333,6 +334,12 @@ async fn update_context_file_handler(
 async fn stats_handler(State(state): State<AppState>) -> impl IntoResponse {
     let stats = state.state.stats().await;
     Json(stats)
+}
+
+/// Metrics handler (returns time-series metrics snapshot)
+async fn metrics_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let metrics = state.state.metrics_snapshot().await;
+    Json(metrics)
 }
 
 /// Health check handler
