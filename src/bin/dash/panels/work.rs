@@ -1,6 +1,7 @@
 //! Work panel - Display work orchestration progress
 
-use crate::widgets::{StateIndicator, StateType};
+use crate::time_series::TimeSeriesBuffer;
+use crate::widgets::{Sparkline, StateIndicator, StateType};
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -24,6 +25,8 @@ pub struct WorkMetrics {
 pub struct WorkPanel {
     metrics: WorkMetrics,
     title: String,
+    critical_path_history: TimeSeriesBuffer<f32>,
+    completion_history: TimeSeriesBuffer<f32>,
 }
 
 impl WorkPanel {
@@ -32,11 +35,22 @@ impl WorkPanel {
         Self {
             metrics: WorkMetrics::default(),
             title: "Work Progress".to_string(),
+            critical_path_history: TimeSeriesBuffer::new(50),
+            completion_history: TimeSeriesBuffer::new(50),
         }
     }
 
     /// Update work metrics
     pub fn update(&mut self, metrics: WorkMetrics) {
+        // Collect history before updating metrics
+        self.critical_path_history.push(metrics.critical_path_progress);
+        let completion_pct = if metrics.total_tasks == 0 {
+            0.0
+        } else {
+            (metrics.completed_tasks as f32 / metrics.total_tasks as f32) * 100.0
+        };
+        self.completion_history.push(completion_pct);
+
         self.metrics = metrics;
     }
 
@@ -69,6 +83,10 @@ impl WorkPanel {
 
     /// Render the work panel
     pub fn render(&self, frame: &mut Frame, area: Rect) {
+        // Prepare data for sparklines (must live for entire function)
+        let critical_path_data = self.critical_path_history.to_vec();
+        let completion_data = self.completion_history.to_vec();
+
         // Split area: progress bar on top, details below
         let chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
@@ -101,8 +119,25 @@ impl WorkPanel {
         // Details
         let mut items = Vec::new();
 
-        // Critical path progress
-        if self.metrics.critical_path_progress > 0.0 {
+        // Overall completion trend sparkline
+        if !completion_data.is_empty() {
+            let sparkline = Sparkline::new(&completion_data)
+                .width(12)
+                .style(Style::default().fg(self.progress_color()));
+
+            let mut spans = vec![
+                Span::styled(
+                    "Completion: ",
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+            ];
+            spans.extend(sparkline.render().spans);
+
+            items.push(ListItem::new(Line::from(spans)));
+        }
+
+        // Critical path progress with sparkline
+        if self.metrics.critical_path_progress > 0.0 && !critical_path_data.is_empty() {
             let indicator = StateIndicator::new(
                 if self.metrics.critical_path_progress >= 100.0 {
                     StateType::WorkCompleted
@@ -114,7 +149,15 @@ impl WorkPanel {
                     self.metrics.critical_path_progress
                 ),
             );
-            items.push(ListItem::new(Line::from(vec![indicator.render()])));
+
+            let sparkline = Sparkline::new(&critical_path_data)
+                .width(10)
+                .style(Style::default().fg(ratatui::style::Color::Cyan));
+
+            let mut spans = vec![indicator.render(), Span::raw("  ")];
+            spans.extend(sparkline.render().spans);
+
+            items.push(ListItem::new(Line::from(spans)));
         }
 
         // Parallel streams
