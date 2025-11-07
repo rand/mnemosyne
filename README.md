@@ -625,7 +625,14 @@ See LICENSE file for details.
 
 ## Status
 
-**Current Version**: 2.1.1
+**Current Version**: 2.1.2
+
+**v2.1.2 Release (2025-11-06)** - Clean Build & Repository Cleanup:
+- ✅ **Clean Build**: Fixed all 6 compiler warnings (unused variables, imports, fields)
+- ✅ **Repository Cleanup**: Removed temporary files (.bak, .DS_Store) and stale branches
+- ✅ **Documentation Updates**: Updated ROADMAP, README, CHANGELOG for v2.1.2
+- ✅ **Test Suite**: 715 unit tests passing, 0 failures
+- ✅ **Build**: 0 warnings, 0 errors
 
 **v2.1.1 Release (2025-11-06)** - Python Bridge Architecture & Production Hardening:
 - ✅ **Python Bridge Complete**: PyO3 integration with Claude SDK agents

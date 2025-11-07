@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2025-11-06
+
+### Fixed
+
+**Build Quality**
+- Fixed 6 compiler warnings (unused variables, imports, and fields)
+  - Prefixed unused parameters with underscore in tier3_analytical modules (contradictions.rs, discourse.rs, pragmatics.rs)
+  - Fixed unused field `cache_max_age_hours` in version_check.rs
+  - Removed unused import `get_db_path` in cli/evolve.rs
+  - Removed unused imports in cli/artifact.rs (ArtifactWorkflow, Constitution, FeatureSpec, parse_frontmatter, types::Namespace)
+- Clean build: 0 warnings, 0 errors
+
+### Changed
+
+**Repository Cleanup**
+- Removed temporary backup files (.bak files in src/cli/ and src/orchestration/)
+- Removed macOS system files (.DS_Store in multiple directories)
+- Deleted merged local branch: fix/agent-dashboard-timing
+- Deleted stale local branch: feature/ics-integration (148 commits behind main)
+- Pruned remote tracking branches
+
+**Documentation**
+- Updated ROADMAP.md to v2.1.2 status
+- Updated README.md with v2.1.2 release notes
+- Updated Cargo.toml version to 2.1.2
+
+### Testing
+
+**Test Results**
+- 715 unit tests passing (0 failures)
+- All integration tests passing
+- Clean build verification complete
+
 ## [2.1.1] - 2025-11-06
 
 ### Added
