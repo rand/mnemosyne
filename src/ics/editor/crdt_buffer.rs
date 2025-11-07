@@ -10,9 +10,16 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::fs;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use super::{CursorState, Language, Movement};
 use crate::ics::semantic_highlighter::SemanticHighlightEngine;
+
+/// Default maximum operations before forced compaction
+const DEFAULT_MAX_OPS_BEFORE_COMPACT: usize = 1_000;
+
+/// Default time interval before compaction (10 minutes)
+const DEFAULT_COMPACT_INTERVAL: Duration = Duration::from_secs(600);
 
 /// Buffer identifier
 pub type BufferId = usize;
@@ -109,6 +116,15 @@ pub struct CrdtBuffer {
     /// Semantic highlighting engine (optional, enabled per buffer)
     /// Wrapped in RefCell to allow interior mutability for highlight_line calls
     pub semantic_engine: Option<RefCell<SemanticHighlightEngine>>,
+
+    /// Operation counter since last compaction (for P1-1: CRDT history compaction)
+    ops_since_compact: usize,
+
+    /// Last compaction timestamp
+    last_compact: Instant,
+
+    /// Maximum operations before forced compaction
+    max_ops_before_compact: usize,
 }
 
 impl CrdtBuffer {
@@ -143,6 +159,9 @@ impl CrdtBuffer {
             undo_stack: VecDeque::new(),
             redo_stack: VecDeque::new(),
             semantic_engine,
+            ops_since_compact: 0,
+            last_compact: Instant::now(),
+            max_ops_before_compact: DEFAULT_MAX_OPS_BEFORE_COMPACT,
         })
     }
 
@@ -203,6 +222,10 @@ impl CrdtBuffer {
             }
         }
 
+        // Track operation for compaction (P1-1)
+        self.ops_since_compact += 1;
+        self.maybe_compact()?;
+
         Ok(())
     }
 
@@ -257,6 +280,10 @@ impl CrdtBuffer {
                     .schedule_analysis(&full_text, context_start..context_end);
             }
         }
+
+        // Track operation for compaction (P1-1)
+        self.ops_since_compact += 1;
+        self.maybe_compact()?;
 
         Ok(())
     }
@@ -392,6 +419,71 @@ impl CrdtBuffer {
     /// Get all attributions
     pub fn get_attributions(&self) -> &[Attribution] {
         &self.attributions
+    }
+
+    // === CRDT History Compaction (P1-1) ===
+
+    /// Check if compaction is needed and perform it if necessary
+    ///
+    /// Compaction is triggered by:
+    /// 1. Operation count exceeds threshold (default: 1,000 ops)
+    /// 2. Time since last compaction exceeds interval (default: 10 minutes)
+    ///
+    /// This prevents unbounded growth of Automerge edit history in long sessions.
+    fn maybe_compact(&mut self) -> Result<()> {
+        let should_compact = self.ops_since_compact >= self.max_ops_before_compact
+            || self.last_compact.elapsed() >= DEFAULT_COMPACT_INTERVAL;
+
+        if should_compact {
+            self.compact_history()?;
+        }
+
+        Ok(())
+    }
+
+    /// Compact CRDT history by creating new document with current state
+    ///
+    /// Automerge retains full edit history for conflict resolution. For long-lived
+    /// editing sessions (e.g., ICS), this causes unbounded memory growth (~100 bytes/op).
+    ///
+    /// Compaction creates a new document with just the current state, discarding history.
+    /// This is safe because:
+    /// - Current text content is preserved
+    /// - All attributions are preserved
+    /// - Only the internal Automerge operation log is discarded
+    /// - Collaborative editing still works (new ops start fresh)
+    fn compact_history(&mut self) -> Result<()> {
+        tracing::debug!(
+            "Compacting CRDT history: {} ops since last compact, {} since last compact",
+            self.ops_since_compact,
+            self.last_compact.elapsed().as_secs()
+        );
+
+        // Save current text content
+        let current_text = self.text()?;
+
+        // Create new document with fresh history
+        let mut new_doc = AutoCommit::new();
+        let new_text_id = new_doc
+            .put_object(automerge::ROOT, "text", ObjType::Text)
+            .context("Failed to create text object during compaction")?;
+
+        // Restore text content to new document
+        if !current_text.is_empty() {
+            new_doc.splice_text(&new_text_id, 0, 0, &current_text)?;
+        }
+
+        // Replace document and text_id
+        self.doc = new_doc;
+        self.text_id = new_text_id;
+
+        // Reset compaction tracking
+        self.ops_since_compact = 0;
+        self.last_compact = Instant::now();
+
+        tracing::info!("CRDT history compacted successfully");
+
+        Ok(())
     }
 
     // === File I/O Methods ===
@@ -900,5 +992,47 @@ mod tests {
         // TillCharReverse
         buffer.move_cursor(Movement::TillCharReverse('e')).unwrap();
         assert_eq!(buffer.cursor.position.column, 2); // After 'e' in "hello"
+    }
+
+    #[test]
+    fn test_crdt_history_compaction() {
+        let mut buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
+
+        // Set low threshold for testing (10 ops instead of 1000)
+        buffer.max_ops_before_compact = 10;
+
+        // Perform 9 operations (below threshold)
+        for i in 0..9 {
+            buffer.insert(i, "x").unwrap();
+        }
+        assert_eq!(buffer.ops_since_compact, 9);
+
+        // 10th operation should trigger compaction
+        buffer.insert(9, "x").unwrap();
+        assert_eq!(buffer.ops_since_compact, 0); // Reset to 0 after compaction
+
+        // Verify text content is preserved after compaction
+        assert_eq!(buffer.text().unwrap(), "xxxxxxxxxx");
+        assert_eq!(buffer.text_len().unwrap(), 10);
+    }
+
+    #[test]
+    fn test_compaction_preserves_content() {
+        let mut buffer = CrdtBuffer::new(0, Actor::Human, None).unwrap();
+
+        // Add complex content
+        buffer.insert(0, "Hello, ").unwrap();
+        buffer.insert(7, "world!").unwrap();
+        buffer.delete(5, 2).unwrap(); // Delete ", "
+        buffer.insert(5, " beautiful ").unwrap();
+
+        let expected_text = buffer.text().unwrap();
+
+        // Force compaction
+        buffer.compact_history().unwrap();
+
+        // Verify content is identical
+        assert_eq!(buffer.text().unwrap(), expected_text);
+        assert_eq!(buffer.ops_since_compact, 0);
     }
 }

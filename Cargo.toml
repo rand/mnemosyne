@@ -38,8 +38,9 @@ libsql = { version = "0.9", features = ["core", "replication", "sync"] }
 libsql_migration = { version = "0.2", features = ["dir"] }
 
 # Vector search (dual storage approach)
-rusqlite = { version = "0.31", features = ["bundled", "vtab"] }
+rusqlite = { version = "0.32", features = ["bundled", "vtab"] }
 sqlite-vec = "0.1.1"
+deadpool-sqlite = "0.9"  # Connection pooling for rusqlite
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

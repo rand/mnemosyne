@@ -54,10 +54,22 @@ pub struct OrchestratorState {
     /// Python Claude SDK agent bridge
     #[cfg(feature = "python")]
     python_bridge: Option<ClaudeAgentBridge>,
+
+    /// Shutdown signal for background tasks
+    shutdown_tx: tokio::sync::broadcast::Sender<()>,
+
+    /// Heartbeat task handle for cleanup
+    heartbeat_handle: Option<tokio::task::JoinHandle<()>>,
+
+    /// Deadlock checker task handle for cleanup
+    deadlock_checker_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl OrchestratorState {
     pub fn new(storage: Arc<dyn StorageBackend>, namespace: Namespace) -> Self {
+        // Create shutdown channel for graceful task termination
+        let (shutdown_tx, _) = tokio::sync::broadcast::channel(1);
+
         Self {
             work_queue: Arc::new(RwLock::new(WorkQueue::new())),
             events: EventPersistence::new(storage, namespace),
@@ -68,6 +80,9 @@ impl OrchestratorState {
             deadlock_check_interval: Duration::from_secs(10),
             #[cfg(feature = "python")]
             python_bridge: None,
+            shutdown_tx,
+            heartbeat_handle: None,
+            deadlock_checker_handle: None,
         }
     }
 
@@ -107,9 +122,10 @@ impl OrchestratorState {
 
         // Clone agent_id for the spawn task
         let agent_id_clone = agent_id.clone();
+        let mut shutdown_rx = self.shutdown_tx.subscribe();
 
-        // Spawn heartbeat task with immediate first beat, then 30s interval
-        tokio::spawn(async move {
+        // Spawn heartbeat task with immediate first beat, then 30s interval, with shutdown support
+        let heartbeat_handle = tokio::spawn(async move {
             // Send immediate first heartbeat so dashboard sees agent right away
             let event = crate::api::Event::heartbeat(agent_id_clone.clone());
             if let Err(e) = broadcaster.broadcast(event) {
@@ -123,18 +139,47 @@ impl OrchestratorState {
             // Then continue with 30s interval
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
             loop {
-                interval.tick().await;
-                let event = crate::api::Event::heartbeat(agent_id_clone.clone());
-                if let Err(e) = broadcaster.broadcast(event) {
-                    tracing::debug!(
-                        "Failed to broadcast heartbeat for {} (no subscribers): {}",
-                        agent_id_clone,
-                        e
-                    );
+                tokio::select! {
+                    _ = interval.tick() => {
+                        let event = crate::api::Event::heartbeat(agent_id_clone.clone());
+                        if let Err(e) = broadcaster.broadcast(event) {
+                            tracing::debug!(
+                                "Failed to broadcast heartbeat for {} (no subscribers): {}",
+                                agent_id_clone,
+                                e
+                            );
+                        }
+                    }
+                    _ = shutdown_rx.recv() => {
+                        tracing::debug!("Orchestrator heartbeat task received shutdown signal");
+                        break;
+                    }
                 }
             }
         });
+
+        // Store heartbeat handle for cleanup
+        self.heartbeat_handle = Some(heartbeat_handle);
         tracing::info!("Heartbeat task spawned for {} (immediate first beat + 30s interval)", agent_id);
+    }
+}
+
+impl Drop for OrchestratorState {
+    fn drop(&mut self) {
+        // Send shutdown signal to background tasks
+        let _ = self.shutdown_tx.send(());
+
+        // Abort heartbeat task if it's still running
+        if let Some(handle) = self.heartbeat_handle.take() {
+            handle.abort();
+            tracing::debug!("OrchestratorState dropped - heartbeat task aborted");
+        }
+
+        // Abort deadlock checker task if it's still running
+        if let Some(handle) = self.deadlock_checker_handle.take() {
+            handle.abort();
+            tracing::debug!("OrchestratorState dropped - deadlock checker task aborted");
+        }
     }
 }
 
@@ -897,19 +942,31 @@ impl Actor for OrchestratorActor {
     async fn post_start(
         &self,
         myself: ActorRef<Self::Msg>,
-        _state: &mut Self::State,
+        state: &mut Self::State,
     ) -> std::result::Result<(), ActorProcessingErr> {
         tracing::debug!("Orchestrator actor started: {:?}", myself.get_id());
 
-        // Start periodic deadlock checker
+        // Start periodic deadlock checker with shutdown support
         let myself_clone = myself.clone();
-        tokio::spawn(async move {
+        let mut shutdown_rx = state.shutdown_tx.subscribe();
+
+        let deadlock_handle = tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(10));
             loop {
-                interval.tick().await;
-                let _ = myself_clone.cast(OrchestratorMessage::GetReadyWork);
+                tokio::select! {
+                    _ = interval.tick() => {
+                        let _ = myself_clone.cast(OrchestratorMessage::GetReadyWork);
+                    }
+                    _ = shutdown_rx.recv() => {
+                        tracing::debug!("Orchestrator deadlock checker task received shutdown signal");
+                        break;
+                    }
+                }
             }
         });
+
+        // Store deadlock checker handle for cleanup
+        state.deadlock_checker_handle = Some(deadlock_handle);
 
         Ok(())
     }

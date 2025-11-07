@@ -1,7 +1,7 @@
 //! Integration tests for vector storage with sqlite-vec
 //!
 //! Tests the dual storage approach:
-//! - rusqlite with sqlite-vec for vector operations
+//! - rusqlite with sqlite-vec for vector operations with connection pooling
 //! - Same database file as libsql
 //! - Vector search functionality
 
@@ -10,11 +10,11 @@ use mnemosyne_core::types::MemoryId;
 use tempfile::TempDir;
 
 /// Create a test vector storage instance
-fn create_test_storage() -> (SqliteVectorStorage, TempDir) {
+async fn create_test_storage() -> (SqliteVectorStorage, TempDir) {
     let temp_dir = TempDir::new().unwrap();
     let db_path = temp_dir.path().join("test_vectors.db");
     let storage = SqliteVectorStorage::new(db_path, 1536).unwrap();
-    storage.create_vec_table().unwrap();
+    storage.create_vec_table().await.unwrap();
     (storage, temp_dir)
 }
 
@@ -30,17 +30,17 @@ fn generate_embedding(seed: u32, dimensions: usize) -> Vec<f32> {
     vec
 }
 
-#[test]
-fn test_store_and_retrieve_vector() {
-    let (storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_store_and_retrieve_vector() {
+    let (storage, _temp) = create_test_storage().await;
     let memory_id = MemoryId::new();
     let embedding = generate_embedding(42, 1536);
 
     // Store vector
-    storage.store_vector(&memory_id, &embedding).unwrap();
+    storage.store_vector(&memory_id, &embedding).await.unwrap();
 
     // Retrieve vector
-    let retrieved = storage.get_vector(&memory_id).unwrap();
+    let retrieved = storage.get_vector(&memory_id).await.unwrap();
     assert!(retrieved.is_some(), "Vector should be found");
 
     let retrieved = retrieved.unwrap();
@@ -59,13 +59,13 @@ fn test_store_and_retrieve_vector() {
     }
 }
 
-#[test]
-fn test_dimension_mismatch_error() {
-    let (storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_dimension_mismatch_error() {
+    let (storage, _temp) = create_test_storage().await;
     let memory_id = MemoryId::new();
     let wrong_embedding = vec![1.0; 512]; // Wrong dimension (512 instead of 1536)
 
-    let result = storage.store_vector(&memory_id, &wrong_embedding);
+    let result = storage.store_vector(&memory_id, &wrong_embedding).await;
     assert!(result.is_err(), "Should fail with dimension mismatch");
     assert!(
         result
@@ -76,9 +76,9 @@ fn test_dimension_mismatch_error() {
     );
 }
 
-#[test]
-fn test_knn_search_with_similar_vectors() {
-    let (storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_knn_search_with_similar_vectors() {
+    let (storage, _temp) = create_test_storage().await;
 
     // Create a base vector
     let base_embedding = generate_embedding(100, 1536);
@@ -101,16 +101,18 @@ fn test_knn_search_with_similar_vectors() {
     let id_similar = MemoryId::new();
     let id_different = MemoryId::new();
 
-    storage.store_vector(&id_base, &base_embedding).unwrap();
+    storage.store_vector(&id_base, &base_embedding).await.unwrap();
     storage
         .store_vector(&id_similar, &similar_embedding)
+        .await
         .unwrap();
     storage
         .store_vector(&id_different, &different_embedding)
+        .await
         .unwrap();
 
     // Search with base embedding
-    let results = storage.search_similar(&base_embedding, 10, 0.5).unwrap();
+    let results = storage.search_similar(&base_embedding, 10, 0.5).await.unwrap();
 
     assert!(
         results.len() >= 2,
@@ -149,33 +151,33 @@ fn test_knn_search_with_similar_vectors() {
     }
 }
 
-#[test]
-fn test_delete_vector() {
-    let (storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_delete_vector() {
+    let (storage, _temp) = create_test_storage().await;
     let memory_id = MemoryId::new();
     let embedding = generate_embedding(42, 1536);
 
     // Store and verify
-    storage.store_vector(&memory_id, &embedding).unwrap();
+    storage.store_vector(&memory_id, &embedding).await.unwrap();
     assert!(
-        storage.get_vector(&memory_id).unwrap().is_some(),
+        storage.get_vector(&memory_id).await.unwrap().is_some(),
         "Vector should exist after storing"
     );
 
     // Delete and verify
-    storage.delete_vector(&memory_id).unwrap();
+    storage.delete_vector(&memory_id).await.unwrap();
     assert!(
-        storage.get_vector(&memory_id).unwrap().is_none(),
+        storage.get_vector(&memory_id).await.unwrap().is_none(),
         "Vector should not exist after deletion"
     );
 }
 
-#[test]
-fn test_count_vectors() {
-    let (storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_count_vectors() {
+    let (storage, _temp) = create_test_storage().await;
 
     assert_eq!(
-        storage.count_vectors().unwrap(),
+        storage.count_vectors().await.unwrap(),
         0,
         "Should start with 0 vectors"
     );
@@ -184,74 +186,74 @@ fn test_count_vectors() {
     for i in 0..5 {
         let id = MemoryId::new();
         let embedding = generate_embedding(i, 1536);
-        storage.store_vector(&id, &embedding).unwrap();
+        storage.store_vector(&id, &embedding).await.unwrap();
     }
 
     assert_eq!(
-        storage.count_vectors().unwrap(),
+        storage.count_vectors().await.unwrap(),
         5,
         "Should have 5 vectors after storing"
     );
 }
 
-#[test]
-fn test_batch_store_vectors() {
-    let (mut storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_batch_store_vectors() {
+    let (mut storage, _temp) = create_test_storage().await;
 
     let vectors: Vec<(MemoryId, Vec<f32>)> = (0..10)
         .map(|i| (MemoryId::new(), generate_embedding(i, 1536)))
         .collect();
 
-    let count = storage.batch_store_vectors(&vectors).unwrap();
+    let count = storage.batch_store_vectors(&vectors).await.unwrap();
     assert_eq!(count, 10, "Should store all 10 vectors");
     assert_eq!(
-        storage.count_vectors().unwrap(),
+        storage.count_vectors().await.unwrap(),
         10,
         "Should have 10 vectors in storage"
     );
 }
 
-#[test]
-fn test_replace_existing_vector() {
-    let (storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_replace_existing_vector() {
+    let (storage, _temp) = create_test_storage().await;
     let memory_id = MemoryId::new();
 
     // Store first vector
     let embedding1 = generate_embedding(1, 1536);
-    storage.store_vector(&memory_id, &embedding1).unwrap();
+    storage.store_vector(&memory_id, &embedding1).await.unwrap();
 
     // Store second vector with same ID (should replace)
     let embedding2 = generate_embedding(2, 1536);
-    storage.store_vector(&memory_id, &embedding2).unwrap();
+    storage.store_vector(&memory_id, &embedding2).await.unwrap();
 
     // Should only have one vector
     assert_eq!(
-        storage.count_vectors().unwrap(),
+        storage.count_vectors().await.unwrap(),
         1,
         "Should have only 1 vector after replacement"
     );
 
     // Retrieved vector should match second embedding
-    let retrieved = storage.get_vector(&memory_id).unwrap().unwrap();
+    let retrieved = storage.get_vector(&memory_id).await.unwrap().unwrap();
     for (a, b) in embedding2.iter().zip(retrieved.iter()) {
         assert!((a - b).abs() < 0.001);
     }
 }
 
-#[test]
-fn test_search_with_limit() {
-    let (mut storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_search_with_limit() {
+    let (mut storage, _temp) = create_test_storage().await;
 
     // Store 20 vectors
     let embeddings: Vec<(MemoryId, Vec<f32>)> = (0..20)
         .map(|i| (MemoryId::new(), generate_embedding(i, 1536)))
         .collect();
 
-    storage.batch_store_vectors(&embeddings).unwrap();
+    storage.batch_store_vectors(&embeddings).await.unwrap();
 
     // Search with limit of 5
     let query = generate_embedding(0, 1536);
-    let results = storage.search_similar(&query, 5, 0.0).unwrap();
+    let results = storage.search_similar(&query, 5, 0.0).await.unwrap();
 
     assert_eq!(
         results.len(),
@@ -260,9 +262,9 @@ fn test_search_with_limit() {
     );
 }
 
-#[test]
-fn test_search_with_min_similarity_threshold() {
-    let (storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_search_with_min_similarity_threshold() {
+    let (storage, _temp) = create_test_storage().await;
 
     // Create three vectors with known relationships
     let base = generate_embedding(100, 1536);
@@ -282,12 +284,12 @@ fn test_search_with_min_similarity_threshold() {
     let id2 = MemoryId::new();
     let id3 = MemoryId::new();
 
-    storage.store_vector(&id1, &base).unwrap();
-    storage.store_vector(&id2, &very_similar).unwrap();
-    storage.store_vector(&id3, &different).unwrap();
+    storage.store_vector(&id1, &base).await.unwrap();
+    storage.store_vector(&id2, &very_similar).await.unwrap();
+    storage.store_vector(&id3, &different).await.unwrap();
 
     // Search with high threshold (0.95)
-    let results = storage.search_similar(&base, 10, 0.95).unwrap();
+    let results = storage.search_similar(&base, 10, 0.95).await.unwrap();
 
     // Should only find base and very_similar
     assert!(
@@ -304,13 +306,13 @@ fn test_search_with_min_similarity_threshold() {
     }
 }
 
-#[test]
-fn test_empty_search_returns_empty() {
-    let (storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_empty_search_returns_empty() {
+    let (storage, _temp) = create_test_storage().await;
 
     // Search in empty storage
     let query = generate_embedding(0, 1536);
-    let results = storage.search_similar(&query, 10, 0.0).unwrap();
+    let results = storage.search_similar(&query, 10, 0.0).await.unwrap();
 
     assert_eq!(
         results.len(),
@@ -319,12 +321,12 @@ fn test_empty_search_returns_empty() {
     );
 }
 
-#[test]
-fn test_nonexistent_vector_returns_none() {
-    let (storage, _temp) = create_test_storage();
+#[tokio::test]
+async fn test_nonexistent_vector_returns_none() {
+    let (storage, _temp) = create_test_storage().await;
     let nonexistent_id = MemoryId::new();
 
-    let result = storage.get_vector(&nonexistent_id).unwrap();
+    let result = storage.get_vector(&nonexistent_id).await.unwrap();
     assert!(
         result.is_none(),
         "Should return None for nonexistent vector"
@@ -332,10 +334,10 @@ fn test_nonexistent_vector_returns_none() {
 }
 
 /// Performance test: Search should be fast even with many vectors
-#[test]
+#[tokio::test]
 #[ignore] // Run with: cargo test --test integration_vector_storage -- --ignored
-fn test_search_performance_10k_vectors() {
-    let (mut storage, _temp) = create_test_storage();
+async fn test_search_performance_10k_vectors() {
+    let (mut storage, _temp) = create_test_storage().await;
 
     // Store 10,000 vectors
     println!("Storing 10,000 vectors...");
@@ -351,7 +353,7 @@ fn test_search_performance_10k_vectors() {
                 )
             })
             .collect();
-        storage.batch_store_vectors(&vectors).unwrap();
+        storage.batch_store_vectors(&vectors).await.unwrap();
     }
 
     let store_duration = start.elapsed();
@@ -360,7 +362,7 @@ fn test_search_performance_10k_vectors() {
     // Perform search
     let query = generate_embedding(5000, 1536);
     let search_start = std::time::Instant::now();
-    let results = storage.search_similar(&query, 10, 0.5).unwrap();
+    let results = storage.search_similar(&query, 10, 0.5).await.unwrap();
     let search_duration = search_start.elapsed();
 
     println!("Search completed in {:?}", search_duration);
