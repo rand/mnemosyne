@@ -131,6 +131,106 @@ pub enum EventType {
         item_id: String,
         timestamp: DateTime<Utc>,
     },
+    // Skill-related events
+    /// Skill loaded by optimizer
+    SkillLoaded {
+        skill_name: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        agent_id: Option<String>,
+        relevance_score: f32,
+        timestamp: DateTime<Utc>,
+    },
+    /// Skill unloaded to free context
+    SkillUnloaded {
+        skill_name: String,
+        reason: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Skill used by agent
+    SkillUsed {
+        skill_name: String,
+        agent_id: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Skill composition detected (multiple skills combined)
+    SkillCompositionDetected {
+        skills: Vec<String>,
+        task_description: String,
+        timestamp: DateTime<Utc>,
+    },
+    // Memory evolution events
+    /// Memory evolution process started
+    MemoryEvolutionStarted {
+        reason: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Memories consolidated (merged similar memories)
+    MemoryConsolidated {
+        source_ids: Vec<String>,
+        target_id: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Memory importance decayed
+    MemoryDecayed {
+        memory_id: String,
+        old_importance: f32,
+        new_importance: f32,
+        timestamp: DateTime<Utc>,
+    },
+    /// Memory archived (low importance)
+    MemoryArchived {
+        memory_id: String,
+        reason: String,
+        timestamp: DateTime<Utc>,
+    },
+    // Agent interaction events
+    /// Agent handoff (work passed between agents)
+    AgentHandoff {
+        from_agent: String,
+        to_agent: String,
+        task_description: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Agent blocked waiting for dependency
+    AgentBlocked {
+        agent_id: String,
+        blocked_on: String,
+        reason: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Agent unblocked, can continue
+    AgentUnblocked {
+        agent_id: String,
+        unblocked_by: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Sub-agent spawned for parallel work
+    SubAgentSpawned {
+        parent_agent: String,
+        sub_agent: String,
+        task_description: String,
+        timestamp: DateTime<Utc>,
+    },
+    // Work orchestration events
+    /// Parallel work stream started
+    ParallelStreamStarted {
+        stream_id: String,
+        task_count: usize,
+        timestamp: DateTime<Utc>,
+    },
+    /// Critical path updated (bottleneck identified)
+    CriticalPathUpdated {
+        path_items: Vec<String>,
+        estimated_completion: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Typed hole filled (interface implemented)
+    TypedHoleFilled {
+        hole_name: String,
+        component_a: String,
+        component_b: String,
+        timestamp: DateTime<Utc>,
+    },
 }
 
 /// Event wrapper with metadata
@@ -352,6 +452,150 @@ impl Event {
         Self::new(EventType::WorkItemCompleted {
             agent_id,
             item_id,
+            timestamp: Utc::now(),
+        })
+    }
+
+    // Skill event constructors
+    /// Create skill loaded event
+    pub fn skill_loaded(skill_name: String, agent_id: Option<String>, relevance_score: f32) -> Self {
+        Self::new(EventType::SkillLoaded {
+            skill_name,
+            agent_id,
+            relevance_score,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create skill unloaded event
+    pub fn skill_unloaded(skill_name: String, reason: String) -> Self {
+        Self::new(EventType::SkillUnloaded {
+            skill_name,
+            reason,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create skill used event
+    pub fn skill_used(skill_name: String, agent_id: String) -> Self {
+        Self::new(EventType::SkillUsed {
+            skill_name,
+            agent_id,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create skill composition detected event
+    pub fn skill_composition_detected(skills: Vec<String>, task_description: String) -> Self {
+        Self::new(EventType::SkillCompositionDetected {
+            skills,
+            task_description,
+            timestamp: Utc::now(),
+        })
+    }
+
+    // Memory evolution event constructors
+    /// Create memory evolution started event
+    pub fn memory_evolution_started(reason: String) -> Self {
+        Self::new(EventType::MemoryEvolutionStarted {
+            reason,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create memory consolidated event
+    pub fn memory_consolidated(source_ids: Vec<String>, target_id: String) -> Self {
+        Self::new(EventType::MemoryConsolidated {
+            source_ids,
+            target_id,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create memory decayed event
+    pub fn memory_decayed(memory_id: String, old_importance: f32, new_importance: f32) -> Self {
+        Self::new(EventType::MemoryDecayed {
+            memory_id,
+            old_importance,
+            new_importance,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create memory archived event
+    pub fn memory_archived(memory_id: String, reason: String) -> Self {
+        Self::new(EventType::MemoryArchived {
+            memory_id,
+            reason,
+            timestamp: Utc::now(),
+        })
+    }
+
+    // Agent interaction event constructors
+    /// Create agent handoff event
+    pub fn agent_handoff(from_agent: String, to_agent: String, task_description: String) -> Self {
+        Self::new(EventType::AgentHandoff {
+            from_agent,
+            to_agent,
+            task_description,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create agent blocked event
+    pub fn agent_blocked(agent_id: String, blocked_on: String, reason: String) -> Self {
+        Self::new(EventType::AgentBlocked {
+            agent_id,
+            blocked_on,
+            reason,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create agent unblocked event
+    pub fn agent_unblocked(agent_id: String, unblocked_by: String) -> Self {
+        Self::new(EventType::AgentUnblocked {
+            agent_id,
+            unblocked_by,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create sub-agent spawned event
+    pub fn sub_agent_spawned(parent_agent: String, sub_agent: String, task_description: String) -> Self {
+        Self::new(EventType::SubAgentSpawned {
+            parent_agent,
+            sub_agent,
+            task_description,
+            timestamp: Utc::now(),
+        })
+    }
+
+    // Work orchestration event constructors
+    /// Create parallel stream started event
+    pub fn parallel_stream_started(stream_id: String, task_count: usize) -> Self {
+        Self::new(EventType::ParallelStreamStarted {
+            stream_id,
+            task_count,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create critical path updated event
+    pub fn critical_path_updated(path_items: Vec<String>, estimated_completion: String) -> Self {
+        Self::new(EventType::CriticalPathUpdated {
+            path_items,
+            estimated_completion,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create typed hole filled event
+    pub fn typed_hole_filled(hole_name: String, component_a: String, component_b: String) -> Self {
+        Self::new(EventType::TypedHoleFilled {
+            hole_name,
+            component_a,
+            component_b,
             timestamp: Utc::now(),
         })
     }
