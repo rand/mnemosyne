@@ -298,29 +298,12 @@ async fn test_e2e_complete_workflow() {
 
 /// Test vector search with F32_BLOB embeddings
 ///
-/// **Status**: Currently ignored - F32_BLOB appears to be Turso Cloud-only feature
+/// Tests LibSQL native vector search capabilities using F32_BLOB column type
+/// with vector_distance_cos() and vector32() functions.
 ///
-/// **Issue**: libsql 0.9 local databases don't support F32_BLOB column type.
-/// Schema creation succeeds but column is silently dropped, causing query to fail
-/// with "no such column: embedding".
-///
-/// **Investigation**:
-/// - Schema correctly defines: `embedding F32_BLOB(384)` (001_initial_schema.sql:66)
-/// - Migrations run successfully
-/// - CREATE TABLE succeeds without error
-/// - But PRAGMA table_info shows column missing
-///
-/// **Potential solutions**:
-/// 1. Upgrade to newer libsql version with F32_BLOB support
-/// 2. Use BLOB column type instead (loses native vector functions)
-/// 3. Only test on Turso Cloud (requires credentials)
-/// 4. Use separate memory_vectors table with vec0 extension
-///
-/// **References**:
-/// - docs/archive/TURSO_MIGRATION.md
-/// - migrations/libsql/001_initial_schema.sql:66
+/// **Fixed**: All connection modes now use LibSQL schema (not StandardSQLite).
+/// libsql 0.9.24 supports F32_BLOB natively for local databases.
 #[tokio::test]
-#[ignore = "F32_BLOB not supported in local libsql 0.9 - Turso Cloud only"]
 async fn test_e2e_vector_search_with_embeddings() {
     println!("\n=== E2E Test: Vector Search with Embeddings ===\n");
     println!("Testing LibSQL native vector search with F32_BLOB embeddings");

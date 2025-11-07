@@ -60,29 +60,30 @@ const TRANSITION_GLYPHS: &[&str] = &[
 
 /// Particle explosion animation frames (displayed above Claude Code character)
 /// Designed to emanate upward from the Space Invader's head in a fountain/cone shape
+/// Positioned at bottom-left to align with Space Invader icon
 const EXPLOSION_FRAME_1: &str = r#"
-                      ∗
-                    ·   ·
-                      ✦
+      ∗
+    ·   ·
+      ✦
 "#;
 
 const EXPLOSION_FRAME_2: &str = r#"
-                 ⋆         ✧
-              ·     ∗   ˙     ·
-                ∘     ✦     ∘
-                  •  ○  •
-                      ∗
+ ⋆         ✧
+  ·     ∗   ˙     ·
+    ∘     ✦     ∘
+      •  ○  •
+          ∗
 "#;
 
 const EXPLOSION_FRAME_3: &str = r#"
-          ✧                       ⋆
-       ·       ∗           ˙       ·
-     ∘           ⋅       ∗           ∘
-       ·     •       ✦       •     ·
-            ∗     ○   ○   ○     ∗
-              ·   •   ∗   •   ·
-                    ∗ ✦ ∗
-                      ∗
+✧                       ⋆
+ ·       ∗           ˙       ·
+   ∘           ⋅       ∗           ∘
+ ·     •       ✦       •     ·
+      ∗     ○   ○   ○     ∗
+        ·   •   ∗   •   ·
+              ∗ ✦ ∗
+                ∗
 "#;
 
 /// ANSI color codes for banner gradient
@@ -272,6 +273,7 @@ impl LaunchProgress {
     }
 
     /// Show colorful particle explosion animation (20% chance on startup)
+    /// Positioned at bottom-left to align with Space Invader icon in Claude Code UI
     pub fn show_explosion_animation(&self) {
         let gradient_colors = [
             colors::BRIGHT_BLUE,
@@ -284,25 +286,39 @@ impl LaunchProgress {
 
         let frames = [EXPLOSION_FRAME_1, EXPLOSION_FRAME_2, EXPLOSION_FRAME_3];
 
-        // Display each frame
+        // Get terminal dimensions for positioning
+        let (row, col) = if let Ok((_, height)) = crossterm::terminal::size() {
+            // Position at bottom-left: 12 rows from bottom, 8 columns from left
+            // This aligns with where Claude Code renders the Space Invader
+            let target_row = height.saturating_sub(12);
+            (target_row, 8u16)
+        } else {
+            // Fallback: position near bottom if terminal size unavailable
+            (20u16, 8u16)
+        };
+
+        // Display each frame at the fixed bottom-left position
         for frame in &frames {
             let lines: Vec<&str> = frame.trim().lines().collect();
 
+            // Position cursor at bottom-left before rendering each frame
+            print!("\x1b[{};{}H", row, col);
+
             for (i, line) in lines.iter().enumerate() {
                 let color = gradient_colors[i % gradient_colors.len()];
-                println!("{}{}{}", color, line, colors::RESET);
+                // Use absolute positioning for each line to avoid cursor drift
+                print!("\x1b[{};{}H{}{}{}", row + i as u16, col, color, line, colors::RESET);
             }
 
             io::stdout().flush().ok();
             std::thread::sleep(std::time::Duration::from_millis(100));
 
-            // Move cursor up to overwrite previous frame (except last frame)
-            if frame != frames.last().unwrap() {
-                print!("\x1b[{}A", lines.len());
-            }
+            // For subsequent frames, reposition cursor to same starting point
+            // (overwrite previous frame in place)
         }
 
-        // Add spacing after final frame
+        // Move cursor below explosion for clean transition
+        print!("\x1b[{};1H", row + 10);
         println!();
     }
 
