@@ -1,6 +1,7 @@
 //! Context panel - Display context budget utilization
 
-use crate::widgets::{ProgressBar, StateType};
+use crate::time_series::TimeSeriesBuffer;
+use crate::widgets::{ProgressBar, Sparkline, StateType};
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -68,6 +69,7 @@ pub struct ContextPanel {
     utilization_pct: f64,
     checkpoint_count: usize,
     title: String,
+    utilization_history: TimeSeriesBuffer<f64>,
 }
 
 impl ContextPanel {
@@ -77,12 +79,15 @@ impl ContextPanel {
             utilization_pct: 0.0,
             checkpoint_count: 0,
             title: "Context Budget".to_string(),
+            utilization_history: TimeSeriesBuffer::new(50),
         }
     }
 
     /// Update context metrics
     pub fn update(&mut self, utilization_pct: f64, checkpoint_count: usize) {
-        self.utilization_pct = utilization_pct.clamp(0.0, 100.0);
+        let clamped_utilization = utilization_pct.clamp(0.0, 100.0);
+        self.utilization_history.push(clamped_utilization);
+        self.utilization_pct = clamped_utilization;
         self.checkpoint_count = checkpoint_count;
     }
 
@@ -99,6 +104,13 @@ impl ContextPanel {
 
     /// Render the context panel
     pub fn render(&self, frame: &mut Frame, area: Rect) {
+        // Prepare data for sparkline (must live for entire function)
+        // Convert f64 to f32 for sparkline compatibility
+        let utilization_data: Vec<f32> = self.utilization_history.to_vec()
+            .iter()
+            .map(|&v| v as f32)
+            .collect();
+
         // Split area: progress bar on top, details below
         let chunks = ratatui::layout::Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
@@ -121,6 +133,22 @@ impl ContextPanel {
 
         // Details
         let items = vec![
+            // Utilization trend sparkline
+            {
+                let sparkline = Sparkline::new(&utilization_data)
+                    .width(15)
+                    .style(Style::default().fg(state.color()));
+
+                let mut spans = vec![
+                    Span::styled(
+                        "Trend: ",
+                        Style::default().add_modifier(Modifier::BOLD),
+                    ),
+                ];
+                spans.extend(sparkline.render().spans);
+
+                ListItem::new(Line::from(spans))
+            },
             ListItem::new(Line::from(vec![
                 Span::styled(
                     "State: ",
