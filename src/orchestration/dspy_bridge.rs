@@ -99,7 +99,7 @@ impl DSpyBridge {
             info!("DSPy bridge initialized successfully");
 
             Ok(Self {
-                service: Arc::new(Mutex::new(service.unbind().into())),
+                service: Arc::new(Mutex::new(service.unbind())),
             })
         })
     }
@@ -381,7 +381,7 @@ mod tests {
 
             // Test bool
             let bool_val = json_to_python(py, &Value::Bool(true)).unwrap();
-            assert_eq!(bool_val.extract::<bool>(py).unwrap(), true);
+            assert!(bool_val.extract::<bool>(py).unwrap());
 
             // Test number
             let num_val = json_to_python(py, &Value::Number(42.into())).unwrap();
@@ -514,13 +514,12 @@ mod tests {
                 py_list_bound.get_item(1).unwrap().extract::<i64>().unwrap(),
                 2
             );
-            assert_eq!(
+            assert!(
                 py_list_bound
                     .get_item(2)
                     .unwrap()
                     .extract::<bool>()
-                    .unwrap(),
-                true
+                    .unwrap()
             );
         });
     }
@@ -528,7 +527,7 @@ mod tests {
     #[test]
     fn test_python_to_json_array_conversion() {
         Python::with_gil(|py| {
-            let py_list = PyList::new_bound(py, &["item1", "item2", "item3"]);
+            let py_list = PyList::new_bound(py, ["item1", "item2", "item3"]);
 
             let json_val = python_to_json(&py_list).unwrap();
 
@@ -549,10 +548,10 @@ mod tests {
             assert_eq!(int_val.extract::<i64>(py).unwrap(), 42);
 
             // Test float
-            let float_json = serde_json::Number::from_f64(3.14).unwrap();
+            let float_json = serde_json::Number::from_f64(3.25).unwrap();
             let float_val = json_to_python(py, &Value::Number(float_json)).unwrap();
             let extracted_float = float_val.extract::<f64>(py).unwrap();
-            assert!((extracted_float - 3.14).abs() < 0.001);
+            assert!((extracted_float - 3.25).abs() < 0.001);
         });
     }
 

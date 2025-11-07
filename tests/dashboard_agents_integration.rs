@@ -408,7 +408,7 @@ async fn test_performance_benchmarks() {
     engine.start().await.expect("Failed to start engine");
 
     let first_agent_time = loop {
-        if state_manager.list_agents().await.len() >= 1 {
+        if !state_manager.list_agents().await.is_empty() {
             break start.elapsed();
         }
         tokio::time::sleep(Duration::from_millis(1)).await;

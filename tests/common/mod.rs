@@ -6,7 +6,6 @@ use mnemosyne_core::{
 };
 use std::sync::Arc;
 use tempfile::TempDir;
-use uuid;
 
 /// Create an in-memory LibSQL storage for testing
 pub async fn create_test_storage() -> LibsqlStorage {

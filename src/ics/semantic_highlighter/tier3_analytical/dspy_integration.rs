@@ -94,7 +94,7 @@ impl DSpySemanticBridge {
             info!("DSPy semantic bridge initialized successfully");
 
             Ok(Self {
-                service: Arc::new(Mutex::new(service.unbind().into())),
+                service: Arc::new(Mutex::new(service.unbind())),
             })
         })
     }

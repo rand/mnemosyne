@@ -497,7 +497,7 @@ mod tests {
         // Should be approximately 10% (±2% tolerance for 1000 samples)
         let sampling_rate = sampled_count as f64 / 1000.0;
         assert!(
-            sampling_rate >= 0.08 && sampling_rate <= 0.12,
+            (0.08..=0.12).contains(&sampling_rate),
             "Sampling rate {} outside expected range [0.08, 0.12]",
             sampling_rate
         );
@@ -725,7 +725,7 @@ mod tests {
         // Should be approximately 50% (±10% tolerance for 100 samples)
         let actual_rate = sampled_count as f64 / 100.0;
         assert!(
-            actual_rate >= 0.40 && actual_rate <= 0.60,
+            (0.40..=0.60).contains(&actual_rate),
             "Sampling rate {} outside expected range [0.40, 0.60]",
             actual_rate
         );

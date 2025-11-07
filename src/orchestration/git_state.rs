@@ -342,13 +342,13 @@ mod tests {
 
         // Configure git
         Command::new("git")
-            .args(&["config", "user.name", "Test"])
+            .args(["config", "user.name", "Test"])
             .current_dir(repo_path)
             .output()
             .expect("Failed to configure git");
 
         Command::new("git")
-            .args(&["config", "user.email", "test@example.com"])
+            .args(["config", "user.email", "test@example.com"])
             .current_dir(repo_path)
             .output()
             .expect("Failed to configure git");
@@ -356,13 +356,13 @@ mod tests {
         // Create initial commit
         fs::write(repo_path.join("README.md"), "Test").unwrap();
         Command::new("git")
-            .args(&["add", "README.md"])
+            .args(["add", "README.md"])
             .current_dir(repo_path)
             .output()
             .expect("Failed to add file");
 
         Command::new("git")
-            .args(&["commit", "-m", "Initial commit"])
+            .args(["commit", "-m", "Initial commit"])
             .current_dir(repo_path)
             .output()
             .expect("Failed to commit");

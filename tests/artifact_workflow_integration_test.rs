@@ -66,7 +66,7 @@ async fn test_constitution_round_trip_workflow() {
         .await
         .unwrap();
 
-    assert!(memory_id.to_string().len() > 0);
+    assert!(!memory_id.to_string().is_empty());
     assert!(constitution.metadata.memory_id.is_some());
 
     // Load
@@ -104,7 +104,7 @@ async fn test_feature_spec_workflow() {
         .await
         .unwrap();
 
-    assert!(memory_id.to_string().len() > 0);
+    assert!(!memory_id.to_string().is_empty());
     assert!(spec.metadata.memory_id.is_some());
 
     // Load
@@ -136,7 +136,7 @@ async fn test_implementation_plan_workflow() {
         .await
         .unwrap();
 
-    assert!(memory_id.to_string().len() > 0);
+    assert!(!memory_id.to_string().is_empty());
     assert!(plan.metadata.memory_id.is_some());
 
     // Load
@@ -178,7 +178,7 @@ async fn test_task_breakdown_workflow() {
         .await
         .unwrap();
 
-    assert!(memory_id.to_string().len() > 0);
+    assert!(!memory_id.to_string().is_empty());
     assert!(tasks.metadata.memory_id.is_some());
 
     // Load
@@ -217,7 +217,7 @@ async fn test_quality_checklist_workflow() {
         .await
         .unwrap();
 
-    assert!(memory_id.to_string().len() > 0);
+    assert!(!memory_id.to_string().is_empty());
     assert!(checklist.metadata.memory_id.is_some());
 
     // Load
@@ -259,7 +259,7 @@ async fn test_clarification_workflow() {
         .await
         .unwrap();
 
-    assert!(memory_id.to_string().len() > 0);
+    assert!(!memory_id.to_string().is_empty());
     assert!(clarification.metadata.memory_id.is_some());
 
     // Load

@@ -1649,7 +1649,7 @@ mod tests {
         app.test_extract_attributions();
 
         let attributions = app.attributions();
-        assert!(attributions.len() > 0);
+        assert!(!attributions.is_empty());
 
         for attr in attributions {
             assert!(attr.timestamp > SystemTime::UNIX_EPOCH);

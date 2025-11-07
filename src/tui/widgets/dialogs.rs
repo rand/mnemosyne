@@ -616,7 +616,7 @@ mod tests {
     #[test]
     fn test_confirm_dialog_creation() {
         let dialog = ConfirmDialog::new("Test", "Are you sure?");
-        assert_eq!(dialog.is_visible(), true);
+        assert!(dialog.is_visible());
         assert_eq!(dialog.result(), DialogResult::Pending);
     }
 
@@ -644,7 +644,7 @@ mod tests {
         let should_close = dialog.handle_key(KeyEvent::from(KeyCode::Enter));
         assert!(should_close);
         assert_eq!(dialog.result(), DialogResult::Confirmed);
-        assert_eq!(dialog.is_visible(), false);
+        assert!(!dialog.is_visible());
     }
 
     #[test]
@@ -653,13 +653,13 @@ mod tests {
         let should_close = dialog.handle_key(KeyEvent::from(KeyCode::Esc));
         assert!(should_close);
         assert_eq!(dialog.result(), DialogResult::Cancelled);
-        assert_eq!(dialog.is_visible(), false);
+        assert!(!dialog.is_visible());
     }
 
     #[test]
     fn test_input_dialog_creation() {
         let dialog = InputDialog::new("Test", "Enter filename:");
-        assert_eq!(dialog.is_visible(), true);
+        assert!(dialog.is_visible());
         assert_eq!(dialog.result(), DialogResult::Pending);
         assert_eq!(dialog.input, "");
     }
@@ -713,7 +713,7 @@ mod tests {
     #[test]
     fn test_preview_dialog_creation() {
         let dialog = PreviewDialog::new("Preview", "Line 1\nLine 2\nLine 3");
-        assert_eq!(dialog.is_visible(), true);
+        assert!(dialog.is_visible());
         assert_eq!(dialog.scroll_offset, 0);
     }
 

@@ -245,7 +245,7 @@ fn test_entity_type_all_variants_serializable() {
     ];
 
     for variant in variants {
-        let json = serde_json::to_value(&variant).expect("Should serialize");
+        let json = serde_json::to_value(variant).expect("Should serialize");
         let deserialized: EntityType = serde_json::from_value(json).expect("Should deserialize");
         assert_eq!(variant, deserialized);
     }
@@ -262,7 +262,7 @@ fn test_relation_type_all_variants_serializable() {
     ];
 
     for variant in variants {
-        let json = serde_json::to_value(&variant).expect("Should serialize");
+        let json = serde_json::to_value(variant).expect("Should serialize");
         let deserialized: RelationType = serde_json::from_value(json).expect("Should deserialize");
         assert_eq!(variant, deserialized);
     }
@@ -280,7 +280,7 @@ fn test_semantic_role_all_variants_serializable() {
     ];
 
     for variant in variants {
-        let json = serde_json::to_value(&variant).expect("Should serialize");
+        let json = serde_json::to_value(variant).expect("Should serialize");
         let deserialized: SemanticRole = serde_json::from_value(json).expect("Should deserialize");
         assert_eq!(variant, deserialized);
     }

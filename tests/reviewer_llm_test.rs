@@ -203,8 +203,8 @@ async fn test_implementation_evidence_tracking() {
     let memory_id1 = MemoryId::new();
     let memory_id2 = MemoryId::new();
 
-    work_item.add_implementation_evidence("JWT generation", memory_id1.clone());
-    work_item.add_implementation_evidence("JWT generation", memory_id2.clone());
+    work_item.add_implementation_evidence("JWT generation", memory_id1);
+    work_item.add_implementation_evidence("JWT generation", memory_id2);
 
     // Store and reload
     storage

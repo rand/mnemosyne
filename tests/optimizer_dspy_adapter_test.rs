@@ -10,8 +10,7 @@
 #[cfg(feature = "python")]
 mod optimizer_adapter_tests {
     use mnemosyne_core::orchestration::actors::optimizer_dspy_adapter::{
-        ConsolidatedContext, ContextUsage, LoadedResources, OptimizerDSpyAdapter,
-        SkillDiscoveryResult, SkillMetadata,
+        ContextUsage, LoadedResources, OptimizerDSpyAdapter, SkillMetadata,
     };
     use mnemosyne_core::orchestration::dspy_bridge::DSpyBridge;
     use mnemosyne_core::orchestration::dspy_instrumentation::{

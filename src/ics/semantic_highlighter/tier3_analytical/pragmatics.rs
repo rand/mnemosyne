@@ -356,22 +356,19 @@ mod tests {
 
     #[test]
     fn test_speech_act_types() {
-        let speech_acts = vec![
-            SpeechActType::Assertion,
+        let speech_acts = [SpeechActType::Assertion,
             SpeechActType::Question,
             SpeechActType::Command,
             SpeechActType::Promise,
             SpeechActType::Request,
-            SpeechActType::Wish,
-        ];
+            SpeechActType::Wish];
 
         assert_eq!(speech_acts.len(), 6);
     }
 
     #[test]
     fn test_threshold_filtering() {
-        let elements = vec![
-            PragmaticElement {
+        let elements = [PragmaticElement {
                 range: 0..10,
                 text: "A".to_string(),
                 pragmatic_type: PragmaticType::Presupposition,
@@ -388,8 +385,7 @@ mod tests {
                 explanation: "Test".to_string(),
                 implied_meaning: None,
                 confidence: 0.4,
-            },
-        ];
+            }];
 
         // With threshold 0.6, only first should pass
         let high_conf: Vec<_> = elements.iter().filter(|e| e.confidence >= 0.6).collect();

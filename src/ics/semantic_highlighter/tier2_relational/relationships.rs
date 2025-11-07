@@ -333,6 +333,6 @@ mod tests {
         let relationships = extractor.extract(text).unwrap();
 
         // Should find multiple relationships
-        assert!(relationships.len() >= 1);
+        assert!(!relationships.is_empty());
     }
 }

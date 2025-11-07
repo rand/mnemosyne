@@ -3,7 +3,7 @@
 //! Tests error handling, boundary conditions, and unusual inputs
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tempfile::TempDir;
 
 #[test]

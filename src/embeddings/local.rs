@@ -248,7 +248,7 @@ mod tests {
         // Check that values are in reasonable range
         for &val in &embedding {
             assert!(val.is_finite());
-            assert!(val >= -1.0 && val <= 1.0); // Normalized embeddings
+            assert!((-1.0..=1.0).contains(&val)); // Normalized embeddings
         }
     }
 

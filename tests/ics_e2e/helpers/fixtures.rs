@@ -93,7 +93,7 @@ pub fn large_document() -> String {
         for j in 0..10 {
             doc.push_str(&format!("Line {} with content about the system.\n", j + 1));
         }
-        doc.push_str("\n");
+        doc.push('\n');
     }
 
     doc

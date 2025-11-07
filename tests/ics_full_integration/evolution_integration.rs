@@ -3,6 +3,8 @@
 //! Tests ICS integration with evolution jobs: consolidation,
 //! importance recalibration, link decay, and archival
 
+#![allow(clippy::absurd_extreme_comparisons)]
+
 use crate::ics_full_integration::*;
 use mnemosyne_core::{
     storage::StorageBackend,
@@ -95,7 +97,7 @@ async fn e2_importance_recalibration() {
     for _ in 0..10 {
         storage
             .storage()
-            .increment_access(memory.id.clone())
+            .increment_access(memory.id)
             .await
             .expect("Increment access");
     }
@@ -103,7 +105,7 @@ async fn e2_importance_recalibration() {
     // Retrieve and verify access count
     let accessed = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get memory");
 
@@ -122,7 +124,7 @@ async fn e2_importance_recalibration() {
 
     let recalibrated = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get recalibrated");
 
@@ -155,7 +157,7 @@ async fn e3_link_decay() {
 
     // Create link with high strength
     let link = mnemosyne_core::types::MemoryLink {
-        target_id: memory_b.id.clone(),
+        target_id: memory_b.id,
         link_type: mnemosyne_core::types::LinkType::References,
         strength: 0.9,
         reason: "Strong reference".to_string(),
@@ -175,7 +177,7 @@ async fn e3_link_decay() {
     // over time if not traversed. Simulate decay:
     let mut decayed = storage
         .storage()
-        .get_memory(memory_a.id.clone())
+        .get_memory(memory_a.id)
         .await
         .expect("Get memory");
 
@@ -190,7 +192,7 @@ async fn e3_link_decay() {
     // Verify decay applied
     let mut final_state = storage
         .storage()
-        .get_memory(memory_a.id.clone())
+        .get_memory(memory_a.id)
         .await
         .expect("Get final");
 
@@ -228,14 +230,14 @@ async fn e4_archival_of_unused_content() {
     // Simulate archival
     storage
         .storage()
-        .archive_memory(old_memory.id.clone())
+        .archive_memory(old_memory.id)
         .await
         .expect("Archive old memory");
 
     // Verify archived
     let archived = storage
         .storage()
-        .get_memory(old_memory.id.clone())
+        .get_memory(old_memory.id)
         .await
         .expect("Get archived");
 
@@ -356,12 +358,12 @@ async fn e6_evolution_rollback() {
     // Archive originals (mark as superseded)
     storage
         .storage()
-        .archive_memory(mem1.id.clone())
+        .archive_memory(mem1.id)
         .await
         .expect("Archive 1");
     storage
         .storage()
-        .archive_memory(mem2.id.clone())
+        .archive_memory(mem2.id)
         .await
         .expect("Archive 2");
 
@@ -372,12 +374,12 @@ async fn e6_evolution_rollback() {
     // For now, verify we can retrieve archived memories
     let restored1 = storage
         .storage()
-        .get_memory(mem1.id.clone())
+        .get_memory(mem1.id)
         .await
         .expect("Get mem1");
     let restored2 = storage
         .storage()
-        .get_memory(mem2.id.clone())
+        .get_memory(mem2.id)
         .await
         .expect("Get mem2");
 

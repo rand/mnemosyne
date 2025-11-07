@@ -1458,7 +1458,7 @@ impl Actor for ReviewerActor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::test_utils::create_test_storage;
+    
     use crate::LibsqlStorage;
     use std::time::Duration;
     use tempfile::TempDir;
@@ -1685,7 +1685,7 @@ mod tests {
 
         assert_eq!(config.max_llm_retries, 3);
         assert_eq!(config.llm_timeout_secs, 60);
-        assert_eq!(config.enable_llm_validation, true);
+        assert!(config.enable_llm_validation);
         assert_eq!(config.llm_model, "claude-3-5-sonnet-20241022");
         assert_eq!(config.max_context_tokens, 4096);
         assert_eq!(config.llm_temperature, 0.0);
@@ -1904,9 +1904,16 @@ mod tests {
         use crate::storage::StorageBackend;
 
         // Setup storage (cast to trait object for python_bindings function)
-        let storage: Arc<dyn StorageBackend> = create_test_storage()
+        let temp_dir = TempDir::new().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let storage: Arc<dyn StorageBackend> = Arc::new(
+            LibsqlStorage::new_with_validation(
+                crate::ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
+                true, // create_if_missing
+            )
             .await
-            .expect("Failed to create test storage");
+            .expect("Failed to create test storage"),
+        );
         let namespace = Namespace::Session {
             project: "test-reviewer".to_string(),
             session_id: "test-memory-format".to_string(),

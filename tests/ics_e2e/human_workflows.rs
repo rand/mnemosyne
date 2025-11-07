@@ -48,8 +48,8 @@ async fn h2_panel_navigation_and_discovery() {
     // Start with no visible panels (this is ICS app logic, so we test state)
     // In real implementation, panels would start hidden
     // For now, verify panel state can be managed independently
-    assert!(ctx.memories.len() > 0, "Should have test memories");
-    assert!(ctx.proposals.len() > 0, "Should have test proposals");
+    assert!(!ctx.memories.is_empty(), "Should have test memories");
+    assert!(!ctx.proposals.is_empty(), "Should have test proposals");
 }
 
 /// H3: Memory search & integration

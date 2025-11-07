@@ -9,7 +9,7 @@
 //! Requires ANTHROPIC_API_KEY environment variable.
 
 use chrono::Utc;
-use mnemosyne_core::services::{LlmConfig, LlmService};
+use mnemosyne_core::services::LlmService;
 use mnemosyne_core::types::{MemoryId, MemoryNote, MemoryType, Namespace};
 use serde::{Deserialize, Serialize};
 
@@ -306,7 +306,7 @@ async fn test_link_generation_quality() {
             }
 
             // Expect at least 1 link (to JWT memory)
-            assert!(links.len() >= 1, "Should generate at least 1 link");
+            assert!(!links.is_empty(), "Should generate at least 1 link");
 
             // Expect no more than 2 links (JWT and maybe database)
             assert!(links.len() <= 2, "Should not generate spurious links");

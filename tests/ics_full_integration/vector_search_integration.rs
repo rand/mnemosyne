@@ -51,7 +51,7 @@ async fn v1_embedding_generation() {
     // Retrieve and verify
     let retrieved = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Retrieve memory");
 
@@ -105,7 +105,7 @@ async fn v2_semantic_search() {
     if let Some((memory_id, _score)) = results.first() {
         let top_memory = storage
             .storage()
-            .get_memory(memory_id.clone())
+            .get_memory(*memory_id)
             .await
             .expect("Get top result");
 
@@ -218,7 +218,7 @@ async fn v4_semantic_relevance_ranking() {
     if let Some((memory_id, _score)) = results.first() {
         let top_memory = storage
             .storage()
-            .get_memory(memory_id.clone())
+            .get_memory(*memory_id)
             .await
             .expect("Get top result");
 
@@ -234,7 +234,7 @@ async fn v4_semantic_relevance_ranking() {
         for (id, _score) in &results {
             let mem = storage
                 .storage()
-                .get_memory(id.clone())
+                .get_memory(*id)
                 .await
                 .expect("Get memory");
             memories.push(mem);
@@ -348,7 +348,7 @@ async fn v6_large_scale_vector_search() {
     );
 
     // Verify results
-    assert!(results.len() > 0, "Should find results");
+    assert!(!results.is_empty(), "Should find results");
     assert!(results.len() <= 10, "Should respect limit");
 }
 
@@ -410,14 +410,14 @@ async fn v7_namespace_filtering() {
         .expect("Project-a search");
 
     // Verify namespace isolation
-    assert!(global_results.len() >= 1, "Should find global memory");
-    assert!(project_a_results.len() >= 1, "Should find project-a memory");
+    assert!(!global_results.is_empty(), "Should find global memory");
+    assert!(!project_a_results.is_empty(), "Should find project-a memory");
 
     // Fetch and verify global results
     for (id, _score) in &global_results {
         let memory = storage
             .storage()
-            .get_memory(id.clone())
+            .get_memory(*id)
             .await
             .expect("Get global memory");
         assert_memory_namespace(&memory, &Namespace::Global);
@@ -427,7 +427,7 @@ async fn v7_namespace_filtering() {
     for (id, _score) in &project_a_results {
         let memory = storage
             .storage()
-            .get_memory(id.clone())
+            .get_memory(*id)
             .await
             .expect("Get project-a memory");
         assert_memory_namespace(
@@ -464,7 +464,7 @@ async fn v8_incremental_embedding_updates() {
     // Verify no embedding
     let retrieved = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get");
     assert_no_embedding(&retrieved);
@@ -486,7 +486,7 @@ async fn v8_incremental_embedding_updates() {
     // Verify embedding added
     let updated = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get updated");
     assert_has_embedding(&updated);

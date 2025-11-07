@@ -317,7 +317,7 @@ impl PyRelevanceScorer {
                     .await
                     .map_err(|e| format!("Failed to update weights: {}", e))
             })
-            .map_err(|e| PyValueError::new_err(e))
+            .map_err(PyValueError::new_err)
     }
 }
 

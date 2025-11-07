@@ -430,7 +430,7 @@ mod tests {
         let config = BranchIsolationConfig::default();
         let coordinator_config = config.to_coordinator_config();
 
-        assert_eq!(coordinator_config.auto_approve_readonly, true);
+        assert!(coordinator_config.auto_approve_readonly);
         assert_eq!(coordinator_config.default_mode, CoordinationMode::Isolated);
     }
 

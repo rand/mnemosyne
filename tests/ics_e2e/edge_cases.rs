@@ -7,8 +7,10 @@
 //! - E4: Panel state persistence
 //! - E5: Buffer limit handling
 
+#![allow(clippy::absurd_extreme_comparisons)]
+
 use crate::ics_e2e::*;
-use mnemosyne_core::ics::{AgentActivity, ProposalStatus};
+use mnemosyne_core::ics::ProposalStatus;
 
 /// E1: Rapid panel toggling
 #[tokio::test]
@@ -19,8 +21,8 @@ async fn e1_rapid_panel_toggling() {
     for _ in 0..100 {
         // In real implementation, would toggle panel visibility
         // For testing, verify state remains consistent
-        assert!(ctx.memories.len() > 0);
-        assert!(ctx.proposals.len() > 0);
+        assert!(!ctx.memories.is_empty());
+        assert!(!ctx.proposals.is_empty());
     }
 
     // Verify data integrity after rapid toggles
@@ -29,13 +31,13 @@ async fn e1_rapid_panel_toggling() {
 
     // Verify proposals still accessible
     for proposal in &ctx.proposals {
-        assert!(proposal.id.len() > 0);
-        assert!(proposal.agent.len() > 0);
+        assert!(!proposal.id.is_empty());
+        assert!(!proposal.agent.is_empty());
     }
 
     // Verify memories still accessible
     for memory in &ctx.memories {
-        assert!(memory.content.len() > 0);
+        assert!(!memory.content.is_empty());
         assert!(memory.importance >= 0);
     }
 }
@@ -151,7 +153,7 @@ async fn e4_panel_state_persistence() {
 
     // Verify panel data quality
     assert!(ctx.memories.iter().all(|m| m.importance > 0));
-    assert!(ctx.proposals.iter().all(|p| p.id.len() > 0));
+    assert!(ctx.proposals.iter().all(|p| !p.id.is_empty()));
 
     // Test filtering persists
     let filtered: Vec<_> = ctx.memories.iter().filter(|m| m.importance >= 8).collect();
@@ -188,14 +190,14 @@ async fn e5_buffer_limit_handling() {
     }
 
     // Verify buffer still functional
-    assert!(small_ctx.buffer_content().len() > 0);
+    assert!(!small_ctx.buffer_content().is_empty());
 
     // Test redo
     for _ in 0..5 {
         small_ctx.editor.active_buffer_mut().redo();
     }
 
-    assert!(small_ctx.buffer_content().len() > 0);
+    assert!(!small_ctx.buffer_content().is_empty());
 
     // Test empty buffer edge case
     let empty_ctx = TestContext::new();

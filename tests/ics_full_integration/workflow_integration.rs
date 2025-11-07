@@ -4,11 +4,10 @@
 
 use crate::ics_full_integration::*;
 use mnemosyne_core::{
-    ics::{ChangeProposal, ProposalStatus, SemanticAnalyzer},
+    ics::{ChangeProposal, ProposalStatus},
     storage::StorageBackend,
     types::{LinkType, MemoryLink, MemoryType, Namespace},
 };
-use std::time::Duration;
 
 /// W1: Complete ICS session workflow
 #[tokio::test]
@@ -43,7 +42,7 @@ async fn w1_complete_ics_session() {
     // Phase 5: Verify retrieval
     let retrieved = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Retrieve memory");
 
@@ -113,7 +112,7 @@ async fn w2_multi_agent_collaboration() {
     // Create links between memories (semantic relationships)
     let mut arch_with_links = arch_memory.clone();
     arch_with_links.links.push(MemoryLink {
-        target_id: impl_memory.id.clone(),
+        target_id: impl_memory.id,
         link_type: LinkType::Implements,
         strength: 0.9,
         reason: "Implementation of architectural pattern".to_string(),
@@ -131,7 +130,7 @@ async fn w2_multi_agent_collaboration() {
     // Verify collaboration: retrieve and check links
     let retrieved = storage
         .storage()
-        .get_memory(arch_memory.id.clone())
+        .get_memory(arch_memory.id)
         .await
         .expect("Get arch memory");
 
@@ -162,7 +161,7 @@ async fn w3_memory_lifecycle() {
     for _ in 0..10 {
         storage
             .storage()
-            .increment_access(memory.id.clone())
+            .increment_access(memory.id)
             .await
             .expect("Increment access");
     }
@@ -170,7 +169,7 @@ async fn w3_memory_lifecycle() {
     // Phase 3: Evolution - increase importance based on access
     let accessed = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get");
 
@@ -198,7 +197,7 @@ async fn w3_memory_lifecycle() {
         .expect("Store improved");
 
     // Mark original as superseded
-    memory.superseded_by = Some(improved_memory.id.clone());
+    memory.superseded_by = Some(improved_memory.id);
     storage
         .storage()
         .update_memory(&memory)
@@ -208,13 +207,13 @@ async fn w3_memory_lifecycle() {
     // Phase 5: Eventually archive old version
     storage
         .storage()
-        .archive_memory(memory.id.clone())
+        .archive_memory(memory.id)
         .await
         .expect("Archive");
 
     let archived = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get archived");
 
@@ -281,7 +280,7 @@ async fn w4_search_retrieval_workflow() {
         .await
         .expect("Database search");
 
-    assert!(db_results.len() >= 1, "Should find database memory");
+    assert!(!db_results.is_empty(), "Should find database memory");
 
     // Phase 3: Empty search (returns all, limited to 20)
     let all_results = storage
@@ -354,7 +353,7 @@ async fn w5_proposal_workflow() {
     // Phase 5: Verify changes persisted
     let updated = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get updated");
 
@@ -425,7 +424,7 @@ async fn w6_cross_session_continuity() {
         .expect("Project search");
 
     assert!(
-        project_results.len() >= 1,
+        !project_results.is_empty(),
         "Should find project-level memories from previous session"
     );
 
@@ -565,7 +564,7 @@ async fn w8_error_recovery_resilience() {
     use mnemosyne_core::types::MemoryId;
     let fake_id = MemoryId::new();
 
-    let result = storage.storage().get_memory(fake_id.clone()).await;
+    let result = storage.storage().get_memory(fake_id).await;
     assert!(
         result.is_err(),
         "Should error when retrieving non-existent memory"
@@ -606,7 +605,7 @@ async fn w8_error_recovery_resilience() {
             // Empty content accepted
             let check = storage
                 .storage()
-                .get_memory(memory.id.clone())
+                .get_memory(memory.id)
                 .await
                 .expect("Get after empty update");
             // Content is either empty or unchanged
@@ -619,7 +618,7 @@ async fn w8_error_recovery_resilience() {
             // Update rejected, verify original unchanged
             let check = storage
                 .storage()
-                .get_memory(memory.id.clone())
+                .get_memory(memory.id)
                 .await
                 .expect("Get after rejected update");
             assert_eq!(

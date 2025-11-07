@@ -425,7 +425,7 @@ mod tests {
 
     #[test]
     fn test_segments_to_spans() {
-        let _segments = vec![DiscourseSegment {
+        let _segments = [DiscourseSegment {
             range: 0..10,
             text: "First part".to_string(),
             relation: Some(DiscourseRelation::Elaboration),

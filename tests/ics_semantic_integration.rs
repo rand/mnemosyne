@@ -4,7 +4,6 @@
 //! including text change hooks and rendering.
 
 use mnemosyne_core::ics::editor::{Actor, CrdtBuffer};
-use std::ops::Range;
 
 #[tokio::test]
 async fn test_buffer_has_semantic_engine() {
@@ -231,7 +230,7 @@ async fn test_interleaved_insert_delete() {
 
     // Should handle interleaved operations
     let text = buffer.text().unwrap();
-    assert!(text.len() > 0);
+    assert!(!text.is_empty());
 }
 
 #[tokio::test]

@@ -154,7 +154,7 @@ impl PyCoordinator {
     /// Args:
     ///     utilization: Context utilization (0.0 - 1.0)
     fn update_context_utilization(&self, utilization: f64) -> PyResult<()> {
-        if utilization < 0.0 || utilization > 1.0 {
+        if !(0.0..=1.0).contains(&utilization) {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                 "Utilization must be between 0.0 and 1.0",
             ));

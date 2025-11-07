@@ -189,7 +189,7 @@ mod tests {
         let text = "This is definitely the correct approach";
         let spans = analyzer.analyze(text).unwrap();
 
-        assert!(spans.len() > 0);
+        assert!(!spans.is_empty());
         let definitely_span = spans
             .iter()
             .find(|s| text[s.range.clone()].to_lowercase() == "definitely")

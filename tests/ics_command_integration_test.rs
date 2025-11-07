@@ -5,7 +5,6 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 use tempfile::TempDir;
 
 /// Get path to the mnemosyne binary
@@ -220,7 +219,7 @@ fn test_command_alias() {
     // The command should be accessible via both 'edit' and 'ics'
     // This is configured with #[command(visible_alias = "ics")]
 
-    let aliases = vec!["edit", "ics"];
+    let aliases = ["edit", "ics"];
     assert_eq!(aliases.len(), 2);
     assert!(aliases.contains(&"edit"));
     assert!(aliases.contains(&"ics"));
