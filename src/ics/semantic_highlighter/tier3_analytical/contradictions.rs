@@ -136,6 +136,7 @@ impl ContradictionDetector {
     }
 
     /// Detect contradictions in text
+    #[allow(unused_variables)] // text used with python feature
     pub async fn detect(&self, text: &str) -> Result<Vec<Contradiction>> {
         // Use DSPy if available (preferred path)
         #[cfg(feature = "python")]

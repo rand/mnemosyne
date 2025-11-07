@@ -124,6 +124,7 @@ impl DiscourseAnalyzer {
     }
 
     /// Analyze discourse structure in text
+    #[allow(unused_variables)] // text used with python feature
     pub async fn analyze(&self, text: &str) -> Result<Vec<DiscourseSegment>> {
         // Use DSPy if available (preferred path)
         #[cfg(feature = "python")]

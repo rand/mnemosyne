@@ -135,6 +135,7 @@ impl PragmaticsAnalyzer {
     }
 
     /// Analyze pragmatic elements in text
+    #[allow(unused_variables)] // text used with python feature
     pub async fn analyze(&self, text: &str) -> Result<Vec<PragmaticElement>> {
         // Use DSPy if available (preferred path)
         #[cfg(feature = "python")]
