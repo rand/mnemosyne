@@ -81,6 +81,8 @@ pub struct StateManager {
     agents: Arc<RwLock<HashMap<String, AgentInfo>>>,
     /// Context files being tracked
     context_files: Arc<RwLock<HashMap<String, ContextFile>>>,
+    /// Time-series metrics collector
+    metrics: Arc<RwLock<crate::api::MetricsCollector>>,
 }
 
 impl StateManager {
@@ -89,6 +91,7 @@ impl StateManager {
         Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
             context_files: Arc::new(RwLock::new(HashMap::new())),
+            metrics: Arc::new(RwLock::new(crate::api::MetricsCollector::new())),
         }
     }
 
@@ -148,15 +151,31 @@ impl StateManager {
         let mut active_count = 0;
         let mut idle_count = 0;
         let mut waiting_count = 0;
+        let mut completed_count = 0;
+        let mut failed_count = 0;
 
         for agent in agents.values() {
             match agent.state {
                 AgentState::Active { .. } => active_count += 1,
                 AgentState::Idle => idle_count += 1,
                 AgentState::Waiting { .. } => waiting_count += 1,
-                _ => {}
+                AgentState::Completed { .. } => completed_count += 1,
+                AgentState::Failed { .. } => failed_count += 1,
             }
         }
+
+        // Update metrics with current agent state counts
+        let agent_counts = crate::api::AgentStateCounts {
+            active: active_count,
+            idle: idle_count,
+            waiting: waiting_count,
+            completed: completed_count,
+            failed: failed_count,
+            total: agents.len(),
+        };
+
+        let mut metrics = self.metrics.write().await;
+        metrics.update_agent_states(agent_counts);
 
         StateStats {
             total_agents: agents.len(),
@@ -165,6 +184,18 @@ impl StateManager {
             waiting_agents: waiting_count,
             context_files: files.len(),
         }
+    }
+
+    /// Get current metrics snapshot
+    pub async fn metrics_snapshot(&self) -> crate::api::MetricsSnapshot {
+        let metrics = self.metrics.read().await;
+        metrics.snapshot()
+    }
+
+    /// Get metrics collector (for time-series data)
+    pub async fn metrics(&self) -> crate::api::MetricsCollector {
+        let metrics = self.metrics.read().await;
+        metrics.clone()
     }
 
     /// Subscribe to event stream and automatically update state
@@ -177,12 +208,13 @@ impl StateManager {
     ) {
         let agents = self.agents.clone();
         let context_files = self.context_files.clone();
+        let metrics = self.metrics.clone();
 
         tokio::spawn(async move {
             tracing::info!("StateManager subscribed to event stream");
 
             while let Ok(event) = event_rx.recv().await {
-                if let Err(e) = Self::apply_event_static(event, &agents, &context_files).await {
+                if let Err(e) = Self::apply_event_static(event, &agents, &context_files, &metrics).await {
                     tracing::warn!("Failed to apply event to state: {}", e);
                 }
             }
@@ -196,6 +228,7 @@ impl StateManager {
         event: crate::api::Event,
         agents: &Arc<RwLock<HashMap<String, AgentInfo>>>,
         context_files: &Arc<RwLock<HashMap<String, ContextFile>>>,
+        metrics: &Arc<RwLock<crate::api::MetricsCollector>>,
     ) -> Result<(), String> {
         use crate::api::EventType;
 
@@ -314,11 +347,15 @@ impl StateManager {
                 }
             }
             EventType::MemoryStored { .. } => {
-                // Context activity - could track this as metadata in the future
+                // Record in metrics
+                let mut metrics_guard = metrics.write().await;
+                metrics_guard.record_memory_store();
                 tracing::trace!("Memory stored event received");
             }
             EventType::MemoryRecalled { .. } => {
-                // Context activity
+                // Record in metrics
+                let mut metrics_guard = metrics.write().await;
+                metrics_guard.record_memory_recall();
                 tracing::trace!("Memory recalled event received");
             }
             EventType::ContextModified { file, .. } => {
@@ -352,7 +389,10 @@ impl StateManager {
             }
             EventType::PhaseChanged { from, to, .. } => {
                 tracing::info!("Phase transition: {} → {}", from, to);
-                // Could add phase to metadata if needed
+                let mut metrics_guard = metrics.write().await;
+                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                current_work.current_phase = to.clone();
+                metrics_guard.update_work(current_work);
             }
             EventType::DeadlockDetected { blocked_items, .. } => {
                 tracing::warn!("Deadlock detected: {} items blocked", blocked_items.len());
@@ -431,7 +471,163 @@ impl StateManager {
                         item_id
                     );
                 }
+                // Update work progress metrics
+                let mut metrics_guard = metrics.write().await;
+                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                current_work.completed_tasks += 1;
+                metrics_guard.update_work(current_work);
             }
+            // Skill events
+            EventType::SkillLoaded { skill_name, agent_id, .. } => {
+                tracing::debug!("Skill loaded: {} by {:?}", skill_name, agent_id);
+                let mut metrics_guard = metrics.write().await;
+                let mut current_skills = metrics_guard.skills_series().latest().cloned().unwrap_or_default();
+                if !current_skills.loaded_skills.contains(&skill_name) {
+                    current_skills.loaded_skills.push(skill_name.clone());
+                    current_skills.loaded_skills.sort();
+                }
+                *current_skills.usage_counts.entry(skill_name.clone()).or_insert(0) += 1;
+                metrics_guard.update_skills(current_skills);
+            }
+            EventType::SkillUnloaded { skill_name, reason, .. } => {
+                tracing::debug!("Skill unloaded: {} ({})", skill_name, reason);
+                let mut metrics_guard = metrics.write().await;
+                let mut current_skills = metrics_guard.skills_series().latest().cloned().unwrap_or_default();
+                current_skills.loaded_skills.retain(|s| s != &skill_name);
+                metrics_guard.update_skills(current_skills);
+            }
+            EventType::SkillUsed { skill_name, agent_id, .. } => {
+                tracing::trace!("Skill used: {} by {}", skill_name, agent_id);
+                let mut metrics_guard = metrics.write().await;
+                let mut current_skills = metrics_guard.skills_series().latest().cloned().unwrap_or_default();
+                *current_skills.usage_counts.entry(skill_name.clone()).or_insert(0) += 1;
+                current_skills.recently_used.push((skill_name.clone(), Utc::now()));
+                // Keep only last 20 recent uses
+                if current_skills.recently_used.len() > 20 {
+                    current_skills.recently_used.remove(0);
+                }
+                metrics_guard.update_skills(current_skills);
+            }
+            EventType::SkillCompositionDetected { skills, task_description, .. } => {
+                tracing::info!("Skill composition: {:?} for '{}'", skills, task_description);
+            }
+
+            // Memory evolution events
+            EventType::MemoryEvolutionStarted { reason, .. } => {
+                tracing::info!("Memory evolution started: {}", reason);
+                let mut metrics_guard = metrics.write().await;
+                let mut current_memory = metrics_guard.memory_ops_series().latest().cloned().unwrap_or_default();
+                current_memory.evolutions_total += 1;
+                metrics_guard.update_memory_rates(
+                    current_memory.evolutions_total,
+                    current_memory.consolidations_total,
+                    current_memory.graph_nodes,
+                );
+            }
+            EventType::MemoryConsolidated { source_ids, target_id, .. } => {
+                tracing::debug!("Memory consolidated: {:?} → {}", source_ids, target_id);
+                let mut metrics_guard = metrics.write().await;
+                let mut current_memory = metrics_guard.memory_ops_series().latest().cloned().unwrap_or_default();
+                current_memory.consolidations_total += 1;
+                metrics_guard.update_memory_rates(
+                    current_memory.evolutions_total,
+                    current_memory.consolidations_total,
+                    current_memory.graph_nodes,
+                );
+            }
+            EventType::MemoryDecayed { memory_id, old_importance, new_importance, .. } => {
+                tracing::trace!(
+                    "Memory decayed: {} ({} → {})",
+                    memory_id,
+                    old_importance,
+                    new_importance
+                );
+            }
+            EventType::MemoryArchived { memory_id, reason, .. } => {
+                tracing::debug!("Memory archived: {} ({})", memory_id, reason);
+            }
+
+            // Agent interaction events
+            EventType::AgentHandoff { from_agent, to_agent, task_description, .. } => {
+                tracing::info!("Agent handoff: {} → {} ({})", from_agent, to_agent, task_description);
+                // Update both agents' states
+                let mut agents_map = agents.write().await;
+                if let Some(from) = agents_map.get_mut(&from_agent) {
+                    from.state = AgentState::Idle;
+                    from.updated_at = Utc::now();
+                }
+                if let Some(to) = agents_map.get_mut(&to_agent) {
+                    to.state = AgentState::Active { task: task_description };
+                    to.updated_at = Utc::now();
+                }
+            }
+            EventType::AgentBlocked { agent_id, blocked_on, reason, .. } => {
+                let mut agents_map = agents.write().await;
+                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                    agent.state = AgentState::Waiting { reason: format!("Blocked on {}: {}", blocked_on, reason) };
+                    agent.updated_at = Utc::now();
+                    tracing::debug!("Agent {} blocked on {}", agent_id, blocked_on);
+                }
+            }
+            EventType::AgentUnblocked { agent_id, unblocked_by, .. } => {
+                let mut agents_map = agents.write().await;
+                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                    agent.state = AgentState::Idle;
+                    agent.updated_at = Utc::now();
+                    tracing::debug!("Agent {} unblocked by {}", agent_id, unblocked_by);
+                }
+            }
+            EventType::SubAgentSpawned { parent_agent, sub_agent, task_description, .. } => {
+                let mut agents_map = agents.write().await;
+                // Create sub-agent
+                agents_map.insert(
+                    sub_agent.clone(),
+                    AgentInfo {
+                        id: sub_agent.clone(),
+                        state: AgentState::Active { task: task_description.clone() },
+                        updated_at: Utc::now(),
+                        metadata: HashMap::from([("parent".to_string(), parent_agent.clone())]),
+                        health: Some(AgentHealth::default()),
+                    },
+                );
+                tracing::info!("Sub-agent {} spawned by {} for '{}'", sub_agent, parent_agent, task_description);
+            }
+
+            // Work orchestration events
+            EventType::ParallelStreamStarted { stream_id, task_count, .. } => {
+                tracing::info!("Parallel stream {} started with {} tasks", stream_id, task_count);
+                let mut metrics_guard = metrics.write().await;
+                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                current_work.parallel_streams.push(format!("{} ({} tasks)", stream_id, task_count));
+                current_work.total_tasks += task_count;
+                metrics_guard.update_work(current_work);
+            }
+            EventType::CriticalPathUpdated { path_items, estimated_completion, .. } => {
+                tracing::info!(
+                    "Critical path updated: {} items, ETA: {}",
+                    path_items.len(),
+                    estimated_completion
+                );
+                let mut metrics_guard = metrics.write().await;
+                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                // Calculate progress based on path items completion
+                let completed = path_items.iter().filter(|item| item.contains("✓")).count();
+                current_work.critical_path_progress = if !path_items.is_empty() {
+                    (completed as f32 / path_items.len() as f32) * 100.0
+                } else {
+                    0.0
+                };
+                metrics_guard.update_work(current_work);
+            }
+            EventType::TypedHoleFilled { hole_name, component_a, component_b, .. } => {
+                tracing::info!(
+                    "Typed hole filled: {} ({} ↔ {})",
+                    hole_name,
+                    component_a,
+                    component_b
+                );
+            }
+
             EventType::HealthUpdate { .. } | EventType::SessionStarted { .. } => {
                 // System-level events, no state update needed
                 tracing::trace!("System event received (no state update)");
@@ -497,8 +693,9 @@ mod tests {
         let event = crate::api::Event::heartbeat("test-agent".to_string());
         let agents = manager.agents.clone();
         let context_files = manager.context_files.clone();
+        let metrics = manager.metrics.clone();
 
-        StateManager::apply_event_static(event, &agents, &context_files)
+        StateManager::apply_event_static(event, &agents, &context_files, &metrics)
             .await
             .unwrap();
 
@@ -512,7 +709,7 @@ mod tests {
         let before_update = agent.updated_at;
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
-        StateManager::apply_event_static(event2, &agents, &context_files)
+        StateManager::apply_event_static(event2, &agents, &context_files, &metrics)
             .await
             .unwrap();
 

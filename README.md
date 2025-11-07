@@ -71,9 +71,12 @@ mnemosyne ics --readonly --panel diagnostics review.md
 See [docs/guides/ICS_INTEGRATION.md](docs/guides/ICS_INTEGRATION.md) for complete guide.
 
 ### Dashboard & Monitoring
-- **mnemosyne-dash**: Real-time monitoring dashboard with SSE event streaming
+- **mnemosyne-dash**: Real-time monitoring dashboard with 6-panel layout and sparkline visualizations
+- **Panels**: Memory, Context, Work Progress, Active Agents, Beads Tasks, Event Log
+- **Sparklines**: Unicode block character time-series (▁▂▃▄▅▆▇█) showing 50-point trends for all metrics
 - **HTTP API Server** (`:3000`): Automatic REST API with owner/client mode for multiple instances
 - **Event Streaming**: Real-time coordination via SSE for monitoring and cross-instance event forwarding
+- **Health Indicators**: Agent health tracking with error counts and automatic recovery
 
 ---
 

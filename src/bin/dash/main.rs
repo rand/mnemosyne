@@ -14,6 +14,11 @@
 //!   mnemosyne-dash --api http://localhost:3000
 //!   mnemosyne-dash --refresh 500     # Faster refresh (ms)
 
+mod panel_manager;
+mod panels;
+mod time_series;
+mod widgets;
+
 use anyhow::Result;
 use clap::Parser;
 use crossterm::{
@@ -21,12 +26,16 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use panel_manager::{PanelId, PanelManager};
+use panels::{
+    AgentInfo, AgentsPanel, ContextPanel, EventLogPanel, MemoryOpsMetrics, MemoryPanel,
+    SkillsMetrics, SkillsPanel, WorkMetrics, WorkPanel,
+};
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    style::{Color, Style},
+    widgets::{Block, Borders, Paragraph},
     Terminal,
 };
 use reqwest::Client;
@@ -71,33 +80,40 @@ struct EventDisplay {
     data: serde_json::Value,
 }
 
-/// Agent info from API
-#[derive(Debug, Clone, Deserialize)]
-struct AgentInfo {
-    id: String,
-    state: serde_json::Value,
+/// Metrics snapshot from API
+#[derive(Debug, Clone, Deserialize, Default)]
+struct MetricsSnapshot {
+    #[allow(dead_code)]
+    pub agent_states: AgentStateCounts,
+    pub memory_ops: MemoryOpsMetrics,
+    pub skills: SkillsMetrics,
+    pub work: WorkMetrics,
 }
 
-/// System stats from API
-#[derive(Debug, Clone, Deserialize)]
-struct SystemStats {
-    total_agents: usize,
-    active_agents: usize,
-    idle_agents: usize,
-    waiting_agents: usize,
-    context_files: usize,
+/// Agent state counts from metrics
+#[derive(Debug, Clone, Deserialize, Default)]
+struct AgentStateCounts {
+    pub active: usize,
+    pub idle: usize,
+    pub waiting: usize,
+    pub completed: usize,
+    pub failed: usize,
+    pub total: usize,
 }
 
 /// Application state
 struct App {
-    /// Recent events from SSE stream
-    events: Vec<String>,
-    /// Max events to keep
-    max_events: usize,
-    /// Agents list
-    agents: Vec<AgentInfo>,
-    /// System stats
-    stats: Option<SystemStats>,
+    /// Panel instances
+    agents_panel: AgentsPanel,
+    memory_panel: MemoryPanel,
+    skills_panel: SkillsPanel,
+    work_panel: WorkPanel,
+    context_panel: ContextPanel,
+    event_log_panel: EventLogPanel,
+
+    /// Panel manager for visibility/layout
+    panel_manager: PanelManager,
+
     /// Connection status
     connected: bool,
     /// API base URL
@@ -109,27 +125,23 @@ struct App {
 impl App {
     fn new(api_url: String, event_rx: mpsc::UnboundedReceiver<String>) -> Self {
         Self {
-            events: Vec::new(),
-            max_events: 100,
-            agents: Vec::new(),
-            stats: None,
+            agents_panel: AgentsPanel::new(),
+            memory_panel: MemoryPanel::new(),
+            skills_panel: SkillsPanel::new(),
+            work_panel: WorkPanel::new(),
+            context_panel: ContextPanel::new(),
+            event_log_panel: EventLogPanel::new().max_events(1000),
+            panel_manager: PanelManager::new(),
             connected: false,
             api_url,
             event_rx,
         }
     }
 
-    fn add_event(&mut self, event: String) {
-        self.events.push(event);
-        if self.events.len() > self.max_events {
-            self.events.remove(0);
-        }
-    }
-
     fn process_events(&mut self) {
         // Drain all available events from channel
         while let Ok(event) = self.event_rx.try_recv() {
-            self.add_event(event);
+            self.event_log_panel.add_event(event);
         }
     }
 
@@ -142,7 +154,8 @@ impl App {
         {
             Ok(response) => {
                 if let Ok(agents) = response.json::<Vec<AgentInfo>>().await {
-                    self.agents = agents;
+                    self.agents_panel.update(agents);
+                    self.connected = true;
                 }
             }
             Err(e) => {
@@ -152,25 +165,54 @@ impl App {
             }
         }
 
-        // Fetch stats
+        // Fetch metrics snapshot
         match client
-            .get(format!("{}/state/stats", self.api_url))
+            .get(format!("{}/state/metrics", self.api_url))
             .send()
             .await
         {
             Ok(response) => {
-                if let Ok(stats) = response.json::<SystemStats>().await {
-                    self.stats = Some(stats);
+                if let Ok(metrics) = response.json::<MetricsSnapshot>().await {
+                    // Update panels with metrics
+                    self.memory_panel.update(metrics.memory_ops);
+                    self.skills_panel.update(metrics.skills);
+                    self.work_panel.update(metrics.work);
                     self.connected = true;
                 }
             }
             Err(e) => {
-                debug!("Failed to fetch stats: {}", e);
-                self.connected = false;
+                debug!("Failed to fetch metrics: {}", e);
             }
         }
 
+        // TODO: Fetch context utilization (for now use mock data)
+        // In a real implementation, this would come from /state/stats or a dedicated endpoint
+        self.context_panel.update(45.0, 2); // Mock: 45% utilization, 2 checkpoints
+
         Ok(())
+    }
+
+    /// Handle keyboard input for panel toggles
+    fn handle_key(&mut self, key: KeyCode) -> bool {
+        match key {
+            KeyCode::Char('q') | KeyCode::Esc => return true, // Quit
+            KeyCode::Char('0') => {
+                // Toggle all panels
+                if self.panel_manager.visible_count() == 6 {
+                    self.panel_manager.hide_all();
+                } else {
+                    self.panel_manager.show_all();
+                }
+            }
+            KeyCode::Char('1') => self.panel_manager.toggle_panel(PanelId::Agents),
+            KeyCode::Char('2') => self.panel_manager.toggle_panel(PanelId::Memory),
+            KeyCode::Char('3') => self.panel_manager.toggle_panel(PanelId::Skills),
+            KeyCode::Char('4') => self.panel_manager.toggle_panel(PanelId::Work),
+            KeyCode::Char('5') => self.panel_manager.toggle_panel(PanelId::Context),
+            KeyCode::Char('6') => self.panel_manager.toggle_panel(PanelId::Events),
+            _ => {}
+        }
+        false // Don't quit
     }
 }
 
@@ -318,14 +360,19 @@ async fn run_app<B: ratatui::backend::Backend>(
 
     loop {
         terminal.draw(|f| {
-            let chunks = Layout::default()
+            let total_height = f.area().height;
+
+            // Calculate dynamic layout: Header (3) + Panels (dynamic) + Footer (1)
+            let header_height = 3;
+            let footer_height = 1;
+            let panels_height = total_height.saturating_sub(header_height + footer_height);
+
+            let main_chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
-                    Constraint::Length(3), // Header
-                    Constraint::Min(10),   // Events
-                    Constraint::Length(7), // Agents
-                    Constraint::Length(5), // Stats
-                    Constraint::Length(1), // Footer
+                    Constraint::Length(header_height),
+                    Constraint::Length(panels_height),
+                    Constraint::Length(footer_height),
                 ])
                 .split(f.area());
 
@@ -348,119 +395,59 @@ async fn run_app<B: ratatui::backend::Backend>(
                     Color::Red
                 }))
                 .block(Block::default().borders(Borders::ALL));
-            f.render_widget(header, chunks[0]);
+            f.render_widget(header, main_chunks[0]);
 
-            // Events
-            let events: Vec<ListItem> = if app.events.is_empty() && app.connected {
-                vec![ListItem::new(Line::from(vec![Span::styled(
-                    "System idle - no recent activity",
-                    Style::default()
-                        .fg(Color::Gray)
-                        .add_modifier(Modifier::ITALIC),
-                )]))]
-            } else {
-                app.events
-                    .iter()
-                    .rev()
-                    .take(chunks[1].height as usize - 2)
-                    .map(|e| {
-                        // Color code events by priority and type
-                        let color = if e.contains("session_started") {
-                            Color::Green
-                        } else if e.contains("heartbeat") {
-                            Color::Blue
-                        } else if e.contains("deadlock_detected") {
-                            Color::Red // Critical: deadlock detected
-                        } else if e.contains("review_failed") {
-                            Color::LightRed // Warning: quality gate failure
-                        } else if e.contains("error")
-                            || e.contains("failed")
-                            || e.contains("agent_failed")
-                        {
-                            Color::Red // Error conditions
-                        } else if e.contains("phase_changed") {
-                            Color::Magenta // Important: workflow phase transition
-                        } else if e.contains("work_item_retried") {
-                            Color::Yellow // Notice: retry attempt
-                        } else if e.contains("context_checkpointed") {
-                            Color::Cyan // Info: context optimization
-                        } else if e.contains("agent_started") || e.contains("agent_completed") {
-                            Color::LightGreen // Success: agent lifecycle
-                        } else {
-                            Color::White // Default
-                        };
-                        ListItem::new(Line::from(vec![Span::styled(
-                            e,
-                            Style::default().fg(color),
-                        )]))
-                    })
-                    .collect()
-            };
-            let events_list = List::new(events).block(
-                Block::default()
-                    .title("Recent Events")
-                    .borders(Borders::ALL),
-            );
-            f.render_widget(events_list, chunks[1]);
+            // Dynamic panel layout
+            let panel_constraints = app.panel_manager.layout_constraints(panels_height);
+            let panel_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(panel_constraints)
+                .split(main_chunks[1]);
 
-            // Agents
-            let agent_items: Vec<ListItem> = app
-                .agents
-                .iter()
-                .map(|a| {
-                    let state_str = a.state.to_string();
-                    ListItem::new(Line::from(vec![
-                        Span::styled(&a.id, Style::default().add_modifier(Modifier::BOLD)),
-                        Span::raw(": "),
-                        Span::raw(state_str),
-                    ]))
-                })
-                .collect();
-            let agents_list = List::new(agent_items).block(
-                Block::default()
-                    .title("Active Agents")
-                    .borders(Borders::ALL),
-            );
-            f.render_widget(agents_list, chunks[2]);
+            // Render visible panels in order
+            let mut chunk_index = 0;
+            if app.panel_manager.is_panel_visible(PanelId::Agents) {
+                app.agents_panel.render(f, panel_chunks[chunk_index]);
+                chunk_index += 1;
+            }
+            if app.panel_manager.is_panel_visible(PanelId::Memory) {
+                app.memory_panel.render(f, panel_chunks[chunk_index]);
+                chunk_index += 1;
+            }
+            if app.panel_manager.is_panel_visible(PanelId::Skills) {
+                app.skills_panel.render(f, panel_chunks[chunk_index]);
+                chunk_index += 1;
+            }
+            if app.panel_manager.is_panel_visible(PanelId::Work) {
+                app.work_panel.render(f, panel_chunks[chunk_index]);
+                chunk_index += 1;
+            }
+            if app.panel_manager.is_panel_visible(PanelId::Context) {
+                app.context_panel.render(f, panel_chunks[chunk_index]);
+                chunk_index += 1;
+            }
+            if app.panel_manager.is_panel_visible(PanelId::Events) {
+                app.event_log_panel.render(f, panel_chunks[chunk_index]);
+            }
 
-            // Stats
-            let stats_text = if let Some(stats) = &app.stats {
-                vec![
-                    Line::from(format!("Total Agents: {}", stats.total_agents)),
-                    Line::from(format!(
-                        "Active: {} | Idle: {} | Waiting: {}",
-                        stats.active_agents, stats.idle_agents, stats.waiting_agents
-                    )),
-                    Line::from(format!("Context Files: {}", stats.context_files)),
-                ]
-            } else {
-                vec![Line::from("Loading...")]
-            };
-            let stats_widget = Paragraph::new(stats_text).block(
-                Block::default()
-                    .title("System Statistics")
-                    .borders(Borders::ALL),
-            );
-            f.render_widget(stats_widget, chunks[3]);
-
-            // Footer
+            // Footer with keyboard shortcuts
+            let visible_count = app.panel_manager.visible_count();
             let footer_text = if app.connected {
-                if app.events.is_empty() {
-                    "Press 'q' to quit | Connected to API | Waiting for activity..."
-                } else {
-                    "Press 'q' to quit | Connected to API | Receiving events"
-                }
+                format!(
+                    "Press '0' to toggle all | '1-6' for panels | 'q' to quit | {} panels visible",
+                    visible_count
+                )
             } else {
-                "Press 'q' to quit | Disconnected - check API server"
+                "Disconnected - check API server | Press 'q' to quit".to_string()
             };
             let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::Gray));
-            f.render_widget(footer, chunks[4]);
+            f.render_widget(footer, main_chunks[2]);
         })?;
 
-        // Handle input
+        // Handle input with keyboard shortcuts
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
-                if key.code == KeyCode::Char('q') {
+                if app.handle_key(key.code) {
                     return Ok(());
                 }
             }

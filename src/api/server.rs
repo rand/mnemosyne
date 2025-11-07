@@ -105,6 +105,12 @@ impl ApiServer {
             .route("/state/context-files", get(list_context_files_handler))
             .route("/state/context-files", post(update_context_file_handler))
             .route("/state/stats", get(stats_handler))
+            .route("/state/metrics", get(metrics_handler))
+            // Time-series metrics endpoints
+            .route("/metrics/agent-states", get(agent_states_series_handler))
+            .route("/metrics/memory-ops", get(memory_ops_series_handler))
+            .route("/metrics/skills", get(skills_series_handler))
+            .route("/metrics/work", get(work_series_handler))
             // Health check
             .route("/health", get(health_handler))
             // State
@@ -333,6 +339,40 @@ async fn update_context_file_handler(
 async fn stats_handler(State(state): State<AppState>) -> impl IntoResponse {
     let stats = state.state.stats().await;
     Json(stats)
+}
+
+/// Metrics handler (returns time-series metrics snapshot)
+async fn metrics_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let metrics = state.state.metrics_snapshot().await;
+    Json(metrics)
+}
+
+/// Agent states time-series handler
+async fn agent_states_series_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let metrics = state.state.metrics().await;
+    let series = metrics.agent_states_series().clone();
+    Json(series)
+}
+
+/// Memory operations time-series handler
+async fn memory_ops_series_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let metrics = state.state.metrics().await;
+    let series = metrics.memory_ops_series().clone();
+    Json(series)
+}
+
+/// Skills time-series handler
+async fn skills_series_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let metrics = state.state.metrics().await;
+    let series = metrics.skills_series().clone();
+    Json(series)
+}
+
+/// Work progress time-series handler
+async fn work_series_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let metrics = state.state.metrics().await;
+    let series = metrics.work_series().clone();
+    Json(series)
 }
 
 /// Health check handler
