@@ -139,14 +139,14 @@ mod tests {
     #[test]
     fn test_float_values() {
         let mut buffer = TimeSeriesBuffer::new(5);
-        buffer.push(1.5);
-        buffer.push(2.7);
-        buffer.push(3.2);
+        buffer.push(1.5_f32);
+        buffer.push(2.7_f32);
+        buffer.push(3.2_f32);
 
         let values = buffer.to_vec();
         assert_eq!(values.len(), 3);
-        assert!((values[0] - 1.5).abs() < f32::EPSILON);
-        assert!((values[1] - 2.7).abs() < f32::EPSILON);
-        assert!((values[2] - 3.2).abs() < f32::EPSILON);
+        assert!((values[0] - 1.5_f32).abs() < f32::EPSILON);
+        assert!((values[1] - 2.7_f32).abs() < f32::EPSILON);
+        assert!((values[2] - 3.2_f32).abs() < f32::EPSILON);
     }
 }

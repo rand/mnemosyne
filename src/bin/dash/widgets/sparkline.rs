@@ -122,7 +122,7 @@ mod tests {
         let sparkline = Sparkline::new(&[]);
         let line = sparkline.render();
         assert_eq!(line.spans.len(), 1);
-        assert_eq!(line.spans[0].content, "─────────");
+        assert_eq!(line.spans[0].content, "───────"); // Default width is 7
     }
 
     #[test]
