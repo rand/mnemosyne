@@ -389,7 +389,10 @@ impl StateManager {
             }
             EventType::PhaseChanged { from, to, .. } => {
                 tracing::info!("Phase transition: {} → {}", from, to);
-                // Could add phase to metadata if needed
+                let mut metrics_guard = metrics.write().await;
+                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                current_work.current_phase = to.clone();
+                metrics_guard.update_work(current_work);
             }
             EventType::DeadlockDetected { blocked_items, .. } => {
                 tracing::warn!("Deadlock detected: {} items blocked", blocked_items.len());
@@ -468,18 +471,42 @@ impl StateManager {
                         item_id
                     );
                 }
+                // Update work progress metrics
+                let mut metrics_guard = metrics.write().await;
+                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                current_work.completed_tasks += 1;
+                metrics_guard.update_work(current_work);
             }
             // Skill events
             EventType::SkillLoaded { skill_name, agent_id, .. } => {
                 tracing::debug!("Skill loaded: {} by {:?}", skill_name, agent_id);
-                // TODO: Track in metrics when skill panel implemented
+                let mut metrics_guard = metrics.write().await;
+                let mut current_skills = metrics_guard.skills_series().latest().cloned().unwrap_or_default();
+                if !current_skills.loaded_skills.contains(&skill_name) {
+                    current_skills.loaded_skills.push(skill_name.clone());
+                    current_skills.loaded_skills.sort();
+                }
+                *current_skills.usage_counts.entry(skill_name.clone()).or_insert(0) += 1;
+                metrics_guard.update_skills(current_skills);
             }
             EventType::SkillUnloaded { skill_name, reason, .. } => {
                 tracing::debug!("Skill unloaded: {} ({})", skill_name, reason);
+                let mut metrics_guard = metrics.write().await;
+                let mut current_skills = metrics_guard.skills_series().latest().cloned().unwrap_or_default();
+                current_skills.loaded_skills.retain(|s| s != &skill_name);
+                metrics_guard.update_skills(current_skills);
             }
             EventType::SkillUsed { skill_name, agent_id, .. } => {
                 tracing::trace!("Skill used: {} by {}", skill_name, agent_id);
-                // TODO: Update skill usage metrics
+                let mut metrics_guard = metrics.write().await;
+                let mut current_skills = metrics_guard.skills_series().latest().cloned().unwrap_or_default();
+                *current_skills.usage_counts.entry(skill_name.clone()).or_insert(0) += 1;
+                current_skills.recently_used.push((skill_name.clone(), Utc::now()));
+                // Keep only last 20 recent uses
+                if current_skills.recently_used.len() > 20 {
+                    current_skills.recently_used.remove(0);
+                }
+                metrics_guard.update_skills(current_skills);
             }
             EventType::SkillCompositionDetected { skills, task_description, .. } => {
                 tracing::info!("Skill composition: {:?} for '{}'", skills, task_description);
@@ -488,10 +515,25 @@ impl StateManager {
             // Memory evolution events
             EventType::MemoryEvolutionStarted { reason, .. } => {
                 tracing::info!("Memory evolution started: {}", reason);
+                let mut metrics_guard = metrics.write().await;
+                let mut current_memory = metrics_guard.memory_ops_series().latest().cloned().unwrap_or_default();
+                current_memory.evolutions_total += 1;
+                metrics_guard.update_memory_rates(
+                    current_memory.evolutions_total,
+                    current_memory.consolidations_total,
+                    current_memory.graph_nodes,
+                );
             }
             EventType::MemoryConsolidated { source_ids, target_id, .. } => {
                 tracing::debug!("Memory consolidated: {:?} → {}", source_ids, target_id);
-                // TODO: Track consolidation count in metrics
+                let mut metrics_guard = metrics.write().await;
+                let mut current_memory = metrics_guard.memory_ops_series().latest().cloned().unwrap_or_default();
+                current_memory.consolidations_total += 1;
+                metrics_guard.update_memory_rates(
+                    current_memory.evolutions_total,
+                    current_memory.consolidations_total,
+                    current_memory.graph_nodes,
+                );
             }
             EventType::MemoryDecayed { memory_id, old_importance, new_importance, .. } => {
                 tracing::trace!(
@@ -554,7 +596,11 @@ impl StateManager {
             // Work orchestration events
             EventType::ParallelStreamStarted { stream_id, task_count, .. } => {
                 tracing::info!("Parallel stream {} started with {} tasks", stream_id, task_count);
-                // TODO: Track in work progress metrics
+                let mut metrics_guard = metrics.write().await;
+                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                current_work.parallel_streams.push(format!("{} ({} tasks)", stream_id, task_count));
+                current_work.total_tasks += task_count;
+                metrics_guard.update_work(current_work);
             }
             EventType::CriticalPathUpdated { path_items, estimated_completion, .. } => {
                 tracing::info!(
@@ -562,7 +608,16 @@ impl StateManager {
                     path_items.len(),
                     estimated_completion
                 );
-                // TODO: Update work progress metrics with critical path
+                let mut metrics_guard = metrics.write().await;
+                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                // Calculate progress based on path items completion
+                let completed = path_items.iter().filter(|item| item.contains("✓")).count();
+                current_work.critical_path_progress = if !path_items.is_empty() {
+                    (completed as f32 / path_items.len() as f32) * 100.0
+                } else {
+                    0.0
+                };
+                metrics_guard.update_work(current_work);
             }
             EventType::TypedHoleFilled { hole_name, component_a, component_b, .. } => {
                 tracing::info!(
