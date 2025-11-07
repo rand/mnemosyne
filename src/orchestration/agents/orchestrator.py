@@ -14,13 +14,18 @@ from typing import Dict, List, Optional, Any
 from enum import Enum
 import json
 
-from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
-
-# Import PyO3 bridge interface
-from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
-
-# Import logging
-from .logging_config import get_logger
+try:
+    from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+    from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
+    from .logging_config import get_logger
+except ImportError:
+    # Running as standalone script
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+    from base_agent import AgentExecutionMixin, WorkItem, WorkResult
+    from logging_config import get_logger
 
 logger = get_logger("orchestrator")
 

@@ -14,26 +14,30 @@ from typing import Dict, List, Optional, Set, Any
 from enum import Enum
 import json
 
-from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
-
-# Import PyO3 bridge interface
-from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
-
-# Import logging
-from .logging_config import get_logger
-
-# Import error context
-from .error_context import (
-    create_work_item_error_context,
-    create_validation_error_context,
-    format_error_for_rust
-)
-
-# Import validation
-from .validation import validate_work_item, validate_agent_state, validate_review_artifact
-
-# Import metrics
-from .metrics import get_metrics_collector
+try:
+    from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+    from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
+    from .logging_config import get_logger
+    from .error_context import (
+        create_work_item_error_context,
+        create_validation_error_context,
+        format_error_for_rust
+    )
+    from .validation import validate_work_item, validate_agent_state, validate_review_artifact
+    from .metrics import get_metrics_collector
+except ImportError:
+    import sys, os
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+    from base_agent import AgentExecutionMixin, WorkItem, WorkResult
+    from logging_config import get_logger
+    from error_context import (
+        create_work_item_error_context,
+        create_validation_error_context,
+        format_error_for_rust
+    )
+    from validation import validate_work_item, validate_agent_state, validate_review_artifact
+    from metrics import get_metrics_collector
 
 logger = get_logger("reviewer")
 

@@ -30,13 +30,16 @@ from typing import Dict, List, Optional, Set, Any
 from pathlib import Path
 import hashlib
 
-from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
-
-# Import PyO3 bridge interface
-from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
-
-# Import logging
-from .logging_config import get_logger
+try:
+    from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+    from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
+    from .logging_config import get_logger
+except ImportError:
+    import sys, os
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+    from base_agent import AgentExecutionMixin, WorkItem, WorkResult
+    from logging_config import get_logger
 
 logger = get_logger("optimizer")
 
