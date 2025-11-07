@@ -623,11 +623,13 @@ pub async fn launch_orchestrated_session(
     event_broadcaster: Option<crate::api::EventBroadcaster>,
     state_manager: Option<std::sync::Arc<crate::api::StateManager>>,
 ) -> Result<()> {
-    let mut config = LauncherConfig::default();
-    config.mnemosyne_db_path = db_path;
-    config.initial_prompt = initial_prompt;
-    config.event_broadcaster = event_broadcaster;
-    config.state_manager = state_manager;
+    let config = LauncherConfig {
+        mnemosyne_db_path: db_path,
+        initial_prompt,
+        event_broadcaster,
+        state_manager,
+        ..Default::default()
+    };
 
     let launcher = ClaudeCodeLauncher::with_config(config)?;
     launcher.launch().await

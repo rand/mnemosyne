@@ -32,9 +32,11 @@ pub async fn handle(
     println!();
 
     // Create launcher configuration
-    let mut config = launcher::LauncherConfig::default();
-    config.mnemosyne_db_path = Some(db_path.clone());
-    config.max_concurrent_agents = max_concurrent;
+    let config = launcher::LauncherConfig {
+        mnemosyne_db_path: Some(db_path.clone()),
+        max_concurrent_agents: max_concurrent,
+        ..Default::default()
+    };
 
     // Start embedded API server if dashboard requested
     let (event_broadcaster, state_manager, api_task) = if dashboard {
