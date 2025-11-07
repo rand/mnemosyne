@@ -269,10 +269,22 @@ impl AgentSpawner {
             {
                 use nix::sys::signal::{kill, Signal};
                 use nix::unistd::Pid;
+                use nix::errno::Errno;
 
                 let pid = Pid::from_raw(handle.pid as i32);
-                if let Err(e) = kill(pid, Signal::SIGTERM) {
-                    warn!("Failed to send SIGTERM to {}: {}", role.as_str(), e);
+                match kill(pid, Signal::SIGTERM) {
+                    Ok(_) => {
+                        debug!("Sent SIGTERM to {} (PID {})", role.as_str(), handle.pid);
+                    }
+                    Err(nix::Error::ESRCH) => {
+                        // Process already dead - this is fine
+                        debug!("Agent {} (PID {}) already exited", role.as_str(), handle.pid);
+                        handle.status = AgentStatus::Stopped;
+                        continue; // Skip waiting, move to next agent
+                    }
+                    Err(e) => {
+                        warn!("Failed to send SIGTERM to {}: {}", role.as_str(), e);
+                    }
                 }
             }
 
@@ -332,11 +344,16 @@ impl AgentSpawner {
 impl Drop for AgentSpawner {
     fn drop(&mut self) {
         // Emergency cleanup if spawner is dropped without explicit shutdown
-        let mut agents = self.agents.blocking_write();
-        for (role, handle) in agents.iter_mut() {
-            warn!("Emergency cleanup: killing {} (PID {})", role.as_str(), handle.pid);
-            let _ = handle.child.kill();
-            let _ = handle.child.wait();
+        // Use try_write() instead of blocking_write() to avoid panics in async context
+        if let Ok(mut agents) = self.agents.try_write() {
+            for (role, handle) in agents.iter_mut() {
+                warn!("Emergency cleanup: killing {} (PID {})", role.as_str(), handle.pid);
+                let _ = handle.child.kill();
+                let _ = handle.child.wait();
+            }
+        } else {
+            // Lock is held, spawner is being used - skip emergency cleanup
+            warn!("AgentSpawner dropped while lock is held, skipping emergency cleanup");
         }
     }
 }
