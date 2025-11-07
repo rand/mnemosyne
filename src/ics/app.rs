@@ -18,6 +18,7 @@ use crate::{
     storage::{MemorySortOrder, StorageBackend},
     tui::{EventLoop, TerminalConfig, TerminalManager, TuiEvent},
     types::{MemoryId, MemoryNote, MemoryType, Namespace},
+    utils::string::truncate_at_char_boundary,
 };
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
@@ -491,11 +492,8 @@ impl IcsApp {
                 .take(50)
                 .collect();
 
-            let description = if changed_text.len() > 47 {
-                format!("\"{}...\"", &changed_text[..47])
-            } else {
-                format!("\"{}\"", changed_text)
-            };
+            let truncated = truncate_at_char_boundary(&changed_text, 47);
+            let description = format!("\"{}\"", truncated);
 
             // Convert actor to author name
             let author = format!("{:?}", attr.actor);

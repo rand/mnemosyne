@@ -72,10 +72,12 @@ def create_agent(role: str, config: Optional[Dict[str, Any]] = None) -> Any:
             agent_id="executor",
             **config
         )
+        # For now, pass None for dependencies - will be injected later
         return ExecutorAgent(
             config=agent_config,
+            coordinator=None,
             storage=None,
-            skills_cache=None
+            parallel_executor=None
         )
 
     else:

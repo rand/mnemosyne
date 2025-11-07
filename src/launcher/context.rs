@@ -14,6 +14,7 @@
 use crate::error::Result;
 use crate::storage::{MemorySortOrder, StorageBackend};
 use crate::types::{MemoryNote, Namespace};
+use crate::utils::string::truncate_at_char_boundary;
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 
@@ -248,11 +249,7 @@ fn format_memory_type(mt: &crate::types::MemoryType) -> &'static str {
 
 /// Truncate content to max length, adding ellipsis
 fn truncate_content(content: &str, max_len: usize) -> String {
-    if content.len() <= max_len {
-        content.to_string()
-    } else {
-        format!("{}...", &content[..max_len])
-    }
+    truncate_at_char_boundary(content, max_len)
 }
 
 /// Format relative time (e.g., "2 days ago", "3 hours ago")

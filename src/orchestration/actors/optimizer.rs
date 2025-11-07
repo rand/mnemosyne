@@ -20,6 +20,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[cfg(feature = "python")]
+use crate::orchestration::ClaudeAgentBridge;
+#[cfg(feature = "python")]
 use crate::orchestration::actors::optimizer_dspy_adapter::OptimizerDSpyAdapter;
 
 /// Context budget allocation percentages (WIP)
@@ -82,6 +84,10 @@ pub struct OptimizerState {
     /// DSPy adapter for intelligent optimization (optional)
     #[cfg(feature = "python")]
     optimizer_adapter: Option<Arc<OptimizerDSpyAdapter>>,
+
+    /// Python Claude SDK agent bridge
+    #[cfg(feature = "python")]
+    python_bridge: Option<ClaudeAgentBridge>,
 }
 
 impl OptimizerState {
@@ -102,11 +108,20 @@ impl OptimizerState {
             skills_discovery: SkillsDiscovery::new(get_skills_directory()),
             #[cfg(feature = "python")]
             optimizer_adapter: None,
+            #[cfg(feature = "python")]
+            python_bridge: None,
         }
     }
 
     pub fn register_orchestrator(&mut self, orchestrator: ActorRef<OrchestratorMessage>) {
         self.orchestrator = Some(orchestrator);
+    }
+
+    /// Register Python Claude SDK agent bridge
+    #[cfg(feature = "python")]
+    pub fn register_python_bridge(&mut self, bridge: ClaudeAgentBridge) {
+        tracing::info!("Registering Python agent bridge for Optimizer");
+        self.python_bridge = Some(bridge);
     }
 
     /// Register event broadcaster for real-time observability
@@ -865,6 +880,11 @@ impl Actor for OptimizerActor {
                 tracing::info!(
                     "Event broadcaster registered with Optimizer - events will now be broadcast"
                 );
+            }
+            #[cfg(feature = "python")]
+            OptimizerMessage::RegisterPythonBridge(bridge) => {
+                tracing::info!("Registering Python Claude SDK agent bridge");
+                state.register_python_bridge(bridge);
             }
             OptimizerMessage::DiscoverSkills {
                 task_description,

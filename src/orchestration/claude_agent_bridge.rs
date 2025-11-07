@@ -51,7 +51,11 @@ use crate::orchestration::messages::WorkResult;
 #[cfg(feature = "python")]
 use crate::orchestration::state::{AgentState, Phase, WorkItem};
 #[cfg(feature = "python")]
+use crate::secrets::SecretsManager;
+#[cfg(feature = "python")]
 use pyo3::prelude::*;
+#[cfg(feature = "python")]
+use secrecy::ExposeSecret;
 #[cfg(feature = "python")]
 use pyo3::types::{PyDict, PyList};
 #[cfg(feature = "python")]
@@ -121,12 +125,33 @@ impl ClaudeAgentBridge {
 
         info!("Spawning Python Claude SDK agent for role: {:?}", role);
 
+        // Ensure ANTHROPIC_API_KEY is available from secrets if not in environment
+        if std::env::var("ANTHROPIC_API_KEY").is_err() {
+            match SecretsManager::new() {
+                Ok(secrets) => match secrets.get_secret("ANTHROPIC_API_KEY") {
+                    Ok(api_key) => {
+                        // Set environment variable for Python to access
+                        std::env::set_var("ANTHROPIC_API_KEY", api_key.expose_secret());
+                        info!("API key loaded from secrets for Python agent");
+                    }
+                    Err(e) => {
+                        warn!("Failed to load API key from secrets: {}", e);
+                    }
+                },
+                Err(e) => {
+                    warn!("Failed to initialize secrets manager: {}", e);
+                }
+            }
+        } else {
+            debug!("API key already present in environment");
+        }
+
         // Spawn in blocking task to avoid blocking tokio runtime
         let agent = tokio::task::spawn_blocking(move || {
             Python::with_gil(|py| {
                 // Import agent factory module
                 let agent_factory = py
-                    .import_bound("mnemosyne.orchestration.agent_factory")
+                    .import_bound("mnemosyne.orchestration.agents.agent_factory")
                     .map_err(|e| {
                         error!("Failed to import agent_factory module: {}", e);
                         MnemosyneError::Other(format!("Agent factory import failed: {}", e))
@@ -603,7 +628,7 @@ impl ClaudeAgentBridge {
             Python::with_gil(|py| {
                 // Import agent factory module
                 let agent_factory = py
-                    .import_bound("mnemosyne.orchestration.agent_factory")
+                    .import_bound("mnemosyne.orchestration.agents.agent_factory")
                     .map_err(|e| {
                         error!("Failed to import agent_factory module: {}", e);
                         MnemosyneError::Other(format!("Agent factory import failed: {}", e))

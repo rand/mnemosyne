@@ -65,6 +65,7 @@ pub mod services;
 pub mod storage;
 pub mod tui; // Shared TUI infrastructure
 pub mod types;
+pub mod utils; // Utility functions and helpers
 
 // Python bindings (PyO3) - only available with "python" feature
 #[cfg(feature = "python")]

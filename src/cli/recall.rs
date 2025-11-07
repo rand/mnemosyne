@@ -1,8 +1,8 @@
 //! Memory recall/query command
 
 use mnemosyne_core::{
-    ConnectionMode, EmbeddingService, LibsqlStorage, LlmConfig, Namespace, RemoteEmbeddingService,
-    StorageBackend,
+    utils::string::truncate_at_char_boundary, ConnectionMode, EmbeddingService, LibsqlStorage,
+    LlmConfig, Namespace, RemoteEmbeddingService, StorageBackend,
 };
 use std::collections::HashMap;
 use tracing::debug;
@@ -160,11 +160,7 @@ pub async fn handle(
                 println!("   Tags: {}", memory.tags.join(", "));
                 println!(
                     "   Content: {}\n",
-                    if memory.content.len() > 100 {
-                        format!("{}...", &memory.content[..100])
-                    } else {
-                        memory.content.clone()
-                    }
+                    truncate_at_char_boundary(&memory.content, 100)
                 );
             }
         }

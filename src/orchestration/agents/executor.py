@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Callable, Any
 from enum import Enum
 import asyncio
 
-from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
 # Import PyO3 bridge interface
 from .base_agent import AgentExecutionMixin, WorkItem, WorkResult

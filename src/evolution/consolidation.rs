@@ -13,6 +13,7 @@ use super::scheduler::{EvolutionJob, JobError, JobReport};
 use crate::services::llm::LlmService;
 use crate::storage::libsql::LibsqlStorage;
 use crate::types::{MemoryId, MemoryNote};
+use crate::utils::string::truncate_at_char_boundary;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -534,7 +535,7 @@ impl ConsolidationJob {
                     mem.id,
                     mem.created_at.format("%Y-%m-%d"),
                     mem.summary,
-                    &mem.content[..mem.content.len().min(200)], // First 200 chars
+                    truncate_at_char_boundary(&mem.content, 200),
                     mem.keywords.join(", ")
                 )
             })

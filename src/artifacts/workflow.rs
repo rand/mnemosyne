@@ -16,6 +16,7 @@ use super::{
 use crate::error::Result;
 use crate::storage::StorageBackend;
 use crate::types::{MemoryId, MemoryType, Namespace};
+use crate::utils::string::truncate_at_char_boundary;
 use std::sync::Arc;
 
 /// Workflow coordinator for artifact operations
@@ -219,11 +220,7 @@ impl ArtifactWorkflow {
         let artifact_path = format!(".mnemosyne/artifacts/{}", file_path.display());
 
         // Build summary from approach
-        let summary = if plan.approach.len() > 100 {
-            format!("{}...", &plan.approach[..100])
-        } else {
-            plan.approach.clone()
-        };
+        let summary = truncate_at_char_boundary(&plan.approach, 100);
 
         let content = format!("{}\n\nFull plan: {}", summary, artifact_path);
 

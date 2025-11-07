@@ -41,6 +41,11 @@ pub enum OrchestratorMessage {
     #[serde(skip)]
     RegisterEventBroadcaster(crate::api::EventBroadcaster),
 
+    /// Register Python Claude SDK agent bridge (if Python feature enabled)
+    #[cfg(feature = "python")]
+    #[serde(skip)]
+    RegisterPythonBridge(crate::orchestration::ClaudeAgentBridge),
+
     /// Submit a new work item to the queue
     SubmitWork(WorkItem),
 
@@ -94,6 +99,11 @@ pub enum OptimizerMessage {
     /// Register event broadcaster for real-time observability
     #[serde(skip)]
     RegisterEventBroadcaster(crate::api::EventBroadcaster),
+
+    /// Register Python Claude SDK agent bridge (if Python feature enabled)
+    #[cfg(feature = "python")]
+    #[serde(skip)]
+    RegisterPythonBridge(crate::orchestration::ClaudeAgentBridge),
 
     /// Discover skills for a task description
     DiscoverSkills {

@@ -7,6 +7,7 @@
 //! - Progressive disclosure (hidden by default)
 
 use crate::types::MemoryNote;
+use crate::utils::string::truncate_at_char_boundary;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
@@ -290,11 +291,7 @@ impl<'a> MemoryPanel<'a> {
                     _ => Color::Rgb(200, 120, 120),
                 });
 
-                let content_preview = if memory.content.len() > 60 {
-                    format!("{}...", &memory.content[..57])
-                } else {
-                    memory.content.clone()
-                };
+                let content_preview = truncate_at_char_boundary(&memory.content, 57);
 
                 let category = memory.tags.first().map(|s| s.as_str()).unwrap_or_else(|| {
                     match memory.memory_type {
