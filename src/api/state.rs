@@ -473,6 +473,7 @@ mod tests {
             },
             updated_at: Utc::now(),
             metadata: HashMap::new(),
+            health: None,
         };
 
         manager.update_agent(agent.clone()).await;
