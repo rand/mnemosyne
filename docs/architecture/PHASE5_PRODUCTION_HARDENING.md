@@ -1,7 +1,8 @@
 # Phase 5: Production Hardening Plan
 
-**Status**: In Progress
+**Status**: 6/8 Complete (75%)
 **Created**: 2025-11-07
+**Last Updated**: 2025-11-06
 
 ---
 
@@ -269,44 +270,80 @@ async fn test_executor_with_claude_sdk() {
 }
 ```
 
-### 5.8 Python Dependency Management (LOW PRIORITY)
+### 5.8 ✅ Python Dependency Management (COMPLETE)
 
 **Goal**: Document and validate Python dependencies
 
-**Create**: `src/orchestration/agents/requirements.txt`
-```txt
-anthropic>=0.40.0
-claude-agent-sdk>=0.1.0  # If available
-pydantic>=2.0.0
+**Implementation**:
+- Created requirements.txt with anthropic>=0.40.0
+- Created pyproject.toml with modern Python package configuration
+- Created claude_agent_sdk.py wrapper around Anthropic SDK
+- Added validate_environment() to base_agent.py
+- Created comprehensive README.md with installation guide
+
+**Files Created** (Commit: 9d8ed0e):
+
+1. **requirements.txt**:
+   - anthropic>=0.40.0 (only external dependency)
+   - Installation instructions for uv and pip
+
+2. **pyproject.toml**:
+   - Project metadata (name, version, Python >=3.9)
+   - Dependencies: anthropic>=0.40.0
+   - Dev dependencies: pytest, mypy
+   - Tool configuration: mypy, ruff
+
+3. **claude_agent_sdk.py** (107 lines):
+   - ClaudeAgentOptions dataclass
+   - ClaudeSDKClient wrapper around anthropic SDK
+   - API key validation
+   - Placeholder for future conversation API (Phase 5.7)
+
+4. **base_agent.py - validate_environment()**:
+   - Python version check (>=3.9)
+   - anthropic package validation
+   - API key warning (non-fatal)
+   - PYTHONPATH auto-configuration
+
+5. **README.md** (343 lines):
+   - Installation methods (uv, pip)
+   - API key configuration (env, mnemosyne secrets)
+   - Environment validation
+   - Usage examples (Rust via PyO3, direct Python)
+   - Project structure
+   - Development workflow
+   - Troubleshooting guide
+   - Architecture diagrams
+
+**Installation Methods**:
+```bash
+# Method 1: uv (recommended)
+cd src/orchestration/agents
+uv pip install -r requirements.txt
+
+# Method 2: pip
+pip install -r requirements.txt
+
+# Method 3: Direct
+uv pip install anthropic
 ```
 
-**Create**: `src/orchestration/agents/pyproject.toml` (for uv)
-```toml
-[project]
-name = "mnemosyne-agents"
-version = "0.1.0"
-requires-python = ">=3.10"
-dependencies = [
-    "anthropic>=0.40.0",
-    "pydantic>=2.0.0",
-]
-```
-
-**Add Validation**:
+**Environment Validation**:
 ```python
-# In base_agent.py
-import sys
+from base_agent import validate_environment
 
-def validate_environment():
-    """Validate Python environment and dependencies."""
-    if sys.version_info < (3, 10):
-        raise RuntimeError(f"Python 3.10+ required, got {sys.version}")
-
-    try:
-        import anthropic
-    except ImportError:
-        raise RuntimeError("anthropic package not installed. Run: uv pip install anthropic")
+validate_environment()
+# Output:
+# ✓ anthropic SDK installed: 0.40.0
+# ✓ ANTHROPIC_API_KEY configured (sk-ant-...abcd)
 ```
+
+**Success Criteria Met**:
+- ✅ Dependencies documented (requirements.txt, pyproject.toml)
+- ✅ Environment validation implemented
+- ✅ Multiple installation methods supported
+- ✅ Comprehensive user documentation
+- ✅ SDK wrapper created for future expansion
 
 ### 5.9 Troubleshooting Documentation (LOW PRIORITY)
 
