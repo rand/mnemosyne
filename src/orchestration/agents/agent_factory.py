@@ -17,6 +17,49 @@ from .reviewer import ReviewerAgent, ReviewerConfig
 from .executor import ExecutorAgent, ExecutorConfig
 
 
+class MockCoordinator:
+    """Mock coordinator for testing/standalone agent usage."""
+
+    def __init__(self):
+        self._agents = {}
+
+    def register_agent(self, agent_id: str):
+        """Register an agent."""
+        self._agents[agent_id] = "idle"
+
+    def update_agent_state(self, agent_id: str, state: str):
+        """Update agent state."""
+        if agent_id in self._agents:
+            self._agents[agent_id] = state
+
+    def get_context_utilization(self) -> float:
+        """Get context utilization (mock returns 0.5)."""
+        return 0.5
+
+
+class MockStorage:
+    """Mock storage for testing/standalone agent usage."""
+
+    def store(self, memory: Dict[str, Any]):
+        """Store memory (no-op for testing)."""
+        pass
+
+
+class MockParallelExecutor:
+    """Mock parallel executor for testing/standalone agent usage."""
+
+    def __init__(self):
+        pass
+
+
+class MockContextMonitor:
+    """Mock context monitor for testing/standalone agent usage."""
+
+    def set_preservation_callback(self, callback):
+        """Set preservation callback (no-op for testing)."""
+        pass
+
+
 def create_agent(role: str, config: Optional[Dict[str, Any]] = None) -> Any:
     """
     Create an agent instance based on role.
@@ -33,17 +76,22 @@ def create_agent(role: str, config: Optional[Dict[str, Any]] = None) -> Any:
     """
     config = config or {}
 
+    # Create mock dependencies for standalone/testing usage
+    mock_coordinator = MockCoordinator()
+    mock_storage = MockStorage()
+    mock_parallel_executor = MockParallelExecutor()
+    mock_context_monitor = MockContextMonitor()
+
     if role == "orchestrator":
         agent_config = OrchestratorConfig(
             agent_id="orchestrator",
             **config
         )
-        # For now, pass None for dependencies - will be injected later
         return OrchestratorAgent(
             config=agent_config,
-            coordinator=None,
-            storage=None,
-            context_monitor=None
+            coordinator=mock_coordinator,
+            storage=mock_storage,
+            context_monitor=mock_context_monitor
         )
 
     elif role == "optimizer":
@@ -54,7 +102,7 @@ def create_agent(role: str, config: Optional[Dict[str, Any]] = None) -> Any:
         return OptimizerAgent(
             config=agent_config,
             skills_directory=config.get("skills_directory", "skills"),
-            storage=None
+            storage=mock_storage
         )
 
     elif role == "reviewer":
@@ -64,7 +112,7 @@ def create_agent(role: str, config: Optional[Dict[str, Any]] = None) -> Any:
         )
         return ReviewerAgent(
             config=agent_config,
-            storage=None
+            storage=mock_storage
         )
 
     elif role == "executor":
@@ -72,12 +120,11 @@ def create_agent(role: str, config: Optional[Dict[str, Any]] = None) -> Any:
             agent_id="executor",
             **config
         )
-        # For now, pass None for dependencies - will be injected later
         return ExecutorAgent(
             config=agent_config,
-            coordinator=None,
-            storage=None,
-            parallel_executor=None
+            coordinator=mock_coordinator,
+            storage=mock_storage,
+            parallel_executor=mock_parallel_executor
         )
 
     else:
