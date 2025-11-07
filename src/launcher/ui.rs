@@ -58,6 +58,28 @@ const TRANSITION_GLYPHS: &[&str] = &[
     "\u{f0c1}", // fa-link
 ];
 
+/// Particle explosion animation frames (displayed above Claude Code character)
+const EXPLOSION_FRAME_1: &str = r#"
+                    ∗  ˙  ·
+                  ·   ✦   ∘
+                    •  ○  •
+"#;
+
+const EXPLOSION_FRAME_2: &str = r#"
+              ✧       ·       ⋆
+           ∘     ⋅   ✦   ∗     ˙
+         ·    •       ○       ·    ∗
+              ∘   ·       •   ∘
+"#;
+
+const EXPLOSION_FRAME_3: &str = r#"
+        ⋆           ·           ✧
+     ·    ∘     ˙       ∗     ⋅    ·
+   ∗       •       ✦       ○       •
+  ˙    ·       ∘       ·       ∗    ∘
+        ·           ⋅           •
+"#;
+
 /// ANSI color codes for banner gradient
 mod colors {
     pub const BRIGHT_BLUE: &str = "\x1b[94m";
@@ -244,6 +266,41 @@ impl LaunchProgress {
         println!(); // Extra blank space
     }
 
+    /// Show colorful particle explosion animation (20% chance on startup)
+    pub fn show_explosion_animation(&self) {
+        let gradient_colors = [
+            colors::BRIGHT_BLUE,
+            colors::BLUE,
+            colors::CYAN,
+            colors::BRIGHT_CYAN,
+            colors::BRIGHT_MAGENTA,
+            colors::MAGENTA,
+        ];
+
+        let frames = [EXPLOSION_FRAME_1, EXPLOSION_FRAME_2, EXPLOSION_FRAME_3];
+
+        // Display each frame
+        for frame in &frames {
+            let lines: Vec<&str> = frame.trim().lines().collect();
+
+            for (i, line) in lines.iter().enumerate() {
+                let color = gradient_colors[i % gradient_colors.len()];
+                println!("{}{}{}", color, line, colors::RESET);
+            }
+
+            io::stdout().flush().ok();
+            std::thread::sleep(std::time::Duration::from_millis(100));
+
+            // Move cursor up to overwrite previous frame (except last frame)
+            if frame != frames.last().unwrap() {
+                print!("\x1b[{}A", lines.len());
+            }
+        }
+
+        // Add spacing after final frame
+        println!();
+    }
+
     /// Clear the current line and show completion
     pub fn show_step_complete(&self, step_name: &str) {
         print!("\r   {} {}\n", icons::status::success(), step_name);
@@ -295,6 +352,12 @@ fn center_text(text: &str, width: usize) -> String {
 /// Quick helper to show a simple launch header with config
 pub fn show_launch_header(version: &str, db_path: &str, agent_names: &[&str]) {
     let progress = LaunchProgress::new();
+
+    // 20% chance to show explosion animation before banner
+    if rand::random::<f32>() < 0.2 {
+        progress.show_explosion_animation();
+    }
+
     progress.show_header(version);
     progress.show_config(db_path, agent_names);
 }
