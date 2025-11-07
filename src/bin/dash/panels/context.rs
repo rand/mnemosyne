@@ -116,7 +116,7 @@ impl ContextPanel {
         progress_bar.render(
             frame,
             chunks[0],
-            Block::default().title(&self.title).borders(Borders::ALL),
+            Block::default().title(self.title.as_str()).borders(Borders::ALL),
         );
 
         // Details

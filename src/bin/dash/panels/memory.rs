@@ -95,7 +95,7 @@ impl MemoryPanel {
             },
         ];
 
-        let list = List::new(items).block(Block::default().title(&self.title).borders(Borders::ALL));
+        let list = List::new(items).block(Block::default().title(self.title.as_str()).borders(Borders::ALL));
 
         frame.render_widget(list, area);
     }

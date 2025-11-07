@@ -16,7 +16,7 @@ path = "src/bin/ics.rs"
 
 [[bin]]
 name = "mnemosyne-dash"
-path = "src/bin/dash.rs"
+path = "src/bin/dash/main.rs"
 
 [lib]
 name = "mnemosyne_core"

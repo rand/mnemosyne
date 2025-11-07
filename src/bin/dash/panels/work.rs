@@ -94,7 +94,7 @@ impl WorkPanel {
                 "{}/{} tasks ({:.0}%)",
                 self.metrics.completed_tasks, self.metrics.total_tasks, completion
             ))
-            .ratio((completion / 100.0).clamp(0.0, 1.0));
+            .ratio(((completion / 100.0) as f64).clamp(0.0, 1.0));
 
         frame.render_widget(gauge, chunks[0]);
 

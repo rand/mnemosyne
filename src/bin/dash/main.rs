@@ -14,6 +14,10 @@
 //!   mnemosyne-dash --api http://localhost:3000
 //!   mnemosyne-dash --refresh 500     # Faster refresh (ms)
 
+mod panel_manager;
+mod panels;
+mod widgets;
+
 use anyhow::Result;
 use clap::Parser;
 use crossterm::{
