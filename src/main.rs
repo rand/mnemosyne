@@ -10,6 +10,7 @@ use mnemosyne_core::{
     error::Result,
     launcher,
 };
+use rand;
 use std::path::PathBuf;
 use tracing::{debug, info, warn, Level};
 use tracing_subscriber::{self, EnvFilter};
@@ -462,6 +463,11 @@ async fn main() -> Result<()> {
             let progress = launcher::ui::LaunchProgress::new();
             progress.show_multiline_loading();
             progress.show_transition();
+
+            // 20% chance to show explosion animation (positioned above Space Invader)
+            if rand::random::<f32>() < 0.2 {
+                progress.show_explosion_animation();
+            }
 
             // Launch orchestrated session with event broadcasting and state management
             let result = launcher::launch_orchestrated_session(

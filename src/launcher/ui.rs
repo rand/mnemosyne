@@ -59,25 +59,30 @@ const TRANSITION_GLYPHS: &[&str] = &[
 ];
 
 /// Particle explosion animation frames (displayed above Claude Code character)
+/// Designed to emanate upward from the Space Invader's head in a fountain/cone shape
 const EXPLOSION_FRAME_1: &str = r#"
-                    ∗  ˙  ·
-                  ·   ✦   ∘
-                    •  ○  •
+                      ∗
+                    ·   ·
+                      ✦
 "#;
 
 const EXPLOSION_FRAME_2: &str = r#"
-              ✧       ·       ⋆
-           ∘     ⋅   ✦   ∗     ˙
-         ·    •       ○       ·    ∗
-              ∘   ·       •   ∘
+                 ⋆         ✧
+              ·     ∗   ˙     ·
+                ∘     ✦     ∘
+                  •  ○  •
+                      ∗
 "#;
 
 const EXPLOSION_FRAME_3: &str = r#"
-        ⋆           ·           ✧
-     ·    ∘     ˙       ∗     ⋅    ·
-   ∗       •       ✦       ○       •
-  ˙    ·       ∘       ·       ∗    ∘
-        ·           ⋅           •
+          ✧                       ⋆
+       ·       ∗           ˙       ·
+     ∘           ⋅       ∗           ∘
+       ·     •       ✦       •     ·
+            ∗     ○   ○   ○     ∗
+              ·   •   ∗   •   ·
+                    ∗ ✦ ∗
+                      ∗
 "#;
 
 /// ANSI color codes for banner gradient
@@ -352,12 +357,6 @@ fn center_text(text: &str, width: usize) -> String {
 /// Quick helper to show a simple launch header with config
 pub fn show_launch_header(version: &str, db_path: &str, agent_names: &[&str]) {
     let progress = LaunchProgress::new();
-
-    // 20% chance to show explosion animation before banner
-    if rand::random::<f32>() < 0.2 {
-        progress.show_explosion_animation();
-    }
-
     progress.show_header(version);
     progress.show_config(db_path, agent_names);
 }
