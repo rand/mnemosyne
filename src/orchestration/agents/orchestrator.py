@@ -16,6 +16,9 @@ import json
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
+# Import PyO3 bridge interface
+from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
+
 
 class OrchestratorPhase(Enum):
     """Orchestration phases."""
@@ -41,7 +44,7 @@ class OrchestratorConfig:
     permission_mode: str = "default"  # Orchestrator observes, doesn't edit
 
 
-class OrchestratorAgent:
+class OrchestratorAgent(AgentExecutionMixin):
     """
     Central coordinator for multi-agent orchestration using Claude Agent SDK.
 
@@ -51,6 +54,9 @@ class OrchestratorAgent:
     - Context preservation and checkpointing
     - Deadlock detection and recovery
     - Inter-agent communication
+
+    **PyO3 Bridge Integration**: Inherits from AgentExecutionMixin to provide
+    standard interface for Rust bridge communication.
     """
 
     ORCHESTRATOR_SYSTEM_PROMPT = """You are the Orchestrator Agent in a multi-agent orchestration system.
@@ -120,6 +126,56 @@ Focus on orchestration strategy, not implementation details."""
         if self._session_active:
             await self.claude_client.disconnect()
             self._session_active = False
+
+    async def _execute_work_item(self, work_item: WorkItem) -> WorkResult:
+        """
+        Execute work item (workflow coordination) for PyO3 bridge integration.
+
+        This implements the AgentExecutionMixin interface, allowing the
+        Rust bridge to send work items to this Python agent.
+
+        Args:
+            work_item: Work item from Rust (via PyO3 bridge)
+
+        Returns:
+            Work result to send back to Rust
+        """
+        try:
+            # Convert WorkItem to work plan format
+            work_plan = {
+                "id": work_item.id,
+                "description": work_item.description,
+                "phase": work_item.phase,
+                "priority": work_item.priority,
+                "tasks": [],  # Tasks would be extracted from description or review_feedback
+                "agents": [],  # Agent assignments would be determined by orchestrator
+                "review_feedback": work_item.review_feedback or [],
+                "review_attempt": work_item.review_attempt,
+                "consolidated_context_id": work_item.consolidated_context_id
+            }
+
+            # Execute coordination using existing method
+            result = await self.coordinate_workflow(work_plan)
+
+            # Convert result to WorkResult format with JSON serialization
+            return WorkResult(
+                success=result.get("status") == "success",
+                data=json.dumps({
+                    "status": result.get("status"),
+                    "executed": result.get("results", {}).get("executed", 0),
+                    "checkpoints": result.get("checkpoints", 0),
+                    "planning_analysis": str(result.get("planning_analysis", []))[:500]
+                }),
+                memory_ids=[],  # Orchestrator stores memories internally
+                error=None if result.get("status") == "success" else "Orchestration failed"
+            )
+
+        except Exception as e:
+            # Handle any errors during orchestration
+            return WorkResult(
+                success=False,
+                error=f"Orchestrator error: {type(e).__name__}: {str(e)}"
+            )
 
     async def coordinate_workflow(self, work_plan: Dict[str, Any]) -> Dict[str, Any]:
         """

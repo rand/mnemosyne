@@ -32,6 +32,9 @@ import hashlib
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
+# Import PyO3 bridge interface
+from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
+
 # Import evaluation system (requires mnemosyne_core PyO3 bindings)
 try:
     from mnemosyne_core import FeedbackCollector, RelevanceScorer, FeatureExtractor
@@ -93,7 +96,7 @@ class SkillMatch:
     is_local: bool  # True if from project-local directory
 
 
-class OptimizerAgent:
+class OptimizerAgent(AgentExecutionMixin):
     """
     Context and resource optimization specialist using Claude Agent SDK.
 
@@ -103,6 +106,9 @@ class OptimizerAgent:
     - ACE principle application
     - Memory consolidation
     - Context compression
+
+    **PyO3 Bridge Integration**: Inherits from AgentExecutionMixin to provide
+    standard interface for Rust bridge communication.
     """
 
     OPTIMIZER_SYSTEM_PROMPT = """You are the Optimizer Agent in a multi-agent orchestration system.
@@ -197,6 +203,56 @@ Provide reasoning for your optimization decisions."""
         if self._session_active:
             await self.claude_client.disconnect()
             self._session_active = False
+
+    async def _execute_work_item(self, work_item: WorkItem) -> WorkResult:
+        """
+        Execute work item (context optimization) for PyO3 bridge integration.
+
+        This implements the AgentExecutionMixin interface, allowing the
+        Rust bridge to send work items to this Python agent.
+
+        Args:
+            work_item: Work item from Rust (via PyO3 bridge)
+
+        Returns:
+            Work result to send back to Rust
+        """
+        try:
+            # Build current context from work item metadata
+            current_context = {
+                "available_tokens": 200000,  # Default context budget
+                "utilization": 0.0,
+                "phase": work_item.phase,
+                "priority": work_item.priority,
+                "consolidated_context_id": work_item.consolidated_context_id
+            }
+
+            # Execute optimization using existing method
+            result = await self.optimize_context(
+                task_description=work_item.description,
+                current_context=current_context
+            )
+
+            # Convert result to WorkResult format with JSON serialization
+            import json
+            return WorkResult(
+                success=True,
+                data=json.dumps({
+                    "allocation": result.get("allocation", {}),
+                    "skills": result.get("skills", []),
+                    "loaded_skill_count": result.get("loaded_skill_count", 0),
+                    "total_budget": result.get("total_budget", 0)
+                }),
+                memory_ids=[],  # Optimizer stores memories internally
+                error=None
+            )
+
+        except Exception as e:
+            # Handle any errors during optimization
+            return WorkResult(
+                success=False,
+                error=f"Optimizer error: {type(e).__name__}: {str(e)}"
+            )
 
     async def optimize_context(self, task_description: str, current_context: Dict[str, Any]) -> Dict[str, Any]:
         """
