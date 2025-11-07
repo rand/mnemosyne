@@ -19,6 +19,11 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 # Import PyO3 bridge interface
 from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
 
+# Import logging
+from .logging_config import get_logger
+
+logger = get_logger("reviewer")
+
 
 class QualityGate(Enum):
     """Quality gates that must pass (8 total: 5 existing + 3 pillars)."""
@@ -158,16 +163,20 @@ Be thorough but constructive. Identify real issues, not nitpicks. Suggest tests 
     async def start_session(self):
         """Start Claude agent session."""
         if not self._session_active:
+            logger.info(f"Starting session for agent {self.config.agent_id}")
             await self.claude_client.connect()
             # Initialize with system prompt
             await self.claude_client.query(self.REVIEWER_SYSTEM_PROMPT)
             self._session_active = True
+            logger.info(f"Session started successfully for {self.config.agent_id}")
 
     async def stop_session(self):
         """Stop Claude agent session."""
         if self._session_active:
+            logger.info(f"Stopping session for agent {self.config.agent_id}")
             await self.claude_client.disconnect()
             self._session_active = False
+            logger.info(f"Session stopped for {self.config.agent_id}")
 
     async def review(self, work_artifact: Dict[str, Any]) -> ReviewResult:
         """
@@ -499,6 +508,9 @@ Be thorough but constructive. Focus on real issues.""")
         Returns:
             Work result with review feedback
         """
+        logger.info(f"Received review request from Rust bridge: {work_item.id} (attempt {work_item.review_attempt})")
+        logger.debug(f"Work item description: {work_item.description[:200]}")
+
         try:
             # Convert WorkItem to work artifact for review
             work_artifact = {
@@ -516,6 +528,12 @@ Be thorough but constructive. Focus on real issues.""")
             # Review using existing review method
             review_result = await self.review(work_artifact)
 
+            if review_result.passed:
+                logger.info(f"Review passed for work item {work_item.id} (confidence: {review_result.confidence:.2f})")
+            else:
+                logger.warning(f"Review failed for work item {work_item.id}: {len(review_result.issues)} issues")
+                logger.debug(f"Issues: {review_result.issues}")
+
             # Convert ReviewResult to WorkResult
             return WorkResult(
                 success=review_result.passed,
@@ -532,6 +550,10 @@ Be thorough but constructive. Focus on real issues.""")
 
         except Exception as e:
             # Handle any errors during review
+            logger.error(
+                f"Failed to review work item {work_item.id}: {type(e).__name__}: {str(e)}",
+                exc_info=True
+            )
             return WorkResult(
                 success=False,
                 error=f"Reviewer error: {type(e).__name__}: {str(e)}"
