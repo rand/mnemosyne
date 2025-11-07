@@ -4,6 +4,11 @@
 //! in the multi-agent orchestration system. It implements both pattern-based and LLM-based
 //! validation strategies with automatic fallback.
 //!
+//! ## Python Integration
+//!
+//! - **Claude SDK Bridge** (new): Full intelligent agent via PyO3 bridge
+//! - **DSPy Adapter** (existing): Specialized review validation modules
+//!
 //! ## Core Responsibilities
 //!
 //! - **Quality Gates**: Enforce 8 quality gates before work completion
@@ -103,6 +108,8 @@ use crate::types::Namespace;
 use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::sync::Arc;
 
+#[cfg(feature = "python")]
+use crate::orchestration::ClaudeAgentBridge;
 #[cfg(feature = "python")]
 use crate::orchestration::actors::reviewer_dspy_adapter::ReviewerDSpyAdapter;
 #[cfg(feature = "python")]
@@ -226,6 +233,10 @@ pub struct ReviewerState {
     /// Configuration for LLM-based validation
     #[cfg(feature = "python")]
     config: ReviewerConfig,
+
+    /// Python Claude SDK agent bridge (new unified approach)
+    #[cfg(feature = "python")]
+    python_bridge: Option<ClaudeAgentBridge>,
 }
 
 impl ReviewerState {
@@ -239,6 +250,8 @@ impl ReviewerState {
             reviewer_adapter: None,
             #[cfg(feature = "python")]
             config: ReviewerConfig::default(),
+            #[cfg(feature = "python")]
+            python_bridge: None,
         }
     }
 
@@ -312,6 +325,13 @@ impl ReviewerState {
     #[deprecated(note = "Use register_dspy_bridge instead")]
     pub fn register_py_reviewer(&mut self, _py_reviewer: std::sync::Arc<pyo3::PyObject>) {
         tracing::warn!("register_py_reviewer is deprecated. Use register_dspy_bridge instead.");
+    }
+
+    /// Register Python Claude SDK agent bridge
+    #[cfg(feature = "python")]
+    pub fn register_python_bridge(&mut self, bridge: ClaudeAgentBridge) {
+        tracing::info!("Registering Python agent bridge for Reviewer");
+        self.python_bridge = Some(bridge);
     }
 
     /// Update reviewer configuration
@@ -1300,6 +1320,11 @@ impl Actor for ReviewerActor {
                 tracing::info!("Registering Python reviewer for LLM validation");
                 #[allow(deprecated)]
                 state.register_py_reviewer(py_reviewer);
+            }
+            #[cfg(feature = "python")]
+            ReviewerMessage::RegisterPythonBridge(bridge) => {
+                tracing::info!("Registering Python Claude SDK agent bridge");
+                state.register_python_bridge(bridge);
             }
             ReviewerMessage::RegisterEventBroadcaster(broadcaster) => {
                 tracing::debug!("Registering event broadcaster with Reviewer");

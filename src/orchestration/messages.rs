@@ -180,6 +180,11 @@ pub enum ReviewerMessage {
     #[serde(skip)]
     RegisterPythonReviewer { py_reviewer: StdArc<PyObject> },
 
+    /// Register Python Claude SDK agent bridge (if Python feature enabled)
+    #[cfg(feature = "python")]
+    #[serde(skip)]
+    RegisterPythonBridge(crate::orchestration::ClaudeAgentBridge),
+
     /// Review work item results (with full work item for context)
     ReviewWork {
         item_id: WorkItemId,
