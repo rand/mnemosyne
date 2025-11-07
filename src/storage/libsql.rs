@@ -2219,7 +2219,7 @@ impl StorageBackend for LibsqlStorage {
         while let Some(row) = rows.next().await? {
             let distance: f64 = row.get(20)?;
             let memory = self.row_to_memory(&row).await?;
-            let similarity = (1.0 - (distance as f32 / 2.0)).max(0.0).min(1.0);
+            let similarity = (1.0 - (distance as f32 / 2.0)).clamp(0.0, 1.0);
 
             results.push(SearchResult {
                 memory,
