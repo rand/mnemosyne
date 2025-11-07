@@ -36,6 +36,18 @@ if ! RUSTFLAGS="-A warnings" cargo build --release; then
 fi
 echo -e "${GREEN}✓${NC} Build complete"
 
+# Install Python components if python feature is enabled
+if grep -q 'python' Cargo.toml 2>/dev/null; then
+    echo ""
+    echo "Installing Python components..."
+    if ! PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 uv run maturin develop --release --features python --quiet; then
+        echo -e "${YELLOW}⚠ Warning:${NC} Python component installation failed"
+        echo "Orchestration agents may not work correctly"
+    else
+        echo -e "${GREEN}✓${NC} Python components installed"
+    fi
+fi
+
 # Install using cargo install (handles dependencies and copies binary)
 echo ""
 echo "Installing to ${BIN_PATH}..."

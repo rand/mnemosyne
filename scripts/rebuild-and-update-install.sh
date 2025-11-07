@@ -137,6 +137,23 @@ build_binary() {
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
 
+    # Install Python components if python feature is enabled
+    if grep -q 'python' Cargo.toml 2>/dev/null; then
+        echo "" >&2
+        echo -e "${BLUE}Installing Python components...${NC}" >&2
+        local py_start=$(date +%s)
+
+        if ! PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 uv run maturin develop --profile "$profile" --features python --quiet; then
+            echo "" >&2
+            echo -e "${YELLOW}⚠ Warning:${NC} Python component installation failed" >&2
+            echo "Orchestration agents may not work correctly" >&2
+        else
+            local py_end=$(date +%s)
+            local py_duration=$((py_end - py_start))
+            echo -e "${GREEN}✓${NC} Python components installed in ${py_duration}s" >&2
+        fi
+    fi
+
     # Get binary size
     local binary_size=$(ls -lh "${target_dir}/mnemosyne" 2>/dev/null | awk '{print $5}')
 

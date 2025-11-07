@@ -25,6 +25,7 @@ dev = [
 module-name = "mnemosyne_core"
 bindings = "pyo3"
 features = ["python"]
+python-source = "src"
 
 [tool.pytest.ini_options]
 markers = [
