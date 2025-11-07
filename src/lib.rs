@@ -65,6 +65,7 @@ pub mod services;
 pub mod storage;
 pub mod tui; // Shared TUI infrastructure
 pub mod types;
+pub mod update; // Tool update and installation system
 pub mod utils; // Utility functions and helpers
 pub mod version_check; // Version checking and update system
 
@@ -100,4 +101,5 @@ pub use types::{
     ConsolidationDecision, LinkType, MemoryId, MemoryLink, MemoryNote, MemoryType, MemoryUpdates,
     Namespace, SearchQuery, SearchResult,
 };
+pub use update::{prompt_for_install, prompt_for_update, UpdateManager, UpdateResult};
 pub use version_check::{Tool, VersionCheckCache, VersionChecker, VersionInfo};

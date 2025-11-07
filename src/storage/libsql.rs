@@ -594,6 +594,7 @@ impl LibsqlStorage {
                 "003_audit_trail.sql",
                 "011_work_items.sql",
                 "012_requirement_tracking.sql",
+                "015_version_check_cache.sql",
                 // Note: LibSQL schema uses native embedding column in memories table (F32_BLOB)
             ],
             SchemaType::StandardSQLite => vec![
@@ -605,6 +606,7 @@ impl LibsqlStorage {
                 "012_requirement_tracking.sql",
                 "013_add_task_and_agent_event_types.sql",
                 "014_add_specification_workflow_types.sql",
+                "016_version_check_cache.sql",
                 // 015_fix_audit_log_schema.sql is only for production databases affected by ghost migration 003
                 // Fresh databases from 001_initial_schema.sql already have correct audit_log schema
                 // Note: SQLite schema uses separate memory_embeddings table
@@ -3682,6 +3684,93 @@ impl StorageBackend for LibsqlStorage {
             .map_err(|e| MnemosyneError::Database(format!("Failed to delete work item: {}", e)))?;
 
         debug!("Work item deleted successfully: {:?}", id);
+        Ok(())
+    }
+
+    /// Store version check cache entry
+    pub async fn store_version_cache(
+        &self,
+        cache: &crate::version_check::VersionCheckCache,
+    ) -> Result<()> {
+        let conn = self.get_conn()?;
+        let tool_str = serde_json::to_string(&cache.tool)
+            .map_err(|e| MnemosyneError::Serialization(e.to_string()))?;
+
+        conn.execute(
+            "INSERT OR REPLACE INTO version_check_cache (tool, latest_version, release_url, checked_at, last_notified_version)
+             VALUES (?, ?, ?, ?, NULL)",
+            params![tool_str, cache.latest_version, cache.release_url, cache.checked_at as i64],
+        )
+        .await
+        .map_err(|e| MnemosyneError::Database(format!("Failed to store version cache: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Get version check cache entry for a tool
+    pub async fn get_version_cache(
+        &self,
+        tool: crate::version_check::Tool,
+    ) -> Result<Option<crate::version_check::VersionCheckCache>> {
+        let conn = self.get_conn()?;
+        let tool_str = serde_json::to_string(&tool)
+            .map_err(|e| MnemosyneError::Serialization(e.to_string()))?;
+
+        let mut rows = conn
+            .query(
+                "SELECT tool, latest_version, release_url, checked_at FROM version_check_cache WHERE tool = ?",
+                params![tool_str],
+            )
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query version cache: {}", e)))?;
+
+        if let Some(row) = rows.next().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to read version cache row: {}", e))
+        })? {
+            let tool_json: String = row.get(0).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get tool from cache: {}", e))
+            })?;
+            let tool: crate::version_check::Tool = serde_json::from_str(&tool_json)
+                .map_err(|e| MnemosyneError::Serialization(e.to_string()))?;
+            let latest_version: String = row.get(1).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get latest_version from cache: {}", e))
+            })?;
+            let release_url: String = row.get(2).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get release_url from cache: {}", e))
+            })?;
+            let checked_at: i64 = row.get(3).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to get checked_at from cache: {}", e))
+            })?;
+
+            Ok(Some(crate::version_check::VersionCheckCache {
+                tool,
+                latest_version,
+                release_url,
+                checked_at: checked_at as u64,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Clear stale version check cache entries
+    pub async fn clear_stale_version_cache(&self, max_age_hours: u64) -> Result<()> {
+        let conn = self.get_conn()?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let cutoff = now - (max_age_hours * 3600);
+
+        conn.execute(
+            "DELETE FROM version_check_cache WHERE checked_at < ?",
+            params![cutoff as i64],
+        )
+        .await
+        .map_err(|e| {
+            MnemosyneError::Database(format!("Failed to clear stale version cache: {}", e))
+        })?;
+
         Ok(())
     }
 }
