@@ -66,6 +66,7 @@ pub mod storage;
 pub mod tui; // Shared TUI infrastructure
 pub mod types;
 pub mod utils; // Utility functions and helpers
+pub mod version_check; // Version checking and update system
 
 // Python bindings (PyO3) - only available with "python" feature
 #[cfg(feature = "python")]
@@ -99,3 +100,4 @@ pub use types::{
     ConsolidationDecision, LinkType, MemoryId, MemoryLink, MemoryNote, MemoryType, MemoryUpdates,
     Namespace, SearchQuery, SearchResult,
 };
+pub use version_check::{Tool, VersionCheckCache, VersionChecker, VersionInfo};
