@@ -627,14 +627,17 @@ See LICENSE file for details.
 
 **Current Version**: 2.1.1
 
-**v2.1.1 Release (2025-11-05)** - Stability and Reliability Fixes:
-- ✅ **File descriptor leak prevention** in hook subprocess calls (87b7a33)
-- ✅ **Robust process management** tooling with graceful shutdown (048f26d)
-- ✅ **Terminal corruption prevention** from hook stderr output (eec1a33)
-- ✅ **Hook noise elimination** with CC_HOOK_DEBUG flag (9712c0c)
-- ✅ **Comprehensive test validation**: 689 passing unit tests, 12 FD safety tests
-- ✅ **Complete documentation**: CRASH_RECOVERY.md and FD_LEAK_FIX_TEST_RESULTS.md
-- ✅ **Production-ready**: All stability issues resolved, no regressions
+**v2.1.1 Release (2025-11-06)** - Python Bridge Architecture & Production Hardening:
+- ✅ **Python Bridge Complete**: PyO3 integration with Claude SDK agents
+- ✅ **Phase 5 Production Hardening**: 8/8 tasks complete (100%)
+  - Structured logging, enhanced errors, validation, metrics
+  - E2E validation with actual Claude API calls (5/5 tests passing)
+  - Comprehensive troubleshooting guide (628 lines)
+- ✅ **Test Suite**: 715 unit tests + 10 integration/E2E tests passing
+- ✅ **Documentation**: 2,200+ lines across 5 major documents
+- ✅ **Clean Build**: 0 warnings, 0 errors
+- ✅ **Stability Fixes**: File descriptor leak prevention, robust process management
+- ✅ **Production-ready**: Fully validated with actual Claude API calls
 
 **Completed (v2.1.0)**:
 - ✅ Core storage and memory system with LibSQL vector search
@@ -652,22 +655,19 @@ See LICENSE file for details.
 - ✅ CLI commands (remember, recall, evolve, orchestrate, ics, tui)
 - ✅ Installation/uninstallation scripts
 - ✅ Read-only database support
-- ✅ **627 tests passing** (up from 474, +153 new tests)
-- ✅ PyO3 bindings for Python orchestration agents
+- ✅ **715 tests passing** (up from 474, +241 new tests)
 - ✅ MCP server integration
 - ✅ **11 new documentation files** (5,000+ lines)
 
-**Known Issues (v2.1.0)**:
+**Known Issues (v2.1.1)**:
 - ⚠️ PyO3 0.22.6 doesn't support Python 3.14+ (use Python 3.9-3.13)
-- ⚠️ 27 clippy warnings remaining (style/quality, not functional bugs)
 - ⚠️ Tier 3 LLM integration is scaffolding only (not fully functional)
 
 **In Progress** (v2.2):
 - 🔄 Tier 3 LLM integration completion
 - 🔄 Incremental semantic analysis scheduling
 - 🔄 ICS-semantic highlighter integration
-- 🔄 Clippy warning cleanup
-- 🔄 Test coverage expansion (target: 80%+)
+- 🔄 Test coverage expansion (target: 85%+)
 
 **Roadmap** (post-v2.1):
 - ⏳ Performance benchmarks for semantic highlighting

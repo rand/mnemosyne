@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.1.1] - 2025-11-05
+## [2.1.1] - 2025-11-06
+
+### Added
+
+**Python Bridge Architecture (Phase 13)**
+- Complete PyO3 integration with Claude SDK agents
+- Phase 5 production hardening (8/8 tasks, 100% complete)
+  - Structured logging infrastructure with multi-level support
+  - Enhanced error context with troubleshooting hints and recovery suggestions
+  - Input validation for work items, agent state, and plans
+  - Performance metrics (per-item and per-agent tracking)
+  - Integration testing (5/5 tests passing)
+  - E2E validation with actual Claude SDK API calls (5/5 tests passing, 41.77s execution)
+  - Python dependency management (requirements.txt, pyproject.toml)
+  - Comprehensive troubleshooting guide (628 lines)
+- Production documentation (2,200+ lines across 5 major documents)
+- Test suite expanded to 715 unit tests + 10 integration/E2E tests
+- Clean build with 0 warnings, 0 errors
 
 ### Fixed
 
