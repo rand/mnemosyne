@@ -23,6 +23,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
+#[cfg(feature = "python")]
+use crate::orchestration::ClaudeAgentBridge;
+
 /// Orchestrator actor state
 pub struct OrchestratorState {
     /// Work queue
@@ -46,6 +49,10 @@ pub struct OrchestratorState {
     /// Deadlock check interval (WIP)
     #[allow(dead_code)]
     deadlock_check_interval: Duration,
+
+    /// Python Claude SDK agent bridge
+    #[cfg(feature = "python")]
+    python_bridge: Option<ClaudeAgentBridge>,
 }
 
 impl OrchestratorState {
@@ -58,6 +65,8 @@ impl OrchestratorState {
             executor: None,
             context_usage_pct: 0.0,
             deadlock_check_interval: Duration::from_secs(10),
+            #[cfg(feature = "python")]
+            python_bridge: None,
         }
     }
 
@@ -71,6 +80,13 @@ impl OrchestratorState {
         self.optimizer = Some(optimizer);
         self.reviewer = Some(reviewer);
         self.executor = Some(executor);
+    }
+
+    /// Register Python Claude SDK agent bridge
+    #[cfg(feature = "python")]
+    pub fn register_python_bridge(&mut self, bridge: ClaudeAgentBridge) {
+        tracing::info!("Registering Python agent bridge for Orchestrator");
+        self.python_bridge = Some(bridge);
     }
 
     /// Register event broadcaster for real-time observability
@@ -907,6 +923,11 @@ impl Actor for OrchestratorActor {
                 tracing::info!(
                     "Event broadcaster registered with Orchestrator - events will now be broadcast"
                 );
+            }
+            #[cfg(feature = "python")]
+            OrchestratorMessage::RegisterPythonBridge(bridge) => {
+                tracing::info!("Registering Python Claude SDK agent bridge");
+                state.register_python_bridge(bridge);
             }
             OrchestratorMessage::SubmitWork(item) => {
                 Self::handle_submit_work(state, item)
