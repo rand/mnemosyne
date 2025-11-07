@@ -307,14 +307,14 @@ impl VersionChecker {
                 // Output format may vary, look for version pattern
                 output
                     .split_whitespace()
-                    .find(|s| s.chars().next().map_or(false, |c| c.is_ascii_digit()))
+                    .find(|s| s.chars().next().is_some_and(|c| c.is_ascii_digit()))
                     .map(|s| s.to_string())
             }
             Tool::Beads => {
                 // Output format: "bd version 0.20.1" or similar
                 output
                     .split_whitespace()
-                    .find(|s| s.chars().next().map_or(false, |c| c.is_ascii_digit()))
+                    .find(|s| s.chars().next().is_some_and(|c| c.is_ascii_digit()))
                     .map(|s| s.to_string())
             }
         }

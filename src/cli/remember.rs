@@ -102,7 +102,7 @@ pub async fn handle(
                     context: ctx.clone(),
                     memory_type: memory_type
                         .as_deref()
-                        .map(|t| parse_memory_type(t))
+                        .map(parse_memory_type)
                         .unwrap_or(mnemosyne_core::MemoryType::Insight),
                     importance: importance.clamp(1, 10),
                     confidence: 0.5,
@@ -139,7 +139,7 @@ pub async fn handle(
             context: ctx,
             memory_type: memory_type
                 .as_deref()
-                .map(|t| parse_memory_type(t))
+                .map(parse_memory_type)
                 .unwrap_or(mnemosyne_core::MemoryType::Insight),
             importance: importance.clamp(1, 10),
             confidence: 0.5,

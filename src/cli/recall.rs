@@ -143,26 +143,24 @@ pub async fn handle(
                 "count": json_results.len()
             })
         );
+    } else if results.is_empty() {
+        println!("No memories found matching '{}'", query);
     } else {
-        if results.is_empty() {
-            println!("No memories found matching '{}'", query);
-        } else {
-            println!("Found {} memories:\n", results.len());
-            for (i, (memory, score)) in results.iter().enumerate() {
-                println!(
-                    "{}. {} (score: {:.2}, importance: {}/10)",
-                    i + 1,
-                    memory.summary,
-                    score,
-                    memory.importance
-                );
-                println!("   ID: {}", memory.id);
-                println!("   Tags: {}", memory.tags.join(", "));
-                println!(
-                    "   Content: {}\n",
-                    truncate_at_char_boundary(&memory.content, 100)
-                );
-            }
+        println!("Found {} memories:\n", results.len());
+        for (i, (memory, score)) in results.iter().enumerate() {
+            println!(
+                "{}. {} (score: {:.2}, importance: {}/10)",
+                i + 1,
+                memory.summary,
+                score,
+                memory.importance
+            );
+            println!("   ID: {}", memory.id);
+            println!("   Tags: {}", memory.tags.join(", "));
+            println!(
+                "   Content: {}\n",
+                truncate_at_char_boundary(&memory.content, 100)
+            );
         }
     }
 
