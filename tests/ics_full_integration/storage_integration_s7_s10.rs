@@ -52,7 +52,7 @@ async fn s7_memory_updates_from_proposals() {
     // Verify update persisted
     let updated = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get memory");
 
@@ -94,7 +94,7 @@ async fn s8_memory_link_creation() {
     // ICS semantic analysis detects relationship
     // Create link A -> B
     let link = MemoryLink {
-        target_id: memory_b.id.clone(),
+        target_id: memory_b.id,
         link_type: LinkType::Implements,
         strength: 0.85,
         reason: "Distributed architecture implemented via event-driven pattern".to_string(),
@@ -115,7 +115,7 @@ async fn s8_memory_link_creation() {
     // Verify link persisted
     let retrieved = storage
         .storage()
-        .get_memory(memory_a.id.clone())
+        .get_memory(memory_a.id)
         .await
         .expect("Get memory");
 
@@ -141,7 +141,7 @@ async fn s9_memory_deletion() {
     // Verify exists
     let exists = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .is_ok();
     assert!(exists, "Memory should exist");
@@ -149,14 +149,14 @@ async fn s9_memory_deletion() {
     // Delete from ICS (soft delete/archive)
     storage
         .storage()
-        .archive_memory(memory.id.clone())
+        .archive_memory(memory.id)
         .await
         .expect("Archive memory");
 
     // Verify archived
     let archived = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Should still retrieve archived");
 
@@ -202,7 +202,7 @@ async fn s10_transaction_integrity() {
     // Verify stored correctly
     let retrieved = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get memory");
 
@@ -220,17 +220,17 @@ async fn s10_transaction_integrity() {
             // If it succeeded, verify the update was applied
             let updated = storage
                 .storage()
-                .get_memory(memory.id.clone())
+                .get_memory(memory.id)
                 .await
                 .expect("Get updated");
             // Either the empty string is stored, or it was rejected
-            assert!(updated.content == "" || updated.content == "Transaction test");
+            assert!(updated.content.is_empty() || updated.content == "Transaction test");
         }
         Err(_) => {
             // If it failed, verify original is unchanged
             let unchanged = storage
                 .storage()
-                .get_memory(memory.id.clone())
+                .get_memory(memory.id)
                 .await
                 .expect("Get unchanged");
             assert_eq!(unchanged.content, "Transaction test");

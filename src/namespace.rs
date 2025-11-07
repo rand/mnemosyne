@@ -234,8 +234,8 @@ impl NamespaceDetector {
         if name.is_none() {
             for line in &lines {
                 let trimmed = line.trim();
-                if trimmed.starts_with("# ") {
-                    name = Some(trimmed[2..].trim().to_string());
+                if let Some(stripped) = trimmed.strip_prefix("# ") {
+                    name = Some(stripped.trim().to_string());
                     break;
                 }
             }

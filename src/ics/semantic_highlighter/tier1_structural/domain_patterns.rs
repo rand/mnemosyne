@@ -302,7 +302,7 @@ mod tests {
         let text = "See #src/main.rs for details";
         let spans = matcher.analyze(text).unwrap();
 
-        assert!(spans.len() > 0);
+        assert!(!spans.is_empty());
         let path_span = spans
             .iter()
             .find(|s| text[s.range.clone()].contains("src/main.rs"))

@@ -143,7 +143,7 @@ impl UpdateManager {
         debug!("Pulling latest changes...");
         let pull_output = Command::new("git")
             .current_dir(&repo_path)
-            .args(&["pull", "origin", "main"])
+            .args(["pull", "origin", "main"])
             .output()
             .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run git pull: {}", e)))?;
 
@@ -238,7 +238,7 @@ impl UpdateManager {
         info!("Updating Claude Code via npm...");
 
         let output = Command::new("npm")
-            .args(&["update", "-g", "@anthropic-ai/claude-code"])
+            .args(["update", "-g", "@anthropic-ai/claude-code"])
             .output()
             .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run npm update: {}", e)))?;
 
@@ -257,7 +257,7 @@ impl UpdateManager {
         info!("Installing Claude Code via npm...");
 
         let output = Command::new("npm")
-            .args(&["install", "-g", "@anthropic-ai/claude-code"])
+            .args(["install", "-g", "@anthropic-ai/claude-code"])
             .output()
             .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run npm install: {}", e)))?;
 
@@ -276,7 +276,7 @@ impl UpdateManager {
         // Try npm first
         info!("Attempting to update beads via npm...");
         let npm_result = Command::new("npm")
-            .args(&["update", "-g", "@beads/bd"])
+            .args(["update", "-g", "@beads/bd"])
             .output();
 
         if let Ok(output) = npm_result {
@@ -288,7 +288,7 @@ impl UpdateManager {
         // Try homebrew
         info!("Attempting to update beads via homebrew...");
         let brew_result = Command::new("brew")
-            .args(&["upgrade", "bd"])
+            .args(["upgrade", "bd"])
             .output();
 
         if let Ok(output) = brew_result {
@@ -307,7 +307,7 @@ impl UpdateManager {
         info!("Installing beads via npm...");
 
         let output = Command::new("npm")
-            .args(&["install", "-g", "@beads/bd"])
+            .args(["install", "-g", "@beads/bd"])
             .output()
             .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run npm install: {}", e)))?;
 

@@ -41,6 +41,7 @@ pub struct PtyOutput {
 }
 
 /// PTY session wrapping a subprocess
+#[allow(clippy::arc_with_non_send_sync)]
 pub struct PtySession {
     /// PTY system
     pty_system: NativePtySystem,
@@ -54,6 +55,7 @@ pub struct PtySession {
 
 impl PtySession {
     /// Create and start new PTY session
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new(config: PtyConfig) -> Result<Self> {
         let pty_system = NativePtySystem::default();
 

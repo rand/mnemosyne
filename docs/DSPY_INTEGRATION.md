@@ -7,7 +7,7 @@ Complete guide to the DSPy integration in Mnemosyne, providing systematic prompt
 This integration replaces direct PyObject calls with a clean adapter pattern using DSPy for:
 - **Reviewer Agent**: Intent validation, completeness checking, correctness verification ✅ **Phase 1 Complete**
 - **Tier 3 Semantic Analysis**: Discourse, contradictions, pragmatics ✅ **Phase 1 Complete**
-- **Optimizer Agent**: Context consolidation, skills discovery, context budget optimization ✅ **Phase 2 Complete**
+- **Optimizer Agent**: Context consolidation, skills discovery (INT-2 ✅), context budget optimization ✅ **Phase 2 Complete**
 - **Memory Evolution**: Cluster consolidation, importance recalibration, archival detection ✅ **Phase 3 Complete**
 
 **Status**: Phases 1-3 implemented and tested. Phase 4 (optimization pipeline) 75% complete - v1 optimization finished, continuous improvement infrastructure added, stagnant signatures require expanded training data.
@@ -330,6 +330,52 @@ impl OptimizerState {
             }
         }
         // Heuristic-based consolidation (fallback)
+    }
+
+    // INT-2: Skills Discovery Integration ✅ **Complete**
+    async fn discover_skills(
+        state: &mut OptimizerState,
+        task_description: String,
+        max_skills: usize,
+    ) -> Result<Vec<String>> {
+        // Stage 1: Keyword-based discovery (fast initial filtering)
+        let initial_matches = state.skills_discovery
+            .discover_skills(&task_description, max_skills * 2)
+            .await?;
+
+        // Stage 2: Semantic refinement via DSPy (if available)
+        #[cfg(feature = "python")]
+        let refined_matches = if let Some(adapter) = &state.optimizer_adapter {
+            // Convert Rust SkillMetadata to DSPy format
+            let dspy_skills: Vec<DSpySkillMetadata> = initial_matches
+                .iter()
+                .map(|m| DSpySkillMetadata {
+                    name: m.metadata.name.clone(),
+                    description: m.metadata.description.clone(),
+                    keywords: m.metadata.keywords.clone(),
+                    domains: vec![m.metadata.category.clone()],
+                })
+                .collect();
+
+            // Use DSPy for semantic analysis and re-ranking
+            match adapter.discover_skills(
+                &task_description,
+                dspy_skills,
+                max_skills,
+                state.context_usage
+            ).await {
+                Ok(discovery_result) => {
+                    // Re-order based on DSPy semantic scores
+                    // Falls back to keyword-based on error
+                }
+                Err(e) => initial_matches // Graceful fallback
+            }
+        } else {
+            initial_matches // No DSPy available
+        };
+
+        // Stage 3: Load skill content from refined matches
+        // Returns skill content strings
     }
 }
 ```

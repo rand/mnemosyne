@@ -4,7 +4,6 @@
 
 use crate::ics_full_integration::*;
 use mnemosyne_core::{
-    ics::SemanticAnalyzer,
     storage::StorageBackend,
     types::{MemoryType, Namespace},
 };
@@ -25,7 +24,7 @@ async fn s1_memory_persistence_from_ics() {
 
     // Verify semantic extraction
     assert_min_triples(&analysis, 1);
-    assert!(analysis.entities.len() > 0);
+    assert!(!analysis.entities.is_empty());
 
     // Create memory from ICS content
     let memory = create_test_memory(
@@ -45,7 +44,7 @@ async fn s1_memory_persistence_from_ics() {
     // Verify memory was stored
     let retrieved = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Should retrieve memory");
 
@@ -81,7 +80,7 @@ async fn s2_memory_retrieval_in_ics_panel() {
     // Test keyword search filtering
     let search_results = ics.search_memories("integration");
     assert!(
-        search_results.len() > 0,
+        !search_results.is_empty(),
         "Should find memories with keyword"
     );
 
@@ -280,7 +279,7 @@ async fn s5_concurrent_ics_mcp_updates() {
     // ICS refreshes
     let updated = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get memory");
 

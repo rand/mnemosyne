@@ -31,10 +31,9 @@ pub async fn handle(
     println!("  Work plan: {}", plan);
     println!();
 
-    // Create launcher configuration
-    let mut config = launcher::LauncherConfig::default();
-    config.mnemosyne_db_path = Some(db_path.clone());
-    config.max_concurrent_agents = max_concurrent;
+    // Note: max_concurrent_agents is currently not used by launch_orchestrated_session
+    // TODO: Add max_concurrent support to orchestration engine
+    let _ = max_concurrent; // Acknowledge parameter
 
     // Start embedded API server if dashboard requested
     let (event_broadcaster, state_manager, api_task) = if dashboard {

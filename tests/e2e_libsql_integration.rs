@@ -296,6 +296,13 @@ async fn test_e2e_complete_workflow() {
     println!("\n=== E2E Test: ✅ ALL CHECKS PASSED ===\n");
 }
 
+/// Test vector search with F32_BLOB embeddings
+///
+/// Tests LibSQL native vector search capabilities using F32_BLOB column type
+/// with vector_distance_cos() and vector32() functions.
+///
+/// **Fixed**: All connection modes now use LibSQL schema (not StandardSQLite).
+/// libsql 0.9.24 supports F32_BLOB natively for local databases.
 #[tokio::test]
 async fn test_e2e_vector_search_with_embeddings() {
     println!("\n=== E2E Test: Vector Search with Embeddings ===\n");

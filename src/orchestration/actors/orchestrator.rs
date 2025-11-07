@@ -282,7 +282,7 @@ impl OrchestratorActor {
                     .cast(ReviewerMessage::ReviewWork {
                         item_id: item_id.clone(),
                         result: result.clone(),
-                        work_item,
+                        work_item: Box::new(work_item),
                     })
                     .map_err(|e| {
                         tracing::error!("Failed to send work to Reviewer: {:?}", e);
@@ -930,7 +930,7 @@ impl Actor for OrchestratorActor {
                 state.register_python_bridge(bridge);
             }
             OrchestratorMessage::SubmitWork(item) => {
-                Self::handle_submit_work(state, item)
+                Self::handle_submit_work(state, *item)
                     .await
                     .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
             }

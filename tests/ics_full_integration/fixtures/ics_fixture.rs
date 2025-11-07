@@ -3,7 +3,6 @@
 use mnemosyne_core::ics::editor::BufferId;
 use mnemosyne_core::ics::{IcsEditor, SemanticAnalysis, SemanticAnalyzer};
 use mnemosyne_core::types::MemoryNote;
-use std::sync::Arc;
 
 /// ICS test fixture with editor and analyzer
 pub struct IcsFixture {

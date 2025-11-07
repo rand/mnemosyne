@@ -45,7 +45,7 @@ impl EvolutionIntegration {
 
         // Submit work to orchestrator
         self.orchestrator
-            .cast(OrchestratorMessage::SubmitWork(work_item))
+            .cast(OrchestratorMessage::SubmitWork(Box::new(work_item)))
             .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
 
         // Spawn async task to execute the evolution job and report back

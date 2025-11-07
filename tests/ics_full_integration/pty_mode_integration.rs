@@ -50,13 +50,10 @@ async fn p2_keyboard_navigation() {
     let toggle_event = TuiEvent::Key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL));
 
     // Handle toggle event
-    match toggle_event {
-        TuiEvent::Key(key) => {
-            if key.code == KeyCode::Char('e') && key.modifiers.contains(KeyModifiers::CONTROL) {
-                ics_panel.toggle();
-            }
+    if let TuiEvent::Key(key) = toggle_event {
+        if key.code == KeyCode::Char('e') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            ics_panel.toggle();
         }
-        _ => {}
     }
 
     assert!(ics_panel.is_visible(), "Ctrl+E should toggle ICS panel");
@@ -64,25 +61,19 @@ async fn p2_keyboard_navigation() {
     // Simulate scroll events in chat
     let scroll_up = TuiEvent::Key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
 
-    match scroll_up {
-        TuiEvent::Key(key) => {
-            if key.code == KeyCode::Up {
-                chat_view.scroll_up(1);
-            }
+    if let TuiEvent::Key(key) = scroll_up {
+        if key.code == KeyCode::Up {
+            chat_view.scroll_up(1);
         }
-        _ => {}
     }
 
     // Scroll down
     let scroll_down = TuiEvent::Key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
 
-    match scroll_down {
-        TuiEvent::Key(key) => {
-            if key.code == KeyCode::Down {
-                chat_view.scroll_down(1);
-            }
+    if let TuiEvent::Key(key) = scroll_down {
+        if key.code == KeyCode::Down {
+            chat_view.scroll_down(1);
         }
-        _ => {}
     }
 
     // Verify events handled without panic

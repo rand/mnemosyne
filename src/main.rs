@@ -7,24 +7,17 @@ mod cli;
 
 use clap::{Parser, Subcommand};
 use mnemosyne_core::{
-    error::{MnemosyneError, Result},
-    icons,
+    error::Result,
     launcher,
-    storage::MemorySortOrder,
-    ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig, LlmService, McpServer, StorageBackend,
-    ToolHandler,
 };
-// Use the v1.0 embedding service for backward compatibility
-use mnemosyne_core::services::embeddings::EmbeddingService;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tracing::{debug, info, warn, Level};
 use tracing_subscriber::{self, EnvFilter};
 
 // Import helper functions from cli module
 use cli::helpers::{
-    get_db_path, get_default_db_path, parse_memory_type, process_structured_plan,
-    start_mcp_server, start_mcp_server_with_api,
+    get_db_path,
+    start_mcp_server,
 };
 
 /// Mnemosyne CLI arguments

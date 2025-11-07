@@ -3,7 +3,7 @@
 //! Tests the complete three-tier system working together.
 
 use mnemosyne_core::ics::semantic_highlighter::{
-    tier1_structural::*, tier2_relational::*, HighlightSettings, SemanticHighlightEngine,
+    tier2_relational::*, HighlightSettings, SemanticHighlightEngine,
 };
 
 #[tokio::test]

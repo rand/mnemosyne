@@ -27,7 +27,7 @@ pub mod mcp;
 pub mod ui;
 
 use crate::error::{MnemosyneError, Result};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tracing::{debug, warn};
 
@@ -474,8 +474,8 @@ impl ClaudeCodeLauncher {
     fn register_worktree(
         &self,
         agent_id: &crate::orchestration::AgentId,
-        worktree_path: &PathBuf,
-        repo_root: &PathBuf,
+        worktree_path: &Path,
+        repo_root: &Path,
     ) {
         use crate::orchestration::CrossProcessCoordinator;
 
@@ -485,7 +485,7 @@ impl ClaudeCodeLauncher {
         match CrossProcessCoordinator::new(&mnemosyne_dir, agent_id.clone()) {
             Ok(mut coordinator) => {
                 // Set worktree path in registration
-                if let Err(e) = coordinator.set_worktree_path(worktree_path.clone()) {
+                if let Err(e) = coordinator.set_worktree_path(worktree_path.to_path_buf()) {
                     warn!("Failed to register worktree path: {}", e);
                 } else {
                     debug!("Registered worktree {} with process coordinator", agent_id);
@@ -499,12 +499,12 @@ impl ClaudeCodeLauncher {
     }
 
     /// Cleanup worktree for this session
-    fn cleanup_worktree(&self, agent_id: &crate::orchestration::AgentId, repo_root: &PathBuf) {
+    fn cleanup_worktree(&self, agent_id: &crate::orchestration::AgentId, repo_root: &Path) {
         use crate::orchestration::WorktreeManager;
 
         debug!("Cleaning up worktree for session {}", agent_id);
 
-        match WorktreeManager::new(repo_root.clone()) {
+        match WorktreeManager::new(repo_root.to_path_buf()) {
             Ok(manager) => {
                 if let Err(e) = manager.remove_worktree(agent_id) {
                     warn!("Failed to cleanup worktree: {}", e);
@@ -623,11 +623,13 @@ pub async fn launch_orchestrated_session(
     event_broadcaster: Option<crate::api::EventBroadcaster>,
     state_manager: Option<std::sync::Arc<crate::api::StateManager>>,
 ) -> Result<()> {
-    let mut config = LauncherConfig::default();
-    config.mnemosyne_db_path = db_path;
-    config.initial_prompt = initial_prompt;
-    config.event_broadcaster = event_broadcaster;
-    config.state_manager = state_manager;
+    let config = LauncherConfig {
+        mnemosyne_db_path: db_path,
+        initial_prompt,
+        event_broadcaster,
+        state_manager,
+        ..Default::default()
+    };
 
     let launcher = ClaudeCodeLauncher::with_config(config)?;
     launcher.launch().await

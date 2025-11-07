@@ -5,6 +5,7 @@
 
 use mnemosyne_core::{
     error::Result,
+    mcp::EventSink,
     services::embeddings::EmbeddingService,
     ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig, LlmService, McpServer,
     ToolHandler,
@@ -347,11 +348,12 @@ pub async fn start_mcp_server_with_api(
     info!("Dashboard: mnemosyne-dash --api http://{}", socket_addr);
 
     // Initialize tool handler with event broadcasting
-    let tool_handler = ToolHandler::new_with_events(
+    let event_sink = EventSink::Local(event_broadcaster);
+    let tool_handler = ToolHandler::new_with_event_sink(
         Arc::new(storage),
         llm,
         embeddings,
-        Some(event_broadcaster),
+        event_sink,
     );
 
     // Create MCP server

@@ -388,26 +388,26 @@ mod tests {
             .unwrap();
 
         std::process::Command::new("git")
-            .args(&["config", "user.name", "Test"])
+            .args(["config", "user.name", "Test"])
             .current_dir(repo_path)
             .output()
             .unwrap();
 
         std::process::Command::new("git")
-            .args(&["config", "user.email", "test@example.com"])
+            .args(["config", "user.email", "test@example.com"])
             .current_dir(repo_path)
             .output()
             .unwrap();
 
         std::fs::write(repo_path.join("README.md"), "Test").unwrap();
         std::process::Command::new("git")
-            .args(&["add", "README.md"])
+            .args(["add", "README.md"])
             .current_dir(repo_path)
             .output()
             .unwrap();
 
         std::process::Command::new("git")
-            .args(&["commit", "-m", "Initial"])
+            .args(["commit", "-m", "Initial"])
             .current_dir(repo_path)
             .output()
             .unwrap();
@@ -466,7 +466,7 @@ mod tests {
 
         // Create feature branch
         std::process::Command::new("git")
-            .args(&["branch", "feature"])
+            .args(["branch", "feature"])
             .current_dir(temp_dir.path())
             .output()
             .unwrap();

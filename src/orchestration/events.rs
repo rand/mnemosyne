@@ -515,12 +515,6 @@ impl ReplayedState {
     }
 }
 
-impl Default for Phase {
-    fn default() -> Self {
-        Phase::PromptToSpec
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

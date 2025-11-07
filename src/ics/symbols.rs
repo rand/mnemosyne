@@ -314,7 +314,7 @@ impl SymbolRegistry {
     /// Recursively walk directory tree and score files
     fn walk_directory(
         entries: std::fs::ReadDir,
-        project_root: &Path,
+        _project_root: &Path,
         target_filename: &str,
         target_extension: &str,
         scored_files: &mut Vec<(PathBuf, f32)>,
@@ -350,7 +350,7 @@ impl SymbolRegistry {
                 if let Ok(sub_entries) = std::fs::read_dir(&path) {
                     Self::walk_directory(
                         sub_entries,
-                        project_root,
+                        _project_root,
                         target_filename,
                         target_extension,
                         scored_files,
@@ -437,6 +437,7 @@ impl SymbolRegistry {
         let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
 
         // Initialize first column and row
+        #[allow(clippy::needless_range_loop)]
         for i in 0..=len1 {
             matrix[i][0] = i;
         }

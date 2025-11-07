@@ -369,17 +369,11 @@ impl LibsqlStorage {
 
         debug!("LibSQL database connection established");
 
-        // Determine schema type based on connection mode
-        // Remote and EmbeddedReplica use LibSQL schema (F32_BLOB embedding column)
-        // Local, LocalReadOnly, and InMemory use standard SQLite schema (separate embeddings table)
-        let schema_type = match mode {
-            ConnectionMode::Remote { .. } | ConnectionMode::EmbeddedReplica { .. } => {
-                SchemaType::LibSQL
-            }
-            ConnectionMode::Local(_)
-            | ConnectionMode::LocalReadOnly(_)
-            | ConnectionMode::InMemory => SchemaType::StandardSQLite,
-        };
+        // Use LibSQL schema for all connection modes
+        // libsql 0.9.24+ supports F32_BLOB natively for local databases,
+        // and vector_search implementation only works with LibSQL schema (F32_BLOB).
+        // Previously used StandardSQLite schema for local connections, but this is no longer needed.
+        let schema_type = SchemaType::LibSQL;
 
         // Extract database path for health checks
         let db_path = match &mode {
@@ -503,8 +497,8 @@ impl LibsqlStorage {
             db,
             embedding_service: None,
             search_config: crate::config::SearchConfig::default(),
-            schema_type: SchemaType::StandardSQLite, // Default for tests
-            db_path: ":memory:".to_string(),         // Test databases typically use in-memory
+            schema_type: SchemaType::LibSQL, // Use LibSQL schema (F32_BLOB support)
+            db_path: ":memory:".to_string(), // Test databases typically use in-memory
         }
     }
 
@@ -2219,7 +2213,7 @@ impl StorageBackend for LibsqlStorage {
         while let Some(row) = rows.next().await? {
             let distance: f64 = row.get(20)?;
             let memory = self.row_to_memory(&row).await?;
-            let similarity = (1.0 - (distance as f32 / 2.0)).max(0.0).min(1.0);
+            let similarity = (1.0 - (distance as f32 / 2.0)).clamp(0.0, 1.0);
 
             results.push(SearchResult {
                 memory,

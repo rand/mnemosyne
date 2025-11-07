@@ -243,7 +243,7 @@ fn spawn_sse_client(api_url: String, event_tx: mpsc::UnboundedSender<String>) {
             // Convert response body to async reader
             let stream = response
                 .bytes_stream()
-                .map(|result| result.map_err(|e| io::Error::new(io::ErrorKind::Other, e)));
+                .map(|result| result.map_err(io::Error::other));
             let reader = StreamReader::new(stream);
             let mut lines = BufReader::new(reader).lines();
 

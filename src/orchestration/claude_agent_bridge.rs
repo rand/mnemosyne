@@ -55,10 +55,6 @@ use pyo3::prelude::*;
 #[cfg(feature = "python")]
 use pyo3::types::{PyDict, PyList};
 #[cfg(feature = "python")]
-use serde_json::Value;
-#[cfg(feature = "python")]
-use std::collections::HashMap;
-#[cfg(feature = "python")]
 use std::sync::Arc;
 #[cfg(feature = "python")]
 use tokio::sync::{broadcast, Mutex, RwLock};
@@ -115,7 +111,7 @@ impl ClaudeAgentBridge {
     /// - Agent instantiation fails
     /// - Session startup fails
     pub async fn spawn(role: AgentRole, event_tx: broadcast::Sender<Event>) -> Result<Self> {
-        let role_clone = role.clone();
+        let role_clone = role;
         let event_tx_clone = event_tx.clone();
         let agent_id = format!("{:?}-agent", role).to_lowercase();
 
@@ -154,7 +150,7 @@ impl ClaudeAgentBridge {
 
                 info!("Python agent created for role: {:?}", role_clone);
 
-                Ok::<Py<PyAny>, MnemosyneError>(agent.unbind().into())
+                Ok::<Py<PyAny>, MnemosyneError>(agent.unbind())
             })
         })
         .await
@@ -393,7 +389,7 @@ impl ClaudeAgentBridge {
 
     /// Get agent role
     pub fn role(&self) -> AgentRole {
-        self.role.clone()
+        self.role
     }
 
     /// Get agent ID
@@ -568,7 +564,7 @@ impl ClaudeAgentBridge {
         let event = Event::agent_error_recorded(
             self.agent_id.clone(),
             count,
-            format!("Python agent error"),
+            "Python agent error".to_string(),
         );
         if let Err(e) = self.event_tx.send(event) {
             warn!("Failed to broadcast agent error event: {}", e);
@@ -640,7 +636,7 @@ impl ClaudeAgentBridge {
         warn!("Restarting Python agent: {}", self.agent_id);
 
         // Respawn agent
-        let role_clone = self.role.clone();
+        let role_clone = self.role;
         let event_tx_clone = self.event_tx.clone();
 
         let new_agent = tokio::task::spawn_blocking(move || {
@@ -675,7 +671,7 @@ impl ClaudeAgentBridge {
 
                 info!("Python agent recreated for role: {:?}", role_clone);
 
-                Ok::<Py<PyAny>, MnemosyneError>(agent.unbind().into())
+                Ok::<Py<PyAny>, MnemosyneError>(agent.unbind())
             })
         })
         .await
@@ -769,7 +765,7 @@ mod tests {
                 .set_item("data", "some result data")
                 .unwrap();
             py_dict
-                .set_item("memory_ids", PyList::new_bound(py, &["mem-1", "mem-2"]))
+                .set_item("memory_ids", PyList::new_bound(py, ["mem-1", "mem-2"]))
                 .unwrap();
 
             let item_id = crate::orchestration::state::WorkItemId::new();

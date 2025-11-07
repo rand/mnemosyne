@@ -198,15 +198,79 @@ impl OptimizerActor {
     ) -> Result<Vec<String>> {
         tracing::info!("Discovering skills for: {}", task_description);
 
-        // Discover relevant skills using the skills discovery engine
-        let skill_matches = state
+        // Stage 1: Keyword-based discovery using Rust SkillsDiscovery
+        // This provides fast initial filtering based on keywords
+        let initial_matches = state
             .skills_discovery
-            .discover_skills(&task_description, max_skills)
+            .discover_skills(&task_description, max_skills * 2) // Get 2x for DSPy refinement
             .await?;
 
-        // Load skill content from discovered matches
+        tracing::debug!("Keyword discovery found {} initial matches", initial_matches.len());
+
+        // Stage 2: Semantic refinement using DSPy OptimizerModule (if available)
+        #[cfg(feature = "python")]
+        let refined_matches = if let Some(adapter) = &state.optimizer_adapter {
+            use crate::orchestration::actors::optimizer_dspy_adapter::SkillMetadata as DSpySkillMetadata;
+
+            // Convert Rust SkillMetadata to DSPy SkillMetadata format
+            let dspy_skills: Vec<DSpySkillMetadata> = initial_matches
+                .iter()
+                .map(|m| DSpySkillMetadata {
+                    name: m.metadata.name.clone(),
+                    description: m.metadata.description.clone(),
+                    keywords: m.metadata.keywords.clone(),
+                    domains: vec![m.metadata.category.clone()], // Map category to domains
+                })
+                .collect();
+
+            tracing::debug!("Performing semantic skill discovery via DSPy");
+
+            // Use DSPy for semantic analysis and re-ranking
+            match adapter
+                .discover_skills(&task_description, dspy_skills, max_skills, state.context_usage)
+                .await
+            {
+                Ok(discovery_result) => {
+                    tracing::info!(
+                        "DSPy refined to {} skills (reasoning: {})",
+                        discovery_result.selected_skills.len(),
+                        discovery_result.reasoning
+                    );
+
+                    // Re-order initial_matches based on DSPy selected_skills order
+                    let mut refined = Vec::new();
+                    for selected_name in &discovery_result.selected_skills {
+                        if let Some(skill_match) = initial_matches
+                            .iter()
+                            .find(|m| &m.metadata.name == selected_name)
+                        {
+                            refined.push(skill_match.clone());
+                        }
+                    }
+
+                    tracing::debug!("DSPy-refined skills: {:?}",
+                        refined.iter().map(|m| &m.metadata.name).collect::<Vec<_>>()
+                    );
+
+                    refined
+                }
+                Err(e) => {
+                    tracing::warn!("DSPy skill discovery failed, falling back to keyword-based: {}", e);
+                    initial_matches
+                }
+            }
+        } else {
+            tracing::debug!("No DSPy adapter available, using keyword-based results");
+            initial_matches
+        };
+
+        #[cfg(not(feature = "python"))]
+        let refined_matches = initial_matches;
+
+        // Stage 3: Load skill content from final refined matches
+        let final_matches = &refined_matches[..refined_matches.len().min(max_skills)];
         let mut skills = Vec::new();
-        for skill_match in &skill_matches {
+        for skill_match in final_matches {
             match state.skills_discovery.load_skill(skill_match).await {
                 Ok(content) => skills.push(content),
                 Err(e) => {
@@ -215,12 +279,12 @@ impl OptimizerActor {
             }
         }
 
-        state.loaded_skills = skills.len().min(max_skills);
+        state.loaded_skills = skills.len();
 
         tracing::info!(
             "Discovered {} skills: {:?}",
             state.loaded_skills,
-            skill_matches
+            final_matches
                 .iter()
                 .map(|m| &m.metadata.name)
                 .collect::<Vec<_>>()
@@ -952,7 +1016,7 @@ impl Actor for OptimizerActor {
                 }
             }
             OptimizerMessage::LoadWorkItemContext { item_id, work_item } => {
-                Self::load_work_item_context(state, item_id, work_item)
+                Self::load_work_item_context(state, item_id, *work_item)
                     .await
                     .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
             }

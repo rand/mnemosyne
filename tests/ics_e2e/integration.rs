@@ -7,6 +7,8 @@
 //! - W4: Memory-driven context building
 //! - W5: Large document performance
 
+#![allow(clippy::absurd_extreme_comparisons)]
+
 use crate::ics_e2e::*;
 use mnemosyne_core::ics::editor::{Actor, CrdtBuffer};
 use mnemosyne_core::ics::{AgentActivity, ProposalStatus};
@@ -188,7 +190,7 @@ async fn w4_memory_driven_context_building() {
     // (In real system, proposal would reference JWT from memory)
     if !proposals.is_empty() {
         let proposal = &proposals[0];
-        assert!(proposal.rationale.contains("TODO") || proposal.rationale.len() > 0);
+        assert!(proposal.rationale.contains("TODO") || !proposal.rationale.is_empty());
     }
 
     // Phase 5: User applies memory-driven proposal
@@ -251,10 +253,10 @@ async fn w5_large_document_performance() {
 
     // Verify analysis found semantic content
     assert!(
-        analysis.triples.len() > 0,
+        !analysis.triples.is_empty(),
         "Should extract triples from large document"
     );
-    assert!(analysis.entities.len() > 0, "Should extract entities");
+    assert!(!analysis.entities.is_empty(), "Should extract entities");
 
     // Measure agent proposal generation
     let agent = actors::MockAgent::optimizer();

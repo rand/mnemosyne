@@ -160,6 +160,11 @@ impl RelevanceScorer {
         Self { db_path }
     }
 
+    /// Get database path
+    pub fn db_path(&self) -> &str {
+        &self.db_path
+    }
+
     /// Initialize the database schema
     ///
     /// This should be called once per database to ensure tables exist.
@@ -232,7 +237,7 @@ impl RelevanceScorer {
     }
 
     /// Get weights with hierarchical fallback
-    async fn get_weights_with_fallback(
+    pub async fn get_weights_with_fallback(
         &self,
         scope: Scope,
         scope_id: &str,
@@ -1122,8 +1127,8 @@ mod tests {
         assert!(conf10 < conf50);
 
         // But should not depend on content (tested by not having content fields)
-        assert!(conf0 >= 0.0 && conf0 <= 1.0);
-        assert!(conf50 >= 0.0 && conf50 <= 1.0);
+        assert!((0.0..=1.0).contains(&conf0));
+        assert!((0.0..=1.0).contains(&conf50));
     }
 
     #[test]
@@ -1141,7 +1146,7 @@ mod tests {
         let score = scorer.compute_weighted_score(&features, &weights.weights);
 
         // Score should be computed without exposing raw features
-        assert!(score >= 0.0 && score <= 1.0, "Score should be normalized");
+        assert!((0.0..=1.0).contains(&score), "Score should be normalized");
 
         // Verify computation uses only statistical features, not raw content
         // (enforced by RelevanceFeatures struct definition)

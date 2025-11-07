@@ -8,6 +8,9 @@
 //! - C5: Progressive enhancement chain
 //! - C6: Emergency agent override
 
+#![allow(clippy::overly_complex_bool_expr)]
+#![allow(clippy::absurd_extreme_comparisons)]
+
 use crate::ics_e2e::*;
 use mnemosyne_core::ics::{AgentActivity, ChangeProposal, ProposalStatus};
 
@@ -74,7 +77,7 @@ async fn c2_agent_coordination_pattern() {
     let unique_originals: std::collections::HashSet<_> =
         all_proposals.iter().map(|p| &p.original).collect();
     assert!(
-        unique_originals.len() >= 1,
+        !unique_originals.is_empty(),
         "Agents should target different issues"
     );
 }

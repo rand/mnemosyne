@@ -11,7 +11,7 @@
 mod python_bridge_tests {
     use mnemosyne_core::api::{EventBroadcaster, StateManager};
     use mnemosyne_core::launcher::agents::AgentRole;
-    use mnemosyne_core::orchestration::messages::{OrchestratorMessage, WorkResult};
+    use mnemosyne_core::orchestration::messages::OrchestratorMessage;
     use mnemosyne_core::orchestration::state::{Phase, WorkItem};
     use mnemosyne_core::orchestration::supervision::{SupervisionConfig, SupervisionTree};
     use mnemosyne_core::orchestration::{network, ClaudeAgentBridge};
@@ -137,7 +137,7 @@ mod python_bridge_tests {
         // Submit work to orchestrator
         let orchestrator = tree.orchestrator();
         orchestrator
-            .cast(OrchestratorMessage::SubmitWork(work_item))
+            .cast(OrchestratorMessage::SubmitWork(Box::new(work_item)))
             .expect("Failed to submit work");
 
         // Wait for work to be processed
@@ -293,7 +293,7 @@ mod python_bridge_tests {
                 5,
             );
             orchestrator
-                .cast(OrchestratorMessage::SubmitWork(work_item))
+                .cast(OrchestratorMessage::SubmitWork(Box::new(work_item)))
                 .expect("Failed to submit work");
         }
 

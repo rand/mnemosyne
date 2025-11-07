@@ -12,7 +12,7 @@ pub async fn handle(database: Option<String>, global_db_path: Option<String>) ->
 
     // Use provided database path or fall back to global/default
     let db_path = database
-        .or_else(|| global_db_path)
+        .or(global_db_path)
         .unwrap_or_else(|| get_default_db_path().to_string_lossy().to_string());
 
     debug!("Database path: {}", db_path);

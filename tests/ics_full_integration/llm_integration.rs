@@ -3,9 +3,11 @@
 //! Tests ICS integration with LLM services for semantic analysis,
 //! memory enrichment, and proposal generation
 
+#![allow(clippy::absurd_extreme_comparisons)]
+
 use crate::ics_full_integration::*;
 use mnemosyne_core::{
-    ics::{ProposalStatus, SemanticAnalyzer},
+    ics::ProposalStatus,
     storage::StorageBackend,
     types::{MemoryType, Namespace},
 };
@@ -75,7 +77,7 @@ async fn l2_memory_enrichment_pipeline() {
     // Verify enrichment persisted
     let retrieved = storage
         .storage()
-        .get_memory(memory.id.clone())
+        .get_memory(memory.id)
         .await
         .expect("Get memory");
 

@@ -10,7 +10,7 @@
 #[cfg(feature = "python")]
 mod dspy_bridge_tests {
     use mnemosyne_core::orchestration::dspy_bridge::DSpyBridge;
-    use serde_json::{json, Value};
+    use serde_json::json;
     use std::collections::HashMap;
     use std::sync::Arc;
 

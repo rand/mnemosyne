@@ -84,7 +84,7 @@ impl PyNamespace {
     fn parse(s: &str) -> PyResult<Self> {
         use crate::python_bindings::storage::parse_namespace;
         let ns =
-            parse_namespace(s).map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
+            parse_namespace(s).map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
         Ok(PyNamespace { inner: ns })
     }
 

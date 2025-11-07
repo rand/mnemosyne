@@ -65,7 +65,7 @@ async fn a2_multi_agent_concurrent_proposals() {
     let agent_types: Vec<_> = flat_proposals.iter().map(|p| &p.agent).collect();
 
     // Should have proposals from multiple agent types
-    assert!(agent_types.len() > 0, "Should have agent proposals");
+    assert!(!agent_types.is_empty(), "Should have agent proposals");
 }
 
 /// A3: Agent status monitoring

@@ -2,14 +2,10 @@
 
 use clap::Subcommand;
 use mnemosyne_core::{
-    artifacts::{
-        Artifact as ArtifactTrait,
-    },
     error::Result,
     icons,
     ConnectionMode, LibsqlStorage,
 };
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -365,7 +361,7 @@ For more information, see: docs/specs/specification-artifacts.md
                 let entries: Vec<_> = fs::read_dir(&dir)?
                     .filter_map(|e| e.ok())
                     .filter(|e| {
-                        e.path().extension().map_or(false, |ext| ext == "md")
+                        e.path().extension().is_some_and(|ext| ext == "md")
                     })
                     .collect();
 

@@ -46,7 +46,7 @@ async fn test_embedding_regeneration_on_content_update() {
         .expect("Failed to generate initial embedding");
 
     let memory = MemoryNote {
-        id: memory_id.clone(),
+        id: memory_id,
         namespace: namespace.clone(),
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
@@ -96,7 +96,7 @@ async fn test_embedding_regeneration_on_content_update() {
 
     // Retrieve and verify
     let retrieved = storage
-        .get_memory(memory_id.clone())
+        .get_memory(memory_id)
         .await
         .expect("Failed to retrieve memory");
 

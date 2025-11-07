@@ -4,6 +4,7 @@ use clap::Subcommand;
 use mnemosyne_core::{error::Result, ConfigManager};
 
 #[derive(Subcommand)]
+#[allow(clippy::enum_variant_names)]
 pub enum ConfigAction {
     /// Set Anthropic API key (stores securely in OS keychain)
     SetKey {

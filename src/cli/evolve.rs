@@ -83,13 +83,13 @@ pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()
         | EvolveJob::Consolidation { database, .. }
         | EvolveJob::All { database, .. } => database
             .clone()
-            .or_else(|| global_db_path)
+            .or(global_db_path)
             .unwrap_or_else(|| get_default_db_path().to_string_lossy().to_string()),
     };
 
     // Initialize storage
     let storage = Arc::new(
-        LibsqlStorage::new(ConnectionMode::Local(db_path.into()))
+        LibsqlStorage::new(ConnectionMode::Local(db_path))
             .await
             .context("Failed to initialize storage")?,
     );

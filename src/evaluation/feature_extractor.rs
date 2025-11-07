@@ -869,7 +869,7 @@ mod tests {
 
         // Medium affinity
         let score = extractor.compute_agent_affinity("executor", &ContextType::Memory);
-        assert!(score >= 0.5 && score < 0.8);
+        assert!((0.5..0.8).contains(&score));
     }
 
     #[test]
@@ -987,7 +987,7 @@ mod tests {
 
         // Affinity should be normalized
         assert!(
-            affinity1 >= 0.0 && affinity1 <= 1.0,
+            (0.0..=1.0).contains(&affinity1),
             "Affinity should be in [0.0, 1.0]"
         );
     }
@@ -1085,7 +1085,7 @@ mod tests {
         let sim = similarity.unwrap();
 
         // Similarity should be in valid range [0, 1]
-        assert!(sim >= 0.0 && sim <= 1.0);
+        assert!((0.0..=1.0).contains(&sim));
 
         // Similar terms should have positive similarity
         assert!(
@@ -1126,7 +1126,7 @@ mod tests {
         let sim = similarity.unwrap();
 
         // Dissimilar terms should have lower similarity than similar terms
-        assert!(sim >= 0.0 && sim <= 1.0);
+        assert!((0.0..=1.0).contains(&sim));
         assert!(
             sim < 0.6,
             "Dissimilar keywords should have similarity < 0.6, got {}",

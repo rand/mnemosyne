@@ -61,7 +61,7 @@ impl PyStorage {
     ///     str: Memory ID (UUID)
     fn store(&self, memory: &Bound<'_, PyDict>) -> PyResult<String> {
         let note = self.dict_to_memory_note(memory)?;
-        let id = note.id.clone();
+        let id = note.id;
 
         self.runtime
             .block_on(async {
@@ -117,7 +117,7 @@ impl PyStorage {
             .as_ref()
             .map(|s| parse_namespace(s))
             .transpose()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
+            .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
 
         let results = self
             .runtime
@@ -155,7 +155,7 @@ impl PyStorage {
             .as_ref()
             .map(|s| parse_namespace(s))
             .transpose()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
+            .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
 
         let results = self
             .runtime
@@ -185,7 +185,7 @@ impl PyStorage {
             .as_ref()
             .map(|s| parse_namespace(s))
             .transpose()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
+            .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
 
         let count = self
             .runtime
@@ -238,7 +238,7 @@ impl PyStorage {
             .extract()?;
 
         let namespace = parse_namespace(&namespace_str)
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e))?;
+            .map_err(PyErr::new::<pyo3::exceptions::PyValueError, _>)?;
 
         let importance: u8 = dict
             .get_item("importance")?

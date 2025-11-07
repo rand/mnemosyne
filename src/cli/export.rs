@@ -125,8 +125,7 @@ pub async fn handle(
                 return Err(MnemosyneError::ValidationError(format!(
                     "Unsupported export format: {}",
                     format
-                ))
-                .into());
+                )));
             }
         }
         Ok(())

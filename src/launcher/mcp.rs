@@ -173,7 +173,7 @@ mod tests {
                 mnemosyne_binary_path: "mnemosyne".to_string(),
                 namespace: "test".to_string(),
                 db_path: "test.db".to_string(),
-                agent_role: role.clone(),
+                agent_role: role,
             };
 
             let config_json = generator.generate_config().unwrap();

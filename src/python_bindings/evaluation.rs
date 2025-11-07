@@ -227,43 +227,97 @@ impl PyRelevanceScorer {
     ///
     /// Returns:
     ///     Dictionary of feature weights
-    #[pyo3(signature = (scope, _scope_id, _context_type, _agent_role, _work_phase=None, _task_type=None, _error_context=None))]
+    #[pyo3(signature = (scope, scope_id, context_type, agent_role, work_phase=None, task_type=None, error_context=None))]
     fn get_weights(
         &self,
         scope: String,
-        _scope_id: String,
-        _context_type: String,
-        _agent_role: String,
-        _work_phase: Option<String>,
-        _task_type: Option<String>,
-        _error_context: Option<String>,
+        scope_id: String,
+        context_type: String,
+        agent_role: String,
+        work_phase: Option<String>,
+        task_type: Option<String>,
+        error_context: Option<String>,
     ) -> PyResult<Py<PyDict>> {
-        let _scope_enum = parse_scope(&scope)?;
+        let scope_enum = parse_scope(&scope)?;
 
-        // TODO: Implement actual weight lookup
-        // For now, return default weights
+        let runtime = tokio::runtime::Runtime::new()
+            .map_err(|e| PyValueError::new_err(format!("Failed to create runtime: {}", e)))?;
+
+        // Get weights with fallback from database
+        let weights = runtime
+            .block_on(async {
+                self.scorer
+                    .get_weights_with_fallback(
+                        scope_enum,
+                        &scope_id,
+                        &context_type,
+                        &agent_role,
+                        work_phase.as_deref(),
+                        task_type.as_deref(),
+                        error_context.as_deref(),
+                    )
+                    .await
+            })
+            .map_err(|e| PyValueError::new_err(format!("Failed to get weights: {}", e)))?;
+
+        // Convert WeightSet to Python dictionary
         Python::with_gil(|py| {
             let dict = PyDict::new_bound(py);
-            dict.set_item("keyword_match", 0.35)?;
-            dict.set_item("recency", 0.15)?;
-            dict.set_item("access_patterns", 0.25)?;
-            dict.set_item("historical_success", 0.15)?;
-            dict.set_item("file_type_match", 0.10)?;
-            dict.set_item("_confidence", 0.5)?;
+
+            // Add all weights from the HashMap
+            for (key, value) in &weights.weights {
+                dict.set_item(key, value)?;
+            }
+
+            // Add metadata
+            dict.set_item("_confidence", weights.confidence)?;
+            dict.set_item("_sample_count", weights.sample_count)?;
+            dict.set_item("_learning_rate", weights.learning_rate)?;
+
             Ok(dict.into())
         })
     }
 
     /// Update weights based on feedback
-    fn update_weights(&self, _evaluation_id: String) -> PyResult<()> {
-        let _runtime = tokio::runtime::Runtime::new()
+    ///
+    /// Args:
+    ///     evaluation_id: Evaluation ID from context_provided
+    ///
+    /// This will:
+    /// 1. Fetch the evaluation and extract features
+    /// 2. Update weights at all scopes (session, project, global)
+    /// 3. Use gradient descent to learn from feedback
+    fn update_weights(&self, evaluation_id: String) -> PyResult<()> {
+        let runtime = tokio::runtime::Runtime::new()
             .map_err(|e| PyValueError::new_err(format!("Failed to create runtime: {}", e)))?;
 
-        // TODO: Implement weight update
-        // runtime.block_on(async { self.scorer.update_weights(&evaluation_id, &features).await })
-        //     .map_err(|e| PyValueError::new_err(format!("Failed to update weights: {}", e)))
+        runtime
+            .block_on(async {
+                // Extract features from the evaluation
+                let collector = FeedbackCollector::new(self.scorer.db_path().to_string());
+                let evaluation = collector
+                    .get_evaluation(&evaluation_id)
+                    .await
+                    .map_err(|e| format!("Failed to fetch evaluation: {}", e))?;
 
-        Ok(()) // Placeholder
+                let extractor = FeatureExtractor::new(self.scorer.db_path().to_string());
+
+                // Extract context keywords from evaluation
+                // Use task keywords if available, otherwise empty
+                let context_keywords = evaluation.task_keywords.clone().unwrap_or_default();
+
+                let features = extractor
+                    .extract_features(&evaluation, &context_keywords)
+                    .await
+                    .map_err(|e| format!("Failed to extract features: {}", e))?;
+
+                // Update weights using gradient descent
+                self.scorer
+                    .update_weights(&evaluation_id, &features)
+                    .await
+                    .map_err(|e| format!("Failed to update weights: {}", e))
+            })
+            .map_err(PyValueError::new_err)
     }
 }
 

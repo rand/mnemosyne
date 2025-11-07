@@ -129,8 +129,10 @@ pub async fn handle(
     let storage_backend: Arc<dyn StorageBackend> = Arc::new(storage);
 
     // Create ICS config with readonly setting
-    let mut config = IcsConfig::default();
-    config.read_only = readonly;
+    let config = IcsConfig {
+        read_only: readonly,
+        ..Default::default()
+    };
 
     if readonly {
         debug!("Read-only mode enabled");

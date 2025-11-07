@@ -465,8 +465,8 @@ impl IcsPanel {
             .enumerate();
 
         // Render lines with highlighting
-        let mut y_offset = 0;
-        for (_idx, line) in visible_lines {
+        for (y_offset, (_idx, line)) in visible_lines.enumerate() {
+            let y_offset = y_offset as u16;
             if y_offset >= inner.height {
                 break;
             }
@@ -479,7 +479,6 @@ impl IcsPanel {
                 height: 1,
             };
             frame.render_widget(highlighted_line, line_area);
-            y_offset += 1;
         }
 
         // Render cursor if focused

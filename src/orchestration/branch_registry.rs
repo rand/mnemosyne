@@ -571,7 +571,7 @@ mod tests {
         phases.insert(item1.clone(), Phase::PromptToSpec); // 0.5x
         phases.insert(item2.clone(), Phase::PlanToArtifacts); // 2.0x
 
-        let duration = calculate_dynamic_timeout(&vec![item1, item2], &phases);
+        let duration = calculate_dynamic_timeout(&[item1, item2], &phases);
 
         // Expected: 1 hour * (0.5 + 2.0) = 2.5 hours
         assert_eq!(duration.num_hours(), 2);

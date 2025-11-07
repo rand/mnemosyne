@@ -104,7 +104,7 @@ impl MessageRouter {
             }
             (LocalAgent::Executor(actor), AgentMessage::Executor(msg)) => {
                 actor
-                    .cast(msg)
+                    .cast(*msg)
                     .map_err(|e| format!("Failed to route to executor: {:?}", e))?;
             }
             _ => {

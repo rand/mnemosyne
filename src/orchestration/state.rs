@@ -59,9 +59,10 @@ pub enum RequirementStatus {
 }
 
 /// Work Plan Protocol phases
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum Phase {
     /// Phase 1: Prompt → Spec (clarify requirements)
+    #[default]
     PromptToSpec,
 
     /// Phase 2: Spec → Full Spec (decompose, dependencies)

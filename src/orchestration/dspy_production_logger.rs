@@ -348,7 +348,7 @@ impl ProductionLogger {
         } else {
             stats.total_errors += 1;
         }
-        stats.total_tokens += (log.tokens.input_tokens + log.tokens.output_tokens) as u64;
+        stats.total_tokens += log.tokens.input_tokens + log.tokens.output_tokens;
         stats.total_cost_usd += log.cost_usd;
         drop(stats);
 

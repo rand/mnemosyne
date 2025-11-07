@@ -9,4 +9,4 @@ pub mod tools;
 
 pub use protocol::{JsonRpcError, JsonRpcRequest, JsonRpcResponse};
 pub use server::McpServer;
-pub use tools::ToolHandler;
+pub use tools::{EventSink, ToolHandler};

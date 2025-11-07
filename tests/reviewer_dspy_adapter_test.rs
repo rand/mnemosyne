@@ -85,8 +85,6 @@ mod reviewer_adapter_tests {
             .expect("Failed to check intent");
 
         // Should return boolean and issues list
-        assert!(passed || !passed); // Valid boolean
-        assert!(issues.is_empty() || !issues.is_empty());
         // All issues should be strings
         for issue in issues {
             assert!(!issue.is_empty());
@@ -110,8 +108,8 @@ mod reviewer_adapter_tests {
             .await
             .expect("Failed to check intent with context");
 
-        assert!(passed || !passed);
-        assert!(issues.is_empty() || !issues.is_empty());
+        // Verify function returns successfully
+        let _ = (passed, issues);
     }
 
     #[tokio::test]
@@ -131,8 +129,8 @@ mod reviewer_adapter_tests {
             .await
             .expect("Failed to verify completeness");
 
-        assert!(complete || !complete);
-        assert!(issues.is_empty() || !issues.is_empty());
+        // Verify function returns successfully
+        let _ = (complete, issues);
     }
 
     #[tokio::test]
@@ -165,8 +163,8 @@ mod reviewer_adapter_tests {
             .await
             .expect("Failed to verify correctness");
 
-        assert!(correct || !correct);
-        assert!(issues.is_empty() || !issues.is_empty());
+        // Verify function returns successfully
+        let _ = (correct, issues);
     }
 
     #[tokio::test]
@@ -185,8 +183,8 @@ mod reviewer_adapter_tests {
             .await
             .expect("Failed to verify correctness with context");
 
-        assert!(correct || !correct);
-        assert!(issues.is_empty() || !issues.is_empty());
+        // Verify function returns successfully
+        let _ = (correct, issues);
     }
 
     #[tokio::test]
