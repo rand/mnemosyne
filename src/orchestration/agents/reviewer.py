@@ -22,6 +22,13 @@ from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
 # Import logging
 from .logging_config import get_logger
 
+# Import error context
+from .error_context import (
+    create_work_item_error_context,
+    create_validation_error_context,
+    format_error_for_rust
+)
+
 logger = get_logger("reviewer")
 
 
@@ -534,7 +541,18 @@ Be thorough but constructive. Focus on real issues.""")
                 logger.warning(f"Review failed for work item {work_item.id}: {len(review_result.issues)} issues")
                 logger.debug(f"Issues: {review_result.issues}")
 
+                # Identify which gates failed
+                failed_gates = [gate.value for gate, passed in review_result.gate_results.items() if not passed]
+
             # Convert ReviewResult to WorkResult
+            error_msg = None
+            if not review_result.passed:
+                # Create detailed error message for failed review
+                error_msg = f"Review failed {len(failed_gates)} quality gate(s): {', '.join(failed_gates)}\n"
+                error_msg += f"Issues:\n" + "\n".join(f"  • {issue}" for issue in review_result.issues[:5])
+                if review_result.recommendations:
+                    error_msg += f"\nRecommendations:\n" + "\n".join(f"  → {rec}" for rec in review_result.recommendations[:3])
+
             return WorkResult(
                 success=review_result.passed,
                 data=json.dumps({
@@ -545,18 +563,34 @@ Be thorough but constructive. Focus on real issues.""")
                     "confidence": review_result.confidence
                 }),
                 memory_ids=review_result.execution_context,
-                error=None if review_result.passed else "Review failed quality gates"
+                error=error_msg
             )
 
         except Exception as e:
-            # Handle any errors during review
+            # Handle any errors during review with enhanced context
             logger.error(
                 f"Failed to review work item {work_item.id}: {type(e).__name__}: {str(e)}",
                 exc_info=True
             )
+
+            # Create enhanced error context
+            error_context = create_work_item_error_context(
+                work_item_id=work_item.id,
+                work_item_phase="review",
+                work_item_description=work_item.description,
+                agent_id=self.config.agent_id,
+                agent_state="reviewing",
+                session_active=self._session_active,
+                error=e
+            )
+
+            # Log full context for debugging
+            logger.debug(f"Error context:\n{error_context.format()}")
+
+            # Return concise error for Rust bridge
             return WorkResult(
                 success=False,
-                error=f"Reviewer error: {type(e).__name__}: {str(e)}"
+                error=format_error_for_rust(error_context)
             )
 
     async def __aenter__(self):

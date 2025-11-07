@@ -24,6 +24,13 @@ from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
 # Import logging
 from .logging_config import get_logger
 
+# Import error context
+from .error_context import (
+    create_work_item_error_context,
+    create_session_error_context,
+    format_error_for_rust
+)
+
 logger = get_logger("executor")
 
 
@@ -495,14 +502,30 @@ Always follow best practices and validate your work before marking it complete."
             )
 
         except Exception as e:
-            # Handle any errors during execution
+            # Handle any errors during execution with enhanced context
             logger.error(
                 f"Failed to execute work item {work_item.id}: {type(e).__name__}: {str(e)}",
                 exc_info=True
             )
+
+            # Create enhanced error context
+            error_context = create_work_item_error_context(
+                work_item_id=work_item.id,
+                work_item_phase=work_item.phase,
+                work_item_description=work_item.description,
+                agent_id=self.config.agent_id,
+                agent_state=self._current_phase.value if hasattr(self, '_current_phase') else "unknown",
+                session_active=self._session_active,
+                error=e
+            )
+
+            # Log full context for debugging
+            logger.debug(f"Error context:\n{error_context.format()}")
+
+            # Return concise error for Rust bridge
             return WorkResult(
                 success=False,
-                error=f"Executor error: {type(e).__name__}: {str(e)}"
+                error=format_error_for_rust(error_context)
             )
 
     async def __aenter__(self):
