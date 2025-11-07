@@ -143,7 +143,7 @@ build_binary() {
         echo -e "${BLUE}Installing Python components...${NC}" >&2
         local py_start=$(date +%s)
 
-        if ! PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 uv run maturin develop --profile "$profile" --features python --quiet; then
+        if ! PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 uv run maturin develop --profile "$profile" --features python --quiet >&2; then
             echo "" >&2
             echo -e "${YELLOW}⚠ Warning:${NC} Python component installation failed" >&2
             echo "Orchestration agents may not work correctly" >&2

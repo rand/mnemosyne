@@ -40,7 +40,7 @@ echo -e "${GREEN}✓${NC} Build complete"
 if grep -q 'python' Cargo.toml 2>/dev/null; then
     echo ""
     echo "Installing Python components..."
-    if ! PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 uv run maturin develop --release --features python --quiet; then
+    if ! PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 uv run maturin develop --release --features python --quiet >/dev/null 2>&1; then
         echo -e "${YELLOW}⚠ Warning:${NC} Python component installation failed"
         echo "Orchestration agents may not work correctly"
     else
