@@ -504,6 +504,7 @@ impl ClaudeAgentBridge {
     ///
     /// Increments error count and updates last error timestamp.
     /// Used for restart logic and health monitoring.
+    /// Broadcasts error event to dashboard.
     pub async fn record_error(&self) {
         let mut error_count = self.error_count.write().await;
         *error_count += 1;
@@ -511,11 +512,35 @@ impl ClaudeAgentBridge {
         let mut last_error = self.last_error.write().await;
         *last_error = Some(std::time::Instant::now());
 
+        let count = *error_count;
+
         warn!(
             "Python agent {} error count: {}",
             self.agent_id,
-            *error_count
+            count
         );
+
+        // Broadcast error recorded event
+        let event = Event::agent_error_recorded(
+            self.agent_id.clone(),
+            count,
+            format!("Python agent error"),
+        );
+        if let Err(e) = self.event_tx.send(event) {
+            warn!("Failed to broadcast agent error event: {}", e);
+        }
+
+        // Check if health has degraded
+        if count >= 3 {  // Warning threshold at 3 errors
+            let event = Event::agent_health_degraded(
+                self.agent_id.clone(),
+                count,
+                count < 5,  // Unhealthy at 5+ errors
+            );
+            if let Err(e) = self.event_tx.send(event) {
+                warn!("Failed to broadcast health degraded event: {}", e);
+            }
+        }
     }
 
     /// Get error count for monitoring
@@ -627,10 +652,19 @@ impl ClaudeAgentBridge {
         // Reset error count
         self.reset_errors().await;
 
-        // Broadcast restart event
-        let event = Event::agent_started(self.agent_id.clone());
+        // Broadcast restart event (specific restart event, not just "started")
+        let event = Event::agent_restarted(
+            self.agent_id.clone(),
+            "Automatic restart after error threshold exceeded".to_string(),
+        );
         if let Err(e) = self.event_tx.send(event) {
             warn!("Failed to broadcast agent restart event: {}", e);
+        }
+
+        // Also broadcast agent started to update state
+        let event = Event::agent_started(self.agent_id.clone());
+        if let Err(e) = self.event_tx.send(event) {
+            warn!("Failed to broadcast agent started event: {}", e);
         }
 
         info!("Python agent {} restarted successfully", self.agent_id);

@@ -22,6 +22,30 @@ pub enum AgentState {
     Failed { error: String },
 }
 
+/// Agent health information (for Python bridges)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentHealth {
+    /// Error count
+    pub error_count: usize,
+    /// Last error timestamp
+    pub last_error: Option<DateTime<Utc>>,
+    /// Is healthy (below error threshold)
+    pub is_healthy: bool,
+    /// Last restart timestamp
+    pub last_restart: Option<DateTime<Utc>>,
+}
+
+impl Default for AgentHealth {
+    fn default() -> Self {
+        Self {
+            error_count: 0,
+            last_error: None,
+            is_healthy: true,
+            last_restart: None,
+        }
+    }
+}
+
 /// Agent information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInfo {
@@ -34,6 +58,9 @@ pub struct AgentInfo {
     /// Agent metadata
     #[serde(default)]
     pub metadata: HashMap<String, String>,
+    /// Health information (for Python bridges)
+    #[serde(default)]
+    pub health: Option<AgentHealth>,
 }
 
 /// Context file state
@@ -186,6 +213,7 @@ impl StateManager {
                         },
                         updated_at: Utc::now(),
                         metadata: HashMap::new(),
+                        health: Some(AgentHealth::default()),  // Initialize healthy
                     },
                 );
                 tracing::debug!("State updated: agent {} started", agent_id);
@@ -210,6 +238,58 @@ impl StateManager {
                     tracing::debug!("State updated: agent failed");
                 }
             }
+            EventType::AgentErrorRecorded {
+                agent_id,
+                error_count,
+                ..
+            } => {
+                let mut agents_map = agents.write().await;
+                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                    // Update or create health info
+                    let mut health = agent.health.take().unwrap_or_default();
+                    health.error_count = error_count;
+                    health.last_error = Some(Utc::now());
+                    health.is_healthy = error_count < 5;
+                    agent.health = Some(health);
+                    agent.updated_at = Utc::now();
+                    tracing::debug!("State updated: agent error recorded (count: {})", error_count);
+                }
+            }
+            EventType::AgentHealthDegraded {
+                agent_id,
+                error_count,
+                is_healthy,
+                ..
+            } => {
+                let mut agents_map = agents.write().await;
+                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                    let mut health = agent.health.take().unwrap_or_default();
+                    health.error_count = error_count;
+                    health.is_healthy = is_healthy;
+                    agent.health = Some(health);
+                    agent.updated_at = Utc::now();
+                    tracing::warn!(
+                        "State updated: agent health degraded (errors: {}, healthy: {})",
+                        error_count,
+                        is_healthy
+                    );
+                }
+            }
+            EventType::AgentRestarted { agent_id, .. } => {
+                let mut agents_map = agents.write().await;
+                if let Some(agent) = agents_map.get_mut(&agent_id) {
+                    // Reset health on restart
+                    let mut health = agent.health.take().unwrap_or_default();
+                    health.error_count = 0;
+                    health.last_error = None;
+                    health.is_healthy = true;
+                    health.last_restart = Some(Utc::now());
+                    agent.health = Some(health);
+                    agent.state = AgentState::Idle;
+                    agent.updated_at = Utc::now();
+                    tracing::info!("State updated: agent restarted and reset to healthy");
+                }
+            }
             EventType::Heartbeat { instance_id, .. } => {
                 let mut agents_map = agents.write().await;
                 if let Some(agent) = agents_map.get_mut(&instance_id) {
@@ -224,6 +304,7 @@ impl StateManager {
                             state: AgentState::Idle,
                             updated_at: Utc::now(),
                             metadata: HashMap::new(),
+                            health: Some(AgentHealth::default()),  // Initialize healthy
                         },
                     );
                     tracing::debug!(

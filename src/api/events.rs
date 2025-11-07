@@ -98,6 +98,26 @@ pub enum EventType {
         attempt: u32,
         timestamp: DateTime<Utc>,
     },
+    /// Python agent error recorded
+    AgentErrorRecorded {
+        agent_id: String,
+        error_count: usize,
+        error_message: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Python agent restarted
+    AgentRestarted {
+        agent_id: String,
+        reason: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Python agent health degraded
+    AgentHealthDegraded {
+        agent_id: String,
+        error_count: usize,
+        is_healthy: bool,
+        timestamp: DateTime<Utc>,
+    },
     /// Work item assigned to agent
     WorkItemAssigned {
         agent_id: String,
@@ -177,6 +197,35 @@ impl Event {
         Self::new(EventType::AgentFailed {
             agent_id,
             error,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create agent error recorded event
+    pub fn agent_error_recorded(agent_id: String, error_count: usize, error_message: String) -> Self {
+        Self::new(EventType::AgentErrorRecorded {
+            agent_id,
+            error_count,
+            error_message,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create agent restarted event
+    pub fn agent_restarted(agent_id: String, reason: String) -> Self {
+        Self::new(EventType::AgentRestarted {
+            agent_id,
+            reason,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create agent health degraded event
+    pub fn agent_health_degraded(agent_id: String, error_count: usize, is_healthy: bool) -> Self {
+        Self::new(EventType::AgentHealthDegraded {
+            agent_id,
+            error_count,
+            is_healthy,
             timestamp: Utc::now(),
         })
     }

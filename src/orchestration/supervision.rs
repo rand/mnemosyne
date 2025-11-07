@@ -118,6 +118,7 @@ impl SupervisionTree {
                 state: crate::api::state::AgentState::Idle,
                 updated_at: chrono::Utc::now(),
                 metadata: std::collections::HashMap::new(),
+                health: Some(crate::api::state::AgentHealth::default()),
             };
             state_manager.update_agent(agent_info).await;
             tracing::debug!("Updated state manager for {}", agent_name);
