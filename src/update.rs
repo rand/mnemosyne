@@ -145,10 +145,10 @@ impl UpdateManager {
             .current_dir(&repo_path)
             .args(&["pull", "origin", "main"])
             .output()
-            .map_err(|e| MnemosyneError::Process(format!("Failed to run git pull: {}", e)))?;
+            .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run git pull: {}", e)))?;
 
         if !pull_output.status.success() {
-            return Err(MnemosyneError::Process(format!(
+            return Err(MnemosyneError::InvalidOperation(format!(
                 "git pull failed: {}",
                 String::from_utf8_lossy(&pull_output.stderr)
             )));
@@ -159,14 +159,13 @@ impl UpdateManager {
         if let Some(bin_path) = &binary_path {
             let backup_path = bin_path.with_extension("backup");
             debug!("Backing up binary: {} -> {}", bin_path.display(), backup_path.display());
-            std::fs::copy(bin_path, &backup_path)
-                .map_err(|e| MnemosyneError::Io(format!("Failed to backup binary: {}", e)))?;
+            std::fs::copy(bin_path, &backup_path)?;
         }
 
         // Run build-and-install script
         let script_path = repo_path.join("scripts/build-and-install.sh");
         if !script_path.exists() {
-            return Err(MnemosyneError::Process(
+            return Err(MnemosyneError::InvalidOperation(
                 "build-and-install.sh script not found".to_string(),
             ));
         }
@@ -176,7 +175,7 @@ impl UpdateManager {
             .current_dir(&repo_path)
             .output()
             .map_err(|e| {
-                MnemosyneError::Process(format!("Failed to run build-and-install.sh: {}", e))
+                MnemosyneError::InvalidOperation(format!("Failed to run build-and-install.sh: {}", e))
             })?;
 
         if !build_output.status.success() {
@@ -189,7 +188,7 @@ impl UpdateManager {
                 }
             }
 
-            return Err(MnemosyneError::Process(format!(
+            return Err(MnemosyneError::InvalidOperation(format!(
                 "build-and-install.sh failed: {}",
                 String::from_utf8_lossy(&build_output.stderr)
             )));
@@ -199,10 +198,10 @@ impl UpdateManager {
         let verify = Command::new("mnemosyne")
             .arg("--version")
             .output()
-            .map_err(|e| MnemosyneError::Process(format!("Failed to verify new binary: {}", e)))?;
+            .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to verify new binary: {}", e)))?;
 
         if !verify.status.success() {
-            return Err(MnemosyneError::Process(
+            return Err(MnemosyneError::InvalidOperation(
                 "New binary failed verification".to_string(),
             ));
         }
@@ -222,12 +221,12 @@ impl UpdateManager {
     async fn install_mnemosyne(&self) -> Result<String> {
         // Check if already installed
         if self.version_checker.is_tool_installed(Tool::Mnemosyne) {
-            return Err(MnemosyneError::Process(
+            return Err(MnemosyneError::InvalidOperation(
                 "mnemosyne is already installed. Use update instead.".to_string(),
             ));
         }
 
-        Err(MnemosyneError::Process(
+        Err(MnemosyneError::InvalidOperation(
             "Automatic installation of mnemosyne is not yet supported. \
              Please clone the repository and run ./scripts/build-and-install.sh manually."
                 .to_string(),
@@ -241,10 +240,10 @@ impl UpdateManager {
         let output = Command::new("npm")
             .args(&["update", "-g", "@anthropic-ai/claude-code"])
             .output()
-            .map_err(|e| MnemosyneError::Process(format!("Failed to run npm update: {}", e)))?;
+            .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run npm update: {}", e)))?;
 
         if !output.status.success() {
-            return Err(MnemosyneError::Process(format!(
+            return Err(MnemosyneError::InvalidOperation(format!(
                 "npm update failed: {}",
                 String::from_utf8_lossy(&output.stderr)
             )));
@@ -260,10 +259,10 @@ impl UpdateManager {
         let output = Command::new("npm")
             .args(&["install", "-g", "@anthropic-ai/claude-code"])
             .output()
-            .map_err(|e| MnemosyneError::Process(format!("Failed to run npm install: {}", e)))?;
+            .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run npm install: {}", e)))?;
 
         if !output.status.success() {
-            return Err(MnemosyneError::Process(format!(
+            return Err(MnemosyneError::InvalidOperation(format!(
                 "npm install failed: {}",
                 String::from_utf8_lossy(&output.stderr)
             )));
@@ -298,7 +297,7 @@ impl UpdateManager {
             }
         }
 
-        Err(MnemosyneError::Process(
+        Err(MnemosyneError::InvalidOperation(
             "Failed to update beads via npm or homebrew. Is it installed?".to_string(),
         ))
     }
@@ -310,10 +309,10 @@ impl UpdateManager {
         let output = Command::new("npm")
             .args(&["install", "-g", "@beads/bd"])
             .output()
-            .map_err(|e| MnemosyneError::Process(format!("Failed to run npm install: {}", e)))?;
+            .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run npm install: {}", e)))?;
 
         if !output.status.success() {
-            return Err(MnemosyneError::Process(format!(
+            return Err(MnemosyneError::InvalidOperation(format!(
                 "npm install failed. Try homebrew: brew tap steveyegge/beads && brew install bd\n\
                  Error: {}",
                 String::from_utf8_lossy(&output.stderr)
@@ -327,7 +326,7 @@ impl UpdateManager {
     fn find_mnemosyne_repo(&self) -> Result<PathBuf> {
         // Try common locations
         let home = std::env::var("HOME")
-            .map_err(|_| MnemosyneError::Process("HOME environment variable not set".to_string()))?;
+            .map_err(|_| MnemosyneError::InvalidOperation("HOME environment variable not set".to_string()))?;
 
         let search_paths = vec![
             PathBuf::from(format!("{}/src/mnemosyne", home)),
@@ -342,7 +341,7 @@ impl UpdateManager {
             }
         }
 
-        Err(MnemosyneError::Process(
+        Err(MnemosyneError::InvalidOperation(
             "Could not find mnemosyne repository. Please ensure it's cloned in a standard location (~/src/mnemosyne)".to_string(),
         ))
     }

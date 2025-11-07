@@ -108,7 +108,7 @@ impl VersionChecker {
             .timeout(Duration::from_secs(5))
             .user_agent("mnemosyne-version-checker")
             .build()
-            .map_err(|e| MnemosyneError::Network(e.to_string()))?;
+            .map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
 
         Ok(Self {
             client,
@@ -153,10 +153,8 @@ impl VersionChecker {
             Tool::Beads => self.fetch_github_latest("steveyegge", "beads").await?,
         };
 
-        let update_available = if let (Some(installed_ver), Some(latest_ver)) =
-            (&installed, &latest)
-        {
-            Self::is_newer_version(latest_ver, installed_ver)
+        let update_available = if let Some(installed_ver) = &installed {
+            Self::is_newer_version(&latest, installed_ver)
         } else {
             false
         };
@@ -182,10 +180,10 @@ impl VersionChecker {
             .get(&url)
             .send()
             .await
-            .map_err(|e| MnemosyneError::Network(format!("GitHub API request failed: {}", e)))?;
+            .map_err(|e| MnemosyneError::NetworkError(format!("GitHub API request failed: {}", e)))?;
 
         if !response.status().is_success() {
-            return Err(MnemosyneError::Network(format!(
+            return Err(MnemosyneError::NetworkError(format!(
                 "GitHub API returned status: {}",
                 response.status()
             )));
@@ -194,7 +192,7 @@ impl VersionChecker {
         let release: GitHubRelease = response
             .json()
             .await
-            .map_err(|e| MnemosyneError::Network(format!("Failed to parse GitHub response: {}", e)))?;
+            .map_err(|e| MnemosyneError::NetworkError(format!("Failed to parse GitHub response: {}", e)))?;
 
         // Strip 'v' prefix if present
         let version = release.tag_name.strip_prefix('v').unwrap_or(&release.tag_name).to_string();
@@ -213,10 +211,10 @@ impl VersionChecker {
             .get(&url)
             .send()
             .await
-            .map_err(|e| MnemosyneError::Network(format!("npm registry request failed: {}", e)))?;
+            .map_err(|e| MnemosyneError::NetworkError(format!("npm registry request failed: {}", e)))?;
 
         if !response.status().is_success() {
-            return Err(MnemosyneError::Network(format!(
+            return Err(MnemosyneError::NetworkError(format!(
                 "npm registry returned status: {}",
                 response.status()
             )));
@@ -225,7 +223,7 @@ impl VersionChecker {
         let package_info: NpmPackage = response
             .json()
             .await
-            .map_err(|e| MnemosyneError::Network(format!("Failed to parse npm response: {}", e)))?;
+            .map_err(|e| MnemosyneError::NetworkError(format!("Failed to parse npm response: {}", e)))?;
 
         let version = package_info.dist_tags.latest;
         let release_url = format!("https://www.npmjs.com/package/{}", package);

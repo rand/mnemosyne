@@ -3686,7 +3686,10 @@ impl StorageBackend for LibsqlStorage {
         debug!("Work item deleted successfully: {:?}", id);
         Ok(())
     }
+}
 
+// Additional implementation methods for LibsqlStorage
+impl LibsqlStorage {
     /// Store version check cache entry
     pub async fn store_version_cache(
         &self,
@@ -3694,12 +3697,12 @@ impl StorageBackend for LibsqlStorage {
     ) -> Result<()> {
         let conn = self.get_conn()?;
         let tool_str = serde_json::to_string(&cache.tool)
-            .map_err(|e| MnemosyneError::Serialization(e.to_string()))?;
+            ?;
 
         conn.execute(
             "INSERT OR REPLACE INTO version_check_cache (tool, latest_version, release_url, checked_at, last_notified_version)
              VALUES (?, ?, ?, ?, NULL)",
-            params![tool_str, cache.latest_version, cache.release_url, cache.checked_at as i64],
+            params![tool_str, cache.latest_version.clone(), cache.release_url.clone(), cache.checked_at as i64],
         )
         .await
         .map_err(|e| MnemosyneError::Database(format!("Failed to store version cache: {}", e)))?;
@@ -3714,7 +3717,7 @@ impl StorageBackend for LibsqlStorage {
     ) -> Result<Option<crate::version_check::VersionCheckCache>> {
         let conn = self.get_conn()?;
         let tool_str = serde_json::to_string(&tool)
-            .map_err(|e| MnemosyneError::Serialization(e.to_string()))?;
+            ?;
 
         let mut rows = conn
             .query(
@@ -3731,7 +3734,7 @@ impl StorageBackend for LibsqlStorage {
                 MnemosyneError::Database(format!("Failed to get tool from cache: {}", e))
             })?;
             let tool: crate::version_check::Tool = serde_json::from_str(&tool_json)
-                .map_err(|e| MnemosyneError::Serialization(e.to_string()))?;
+                ?;
             let latest_version: String = row.get(1).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to get latest_version from cache: {}", e))
             })?;

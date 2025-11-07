@@ -374,7 +374,7 @@ pub fn show_loading_step(step_name: &str) {
 /// Check for updates and show notification if available
 /// This is non-blocking and will timeout after 3 seconds
 pub async fn check_and_show_updates() {
-    use crate::version_check::{VersionChecker, Tool};
+    use crate::version_check::VersionChecker;
 
     // Create version checker
     let checker = match VersionChecker::new() {
@@ -399,12 +399,12 @@ pub async fn check_and_show_updates() {
 
     if !updates.is_empty() {
         println!();
-        println!("   {} Updates available:", icons::system::info());
+        println!("   {} Updates available:", icons::status::info());
         for info in &updates {
             if let (Some(installed), Some(latest)) = (&info.installed, &info.latest) {
                 println!(
                     "   {} {}: {} → {}",
-                    icons::system::package(),
+                    icons::status::warning(),
                     info.tool.display_name(),
                     installed,
                     latest
@@ -421,9 +421,9 @@ pub async fn check_and_show_updates() {
         .collect();
 
     if !missing.is_empty() {
-        println!("   {} Optional tools not installed:", icons::system::info());
+        println!("   {} Optional tools not installed:", icons::status::info());
         for info in &missing {
-            println!("   {} {}", icons::system::package(), info.tool.display_name());
+            println!("   {} {}", icons::status::warning(), info.tool.display_name());
         }
         println!("   Run 'mnemosyne update --install' for installation instructions");
         println!();

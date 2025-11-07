@@ -76,7 +76,7 @@ async fn handle_install_instructions(tools: Vec<String>) -> Result<()> {
         // Show instructions for all tools
         println!("{}  Installation Instructions\n", icons::system::lightbulb());
         for tool in Tool::all() {
-            println!("{}  {}:", icons::system::package(), tool.display_name());
+            println!("{}  {}:", icons::system::gear(), tool.display_name());
             for line in manager.get_install_instructions(tool).lines() {
                 println!("   {}", line);
             }
@@ -95,7 +95,7 @@ async fn handle_install_instructions(tools: Vec<String>) -> Result<()> {
                 }
             };
 
-            println!("{}  {}:", icons::system::package(), tool.display_name());
+            println!("{}  {}:", icons::system::gear(), tool.display_name());
             for line in manager.get_install_instructions(tool).lines() {
                 println!("   {}", line);
             }
