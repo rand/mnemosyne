@@ -248,7 +248,7 @@ pub enum AgentMessage {
     Orchestrator(OrchestratorMessage),
     Optimizer(OptimizerMessage),
     Reviewer(ReviewerMessage),
-    Executor(ExecutorMessage),
+    Executor(Box<ExecutorMessage>),
 }
 
 /// Result of work item execution
