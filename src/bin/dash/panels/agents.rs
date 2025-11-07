@@ -1,6 +1,7 @@
 //! Agents panel - Display agent activity with health indicators
 
-use crate::widgets::{StateIndicator, StateType};
+use crate::time_series::TimeSeriesBuffer;
+use crate::widgets::{Sparkline, StateIndicator, StateType};
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -41,6 +42,7 @@ pub struct AgentHealth {
 pub struct AgentsPanel {
     agents: Vec<AgentInfo>,
     title: String,
+    active_count_history: TimeSeriesBuffer<f32>,
 }
 
 impl AgentsPanel {
@@ -49,11 +51,18 @@ impl AgentsPanel {
         Self {
             agents: Vec::new(),
             title: "Active Agents".to_string(),
+            active_count_history: TimeSeriesBuffer::new(50),
         }
     }
 
     /// Update agents data
     pub fn update(&mut self, agents: Vec<AgentInfo>) {
+        // Count active agents
+        let active_count = agents.iter()
+            .filter(|agent| matches!(agent.state, AgentState::Active { .. }))
+            .count() as f32;
+
+        self.active_count_history.push(active_count);
         self.agents = agents;
     }
 
@@ -112,15 +121,38 @@ impl AgentsPanel {
 
     /// Render the agents panel
     pub fn render(&self, frame: &mut Frame, area: Rect) {
-        let items: Vec<ListItem> = if self.agents.is_empty() {
-            vec![ListItem::new(Line::from(vec![Span::styled(
+        // Prepare data for sparkline (must live for entire function)
+        let active_count_data = self.active_count_history.to_vec();
+
+        let mut items: Vec<ListItem> = Vec::new();
+
+        // Activity trend sparkline (show if we have history)
+        if !active_count_data.is_empty() && self.agents.len() > 0 {
+            let sparkline = Sparkline::new(&active_count_data)
+                .width(15)
+                .style(Style::default().fg(ratatui::style::Color::Green));
+
+            let mut spans = vec![
+                Span::styled(
+                    "Activity: ",
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+            ];
+            spans.extend(sparkline.render().spans);
+
+            items.push(ListItem::new(Line::from(spans)));
+        }
+
+        // Agent list
+        if self.agents.is_empty() {
+            items.push(ListItem::new(Line::from(vec![Span::styled(
                 "No active agents",
                 Style::default()
                     .fg(ratatui::style::Color::Gray)
                     .add_modifier(Modifier::ITALIC),
-            )]))]
+            )])));
         } else {
-            self.agents
+            let agent_items: Vec<ListItem> = self.agents
                 .iter()
                 .map(|agent| {
                     // State indicator
@@ -163,8 +195,10 @@ impl AgentsPanel {
 
                     ListItem::new(Line::from(spans))
                 })
-                .collect()
-        };
+                .collect();
+
+            items.extend(agent_items);
+        }
 
         let list = List::new(items).block(
             Block::default()
