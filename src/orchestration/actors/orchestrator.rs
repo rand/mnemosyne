@@ -125,8 +125,8 @@ impl OrchestratorState {
                 interval.tick().await;
                 let event = crate::api::Event::heartbeat(agent_id_clone.clone());
                 if let Err(e) = broadcaster.broadcast(event) {
-                    tracing::warn!(
-                        "Failed to broadcast heartbeat for {}: {}",
+                    tracing::debug!(
+                        "Failed to broadcast heartbeat for {} (no subscribers): {}",
                         agent_id_clone,
                         e
                     );
