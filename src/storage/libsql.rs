@@ -204,6 +204,40 @@ impl LibsqlStorage {
         }
     }
 
+    /// Detect the database schema type by checking if embedding column exists in memories table
+    ///
+    /// Returns:
+    /// - SchemaType::LibSQL if embedding column exists (native F32_BLOB in memories table)
+    /// - SchemaType::StandardSQLite if embedding column doesn't exist (separate memory_embeddings table)
+    async fn detect_schema_type(db: &Database) -> Result<SchemaType> {
+        let conn = db
+            .connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to connect for schema detection: {}", e)))?;
+
+        // Query table schema using PRAGMA table_info
+        let mut rows = conn
+            .query("PRAGMA table_info(memories)", params![])
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query table schema: {}", e)))?;
+
+        // Check if 'embedding' column exists
+        while let Some(row) = rows.next().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to read schema row: {}", e))
+        })? {
+            let column_name: String = row.get(1).map_err(|e| {
+                MnemosyneError::Database(format!("Failed to read column name: {}", e))
+            })?;
+
+            if column_name == "embedding" {
+                debug!("Detected LibSQL schema (embedding column found in memories table)");
+                return Ok(SchemaType::LibSQL);
+            }
+        }
+
+        debug!("Detected StandardSQLite schema (no embedding column in memories table)");
+        Ok(SchemaType::StandardSQLite)
+    }
+
     /// Create a new LibSQL storage backend with validation
     ///
     /// # Arguments
@@ -369,11 +403,19 @@ impl LibsqlStorage {
 
         debug!("LibSQL database connection established");
 
-        // Use LibSQL schema for all connection modes
-        // libsql 0.9.24+ supports F32_BLOB natively for local databases,
-        // and vector_search implementation only works with LibSQL schema (F32_BLOB).
-        // Previously used StandardSQLite schema for local connections, but this is no longer needed.
-        let schema_type = SchemaType::LibSQL;
+        // Detect schema type by checking if embedding column exists in memories table
+        // LibSQL schema: embedding stored as F32_BLOB in memories table (native vector support)
+        // StandardSQLite schema: embeddings stored in separate memory_embeddings table
+        let schema_type = Self::detect_schema_type(&db).await?;
+        info!(
+            "Detected database schema: {:?} (embedding column {} in memories table)",
+            schema_type,
+            if schema_type == SchemaType::LibSQL {
+                "present"
+            } else {
+                "absent"
+            }
+        );
 
         // Extract database path for health checks
         let db_path = match &mode {
