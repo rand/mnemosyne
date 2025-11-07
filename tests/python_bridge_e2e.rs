@@ -63,9 +63,9 @@ mod python_e2e_tests {
             .await
             .expect("Failed to spawn executor bridge");
 
-        // Create simple work item: Write a hello world function
+        // Create work item with detailed prompt that passes validation
         let work_item = WorkItem::new(
-            "Write a simple hello_world() function in Python that prints 'Hello, World!'".to_string(),
+            "Create a hello_world() function in Python. The function should print the message 'Hello, World!' to stdout using the print() function. This is needed for testing the Python bridge with actual Claude API calls. The function must execute without errors and return None.".to_string(),
             AgentRole::Executor,
             Phase::PlanToArtifacts,
             5,
