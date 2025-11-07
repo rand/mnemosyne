@@ -22,6 +22,7 @@
 //! - State recovery
 
 pub mod actors;
+pub mod agent_spawner;
 pub mod branch_coordinator;
 
 pub mod branch_guard;
@@ -69,6 +70,7 @@ mod coordination_tests;
 
 // Re-export key types
 pub use actors::{ExecutorActor, OptimizerActor, OrchestratorActor, ReviewerActor};
+pub use agent_spawner::{AgentHandle, AgentSpawner, AgentSpawnerConfig, AgentStatus};
 
 pub use branch_coordinator::{
     BranchCoordinator, BranchCoordinatorConfig, JoinRequest, JoinResponse,

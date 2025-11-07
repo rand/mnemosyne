@@ -606,3 +606,67 @@ Always follow best practices and validate your work before marking it complete."
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.stop_session()
+
+
+# Standalone agent runner
+async def main():
+    """Run executor agent as independent process."""
+    import argparse
+    import asyncio
+    import httpx
+    import signal
+    import sys
+
+    parser = argparse.ArgumentParser(description="Executor Agent")
+    parser.add_argument("--agent-id", default="executor", help="Agent ID")
+    parser.add_argument("--api-url", default="http://127.0.0.1:3000", help="API server URL")
+    parser.add_argument("--database", default=".mnemosyne/orchestration.db", help="Database path")
+    parser.add_argument("--namespace", default="project:mnemosyne", help="Namespace")
+    args = parser.parse_args()
+
+    logger.info(f"Starting Executor Agent (ID: {args.agent_id})")
+    logger.info(f"API Server: {args.api_url}")
+
+    http_client = httpx.AsyncClient(timeout=5.0)
+
+    async def send_heartbeat():
+        while True:
+            try:
+                await http_client.post(
+                    f"{args.api_url}/events",
+                    json={"event_type": "Heartbeat", "instance_id": args.agent_id, "timestamp": "auto"}
+                )
+                logger.debug(f"Heartbeat sent from {args.agent_id}")
+            except Exception as e:
+                logger.warning(f"Heartbeat failed: {e}")
+            await asyncio.sleep(10)
+
+    shutdown_event = asyncio.Event()
+
+    def signal_handler(signum, frame):
+        logger.info(f"Received signal {signum}, shutting down...")
+        shutdown_event.set()
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
+    heartbeat_task = asyncio.create_task(send_heartbeat())
+
+    try:
+        logger.info("Executor agent running (press Ctrl+C to stop)")
+        await shutdown_event.wait()
+    except KeyboardInterrupt:
+        logger.info("Keyboard interrupt received")
+    except Exception as e:
+        logger.error(f"Error in agent main loop: {e}")
+        sys.exit(1)
+    finally:
+        logger.info("Shutting down executor agent...")
+        heartbeat_task.cancel()
+        await http_client.aclose()
+        logger.info("Executor agent stopped")
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())

@@ -454,3 +454,99 @@ What should be cleaned up vs. preserved for future sessions?"""
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.stop_session()
+
+
+# Standalone agent runner
+async def main():
+    """
+    Run orchestrator agent as independent process.
+
+    Accepts CLI arguments:
+    - --agent-id: Agent identifier (default: "orchestrator")
+    - --api-url: API server URL for heartbeats (default: "http://127.0.0.1:3000")
+    - --database: Database path (default: ".mnemosyne/orchestration.db")
+    - --namespace: Namespace for operations (default: "project:mnemosyne")
+    """
+    import argparse
+    import asyncio
+    import httpx
+    import signal
+    import sys
+
+    parser = argparse.ArgumentParser(description="Orchestrator Agent")
+    parser.add_argument("--agent-id", default="orchestrator", help="Agent ID")
+    parser.add_argument("--api-url", default="http://127.0.0.1:3000", help="API server URL")
+    parser.add_argument("--database", default=".mnemosyne/orchestration.db", help="Database path")
+    parser.add_argument("--namespace", default="project:mnemosyne", help="Namespace")
+    args = parser.parse_args()
+
+    logger.info(f"Starting Orchestrator Agent (ID: {args.agent_id})")
+    logger.info(f"API Server: {args.api_url}")
+    logger.info(f"Database: {args.database}")
+    logger.info(f"Namespace: {args.namespace}")
+
+    # Initialize agent configuration
+    config = OrchestratorConfig(
+        agent_id=args.agent_id,
+        allowed_tools=["Read", "Glob", "Task"],
+        permission_mode="default",
+    )
+
+    # Create HTTP client for API communication
+    http_client = httpx.AsyncClient(timeout=5.0)
+
+    # Heartbeat function
+    async def send_heartbeat():
+        """Send periodic heartbeat to API server."""
+        while True:
+            try:
+                await http_client.post(
+                    f"{args.api_url}/events",
+                    json={
+                        "event_type": "Heartbeat",
+                        "instance_id": args.agent_id,
+                        "timestamp": "auto"
+                    }
+                )
+                logger.debug(f"Heartbeat sent from {args.agent_id}")
+            except Exception as e:
+                logger.warning(f"Heartbeat failed: {e}")
+
+            await asyncio.sleep(10)  # Heartbeat every 10 seconds
+
+    # Graceful shutdown handler
+    shutdown_event = asyncio.Event()
+
+    def signal_handler(signum, frame):
+        logger.info(f"Received signal {signum}, initiating graceful shutdown...")
+        shutdown_event.set()
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
+    # Start heartbeat task
+    heartbeat_task = asyncio.create_task(send_heartbeat())
+
+    try:
+        logger.info("Orchestrator agent running (press Ctrl+C to stop)")
+
+        # TODO: Initialize orchestrator with actual storage and coordinator
+        # For now, just keep the agent alive
+        await shutdown_event.wait()
+
+    except KeyboardInterrupt:
+        logger.info("Keyboard interrupt received")
+    except Exception as e:
+        logger.error(f"Error in agent main loop: {e}")
+        sys.exit(1)
+    finally:
+        # Cleanup
+        logger.info("Shutting down orchestrator agent...")
+        heartbeat_task.cancel()
+        await http_client.aclose()
+        logger.info("Orchestrator agent stopped")
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())

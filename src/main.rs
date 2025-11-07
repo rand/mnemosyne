@@ -415,10 +415,12 @@ async fn main() -> Result<()> {
         }
         None => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};
+            use mnemosyne_core::orchestration::{AgentSpawner, AgentSpawnerConfig};
             use std::net::SocketAddr;
+            use std::sync::Arc;
 
-            // Default: launch orchestrated Claude Code session with API server
-            debug!("Launching orchestrated Claude Code session with API monitoring...");
+            // Default: launch orchestrated Claude Code session with independent agents
+            debug!("Launching orchestrated session with independent agent processes...");
 
             // Get database path
             let db_path = get_db_path(cli.db_path);
@@ -435,8 +437,8 @@ async fn main() -> Result<()> {
                 event_capacity: 1000,
             };
             let api_server = ApiServer::new(api_config);
-            let event_broadcaster = api_server.broadcaster().clone();
-            let state_manager = api_server.state_manager().clone();
+            let event_broadcaster = Arc::new(api_server.broadcaster().clone());
+            let state_manager = Arc::new(api_server.state_manager().clone());
 
             // Spawn API server in background
             let api_handle = tokio::spawn(async move {
@@ -458,18 +460,63 @@ async fn main() -> Result<()> {
             // Show dashboard availability
             info!("Dashboard available at: http://{}", socket_addr);
             info!("Run 'mnemosyne-dash' in another terminal to monitor activity");
+            info!("");
 
             // Show playful loading messages with 3-line animation
             let progress = launcher::ui::LaunchProgress::new();
             progress.show_multiline_loading();
+
+            // Create agent spawner configuration
+            let spawner_config = AgentSpawnerConfig {
+                python_path: "/opt/homebrew/bin/python3".to_string(),
+                agents_dir: "src/orchestration/agents".to_string(),
+                api_url: format!("http://{}", socket_addr),
+                database_path: db_path.clone(),
+                namespace: "project:mnemosyne".to_string(),
+            };
+
+            // Create agent spawner
+            let spawner = AgentSpawner::new(
+                spawner_config,
+                Some(event_broadcaster.clone()),
+                Some(state_manager.clone()),
+            );
+
+            // Spawn all 4 independent agent processes
+            info!("🚀 Spawning independent agent processes...");
+            match spawner.spawn_all().await {
+                Ok(spawned_roles) => {
+                    info!("✓ Successfully spawned {} agents", spawned_roles.len());
+
+                    // Show PIDs
+                    let pids = spawner.get_pids().await;
+                    for (role, pid) in pids {
+                        info!("  • {} agent running (PID: {})", role.as_str(), pid);
+                    }
+
+                    // Wait for agents to register with API server
+                    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+
+                    // Verify agents are visible to dashboard
+                    let agents = state_manager.list_agents().await;
+                    info!("✓ {} agents registered with API server", agents.len());
+                    info!("");
+                }
+                Err(e) => {
+                    progress.show_error(&format!("Failed to spawn agents: {}", e));
+                    error!("Agent spawning failed: {}", e);
+                    // Continue anyway - maybe some agents spawned
+                }
+            }
+
             progress.show_transition();
 
-            // Launch orchestrated session with event broadcasting and state management
+            // Launch orchestrated session (agents already running, just start Claude Code)
             let result = launcher::launch_orchestrated_session(
-                Some(db_path),
+                Some(db_path.clone()),
                 None,
-                Some(event_broadcaster),
-                Some(state_manager),
+                Some(event_broadcaster.as_ref().clone()),
+                Some(state_manager.as_ref().clone()),
             )
             .await;
 
@@ -479,6 +526,12 @@ async fn main() -> Result<()> {
                 println!(); // Extra spacing after startup
             } else if let Err(ref e) = result {
                 progress.show_error(&format!("{}", e));
+            }
+
+            // Cleanup
+            info!("Shutting down agents...");
+            if let Err(e) = spawner.shutdown_all().await {
+                warn!("Error during agent shutdown: {}", e);
             }
 
             // Clean up API server
