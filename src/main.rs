@@ -463,11 +463,6 @@ async fn main() -> Result<()> {
             progress.show_multiline_loading();
             progress.show_transition();
 
-            // 20% chance to show explosion animation (positioned above Space Invader)
-            if rand::random::<f32>() < 0.2 {
-                progress.show_explosion_animation();
-            }
-
             // Launch orchestrated session with event broadcasting and state management
             let result = launcher::launch_orchestrated_session(
                 Some(db_path),

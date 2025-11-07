@@ -162,7 +162,7 @@ async fn test_graceful_shutdown_with_active_work() {
     );
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_item))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_item)))
         .expect("Failed to submit work");
 
     // Give time for work to be submitted
@@ -227,7 +227,7 @@ async fn test_single_work_item_submission() {
     let item_id = work_item.id.clone();
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_item))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_item)))
         .expect("Failed to submit work");
 
     // Give time for work to be processed
@@ -276,11 +276,11 @@ async fn test_work_item_with_dependencies() {
 
     // Submit in reverse order (A before B) to test dependency resolution
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_a.clone()))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_a.clone())))
         .expect("Failed to submit work A");
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_b.clone()))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_b.clone())))
         .expect("Failed to submit work B");
 
     // Give time for processing
@@ -338,13 +338,13 @@ async fn test_circular_dependency_detection() {
 
     // Submit all work items
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_a_cyclic))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_a_cyclic)))
         .expect("Failed to submit work A");
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_b))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_b)))
         .expect("Failed to submit work B");
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_c))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_c)))
         .expect("Failed to submit work C");
 
     // Wait longer than deadlock detection timeout (60s in production, but test should be faster)
@@ -383,7 +383,7 @@ async fn test_work_queue_ready_items() {
         );
 
         orchestrator
-            .cast(OrchestratorMessage::SubmitWork(work_item))
+            .cast(OrchestratorMessage::SubmitWork(Box::new(work_item)))
             .expect("Failed to submit work");
     }
 
@@ -424,7 +424,7 @@ async fn test_work_completion_notification() {
     let item_id = work_item.id.clone();
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_item))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_item)))
         .expect("Failed to submit work");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -660,7 +660,7 @@ async fn test_phase_tracking_in_work_queue() {
     );
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_phase1))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_phase1)))
         .expect("Failed to submit phase 1 work");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -684,7 +684,7 @@ async fn test_phase_tracking_in_work_queue() {
     );
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_phase2))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_phase2)))
         .expect("Failed to submit phase 2 work");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -735,7 +735,7 @@ async fn test_complete_work_plan_protocol_flow() {
         let work = WorkItem::new(format!("Work in {:?}", from), AgentRole::Executor, from, 5);
 
         orchestrator
-            .cast(OrchestratorMessage::SubmitWork(work))
+            .cast(OrchestratorMessage::SubmitWork(Box::new(work)))
             .expect("Failed to submit work");
 
         tokio::time::sleep(Duration::from_millis(50)).await;
@@ -922,7 +922,7 @@ async fn test_crash_recovery_simulation() {
         );
 
         orchestrator
-            .cast(OrchestratorMessage::SubmitWork(work))
+            .cast(OrchestratorMessage::SubmitWork(Box::new(work)))
             .expect("Failed to submit work");
 
         tokio::time::sleep(Duration::from_millis(100)).await;
@@ -1109,7 +1109,7 @@ async fn test_work_item_failure_handling() {
     let item_id = work.id.clone();
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work)))
         .expect("Failed to submit work");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -1174,11 +1174,11 @@ async fn test_deadlock_detection() {
     work_b.dependencies = vec![work_a_id.clone()];
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_a))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_a)))
         .expect("Failed to submit work A");
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_b))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_b)))
         .expect("Failed to submit work B");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -1221,7 +1221,7 @@ async fn test_timeout_handling() {
     work.timeout = Some(Duration::from_millis(50));
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work)))
         .expect("Failed to submit work");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -1324,7 +1324,7 @@ async fn test_multiple_concurrent_failures() {
         item_ids.push(work.id.clone());
 
         orchestrator
-            .cast(OrchestratorMessage::SubmitWork(work))
+            .cast(OrchestratorMessage::SubmitWork(Box::new(work)))
             .expect("Failed to submit work");
     }
 
@@ -1390,11 +1390,11 @@ async fn test_error_propagation_through_dependencies() {
     work_a.dependencies = vec![work_b_id.clone()];
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_b))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_b)))
         .expect("Failed to submit work B");
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_a.clone()))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_a.clone())))
         .expect("Failed to submit work A");
 
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -1447,7 +1447,7 @@ async fn test_graceful_degradation() {
     let success_id = work_success.id.clone();
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_success))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_success)))
         .expect("Failed to submit success work");
 
     tokio::time::sleep(Duration::from_millis(50)).await;
@@ -1462,7 +1462,7 @@ async fn test_graceful_degradation() {
     let fail_id = work_fail.id.clone();
 
     orchestrator
-        .cast(OrchestratorMessage::SubmitWork(work_fail))
+        .cast(OrchestratorMessage::SubmitWork(Box::new(work_fail)))
         .expect("Failed to submit fail work");
 
     tokio::time::sleep(Duration::from_millis(50)).await;
