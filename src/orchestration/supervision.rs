@@ -426,6 +426,98 @@ impl SupervisionTree {
             tracing::debug!("No event broadcaster available, skipping registration");
         }
 
+        // Initialize and register Python Claude SDK agent bridges (if Python feature enabled)
+        #[cfg(feature = "python")]
+        {
+            if let Some(broadcaster) = &self.event_broadcaster {
+                tracing::info!("Initializing Python Claude SDK agent bridges for intelligent agent collaboration");
+
+                // Create event transmitter for bridges
+                let event_tx = broadcaster.sender();
+
+                // Initialize and register bridge for Orchestrator
+                if let Some(ref orchestrator) = self.orchestrator {
+                    match Self::initialize_python_bridge(AgentRole::Orchestrator, event_tx.clone()).await {
+                        Ok(bridge) => {
+                            orchestrator
+                                .cast(OrchestratorMessage::RegisterPythonBridge(bridge))
+                                .map_err(|e| {
+                                    tracing::warn!("Failed to register Python bridge with Orchestrator: {:?}", e);
+                                    crate::error::MnemosyneError::ActorError(e.to_string())
+                                })?;
+                            tracing::info!("Python bridge registered with Orchestrator");
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to initialize Python bridge for Orchestrator: {}", e);
+                            tracing::warn!("Orchestrator will use basic coordination without LLM intelligence");
+                        }
+                    }
+                }
+
+                // Initialize and register bridge for Optimizer
+                if let Some(ref optimizer) = self.optimizer {
+                    match Self::initialize_python_bridge(AgentRole::Optimizer, event_tx.clone()).await {
+                        Ok(bridge) => {
+                            optimizer
+                                .cast(OptimizerMessage::RegisterPythonBridge(bridge))
+                                .map_err(|e| {
+                                    tracing::warn!("Failed to register Python bridge with Optimizer: {:?}", e);
+                                    crate::error::MnemosyneError::ActorError(e.to_string())
+                                })?;
+                            tracing::info!("Python bridge registered with Optimizer");
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to initialize Python bridge for Optimizer: {}", e);
+                            tracing::warn!("Optimizer will use basic context management without LLM intelligence");
+                        }
+                    }
+                }
+
+                // Initialize and register bridge for Reviewer
+                // Note: Reviewer has both DSPy adapter (above) and Claude SDK bridge
+                if let Some(ref reviewer) = self.reviewer {
+                    match Self::initialize_python_bridge(AgentRole::Reviewer, event_tx.clone()).await {
+                        Ok(bridge) => {
+                            reviewer
+                                .cast(ReviewerMessage::RegisterPythonBridge(bridge))
+                                .map_err(|e| {
+                                    tracing::warn!("Failed to register Python bridge with Reviewer: {:?}", e);
+                                    crate::error::MnemosyneError::ActorError(e.to_string())
+                                })?;
+                            tracing::info!("Python bridge registered with Reviewer");
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to initialize Python bridge for Reviewer: {}", e);
+                            tracing::warn!("Reviewer will use DSPy adapter or pattern-matching validation");
+                        }
+                    }
+                }
+
+                // Initialize and register bridge for Executor
+                if let Some(ref executor) = self.executor {
+                    match Self::initialize_python_bridge(AgentRole::Executor, event_tx.clone()).await {
+                        Ok(bridge) => {
+                            executor
+                                .cast(ExecutorMessage::RegisterPythonBridge(bridge))
+                                .map_err(|e| {
+                                    tracing::warn!("Failed to register Python bridge with Executor: {:?}", e);
+                                    crate::error::MnemosyneError::ActorError(e.to_string())
+                                })?;
+                            tracing::info!("Python bridge registered with Executor");
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to initialize Python bridge for Executor: {}", e);
+                            tracing::warn!("Executor will use basic execution without LLM intelligence");
+                        }
+                    }
+                }
+
+                tracing::info!("Python Claude SDK agent bridges initialized and registered with all 4 actors");
+            } else {
+                tracing::info!("No event broadcaster available, skipping Python bridge initialization");
+            }
+        }
+
         tracing::debug!("Supervision tree started with {} agents", 4);
 
         // Bootstrap Work Plan Protocol with initial work items
@@ -514,7 +606,32 @@ impl SupervisionTree {
         Ok(())
     }
 
-    /// Initialize Python reviewer instance
+    /// Initialize Python Claude SDK agent bridge for a given role
+    ///
+    /// This spawns a Python Claude SDK agent using the ClaudeAgentBridge,
+    /// which provides intelligent LLM-powered agent capabilities.
+    ///
+    /// Returns Err if Python initialization fails (e.g., module not found,
+    /// import error, API key missing).
+    #[cfg(feature = "python")]
+    async fn initialize_python_bridge(
+        role: AgentRole,
+        event_tx: tokio::sync::broadcast::Sender<crate::api::Event>,
+    ) -> Result<crate::orchestration::ClaudeAgentBridge> {
+        use crate::error::MnemosyneError;
+
+        crate::orchestration::ClaudeAgentBridge::spawn(role, event_tx)
+            .await
+            .map_err(|e| {
+                MnemosyneError::ActorError(format!(
+                    "Failed to initialize Python bridge for {:?}: {}. \
+                     Ensure Python dependencies are installed and ANTHROPIC_API_KEY is set.",
+                    role, e
+                ))
+            })
+    }
+
+    /// Initialize Python reviewer instance (DSPy adapter - legacy)
     ///
     /// This creates a Python reviewer instance using PyO3 and returns
     /// it as a PyObject that can be registered with the Rust reviewer.

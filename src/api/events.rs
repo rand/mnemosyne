@@ -344,6 +344,11 @@ impl EventBroadcaster {
     pub fn subscriber_count(&self) -> usize {
         self.tx.receiver_count()
     }
+
+    /// Get a clone of the event sender for creating agent bridges
+    pub fn sender(&self) -> broadcast::Sender<Event> {
+        self.tx.clone()
+    }
 }
 
 impl Default for EventBroadcaster {
