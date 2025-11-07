@@ -29,6 +29,9 @@ from .error_context import (
     format_error_for_rust
 )
 
+# Import validation
+from .validation import validate_work_item, validate_agent_state, validate_review_artifact
+
 logger = get_logger("reviewer")
 
 
@@ -517,6 +520,33 @@ Be thorough but constructive. Focus on real issues.""")
         """
         logger.info(f"Received review request from Rust bridge: {work_item.id} (attempt {work_item.review_attempt})")
         logger.debug(f"Work item description: {work_item.description[:200]}")
+
+        # Validate work item
+        validation_result = validate_work_item(work_item)
+        if not validation_result.valid:
+            logger.error(f"Work item validation failed: {validation_result.errors}")
+            return WorkResult(
+                success=False,
+                error=f"Invalid work item for review:\n" + "\n".join(f"  • {err}" for err in validation_result.errors)
+            )
+
+        # Log warnings
+        if validation_result.warnings:
+            for warning in validation_result.warnings:
+                logger.warning(f"Work item validation warning: {warning}")
+
+        # Validate agent state
+        state_validation = validate_agent_state(
+            agent_id=self.config.agent_id,
+            session_active=self._session_active,
+            required_session=False
+        )
+        if not state_validation.valid:
+            logger.error(f"Agent state validation failed: {state_validation.errors}")
+            return WorkResult(
+                success=False,
+                error=f"Invalid agent state:\n" + "\n".join(f"  • {err}" for err in state_validation.errors)
+            )
 
         try:
             # Convert WorkItem to work artifact for review
