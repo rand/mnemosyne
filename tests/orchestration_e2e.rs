@@ -59,7 +59,7 @@ async fn test_engine_startup_shutdown() {
     engine.start().await.expect("Failed to start engine");
 
     // Verify orchestrator is accessible
-    let orchestrator = engine.orchestrator();
+    let _orchestrator = engine.orchestrator();
     // ActorId is always valid if we got here
     assert!(true, "Orchestrator is accessible");
 
@@ -224,7 +224,7 @@ async fn test_single_work_item_submission() {
         Phase::PromptToSpec,
         5,
     );
-    let item_id = work_item.id.clone();
+    let _item_id = work_item.id.clone();
 
     orchestrator
         .cast(OrchestratorMessage::SubmitWork(Box::new(work_item)))
@@ -257,7 +257,7 @@ async fn test_work_item_with_dependencies() {
     let orchestrator = engine.orchestrator();
 
     // Create work item B (no dependencies)
-    let mut work_b = WorkItem::new(
+    let work_b = WorkItem::new(
         "Work B (first)".to_string(),
         AgentRole::Executor,
         Phase::PromptToSpec,
@@ -430,7 +430,7 @@ async fn test_work_completion_notification() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Create a dummy memory for the work result (Reviewer requires non-empty memory_ids)
-    use mnemosyne_core::{MemoryId, MemoryNote, MemoryType, Namespace};
+    use mnemosyne_core::{MemoryId, MemoryNote, MemoryType};
     let dummy_memory = MemoryNote {
         id: MemoryId::new(),
         namespace: namespace.clone(),
