@@ -628,9 +628,16 @@ impl StateManager {
                 );
             }
 
-            EventType::HealthUpdate { .. } | EventType::SessionStarted { .. } => {
-                // System-level events, no state update needed
-                tracing::trace!("System event received (no state update)");
+            EventType::HealthUpdate { .. }
+            | EventType::SessionStarted { .. }
+            | EventType::CliCommandStarted { .. }
+            | EventType::CliCommandCompleted { .. }
+            | EventType::CliCommandFailed { .. }
+            | EventType::SearchPerformed { .. }
+            | EventType::DatabaseOperation { .. } => {
+                // System-level and CLI operation events, no state update needed
+                // These are displayed in the Operations panel, not in agent state
+                tracing::trace!("System/CLI event received (no state update)");
             }
         }
 
