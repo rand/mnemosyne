@@ -455,11 +455,6 @@ async fn main() -> Result<()> {
             // Check for updates (non-blocking, 3s timeout)
             launcher::ui::check_and_show_updates().await;
 
-            // Show dashboard availability
-            info!("Dashboard available at: http://{}", socket_addr);
-            info!("Run 'mnemosyne-dash' in another terminal to monitor activity");
-            info!("");
-
             // Launch orchestrated Claude Code session with all 4 agents
             info!("Launching Claude Code with orchestration support...");
             info!("");
