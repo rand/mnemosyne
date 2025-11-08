@@ -394,7 +394,7 @@ mod tests {
     #[test]
     fn test_panel_visibility_default() {
         let vis = PanelVisibility::default();
-        assert_eq!(vis.visible_count(), 6);
+        assert_eq!(vis.visible_count(), 7);
         assert!(vis.is_visible(PanelId::Agents));
     }
 
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn test_panel_manager_creation() {
         let manager = PanelManager::new();
-        assert_eq!(manager.visible_count(), 6);
+        assert_eq!(manager.visible_count(), 7);
         assert_eq!(manager.current_preset_name(), Some("All Panels"));
     }
 
@@ -459,7 +459,7 @@ mod tests {
         assert_eq!(manager.visible_count(), 0);
 
         manager.show_all();
-        assert_eq!(manager.visible_count(), 6);
+        assert_eq!(manager.visible_count(), 7);
     }
 
     #[test]
@@ -467,7 +467,7 @@ mod tests {
         let manager = PanelManager::new();
         let constraints = manager.layout_constraints(80);
 
-        assert_eq!(constraints.len(), 6);
+        assert_eq!(constraints.len(), 7);
     }
 
     #[test]
@@ -476,7 +476,7 @@ mod tests {
         // Very limited space should compress to minimums
         let constraints = manager.layout_constraints(30);
 
-        assert_eq!(constraints.len(), 6);
+        assert_eq!(constraints.len(), 7);
         // Should use minimum heights or compressed
         for c in constraints {
             match c {
@@ -495,7 +495,8 @@ mod tests {
         assert_eq!(PanelId::Skills.shortcut_key(), '3');
         assert_eq!(PanelId::Work.shortcut_key(), '4');
         assert_eq!(PanelId::Context.shortcut_key(), '5');
-        assert_eq!(PanelId::Events.shortcut_key(), '6');
+        assert_eq!(PanelId::Operations.shortcut_key(), '6');
+        assert_eq!(PanelId::Events.shortcut_key(), '7');
     }
 
     #[test]
