@@ -521,10 +521,11 @@ impl SupervisionTree {
 
         tracing::debug!("Supervision tree started with {} agents", 4);
 
-        // TEMPORARY: Bootstrap disabled during E2E testing
-        // The bootstrap work submissions are causing the orchestrator to stop.
-        // TODO: Fix handle_submit_work or persist() to handle bootstrap work items correctly
-        // self.bootstrap_work_plan_protocol().await?;
+        // Bootstrap work protocol with error handling
+        // If bootstrap fails, log warning but don't crash - system can still accept user work
+        if let Err(e) = self.bootstrap_work_plan_protocol().await {
+            tracing::warn!("Bootstrap work protocol failed: {}. System will continue without initial work items.", e);
+        }
 
         Ok(())
     }
@@ -565,17 +566,13 @@ impl SupervisionTree {
             );
 
             // Submit existing items to orchestrator for resumption
+            // Continue even if some items fail - log warnings but don't abort
             if let Some(ref orchestrator) = self.orchestrator {
                 for item in existing_items {
                     tracing::debug!("Resuming work item: {}", item.description);
-                    orchestrator
-                        .cast(OrchestratorMessage::SubmitWork(Box::new(item)))
-                        .map_err(|e| {
-                            crate::error::MnemosyneError::ActorError(format!(
-                                "Failed to resume work: {}",
-                                e
-                            ))
-                        })?;
+                    if let Err(e) = orchestrator.cast(OrchestratorMessage::SubmitWork(Box::new(item))) {
+                        tracing::warn!("Failed to resume work item: {}. Continuing with remaining items.", e);
+                    }
                 }
             } else {
                 tracing::warn!("Orchestrator not available, cannot resume work");
@@ -587,20 +584,16 @@ impl SupervisionTree {
             let init_items = work_plan_templates::create_session_init_work_items();
 
             // Submit initialization work items to orchestrator
+            // Continue even if some items fail - log warnings but don't abort
             if let Some(ref orchestrator) = self.orchestrator {
                 for item in init_items {
                     tracing::debug!("Submitting init work: {}", item.description);
-                    orchestrator
-                        .cast(OrchestratorMessage::SubmitWork(Box::new(item)))
-                        .map_err(|e| {
-                            crate::error::MnemosyneError::ActorError(format!(
-                                "Failed to submit init work: {}",
-                                e
-                            ))
-                        })?;
+                    if let Err(e) = orchestrator.cast(OrchestratorMessage::SubmitWork(Box::new(item))) {
+                        tracing::warn!("Failed to submit init work item: {}. Continuing with remaining items.", e);
+                    }
                 }
 
-                tracing::info!("Work Plan Protocol bootstrapped successfully");
+                tracing::info!("Work Plan Protocol bootstrap attempted");
             } else {
                 tracing::warn!("Orchestrator not available, skipping bootstrap");
             }
