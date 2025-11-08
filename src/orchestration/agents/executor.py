@@ -175,10 +175,9 @@ Always follow best practices and validate your work before marking it complete."
 
     async def execute_work_plan(self, work_plan: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute work plan using Zero Framework Cognition principles.
+        Execute work plan using Anthropic API for LLM reasoning.
 
-        ZFC: Deterministic state machine + direct LLM API calls for decisions.
-        No Claude Agent SDK dependency - works standalone.
+        ZFC: Deterministic state machine + LLM API calls for intelligent decisions.
 
         Args:
             work_plan: Work plan with prompt, phase, etc.
@@ -190,58 +189,110 @@ Always follow best practices and validate your work before marking it complete."
         phase = work_plan.get('phase', 'spec')
         work_id = work_plan.get('id', 'unknown')
 
-        logger.info(f"[ZFC] Executing work (phase={phase}): {prompt[:100]}")
+        logger.info(f"[Executor] Executing work (phase={phase}): {prompt[:100]}")
         self.coordinator.update_agent_state(self.config.agent_id, "running")
         self._current_phase = ExecutorPhase.ANALYZING
 
         try:
-            # ZFC Phase 1: Analysis (Deterministic)
-            logger.info(f"[ZFC] Phase 1: Analyzing work item {work_id}")
+            # Phase 1: Analysis - Build execution prompt
+            logger.info(f"[Executor] Phase 1: Analyzing work item {work_id}")
+            execution_prompt = self._build_execution_prompt(work_plan)
+
             analysis = {
                 "description": prompt,
                 "phase": phase,
                 "complexity": "simple" if len(prompt) < 100 else "moderate",
-                "requires_llm": len(prompt) > 20  # Simple heuristic
+                "prompt_length": len(execution_prompt)
             }
 
-            # ZFC Phase 2: Planning (Deterministic state transition)
+            # Phase 2: Planning - Prepare API call
             self._current_phase = ExecutorPhase.PLANNING
-            logger.info(f"[ZFC] Phase 2: Creating execution plan")
+            logger.info(f"[Executor] Phase 2: Calling Anthropic API for intelligent execution")
 
-            # For now, simple execution - just log and return success
-            # Future: Add direct Anthropic API calls here for actual LLM reasoning
-            execution_summary = f"Analyzed request: {prompt}"
-
-            # ZFC Phase 3: Execution (Would call LLM here)
+            # Phase 3: Execution - Call Anthropic API
             self._current_phase = ExecutorPhase.EXECUTING
-            logger.info(f"[ZFC] Phase 3: Executing work")
 
-            # Simple artifact - shows the system works
+            # Import here to allow graceful degradation if not available
+            import anthropic
+            import os
+
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY not set. Cannot execute work without API access. "
+                    "Get your key from: https://console.anthropic.com/settings/keys"
+                )
+
+            client = anthropic.Anthropic(api_key=api_key)
+
+            # Call Claude API with the execution prompt
+            logger.info(f"[Executor] Calling Claude API (model: claude-sonnet-4-5-20250929)")
+            response = client.messages.create(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=4096,
+                messages=[{
+                    "role": "user",
+                    "content": execution_prompt
+                }]
+            )
+
+            # Extract response content
+            response_text = response.content[0].text if response.content else "No response"
+
+            logger.info(f"[Executor] Claude API returned {len(response_text)} characters")
+            logger.debug(f"[Executor] Response preview: {response_text[:200]}...")
+
+            # Create artifacts from response
             artifacts = [{
-                "type": "analysis",
-                "content": execution_summary,
+                "type": "llm_response",
+                "content": response_text,
                 "phase": phase,
-                "work_id": work_id
+                "work_id": work_id,
+                "model": "claude-sonnet-4-5-20250929",
+                "tokens_used": {
+                    "input": response.usage.input_tokens,
+                    "output": response.usage.output_tokens
+                }
             }]
 
-            # ZFC Phase 4: Completion (Deterministic)
+            execution_summary = f"Executed work via Claude API: {prompt[:100]}"
+
+            # Phase 4: Completion
             self._current_phase = ExecutorPhase.COMPLETED
             self.coordinator.update_agent_state(self.config.agent_id, "complete")
 
-            logger.info(f"[ZFC] Work completed successfully: {work_id}")
-            logger.info(f"[ZFC] Summary: {execution_summary}")
+            logger.info(f"[Executor] Work completed successfully: {work_id}")
+            logger.info(f"[Executor] Tokens: {response.usage.input_tokens} in, {response.usage.output_tokens} out")
 
             return {
                 "status": "success",
                 "artifacts": artifacts,
                 "analysis": analysis,
                 "summary": execution_summary,
-                "phase": phase
+                "phase": phase,
+                "response_text": response_text  # Include full response for debugging
             }
 
+        except ImportError as e:
+            self.coordinator.update_agent_state(self.config.agent_id, "failed")
+            error_msg = f"Anthropic SDK not installed: {e}. Install with: uv pip install anthropic"
+            logger.error(f"[Executor] {error_msg}")
+            return {
+                "status": "failed",
+                "error": error_msg,
+                "phase": phase
+            }
+        except ValueError as e:
+            self.coordinator.update_agent_state(self.config.agent_id, "failed")
+            logger.error(f"[Executor] Configuration error: {e}")
+            return {
+                "status": "failed",
+                "error": str(e),
+                "phase": phase
+            }
         except Exception as e:
             self.coordinator.update_agent_state(self.config.agent_id, "failed")
-            logger.error(f"[ZFC] Execution failed: {type(e).__name__}: {str(e)}", exc_info=True)
+            logger.error(f"[Executor] Execution failed: {type(e).__name__}: {str(e)}", exc_info=True)
             return {
                 "status": "failed",
                 "error": str(e),
