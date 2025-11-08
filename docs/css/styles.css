@@ -469,6 +469,27 @@ pre code {
     height: auto;
     display: block;
     margin: 0 auto;
+    transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+/* Light mode - slightly adjust contrast */
+body.light-theme .diagram-svg,
+@media (prefers-color-scheme: light) {
+    body:not(.dark-theme) .diagram-svg {
+        filter: none;
+        opacity: 1;
+    }
+}
+
+/* Dark mode - invert and adjust for readability */
+body.dark-theme .diagram-svg {
+    filter: invert(90%) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not(.light-theme) .diagram-svg {
+        filter: invert(90%) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+    }
 }
 
 /* Responsive diagram scaling */
