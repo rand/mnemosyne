@@ -231,6 +231,43 @@ pub enum EventType {
         component_b: String,
         timestamp: DateTime<Utc>,
     },
+    // CLI operation events
+    /// CLI command started
+    CliCommandStarted {
+        command: String,
+        args: Vec<String>,
+        timestamp: DateTime<Utc>,
+    },
+    /// CLI command completed successfully
+    CliCommandCompleted {
+        command: String,
+        duration_ms: u64,
+        result_summary: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// CLI command failed
+    CliCommandFailed {
+        command: String,
+        error: String,
+        duration_ms: u64,
+        timestamp: DateTime<Utc>,
+    },
+    /// Database search performed (semantic, hybrid, keyword)
+    SearchPerformed {
+        query: String,
+        search_type: String,
+        result_count: usize,
+        duration_ms: u64,
+        timestamp: DateTime<Utc>,
+    },
+    /// Database operation executed
+    DatabaseOperation {
+        operation: String,
+        table: String,
+        affected_rows: usize,
+        duration_ms: u64,
+        timestamp: DateTime<Utc>,
+    },
 }
 
 /// Event wrapper with metadata
@@ -596,6 +633,68 @@ impl Event {
             hole_name,
             component_a,
             component_b,
+            timestamp: Utc::now(),
+        })
+    }
+
+    // CLI operation event constructors
+    /// Create CLI command started event
+    pub fn cli_command_started(command: String, args: Vec<String>) -> Self {
+        Self::new(EventType::CliCommandStarted {
+            command,
+            args,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create CLI command completed event
+    pub fn cli_command_completed(command: String, duration_ms: u64, result_summary: String) -> Self {
+        Self::new(EventType::CliCommandCompleted {
+            command,
+            duration_ms,
+            result_summary,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create CLI command failed event
+    pub fn cli_command_failed(command: String, error: String, duration_ms: u64) -> Self {
+        Self::new(EventType::CliCommandFailed {
+            command,
+            error,
+            duration_ms,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create search performed event
+    pub fn search_performed(
+        query: String,
+        search_type: String,
+        result_count: usize,
+        duration_ms: u64,
+    ) -> Self {
+        Self::new(EventType::SearchPerformed {
+            query,
+            search_type,
+            result_count,
+            duration_ms,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create database operation event
+    pub fn database_operation(
+        operation: String,
+        table: String,
+        affected_rows: usize,
+        duration_ms: u64,
+    ) -> Self {
+        Self::new(EventType::DatabaseOperation {
+            operation,
+            table,
+            affected_rows,
+            duration_ms,
             timestamp: Utc::now(),
         })
     }

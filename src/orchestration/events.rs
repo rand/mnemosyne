@@ -121,6 +121,71 @@ pub enum AgentEvent {
         estimated_tokens: usize,
         consolidation_level: String,
     },
+
+    // CLI Operation Events
+    /// CLI command started
+    CliCommandStarted {
+        command: String,
+        args: Vec<String>,
+        timestamp: chrono::DateTime<Utc>,
+    },
+
+    /// CLI command completed successfully
+    CliCommandCompleted {
+        command: String,
+        duration_ms: u64,
+        result_summary: String,
+    },
+
+    /// CLI command failed
+    CliCommandFailed {
+        command: String,
+        error: String,
+        duration_ms: u64,
+    },
+
+    /// Memory recall executed
+    RecallExecuted {
+        query: String,
+        result_count: usize,
+        duration_ms: u64,
+    },
+
+    /// Memory remember executed
+    RememberExecuted {
+        content_preview: String,
+        memory_id: MemoryId,
+        importance: u8,
+    },
+
+    /// Evolution process started
+    EvolveStarted {
+        timestamp: chrono::DateTime<Utc>,
+    },
+
+    /// Evolution process completed
+    EvolveCompleted {
+        consolidations: usize,
+        decayed: usize,
+        archived: usize,
+        duration_ms: u64,
+    },
+
+    /// Database search performed
+    SearchPerformed {
+        query: String,
+        search_type: String, // "semantic", "hybrid", "keyword"
+        result_count: usize,
+        duration_ms: u64,
+    },
+
+    /// Database operation executed
+    DatabaseOperation {
+        operation: String, // "insert", "update", "delete", "query"
+        table: String,
+        affected_rows: usize,
+        duration_ms: u64,
+    },
 }
 
 impl AgentEvent {
@@ -146,16 +211,25 @@ impl AgentEvent {
             AgentEvent::DeadlockDetected { .. } => 8,
             AgentEvent::ContextCheckpoint { .. } => 8,
             AgentEvent::ContextConsolidated { .. } => 8,
+            AgentEvent::EvolveCompleted { .. } => 7,
             AgentEvent::ReviewFailed { .. } => 7,
             AgentEvent::WorkItemCompleted { .. } => 7,
             AgentEvent::WorkItemFailed { .. } => 7,
+            AgentEvent::CliCommandFailed { .. } => 6,
             AgentEvent::WorkItemRequeued { .. } => 6,
             AgentEvent::WorkItemAssigned { .. } => 6,
             AgentEvent::DeadlockResolved { .. } => 6,
+            AgentEvent::RememberExecuted { .. } => 5,
             AgentEvent::AgentStateChanged { .. } => 5,
             AgentEvent::SubAgentSpawned { .. } => 5,
+            AgentEvent::EvolveStarted { .. } => 5,
+            AgentEvent::CliCommandCompleted { .. } => 4,
             AgentEvent::WorkItemStarted { .. } => 4,
+            AgentEvent::RecallExecuted { .. } => 4,
+            AgentEvent::SearchPerformed { .. } => 3,
             AgentEvent::MessageSent { .. } => 3,
+            AgentEvent::CliCommandStarted { .. } => 3,
+            AgentEvent::DatabaseOperation { .. } => 2,
         }
     }
 
@@ -242,6 +316,86 @@ impl AgentEvent {
                 format!(
                     "Context consolidated for {:?}: {} (memory: {}, {} tokens)",
                     item_id, consolidation_level, consolidated_memory_id, estimated_tokens
+                )
+            }
+            AgentEvent::CliCommandStarted { command, args, .. } => {
+                if args.is_empty() {
+                    format!("CLI: {} started", command)
+                } else {
+                    format!("CLI: {} {} started", command, args.join(" "))
+                }
+            }
+            AgentEvent::CliCommandCompleted {
+                command,
+                duration_ms,
+                result_summary,
+            } => {
+                format!(
+                    "CLI: {} completed in {}ms - {}",
+                    command, duration_ms, result_summary
+                )
+            }
+            AgentEvent::CliCommandFailed {
+                command,
+                error,
+                duration_ms,
+            } => {
+                format!("CLI: {} failed after {}ms: {}", command, duration_ms, error)
+            }
+            AgentEvent::RecallExecuted {
+                query,
+                result_count,
+                duration_ms,
+            } => {
+                format!(
+                    "Recalled '{}': {} results in {}ms",
+                    query, result_count, duration_ms
+                )
+            }
+            AgentEvent::RememberExecuted {
+                content_preview,
+                memory_id,
+                importance,
+            } => {
+                format!(
+                    "Remembered (importance {}): {} (id: {})",
+                    importance, content_preview, memory_id
+                )
+            }
+            AgentEvent::EvolveStarted { .. } => {
+                "Evolution process started".to_string()
+            }
+            AgentEvent::EvolveCompleted {
+                consolidations,
+                decayed,
+                archived,
+                duration_ms,
+            } => {
+                format!(
+                    "Evolution completed in {}ms: {} consolidated, {} decayed, {} archived",
+                    duration_ms, consolidations, decayed, archived
+                )
+            }
+            AgentEvent::SearchPerformed {
+                query,
+                search_type,
+                result_count,
+                duration_ms,
+            } => {
+                format!(
+                    "{} search '{}': {} results in {}ms",
+                    search_type, query, result_count, duration_ms
+                )
+            }
+            AgentEvent::DatabaseOperation {
+                operation,
+                table,
+                affected_rows,
+                duration_ms,
+            } => {
+                format!(
+                    "DB {}: {} row(s) in {} ({}ms)",
+                    operation, affected_rows, table, duration_ms
                 )
             }
         }
@@ -350,6 +504,79 @@ impl EventPersistence {
                 format!("{:?}", item_id),
                 reason.clone(),
                 *review_attempt,
+            )),
+            // CLI operation events
+            AgentEvent::CliCommandStarted { command, args, .. } => {
+                Some(Event::cli_command_started(command.clone(), args.clone()))
+            }
+            AgentEvent::CliCommandCompleted {
+                command,
+                duration_ms,
+                result_summary,
+            } => Some(Event::cli_command_completed(
+                command.clone(),
+                *duration_ms,
+                result_summary.clone(),
+            )),
+            AgentEvent::CliCommandFailed {
+                command,
+                error,
+                duration_ms,
+            } => Some(Event::cli_command_failed(
+                command.clone(),
+                error.clone(),
+                *duration_ms,
+            )),
+            AgentEvent::RecallExecuted {
+                query,
+                result_count,
+                duration_ms,
+            } => Some(Event::memory_recalled(query.clone(), *result_count)),
+            AgentEvent::RememberExecuted {
+                content_preview,
+                memory_id,
+                ..
+            } => Some(Event::memory_stored(
+                memory_id.to_string(),
+                content_preview.clone(),
+            )),
+            AgentEvent::EvolveStarted { .. } => Some(Event::memory_evolution_started(
+                "Manual evolution triggered".to_string(),
+            )),
+            AgentEvent::EvolveCompleted {
+                consolidations,
+                decayed,
+                archived,
+                ..
+            } => {
+                // Use memory_evolution_started as a completion indicator
+                // In a real implementation, we might want a dedicated completion event
+                Some(Event::memory_evolution_started(format!(
+                    "Evolution complete: {} consolidated, {} decayed, {} archived",
+                    consolidations, decayed, archived
+                )))
+            }
+            AgentEvent::SearchPerformed {
+                query,
+                search_type,
+                result_count,
+                duration_ms,
+            } => Some(Event::search_performed(
+                query.clone(),
+                search_type.clone(),
+                *result_count,
+                *duration_ms,
+            )),
+            AgentEvent::DatabaseOperation {
+                operation,
+                table,
+                affected_rows,
+                duration_ms,
+            } => Some(Event::database_operation(
+                operation.clone(),
+                table.clone(),
+                *affected_rows,
+                *duration_ms,
             )),
             // Other events are persisted but not broadcast
             _ => None,
