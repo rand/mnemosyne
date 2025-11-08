@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2025-11-08
+
+### Added
+
+**gRPC Remote Access (Feature: `rpc`)**
+- Added production-ready gRPC server for remote memory access
+- New standalone binary: `mnemosyne-rpc` (requires `--features rpc`)
+- **HealthService**: System monitoring, metrics, statistics, version info
+- **MemoryService**: 13 RPC methods for complete memory operations
+  - CRUD: StoreMemory, GetMemory, UpdateMemory, DeleteMemory, ListMemories
+  - Search: Recall (hybrid), SemanticSearch (vector), GraphTraverse, GetContext
+  - Streaming: RecallStream, ListMemoriesStream, StoreMemoryStream
+- Language-agnostic protocol buffer API (supports Rust, Python, Go, TypeScript, etc.)
+- Feature-gated: No impact on default builds
+- TLS support via tonic-transport
+- Server reflection support (optional with `rpc-reflection` feature)
+
+**Documentation**
+- Added `docs/features/RPC.md` - Comprehensive RPC feature documentation (768 lines)
+- Added `docs/guides/RPC_GETTING_STARTED.md` - Quick start guide (563 lines)
+- Added `src/rpc/README.md` - Module-level documentation (537 lines)
+- Updated AGENT_GUIDE.md, README.md, and docs/INDEX.md with RPC information
+
+**Testing**
+- Added 11 comprehensive RPC integration tests (tests/rpc_services_test.rs)
+- All tests passing: CRUD operations, search methods, input validation
+- Default build tests: 728/728 passing (no regression)
+
+### Changed
+
+**Storage**
+- Improved schema detection for fresh databases in `src/storage/libsql.rs`
+- Better handling of empty databases with automatic schema selection
+
+**Build System**
+- Added `build.rs` for protocol buffer compilation (feature-gated)
+- New optional dependencies: tonic 0.12, prost 0.13, tonic-build 0.12
+
+### Technical Details
+
+**New Features**:
+- `rpc` - Core gRPC server functionality
+- `rpc-reflection` - gRPC server reflection
+- `rpc-health` - Health check service
+
+**Architecture**:
+- Follows Zero Framework Cognition (ZFC) principles
+- Deterministic state machines in service handlers
+- Clean separation from core storage layer
+- Type-safe protocol buffer contracts
+
+**Use Cases**:
+- Distributed agent architectures
+- Language-agnostic client integrations
+- Remote memory access for web/mobile apps
+- Memory-as-a-service for microservices
+
+See PR #24 for complete implementation details.
+
 ## [2.1.2] - 2025-11-06
 
 ### Fixed
