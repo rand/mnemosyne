@@ -8,12 +8,14 @@ use mnemosyne_core::{
         ArchivalJob, ConsolidationJob, EvolutionJob, ImportanceRecalibrator, JobConfig,
         LinkDecayJob,
     },
+    orchestration::events::AgentEvent,
     ConnectionMode, LibsqlStorage,
 };
 use std::sync::Arc;
 use std::time::Duration;
 
 use super::helpers::get_default_db_path;
+use super::event_bridge;
 
 #[derive(Subcommand)]
 pub enum EvolveJob {
@@ -75,6 +77,30 @@ pub enum EvolveJob {
 
 /// Handle evolution command
 pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()> {
+    let start_time = std::time::Instant::now();
+
+    // Determine job type for event emission
+    let job_name = match &job {
+        EvolveJob::Importance { .. } => "importance",
+        EvolveJob::Links { .. } => "links",
+        EvolveJob::Archival { .. } => "archival",
+        EvolveJob::Consolidation { .. } => "consolidation",
+        EvolveJob::All { .. } => "all",
+    };
+
+    // Emit CLI command started event
+    event_bridge::emit_command_started(
+        "evolve",
+        vec![job_name.to_string()],
+    )
+    .await;
+
+    // Emit evolution started event
+    let evolve_start_event = AgentEvent::EvolveStarted {
+        timestamp: chrono::Utc::now(),
+    };
+    let _ = event_bridge::emit_event(evolve_start_event).await;
+
     // Determine database path
     let db_path = match &job {
         EvolveJob::Importance { database, .. }
@@ -93,6 +119,11 @@ pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()
             .await
             .context("Failed to initialize storage")?,
     );
+
+    // Track aggregated stats for event emission
+    let mut total_consolidations = 0;
+    let mut total_decayed = 0;
+    let mut total_archived = 0;
 
     match job {
         EvolveJob::Importance { batch_size, .. } => {
@@ -257,5 +288,24 @@ pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()
             println!("All evolution jobs complete!");
             Ok(())
         }
-    }
+    };
+
+    // Emit completion events
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+    let evolve_complete_event = AgentEvent::EvolveCompleted {
+        consolidations: total_consolidations,
+        decayed: total_decayed,
+        archived: total_archived,
+        duration_ms,
+    };
+    let _ = event_bridge::emit_event(evolve_complete_event).await;
+
+    event_bridge::emit_command_completed(
+        "evolve",
+        duration_ms,
+        format!("Evolution {} complete", job_name),
+    )
+    .await;
+
+    result
 }
