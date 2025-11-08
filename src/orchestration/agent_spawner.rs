@@ -167,7 +167,7 @@ impl AgentSpawner {
         }
 
         // Spawn Python process
-        let mut child = Command::new(&self.config.python_path)
+        let child = Command::new(&self.config.python_path)
             .arg(&agent_script)
             .arg("--agent-id")
             .arg(agent_id)

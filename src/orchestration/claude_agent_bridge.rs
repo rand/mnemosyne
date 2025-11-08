@@ -43,6 +43,8 @@
 #[cfg(feature = "python")]
 use crate::api::Event;
 #[cfg(feature = "python")]
+use crate::config::ConfigManager;
+#[cfg(feature = "python")]
 use crate::error::{MnemosyneError, Result};
 #[cfg(feature = "python")]
 use crate::launcher::agents::AgentRole;
@@ -117,14 +119,14 @@ impl ClaudeAgentBridge {
 
         info!("Spawning Python Claude SDK agent for role: {:?}", role);
 
-        // Get API key from Config (optional, will gracefully handle missing key)
-        let api_key = match crate::config::Config::load().and_then(|c| c.get_api_key()) {
+        // Get API key from ConfigManager (optional, will gracefully handle missing key)
+        let api_key = match ConfigManager::new().and_then(|c| c.get_api_key()) {
             Ok(key) => {
-                info!("Retrieved API key from Config for Python agent");
+                info!("Retrieved API key from ConfigManager for Python agent");
                 Some(key)
             }
             Err(e) => {
-                warn!("Could not retrieve API key from Config: {}. Python agent will check environment.", e);
+                warn!("Could not retrieve API key from ConfigManager: {}. Python agent will check environment.", e);
                 None
             }
         };
@@ -658,7 +660,7 @@ impl ClaudeAgentBridge {
 
         // Respawn agent
         let role_clone = self.role;
-        let event_tx_clone = self.event_tx.clone();
+        let _event_tx_clone = self.event_tx.clone();
 
         let new_agent = tokio::task::spawn_blocking(move || {
             Python::with_gil(|py| {
