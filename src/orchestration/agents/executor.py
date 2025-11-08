@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Callable, Any
 from enum import Enum
 import asyncio
+import time
 
 try:
     from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
@@ -42,6 +43,142 @@ except ImportError:
     from metrics import get_metrics_collector
 
 logger = get_logger("executor")
+
+
+class CircuitState(Enum):
+    """Circuit breaker states."""
+    CLOSED = "closed"       # Normal operation
+    OPEN = "open"          # Failing, rejecting requests
+    HALF_OPEN = "half_open"  # Testing if service recovered
+
+
+class CircuitBreaker:
+    """
+    Circuit breaker for LLM API calls.
+
+    Protects against cascading failures by tracking consecutive errors
+    and temporarily rejecting requests when failure threshold is reached.
+
+    States:
+    - CLOSED: Normal operation, tracking failures
+    - OPEN: Too many failures, rejecting requests
+    - HALF_OPEN: Cooldown expired, testing recovery
+
+    Transitions:
+    - CLOSED → OPEN: After N consecutive failures
+    - OPEN → HALF_OPEN: After cooldown period
+    - HALF_OPEN → CLOSED: After successful call
+    - HALF_OPEN → OPEN: If call fails
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = 3,
+        cooldown_seconds: float = 60.0,
+        half_open_attempts: int = 1
+    ):
+        """
+        Initialize circuit breaker.
+
+        Args:
+            failure_threshold: Consecutive failures before opening circuit
+            cooldown_seconds: Time to wait before entering half-open state
+            half_open_attempts: Number of successful calls needed to close
+        """
+        self.failure_threshold = failure_threshold
+        self.cooldown_seconds = cooldown_seconds
+        self.half_open_attempts = half_open_attempts
+
+        self.state = CircuitState.CLOSED
+        self.failure_count = 0
+        self.success_count = 0
+        self.last_failure_time: Optional[float] = None
+
+        logger.info(
+            f"[CircuitBreaker] Initialized: threshold={failure_threshold}, "
+            f"cooldown={cooldown_seconds}s"
+        )
+
+    def can_attempt(self) -> bool:
+        """Check if request can proceed."""
+        if self.state == CircuitState.CLOSED:
+            return True
+
+        if self.state == CircuitState.OPEN:
+            # Check if cooldown has expired
+            if self.last_failure_time is not None:
+                elapsed = time.time() - self.last_failure_time
+                if elapsed >= self.cooldown_seconds:
+                    logger.info("[CircuitBreaker] Cooldown expired, entering HALF_OPEN")
+                    self.state = CircuitState.HALF_OPEN
+                    self.success_count = 0
+                    return True
+            return False
+
+        if self.state == CircuitState.HALF_OPEN:
+            return True
+
+        return False
+
+    def record_success(self):
+        """Record successful API call."""
+        if self.state == CircuitState.CLOSED:
+            # Reset failure count on success
+            if self.failure_count > 0:
+                logger.info(
+                    f"[CircuitBreaker] Success after {self.failure_count} failures, "
+                    "resetting counter"
+                )
+            self.failure_count = 0
+
+        elif self.state == CircuitState.HALF_OPEN:
+            self.success_count += 1
+            logger.info(
+                f"[CircuitBreaker] HALF_OPEN success {self.success_count}/"
+                f"{self.half_open_attempts}"
+            )
+
+            if self.success_count >= self.half_open_attempts:
+                logger.info("[CircuitBreaker] Closing circuit after successful recovery")
+                self.state = CircuitState.CLOSED
+                self.failure_count = 0
+                self.success_count = 0
+
+    def record_failure(self):
+        """Record failed API call."""
+        self.last_failure_time = time.time()
+
+        if self.state == CircuitState.CLOSED:
+            self.failure_count += 1
+            logger.warning(
+                f"[CircuitBreaker] Failure {self.failure_count}/{self.failure_threshold}"
+            )
+
+            if self.failure_count >= self.failure_threshold:
+                logger.error(
+                    f"[CircuitBreaker] Opening circuit after {self.failure_count} "
+                    f"consecutive failures"
+                )
+                self.state = CircuitState.OPEN
+
+        elif self.state == CircuitState.HALF_OPEN:
+            logger.warning("[CircuitBreaker] Failure in HALF_OPEN, reopening circuit")
+            self.state = CircuitState.OPEN
+            self.failure_count = self.failure_threshold  # Keep it open
+            self.success_count = 0
+
+    def get_status(self) -> Dict[str, Any]:
+        """Get current circuit breaker status."""
+        return {
+            "state": self.state.value,
+            "failure_count": self.failure_count,
+            "success_count": self.success_count,
+            "last_failure_time": self.last_failure_time,
+            "cooldown_remaining": (
+                max(0, self.cooldown_seconds - (time.time() - self.last_failure_time))
+                if self.last_failure_time is not None else 0
+            )
+        }
 
 
 class ExecutorPhase(Enum):
@@ -155,6 +292,13 @@ Always follow best practices and validate your work before marking it complete."
         self._checkpoint_count = 0
         self._session_active = False
 
+        # Circuit breaker for LLM API resilience
+        self._circuit_breaker = CircuitBreaker(
+            failure_threshold=3,
+            cooldown_seconds=60.0,
+            half_open_attempts=1
+        )
+
     async def start_session(self):
         """Start Claude agent session."""
         if not self._session_active:
@@ -212,6 +356,38 @@ Always follow best practices and validate your work before marking it complete."
             # Phase 3: Execution - Call Anthropic API
             self._current_phase = ExecutorPhase.EXECUTING
 
+            # Check circuit breaker before attempting API calls
+            if not self._circuit_breaker.can_attempt():
+                circuit_status = self._circuit_breaker.get_status()
+                logger.error(
+                    f"[Executor] Circuit breaker is {circuit_status['state']}, "
+                    f"rejecting request. Cooldown: {circuit_status['cooldown_remaining']:.1f}s"
+                )
+
+                # Return fallback response
+                fallback_response = (
+                    f"LLM API is temporarily unavailable (circuit breaker {circuit_status['state']}). "
+                    f"Retry in {circuit_status['cooldown_remaining']:.0f} seconds. "
+                    "This work item will be re-queued automatically."
+                )
+
+                artifacts = [{
+                    "type": "circuit_breaker_rejection",
+                    "content": fallback_response,
+                    "circuit_status": circuit_status,
+                    "work_id": work_id
+                }]
+
+                self.coordinator.update_agent_state(self.config.agent_id, "degraded")
+
+                return {
+                    "status": "circuit_open",
+                    "artifacts": artifacts,
+                    "analysis": analysis,
+                    "response_text": fallback_response,
+                    "retry_after": circuit_status['cooldown_remaining']
+                }
+
             # Import here to allow graceful degradation if not available
             import anthropic
             import os
@@ -240,13 +416,28 @@ Always follow best practices and validate your work before marking it complete."
             for iteration in range(max_iterations):
                 logger.info(f"[Executor] API call iteration {iteration + 1}")
 
-                # Call Claude API with tools
-                response = client.messages.create(
-                    model="claude-sonnet-4-5-20250929",
-                    max_tokens=4096,
-                    tools=tools,
-                    messages=messages
-                )
+                try:
+                    # Call Claude API with tools
+                    response = client.messages.create(
+                        model="claude-sonnet-4-5-20250929",
+                        max_tokens=4096,
+                        tools=tools,
+                        messages=messages
+                    )
+
+                    # Record success with circuit breaker
+                    self._circuit_breaker.record_success()
+
+                except Exception as api_error:
+                    # Record failure with circuit breaker
+                    self._circuit_breaker.record_failure()
+
+                    logger.error(
+                        f"[Executor] API call failed (iteration {iteration + 1}): {api_error}"
+                    )
+
+                    # Re-raise for outer exception handler
+                    raise
 
                 total_input_tokens += response.usage.input_tokens
                 total_output_tokens += response.usage.output_tokens
