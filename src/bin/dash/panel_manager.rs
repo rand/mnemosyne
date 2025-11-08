@@ -1,19 +1,21 @@
 //! Panel management system - Control panel visibility and layout
 //!
-//! Provides btop-inspired panel toggling and layout management.
+//! Provides btop-inspired panel toggling and layout management for the redesigned
+//! 4-panel dashboard focused on real-time monitoring during active development.
 
 use ratatui::layout::Constraint;
 use serde::{Deserialize, Serialize};
 
-/// Panel identifiers
+/// Panel identifiers for the redesigned 4-panel layout
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PanelId {
-    Agents,
-    Memory,
-    Skills,
-    Work,
-    Context,
-    Events,
+    /// System Overview: At-a-glance health summary (top, 6-8 lines)
+    SystemOverview,
+    /// Activity Stream: Intelligent event log with filtering (left, 60%)
+    ActivityStream,
+    /// Agent Details: Deep-dive into agent activity (right-top, 40%)
+    AgentDetails,
+    /// Operations: CLI command history and stats (right-bottom, 40%)
     Operations,
 }
 
@@ -21,65 +23,50 @@ impl PanelId {
     /// Get all panel IDs in display order
     pub fn all() -> Vec<PanelId> {
         vec![
-            PanelId::Agents,
-            PanelId::Memory,
-            PanelId::Skills,
-            PanelId::Work,
-            PanelId::Context,
+            PanelId::SystemOverview,
+            PanelId::ActivityStream,
+            PanelId::AgentDetails,
             PanelId::Operations,
-            PanelId::Events,
         ]
     }
 
-    /// Get keyboard shortcut number (1-7)
+    /// Get keyboard shortcut number (0-3)
     pub fn shortcut_key(&self) -> char {
         match self {
-            PanelId::Agents => '1',
-            PanelId::Memory => '2',
-            PanelId::Skills => '3',
-            PanelId::Work => '4',
-            PanelId::Context => '5',
-            PanelId::Operations => '6',
-            PanelId::Events => '7',
+            PanelId::SystemOverview => '0',
+            PanelId::ActivityStream => '1',
+            PanelId::AgentDetails => '2',
+            PanelId::Operations => '3',
         }
     }
 
     /// Get panel name
     pub fn name(&self) -> &'static str {
         match self {
-            PanelId::Agents => "Agents",
-            PanelId::Memory => "Memory",
-            PanelId::Skills => "Skills",
-            PanelId::Work => "Work",
-            PanelId::Context => "Context",
+            PanelId::SystemOverview => "System Overview",
+            PanelId::ActivityStream => "Activity Stream",
+            PanelId::AgentDetails => "Agent Details",
             PanelId::Operations => "Operations",
-            PanelId::Events => "Events",
         }
     }
 
     /// Get default height constraint for this panel
     pub fn default_height(&self) -> Constraint {
         match self {
-            PanelId::Agents => Constraint::Length(8),
-            PanelId::Memory => Constraint::Length(7),
-            PanelId::Skills => Constraint::Length(7),
-            PanelId::Work => Constraint::Length(8),
-            PanelId::Context => Constraint::Length(8),
-            PanelId::Operations => Constraint::Length(10),
-            PanelId::Events => Constraint::Min(10), // Events gets remaining space
+            PanelId::SystemOverview => Constraint::Length(8), // Fixed top panel
+            PanelId::ActivityStream => Constraint::Percentage(60), // 60% of remaining
+            PanelId::AgentDetails => Constraint::Percentage(50), // 50% of right column
+            PanelId::Operations => Constraint::Min(10), // Remaining space
         }
     }
 
     /// Get minimum height for this panel
     pub fn min_height(&self) -> u16 {
         match self {
-            PanelId::Agents => 5,
-            PanelId::Memory => 5,
-            PanelId::Skills => 5,
-            PanelId::Work => 6,
-            PanelId::Context => 6,
+            PanelId::SystemOverview => 6,
+            PanelId::ActivityStream => 10,
+            PanelId::AgentDetails => 8,
             PanelId::Operations => 8,
-            PanelId::Events => 8,
         }
     }
 }
@@ -87,65 +74,50 @@ impl PanelId {
 /// Panel visibility configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PanelVisibility {
-    pub agents: bool,
-    pub memory: bool,
-    pub skills: bool,
-    pub work: bool,
-    pub context: bool,
+    pub system_overview: bool,
+    pub activity_stream: bool,
+    pub agent_details: bool,
     pub operations: bool,
-    pub events: bool,
 }
 
 impl PanelVisibility {
     /// Create with all panels visible
     pub fn all_visible() -> Self {
         Self {
-            agents: true,
-            memory: true,
-            skills: true,
-            work: true,
-            context: true,
+            system_overview: true,
+            activity_stream: true,
+            agent_details: true,
             operations: true,
-            events: true,
         }
     }
 
     /// Create with no panels visible
     pub fn none_visible() -> Self {
         Self {
-            agents: false,
-            memory: false,
-            skills: false,
-            work: false,
-            context: false,
+            system_overview: false,
+            activity_stream: false,
+            agent_details: false,
             operations: false,
-            events: false,
         }
     }
 
     /// Get visibility for specific panel
     pub fn is_visible(&self, panel: PanelId) -> bool {
         match panel {
-            PanelId::Agents => self.agents,
-            PanelId::Memory => self.memory,
-            PanelId::Skills => self.skills,
-            PanelId::Work => self.work,
-            PanelId::Context => self.context,
+            PanelId::SystemOverview => self.system_overview,
+            PanelId::ActivityStream => self.activity_stream,
+            PanelId::AgentDetails => self.agent_details,
             PanelId::Operations => self.operations,
-            PanelId::Events => self.events,
         }
     }
 
     /// Set visibility for specific panel
     pub fn set_visible(&mut self, panel: PanelId, visible: bool) {
         match panel {
-            PanelId::Agents => self.agents = visible,
-            PanelId::Memory => self.memory = visible,
-            PanelId::Skills => self.skills = visible,
-            PanelId::Work => self.work = visible,
-            PanelId::Context => self.context = visible,
+            PanelId::SystemOverview => self.system_overview = visible,
+            PanelId::ActivityStream => self.activity_stream = visible,
+            PanelId::AgentDetails => self.agent_details = visible,
             PanelId::Operations => self.operations = visible,
-            PanelId::Events => self.events = visible,
         }
     }
 
@@ -199,50 +171,37 @@ impl LayoutPreset {
         Self::new("All Panels", PanelVisibility::all_visible())
     }
 
-    /// "Minimal" preset - only agents and events
+    /// "Activity Focus" preset - overview + activity stream
+    pub fn preset_activity_focus() -> Self {
+        let mut visibility = PanelVisibility::none_visible();
+        visibility.system_overview = true;
+        visibility.activity_stream = true;
+        Self::new("Activity Focus", visibility)
+    }
+
+    /// "Agent Monitor" preset - overview + agent details
+    pub fn preset_agent_monitor() -> Self {
+        let mut visibility = PanelVisibility::none_visible();
+        visibility.system_overview = true;
+        visibility.agent_details = true;
+        visibility.operations = true;
+        Self::new("Agent Monitor", visibility)
+    }
+
+    /// "Minimal" preset - only activity stream
     pub fn preset_minimal() -> Self {
         let mut visibility = PanelVisibility::none_visible();
-        visibility.agents = true;
-        visibility.events = true;
+        visibility.activity_stream = true;
         Self::new("Minimal", visibility)
-    }
-
-    /// "Work Focus" preset - work, agents, events
-    pub fn preset_work_focus() -> Self {
-        let mut visibility = PanelVisibility::none_visible();
-        visibility.agents = true;
-        visibility.work = true;
-        visibility.events = true;
-        Self::new("Work Focus", visibility)
-    }
-
-    /// "System Monitor" preset - agents, memory, context
-    pub fn preset_system_monitor() -> Self {
-        let mut visibility = PanelVisibility::none_visible();
-        visibility.agents = true;
-        visibility.memory = true;
-        visibility.context = true;
-        visibility.events = true;
-        Self::new("System Monitor", visibility)
-    }
-
-    /// "Development" preset - agents, skills, events
-    pub fn preset_development() -> Self {
-        let mut visibility = PanelVisibility::none_visible();
-        visibility.agents = true;
-        visibility.skills = true;
-        visibility.events = true;
-        Self::new("Development", visibility)
     }
 
     /// Get default presets
     pub fn default_presets() -> Vec<LayoutPreset> {
         vec![
             Self::preset_all(),
+            Self::preset_activity_focus(),
+            Self::preset_agent_monitor(),
             Self::preset_minimal(),
-            Self::preset_work_focus(),
-            Self::preset_system_monitor(),
-            Self::preset_development(),
         ]
     }
 }
@@ -331,16 +290,15 @@ impl PanelManager {
         // Calculate if we need to compress
         let total_default_height: u16 = visible
             .iter()
-            .map(|p| {
-                match p.default_height() {
-                    Constraint::Length(h) => h,
-                    Constraint::Min(h) => h,
-                    _ => 10,
-                }
+            .map(|p| match p.default_height() {
+                Constraint::Length(h) => h,
+                Constraint::Min(h) => h,
+                Constraint::Percentage(p) => (available_height * p) / 100,
+                _ => 10,
             })
             .sum();
 
-        let header_footer_height = 4; // Header (3) + Footer (1)
+        let header_footer_height = 2; // Header (1) + Footer (1)
         let usable_height = available_height.saturating_sub(header_footer_height);
 
         if total_default_height <= usable_height {
@@ -394,48 +352,48 @@ mod tests {
     #[test]
     fn test_panel_visibility_default() {
         let vis = PanelVisibility::default();
-        assert_eq!(vis.visible_count(), 7);
-        assert!(vis.is_visible(PanelId::Agents));
+        assert_eq!(vis.visible_count(), 4);
+        assert!(vis.is_visible(PanelId::SystemOverview));
     }
 
     #[test]
     fn test_panel_visibility_toggle() {
         let mut vis = PanelVisibility::default();
-        assert!(vis.is_visible(PanelId::Agents));
+        assert!(vis.is_visible(PanelId::SystemOverview));
 
-        vis.toggle(PanelId::Agents);
-        assert!(!vis.is_visible(PanelId::Agents));
+        vis.toggle(PanelId::SystemOverview);
+        assert!(!vis.is_visible(PanelId::SystemOverview));
 
-        vis.toggle(PanelId::Agents);
-        assert!(vis.is_visible(PanelId::Agents));
+        vis.toggle(PanelId::SystemOverview);
+        assert!(vis.is_visible(PanelId::SystemOverview));
     }
 
     #[test]
     fn test_panel_visibility_visible_panels() {
         let mut vis = PanelVisibility::none_visible();
-        vis.agents = true;
-        vis.memory = true;
+        vis.system_overview = true;
+        vis.activity_stream = true;
 
         let visible = vis.visible_panels();
         assert_eq!(visible.len(), 2);
-        assert!(visible.contains(&PanelId::Agents));
-        assert!(visible.contains(&PanelId::Memory));
+        assert!(visible.contains(&PanelId::SystemOverview));
+        assert!(visible.contains(&PanelId::ActivityStream));
     }
 
     #[test]
     fn test_panel_manager_creation() {
         let manager = PanelManager::new();
-        assert_eq!(manager.visible_count(), 7);
+        assert_eq!(manager.visible_count(), 4);
         assert_eq!(manager.current_preset_name(), Some("All Panels"));
     }
 
     #[test]
     fn test_panel_manager_toggle() {
         let mut manager = PanelManager::new();
-        assert!(manager.is_panel_visible(PanelId::Agents));
+        assert!(manager.is_panel_visible(PanelId::SystemOverview));
 
-        manager.toggle_panel(PanelId::Agents);
-        assert!(!manager.is_panel_visible(PanelId::Agents));
+        manager.toggle_panel(PanelId::SystemOverview);
+        assert!(!manager.is_panel_visible(PanelId::SystemOverview));
         assert_eq!(manager.current_preset_name(), None); // Custom layout
     }
 
@@ -443,12 +401,12 @@ mod tests {
     fn test_panel_manager_presets() {
         let mut manager = PanelManager::new();
 
-        // Apply minimal preset
+        // Apply activity focus preset
         manager.apply_preset(1).unwrap();
-        assert_eq!(manager.visible_count(), 2); // Only agents and events
-        assert!(manager.is_panel_visible(PanelId::Agents));
-        assert!(manager.is_panel_visible(PanelId::Events));
-        assert!(!manager.is_panel_visible(PanelId::Memory));
+        assert_eq!(manager.visible_count(), 2); // Overview + activity stream
+        assert!(manager.is_panel_visible(PanelId::SystemOverview));
+        assert!(manager.is_panel_visible(PanelId::ActivityStream));
+        assert!(!manager.is_panel_visible(PanelId::AgentDetails));
     }
 
     #[test]
@@ -459,7 +417,7 @@ mod tests {
         assert_eq!(manager.visible_count(), 0);
 
         manager.show_all();
-        assert_eq!(manager.visible_count(), 7);
+        assert_eq!(manager.visible_count(), 4);
     }
 
     #[test]
@@ -467,7 +425,7 @@ mod tests {
         let manager = PanelManager::new();
         let constraints = manager.layout_constraints(80);
 
-        assert_eq!(constraints.len(), 7);
+        assert_eq!(constraints.len(), 4);
     }
 
     #[test]
@@ -476,12 +434,15 @@ mod tests {
         // Very limited space should compress to minimums
         let constraints = manager.layout_constraints(30);
 
-        assert_eq!(constraints.len(), 7);
+        assert_eq!(constraints.len(), 4);
         // Should use minimum heights or compressed
         for c in constraints {
             match c {
                 Constraint::Length(h) | Constraint::Min(h) => {
-                    assert!(h >= 5); // At least minimum
+                    assert!(h >= 6); // At least minimum
+                }
+                Constraint::Percentage(_) => {
+                    // Percentages are okay in default layout
                 }
                 _ => panic!("Unexpected constraint type"),
             }
@@ -490,21 +451,19 @@ mod tests {
 
     #[test]
     fn test_panel_shortcuts() {
-        assert_eq!(PanelId::Agents.shortcut_key(), '1');
-        assert_eq!(PanelId::Memory.shortcut_key(), '2');
-        assert_eq!(PanelId::Skills.shortcut_key(), '3');
-        assert_eq!(PanelId::Work.shortcut_key(), '4');
-        assert_eq!(PanelId::Context.shortcut_key(), '5');
-        assert_eq!(PanelId::Operations.shortcut_key(), '6');
-        assert_eq!(PanelId::Events.shortcut_key(), '7');
+        assert_eq!(PanelId::SystemOverview.shortcut_key(), '0');
+        assert_eq!(PanelId::ActivityStream.shortcut_key(), '1');
+        assert_eq!(PanelId::AgentDetails.shortcut_key(), '2');
+        assert_eq!(PanelId::Operations.shortcut_key(), '3');
     }
 
     #[test]
     fn test_default_presets() {
         let presets = LayoutPreset::default_presets();
-        assert_eq!(presets.len(), 5);
+        assert_eq!(presets.len(), 4);
         assert_eq!(presets[0].name, "All Panels");
-        assert_eq!(presets[1].name, "Minimal");
-        assert_eq!(presets[2].name, "Work Focus");
+        assert_eq!(presets[1].name, "Activity Focus");
+        assert_eq!(presets[2].name, "Agent Monitor");
+        assert_eq!(presets[3].name, "Minimal");
     }
 }
