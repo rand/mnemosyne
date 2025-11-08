@@ -78,6 +78,50 @@ See [docs/guides/ICS_INTEGRATION.md](docs/guides/ICS_INTEGRATION.md) for complet
 - **Event Streaming**: Real-time coordination via SSE for monitoring and cross-instance event forwarding
 - **Health Indicators**: Agent health tracking with error counts and automatic recovery
 
+### gRPC Remote Access (RPC Server)
+**Production-ready gRPC server for remote access to mnemosyne's memory system**
+
+- **Full CRUD Operations**: Store, retrieve, update, delete memories via gRPC
+- **Advanced Search**: Semantic search (vector embeddings), graph traversal, hybrid recall
+- **Streaming APIs**: Progressive results for large datasets, progress tracking for slow operations
+- **Type-Safe Protocol**: Protocol Buffers ensure schema validation and backward compatibility
+- **Multi-Language Support**: Client libraries for Python, Rust, Go, and any gRPC-compatible language
+- **Production Features**: Comprehensive error handling, input validation, rate limiting
+
+**Usage**:
+```bash
+# Start RPC server on default port (50051)
+mnemosyne-rpc
+
+# Custom configuration
+mnemosyne-rpc --host 0.0.0.0 --port 9090 --enable-llm
+
+# With custom database
+mnemosyne-rpc --db-path /path/to/mnemosyne.db
+```
+
+**Client Example (Python)**:
+```python
+import grpc
+from mnemosyne.v1 import memory_pb2, memory_pb2_grpc
+
+# Connect and store a memory
+channel = grpc.insecure_channel('localhost:50051')
+stub = memory_pb2_grpc.MemoryServiceStub(channel)
+
+response = stub.StoreMemory(memory_pb2.StoreMemoryRequest(
+    content="Important architectural decision",
+    namespace=memory_pb2.Namespace(
+        project=memory_pb2.ProjectNamespace(name="my-project")
+    ),
+    importance=9,
+    tags=["architecture", "decision"]
+))
+print(f"Stored memory: {response.memory_id}")
+```
+
+See [src/rpc/README.md](src/rpc/README.md) for complete API documentation, deployment guides, and client examples.
+
 ---
 
 ## Quick Start

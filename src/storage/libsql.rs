@@ -209,10 +209,35 @@ impl LibsqlStorage {
     /// Returns:
     /// - SchemaType::LibSQL if embedding column exists (native F32_BLOB in memories table)
     /// - SchemaType::StandardSQLite if embedding column doesn't exist (separate memory_embeddings table)
+    ///
+    /// For fresh databases (memories table doesn't exist), defaults to LibSQL schema.
     async fn detect_schema_type(db: &Database) -> Result<SchemaType> {
         let conn = db
             .connect()
             .map_err(|e| MnemosyneError::Database(format!("Failed to connect for schema detection: {}", e)))?;
+
+        // First, check if memories table exists
+        let mut table_exists = false;
+        let mut tables = conn
+            .query(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='memories'",
+                params![],
+            )
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to query tables: {}", e)))?;
+
+        if tables.next().await.map_err(|e| {
+            MnemosyneError::Database(format!("Failed to read table list: {}", e))
+        })?.is_some() {
+            table_exists = true;
+        }
+
+        // If memories table doesn't exist, this is a fresh database
+        // Default to LibSQL schema for new databases (native F32_BLOB support)
+        if !table_exists {
+            debug!("Fresh database detected - defaulting to LibSQL schema (native vector support)");
+            return Ok(SchemaType::LibSQL);
+        }
 
         // Query table schema using PRAGMA table_info
         let mut rows = conn

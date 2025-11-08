@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package mnemosyne.v1;
+
+import "mnemosyne/v1/types.proto";
+
+// HealthService provides observability and diagnostics
+service HealthService {
+  // Basic health check
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+
+  // Get system statistics
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+
+  // Get performance metrics
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
+
+  // Get memory usage information
+  rpc GetMemoryUsage(GetMemoryUsageRequest) returns (GetMemoryUsageResponse);
+
+  // Stream metrics over time
+  rpc StreamMetrics(StreamMetricsRequest) returns (stream MetricsSnapshot);
+
+  // Get version information
+  rpc GetVersion(GetVersionRequest) returns (GetVersionResponse);
+}
+
+// ============================================================================
+// Health Check
+// ============================================================================
+
+message HealthCheckRequest {}
+
+// HealthCheckResponse already defined in types.proto
+
+// ============================================================================
+// Stats
+// ============================================================================
+
+message GetStatsRequest {
+  optional Namespace namespace = 1;  // Filter stats by namespace
+}
+
+message GetStatsResponse {
+  Stats stats = 1;
+}
+
+// ============================================================================
+// Metrics
+// ============================================================================
+
+message GetMetricsRequest {}
+
+message GetMetricsResponse {
+  Metrics metrics = 1;
+}
+
+// ============================================================================
+// Memory Usage
+// ============================================================================
+
+message GetMemoryUsageRequest {}
+
+message GetMemoryUsageResponse {
+  uint64 rss_bytes = 1;              // Resident set size
+  uint64 heap_bytes = 2;             // Heap allocation
+  uint64 db_size_bytes = 3;          // Database file size
+  uint64 cache_bytes = 4;            // In-memory cache size
+}
+
+// ============================================================================
+// Stream Metrics
+// ============================================================================
+
+message StreamMetricsRequest {
+  uint32 interval_ms = 1;            // Default: 1000 (1 second)
+}
+
+message MetricsSnapshot {
+  uint64 timestamp = 1;              // Unix timestamp
+  Metrics metrics = 2;
+}
+
+// ============================================================================
+// Version
+// ============================================================================
+
+message GetVersionRequest {}
+
+message GetVersionResponse {
+  string version = 1;                // Semantic version (e.g., "2.2.0")
+  string api_version = 2;            // API package version (e.g., "v1")
+  repeated string features = 3;      // Enabled features ("streaming", "auth", etc.)
+  string build_time = 4;             // ISO 8601 timestamp
+  string git_commit = 5;             // Git commit hash
+}

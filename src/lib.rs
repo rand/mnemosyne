@@ -74,6 +74,10 @@ pub mod version_check; // Version checking and update system
 #[cfg(feature = "python")]
 pub mod python_bindings;
 
+// RPC server (gRPC) - only available with "rpc" feature
+#[cfg(feature = "rpc")]
+pub mod rpc;
+
 // Re-export commonly used types
 pub use agents::{AgentMemoryView, AgentRole, CustomImportanceScorer, MemoryAccessControl};
 pub use config::{ConfigManager, EmbeddingConfig, SearchConfig};
