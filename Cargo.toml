@@ -140,12 +140,25 @@ vte = "0.13"
 # TUI extensions
 tui-logger = "0.11"
 
+# gRPC server (optional, for RPC feature)
+tonic = { version = "0.12", features = ["transport", "tls"], optional = true }
+prost = { version = "0.13", optional = true }
+prost-types = { version = "0.13", optional = true }
+tonic-reflection = { version = "0.12", optional = true }
+tonic-health = { version = "0.12", optional = true }
+
 [features]
 default = ["keyring-fallback"]
 python = ["pyo3"]
 keyring-fallback = ["keyring"]
 distributed = ["ractor_cluster"]
 profiling = ["tikv-jemallocator"]
+rpc = ["tonic", "prost", "prost-types"]
+rpc-reflection = ["rpc", "tonic-reflection"]
+rpc-health = ["rpc", "tonic-health"]
+
+[build-dependencies]
+tonic-build = "0.12"
 
 [dev-dependencies]
 mockall = "0.12"

@@ -1,0 +1,226 @@
+syntax = "proto3";
+
+package mnemosyne.v1;
+
+import "mnemosyne/v1/types.proto";
+
+// MemoryService provides CRUD operations and search for memory notes
+service MemoryService {
+  // ========================================================================
+  // Memory CRUD Operations
+  // ========================================================================
+
+  // Store a new memory note (with LLM enrichment if enabled)
+  rpc StoreMemory(StoreMemoryRequest) returns (StoreMemoryResponse);
+
+  // Get a memory note by ID
+  rpc GetMemory(GetMemoryRequest) returns (GetMemoryResponse);
+
+  // Update an existing memory note
+  rpc UpdateMemory(UpdateMemoryRequest) returns (UpdateMemoryResponse);
+
+  // Delete a memory note
+  rpc DeleteMemory(DeleteMemoryRequest) returns (DeleteMemoryResponse);
+
+  // List memories with filters
+  rpc ListMemories(ListMemoriesRequest) returns (ListMemoriesResponse);
+
+  // ========================================================================
+  // Search Operations
+  // ========================================================================
+
+  // Hybrid search (semantic + FTS + graph)
+  rpc Recall(RecallRequest) returns (RecallResponse);
+
+  // Pure semantic search using embedding vector
+  rpc SemanticSearch(SemanticSearchRequest) returns (SemanticSearchResponse);
+
+  // Traverse the memory graph from seed nodes
+  rpc GraphTraverse(GraphTraverseRequest) returns (GraphTraverseResponse);
+
+  // Get context around specific memories (including linked memories)
+  rpc GetContext(GetContextRequest) returns (GetContextResponse);
+
+  // ========================================================================
+  // Streaming Variants (for large result sets or progress updates)
+  // ========================================================================
+
+  // Stream search results as they're found
+  rpc RecallStream(RecallRequest) returns (stream SearchResult);
+
+  // Stream memories in batches
+  rpc ListMemoriesStream(ListMemoriesRequest) returns (stream MemoryNote);
+
+  // Store memory with progress updates (for slow LLM enrichment)
+  rpc StoreMemoryStream(StoreMemoryRequest) returns (stream StoreMemoryProgress);
+}
+
+// ============================================================================
+// Store Memory
+// ============================================================================
+
+message StoreMemoryRequest {
+  string content = 1;                  // Required: memory content
+  Namespace namespace = 2;             // Required: organization
+  optional uint32 importance = 3;      // 1-10, if not provided LLM will determine
+  optional string context = 4;         // Additional context
+  repeated string tags = 5;            // User-defined tags
+  optional MemoryType memory_type = 6; // If not provided, LLM will classify
+  bool skip_llm_enrichment = 7;        // Skip LLM processing (faster, less accurate)
+}
+
+message StoreMemoryResponse {
+  string memory_id = 1;                // Created memory ID
+  MemoryNote memory = 2;               // Full memory with enrichment
+}
+
+message StoreMemoryProgress {
+  string stage = 1;                    // "enriching", "embedding", "indexing", "complete"
+  uint32 percent = 2;                  // 0-100
+  optional string memory_id = 3;       // Available when complete
+  optional MemoryNote memory = 4;      // Available when complete
+}
+
+// ============================================================================
+// Get Memory
+// ============================================================================
+
+message GetMemoryRequest {
+  string memory_id = 1;
+}
+
+message GetMemoryResponse {
+  MemoryNote memory = 1;
+}
+
+// ============================================================================
+// Update Memory
+// ============================================================================
+
+message UpdateMemoryRequest {
+  string memory_id = 1;
+  optional string content = 2;         // If set, triggers re-embedding
+  optional uint32 importance = 3;
+  repeated string tags = 4;            // Replaces existing tags
+  repeated string add_tags = 5;        // Appends to existing tags
+  repeated string remove_tags = 6;     // Removes from existing tags
+  bool re_enrich = 7;                  // Force LLM re-enrichment
+}
+
+message UpdateMemoryResponse {
+  MemoryNote memory = 1;
+}
+
+// ============================================================================
+// Delete Memory
+// ============================================================================
+
+message DeleteMemoryRequest {
+  string memory_id = 1;
+}
+
+message DeleteMemoryResponse {
+  bool success = 1;
+}
+
+// ============================================================================
+// List Memories
+// ============================================================================
+
+message ListMemoriesRequest {
+  optional Namespace namespace = 1;
+  uint32 limit = 2;                    // Default: 20, max: 1000
+  optional uint32 offset = 3;          // For pagination
+  repeated MemoryType memory_types = 4;  // Filter by type (OR logic)
+  repeated string tags = 5;            // Filter by tags (AND logic)
+  optional uint32 min_importance = 6;
+  bool include_archived = 7;
+  string sort_by = 8;                  // "created_at", "updated_at", "importance", "access_count"
+  bool sort_desc = 9;                  // Descending order
+}
+
+message ListMemoriesResponse {
+  repeated MemoryNote memories = 1;
+  uint32 total_count = 2;              // Total matching (for pagination)
+  bool has_more = 3;                   // Whether more results exist
+}
+
+// ============================================================================
+// Recall (Hybrid Search)
+// ============================================================================
+
+message RecallRequest {
+  string query = 1;                    // Required: search query
+  optional Namespace namespace = 2;
+  uint32 max_results = 3;              // Default: 10
+  optional uint32 min_importance = 4;
+  repeated MemoryType memory_types = 5;
+  repeated string tags = 6;
+  bool include_archived = 7;
+
+  // Score weighting (must sum to 1.0)
+  optional float semantic_weight = 8;  // Default: 0.7
+  optional float fts_weight = 9;       // Default: 0.2
+  optional float graph_weight = 10;    // Default: 0.1
+}
+
+message RecallResponse {
+  repeated SearchResult results = 1;
+  string query = 2;                    // Echo back for confirmation
+  uint32 total_matches = 3;            // Before max_results limit
+}
+
+// ============================================================================
+// Semantic Search
+// ============================================================================
+
+message SemanticSearchRequest {
+  repeated float embedding = 1;        // 768d or 1536d vector
+  optional Namespace namespace = 2;
+  uint32 max_results = 3;              // Default: 10
+  optional uint32 min_importance = 4;
+  bool include_archived = 5;
+}
+
+message SemanticSearchResponse {
+  repeated SearchResult results = 1;
+}
+
+// ============================================================================
+// Graph Traverse
+// ============================================================================
+
+message GraphTraverseRequest {
+  repeated string seed_ids = 1;        // Starting memory IDs
+  uint32 max_hops = 2;                 // Default: 2, max: 5
+  repeated LinkType link_types = 3;    // Filter by link types (empty = all)
+  optional float min_link_strength = 4;  // Minimum link strength
+}
+
+message GraphTraverseResponse {
+  repeated MemoryNote memories = 1;
+  repeated GraphEdge edges = 2;        // Edges in the subgraph
+}
+
+message GraphEdge {
+  string source_id = 1;
+  string target_id = 2;
+  LinkType link_type = 3;
+  float strength = 4;
+}
+
+// ============================================================================
+// Get Context
+// ============================================================================
+
+message GetContextRequest {
+  repeated string memory_ids = 1;
+  bool include_links = 2;              // Default: true
+  uint32 max_linked_depth = 3;         // Default: 1 (immediate neighbors)
+}
+
+message GetContextResponse {
+  repeated MemoryNote memories = 1;          // Requested memories
+  repeated MemoryNote linked_memories = 2;   // Linked memories (if include_links=true)
+  repeated GraphEdge edges = 3;              // Edges between all memories
+}

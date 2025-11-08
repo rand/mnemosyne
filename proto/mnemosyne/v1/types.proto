@@ -1,0 +1,256 @@
+syntax = "proto3";
+
+package mnemosyne.v1;
+
+// Common types shared across all mnemosyne RPC services
+
+// ============================================================================
+// Core Identity Types
+// ============================================================================
+
+// Unique identifier for a memory note (UUIDv4)
+message MemoryId {
+  string id = 1;
+}
+
+// Namespace hierarchy for organizing memories
+message Namespace {
+  oneof namespace {
+    GlobalNamespace global = 1;
+    ProjectNamespace project = 2;
+    SessionNamespace session = 3;
+  }
+}
+
+message GlobalNamespace {}
+
+message ProjectNamespace {
+  string name = 1;
+}
+
+message SessionNamespace {
+  string project = 1;
+  string session_id = 2;
+}
+
+// ============================================================================
+// Memory Classification
+// ============================================================================
+
+enum MemoryType {
+  MEMORY_TYPE_UNSPECIFIED = 0;
+  MEMORY_TYPE_ARCHITECTURE_DECISION = 1;
+  MEMORY_TYPE_CODE_PATTERN = 2;
+  MEMORY_TYPE_BUG_FIX = 3;
+  MEMORY_TYPE_CONFIGURATION = 4;
+  MEMORY_TYPE_CONSTRAINT = 5;
+  MEMORY_TYPE_ENTITY = 6;
+  MEMORY_TYPE_INSIGHT = 7;
+  MEMORY_TYPE_REFERENCE = 8;
+  MEMORY_TYPE_PREFERENCE = 9;
+  MEMORY_TYPE_TASK = 10;
+  MEMORY_TYPE_AGENT_EVENT = 11;
+  MEMORY_TYPE_CONSTITUTION = 12;
+  MEMORY_TYPE_FEATURE_SPEC = 13;
+  MEMORY_TYPE_IMPLEMENTATION_PLAN = 14;
+  MEMORY_TYPE_TASK_BREAKDOWN = 15;
+  MEMORY_TYPE_QUALITY_CHECKLIST = 16;
+  MEMORY_TYPE_CLARIFICATION = 17;
+}
+
+enum LinkType {
+  LINK_TYPE_UNSPECIFIED = 0;
+  LINK_TYPE_EXTENDS = 1;
+  LINK_TYPE_BUILDS_UPON = 2;
+  LINK_TYPE_CONTRADICTS = 3;
+  LINK_TYPE_IMPLEMENTS = 4;
+  LINK_TYPE_REFERENCES = 5;
+  LINK_TYPE_REFERENCED_BY = 6;
+  LINK_TYPE_CLARIFIES = 7;
+  LINK_TYPE_SUPERSEDES = 8;
+}
+
+// ============================================================================
+// Memory Link
+// ============================================================================
+
+message MemoryLink {
+  string target_id = 1;               // Target memory ID
+  LinkType link_type = 2;             // Relationship type
+  float strength = 3;                 // 0.0-1.0
+  string reason = 4;                  // Why this link exists
+  uint64 created_at = 5;              // Unix timestamp
+  optional uint64 last_traversed_at = 6;  // Last access time
+  bool user_created = 7;              // User links don't decay
+}
+
+// ============================================================================
+// Memory Note (Full Structure)
+// ============================================================================
+
+message MemoryNote {
+  // Identity
+  string id = 1;
+  Namespace namespace = 2;
+  uint64 created_at = 3;              // Unix timestamp
+  uint64 updated_at = 4;              // Unix timestamp
+
+  // Content
+  string content = 5;
+  string summary = 6;
+  repeated string keywords = 7;
+  repeated string tags = 8;
+  string context = 9;                 // Additional context
+
+  // Classification
+  MemoryType memory_type = 10;
+  uint32 importance = 11;             // 1-10
+  float confidence = 12;              // 0.0-1.0
+
+  // Relationships
+  repeated MemoryLink links = 13;
+  repeated string related_files = 14;
+  repeated string related_entities = 15;
+
+  // Access tracking
+  uint64 access_count = 16;
+  uint64 last_accessed_at = 17;
+
+  // Lifecycle
+  optional uint64 expires_at = 18;    // Optional expiration
+  bool is_archived = 19;
+  optional string superseded_by = 20; // Memory ID
+
+  // Embeddings
+  repeated float embedding = 21;      // Vector embedding (768d or 1536d)
+  string embedding_model = 22;        // Model name
+}
+
+// ============================================================================
+// Search Types
+// ============================================================================
+
+message SearchQuery {
+  string query = 1;                   // Search text
+  optional Namespace namespace = 2;   // Filter by namespace
+  repeated MemoryType memory_types = 3;  // Filter by types
+  repeated string tags = 4;           // Filter by tags
+  optional uint32 min_importance = 5; // Minimum importance threshold
+  uint32 max_results = 6;             // Limit results
+  bool include_archived = 7;          // Include archived memories
+}
+
+message SearchResult {
+  MemoryNote memory = 1;              // The memory note
+  float score = 2;                    // Hybrid score (0.0-1.0)
+  optional float semantic_score = 3;  // Semantic similarity
+  optional float fts_score = 4;       // Full-text search score
+  optional float graph_score = 5;     // Graph proximity score
+}
+
+// ============================================================================
+// Project Metadata
+// ============================================================================
+
+message ProjectMetadata {
+  string name = 1;
+  string path = 2;
+  optional string description = 3;
+  repeated string tags = 4;
+  map<string, string> config = 5;    // Key-value config from CLAUDE.md
+}
+
+// ============================================================================
+// Evolution Types
+// ============================================================================
+
+enum ConsolidationDecision {
+  CONSOLIDATION_DECISION_UNSPECIFIED = 0;
+  CONSOLIDATION_DECISION_MERGE = 1;
+  CONSOLIDATION_DECISION_SUPERSEDE = 2;
+  CONSOLIDATION_DECISION_KEEP_BOTH = 3;
+}
+
+message JobReport {
+  uint32 memories_processed = 1;
+  uint32 memories_updated = 2;
+  repeated string errors = 3;
+  uint64 duration_ms = 4;
+}
+
+// ============================================================================
+// Orchestration Types
+// ============================================================================
+
+message SupervisionConfig {
+  uint32 max_restarts = 1;            // Default: 3
+  uint64 restart_window_secs = 2;     // Default: 60
+  bool enable_sub_agents = 3;
+  uint32 max_concurrent_agents = 4;   // Default: 4
+}
+
+enum AgentState {
+  AGENT_STATE_UNSPECIFIED = 0;
+  AGENT_STATE_IDLE = 1;
+  AGENT_STATE_RUNNING = 2;
+  AGENT_STATE_BLOCKED = 3;
+  AGENT_STATE_FAILED = 4;
+}
+
+message AgentInfo {
+  string agent_id = 1;
+  string agent_type = 2;              // orchestrator, optimizer, reviewer, executor
+  AgentState state = 3;
+  optional string current_work_item = 4;
+}
+
+message WorkItem {
+  string id = 1;
+  string description = 2;
+  uint32 priority = 3;
+  repeated string dependencies = 4;   // Work item IDs
+  map<string, string> metadata = 5;
+}
+
+// ============================================================================
+// Health & Stats
+// ============================================================================
+
+message Stats {
+  uint64 total_memories = 1;
+  uint64 total_links = 2;
+  uint64 namespaces_count = 3;
+  map<string, uint64> memories_by_type = 4;
+}
+
+message Metrics {
+  uint64 uptime_seconds = 1;
+  uint64 requests_total = 2;
+  uint64 requests_errors = 3;
+  double request_duration_avg_ms = 4;
+  uint64 storage_ops_total = 5;
+  uint64 memory_usage_bytes = 6;
+}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string version = 2;
+  map<string, string> components = 3;  // Component name -> status
+}
+
+// ============================================================================
+// Embedding Types
+// ============================================================================
+
+message ModelInfo {
+  string name = 1;
+  string description = 2;
+  uint32 dimension = 3;
+  bool local = 4;                     // True if local, false if remote API
+}
+
+message EmbeddingResult {
+  uint32 index = 1;                   // Index in original batch
+  repeated float embedding = 2;
+  optional string error = 3;          // If generation failed
+}
