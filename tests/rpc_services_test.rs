@@ -243,13 +243,12 @@ async fn test_recall_search() {
 }
 
 #[tokio::test]
-#[ignore] // TODO: Enable when vector embeddings are fully implemented in storage backend
 async fn test_semantic_search() {
     let storage = create_test_storage().await;
     let service = MemoryServiceImpl::new(storage.clone(), None);
 
-    // Create a dummy embedding vector (768d with all 0.1 values)
-    let embedding = vec![0.1f32; 768];
+    // Create a dummy embedding vector (384d for LibSQL schema)
+    let embedding = vec![0.1f32; 384];
 
     let search_request = Request::new(SemanticSearchRequest {
         embedding: embedding.clone(),
