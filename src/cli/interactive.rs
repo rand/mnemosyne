@@ -6,21 +6,20 @@
 use mnemosyne_core::{
     api::StateManager,
     error::Result,
+    launcher::agents::AgentRole,
     orchestration::{
         messages::OrchestratorMessage,
-        state::{AgentRole, AgentState, Phase, WorkItem, WorkItemId, WorkItemStatus},
+        state::{AgentState, Phase, WorkItem, WorkItemId},
         OrchestrationEngine,
     },
-    storage::MemoryStore,
 };
 use std::io::{self, Write};
 use std::sync::Arc;
 use tracing::{debug, error, info};
 
-/// Run interactive mode with orchestration engine and memory store
+/// Run interactive mode with orchestration engine
 pub async fn run(
     mut engine: OrchestrationEngine,
-    memory: MemoryStore,
     state_manager: Option<Arc<StateManager>>,
 ) -> Result<()> {
     println!();
@@ -56,7 +55,7 @@ pub async fn run(
             }
             cmd if cmd.starts_with("recall:") => {
                 let query = cmd.strip_prefix("recall:").unwrap().trim();
-                recall_memories(&memory, query).await?;
+                println!("Memory recall: {} (not yet implemented)", query);
             }
             cmd if cmd.starts_with("work:") => {
                 let desc = cmd.strip_prefix("work:").unwrap().trim();
@@ -85,24 +84,13 @@ async fn submit_work(
 ) -> Result<()> {
     info!("Submitting work: {}", description);
 
-    // Create work item
-    let item = WorkItem {
-        id: WorkItemId::new(),
-        description: description.to_string(),
-        agent: AgentRole::Executor, // Default to executor
-        state: AgentState::Idle,
-        phase: Phase::Spec,
-        priority: 5,
-        dependencies: vec![],
-        status: WorkItemStatus::Pending,
-        result: None,
-        error: None,
-        started_at: None,
-        completed_at: None,
-        metadata: Default::default(),
-        context: None,
-        artifacts: vec![],
-    };
+    // Create work item using constructor
+    let item = WorkItem::new(
+        description.to_string(),
+        AgentRole::Executor,       // Default to executor
+        Phase::PromptToSpec,       // Default phase
+        5,                          // Default priority
+    );
 
     let item_id = item.id.clone();
 
@@ -145,8 +133,9 @@ async fn show_status(state_manager: &Option<Arc<StateManager>>) -> Result<()> {
             );
 
             if let Some(health) = agent.health {
-                println!("    Health: {} errors, {} warnings",
-                    health.error_count, health.warning_count);
+                let status = if health.is_healthy { "✓" } else { "✗" };
+                println!("    Health: {} {} errors",
+                    status, health.error_count);
             }
         }
         println!("─────────────────────────────────────────────────────");
@@ -154,17 +143,6 @@ async fn show_status(state_manager: &Option<Arc<StateManager>>) -> Result<()> {
     } else {
         println!("State manager not available");
     }
-
-    Ok(())
-}
-
-/// Recall memories from the memory store
-async fn recall_memories(memory: &MemoryStore, query: &str) -> Result<()> {
-    debug!("Recalling memories for query: {}", query);
-
-    // TODO: Implement memory recall
-    // This requires MemoryStore to expose recall functionality
-    println!("Memory recall: {} (not yet implemented)", query);
 
     Ok(())
 }

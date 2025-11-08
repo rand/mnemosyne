@@ -416,7 +416,7 @@ async fn main() -> Result<()> {
         None => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};
             use mnemosyne_core::orchestration::{OrchestrationEngine, SupervisionConfig};
-            use mnemosyne_core::storage::{ConnectionMode, LibsqlStorage};
+            use mnemosyne_core::{ConnectionMode, LibsqlStorage};
             use std::net::SocketAddr;
             use std::sync::Arc;
 
@@ -468,7 +468,7 @@ async fn main() -> Result<()> {
             progress.show_multiline_loading();
 
             // Create storage backend
-            let storage = match LibsqlStorage::new(ConnectionMode::File(db_path.clone())).await {
+            let storage = match LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await {
                 Ok(storage) => Arc::new(storage) as Arc<dyn mnemosyne_core::storage::StorageBackend>,
                 Err(e) => {
                     progress.show_error(&format!("Failed to initialize storage: {}", e));
@@ -522,21 +522,8 @@ async fn main() -> Result<()> {
             progress.show_transition();
             progress.show_step_complete("Orchestration ready");
 
-            // Create memory store for interactive mode
-            let memory = match mnemosyne_core::storage::MemoryStore::new(storage.clone()).await {
-                Ok(memory) => memory,
-                Err(e) => {
-                    error!("Failed to create memory store: {}", e);
-                    progress.show_error(&format!("Failed to create memory store: {}", e));
-                    // Continue anyway - interactive mode will work without recall
-                    mnemosyne_core::storage::MemoryStore::new(storage.clone())
-                        .await
-                        .expect("Failed to create memory store on retry")
-                }
-            };
-
             // Launch interactive mode
-            let result = cli::interactive::run(engine, memory, Some(state_manager.clone())).await;
+            let result = cli::interactive::run(engine, Some(state_manager.clone())).await;
 
             // Clean up API server
             api_handle.abort();
