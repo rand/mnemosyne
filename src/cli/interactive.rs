@@ -34,6 +34,16 @@ pub async fn run(
     // Get orchestrator reference before entering loop
     let orchestrator = engine.orchestrator().clone();
 
+    // Give actors time to fully initialize and wire together
+    // The start() method uses fire-and-forget .cast() messages for:
+    // - Initialize messages to all actors
+    // - RegisterAgents wiring
+    // - RegisterEventBroadcaster setup
+    // - RegisterPythonBridge initialization
+    // All of these must complete before work can be submitted
+    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+    info!("Agents initialized, ready for work submission");
+
     loop {
         print!("mnemosyne> ");
         io::stdout().flush()?;
