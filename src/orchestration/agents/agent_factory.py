@@ -66,7 +66,7 @@ def create_agent(role: str, config: Optional[Dict[str, Any]] = None) -> Any:
 
     Args:
         role: Agent role ("orchestrator", "optimizer", "reviewer", "executor")
-        config: Optional configuration dict
+        config: Optional configuration dict (may include 'anthropic_api_key')
 
     Returns:
         Agent instance with Claude SDK client initialized
@@ -74,7 +74,16 @@ def create_agent(role: str, config: Optional[Dict[str, Any]] = None) -> Any:
     Raises:
         ValueError: If role is unknown
     """
+    import os
+
     config = config or {}
+
+    # If API key is provided in config, set it as environment variable
+    # This ensures Python agents can access it via os.getenv()
+    if "anthropic_api_key" in config:
+        os.environ["ANTHROPIC_API_KEY"] = config["anthropic_api_key"]
+        # Remove from config dict since it's now in environment
+        del config["anthropic_api_key"]
 
     # Create mock dependencies for standalone/testing usage
     mock_coordinator = MockCoordinator()

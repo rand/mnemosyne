@@ -117,6 +117,18 @@ impl ClaudeAgentBridge {
 
         info!("Spawning Python Claude SDK agent for role: {:?}", role);
 
+        // Get API key from Config (optional, will gracefully handle missing key)
+        let api_key = match crate::config::Config::load().and_then(|c| c.get_api_key()) {
+            Ok(key) => {
+                info!("Retrieved API key from Config for Python agent");
+                Some(key)
+            }
+            Err(e) => {
+                warn!("Could not retrieve API key from Config: {}. Python agent will check environment.", e);
+                None
+            }
+        };
+
         // Spawn in blocking task to avoid blocking tokio runtime
         let agent = tokio::task::spawn_blocking(move || {
             Python::with_gil(|py| {
@@ -142,8 +154,17 @@ impl ClaudeAgentBridge {
                     AgentRole::Executor => "executor",
                 };
 
-                // Create agent instance
-                let agent = create_fn.call1((role_str,)).map_err(|e| {
+                // Create config dict with API key if available
+                let config_dict = pyo3::types::PyDict::new_bound(py);
+                if let Some(ref key) = api_key {
+                    config_dict.set_item("anthropic_api_key", key).map_err(|e| {
+                        error!("Failed to set API key in config dict: {}", e);
+                        MnemosyneError::Other(format!("Config dict creation failed: {}", e))
+                    })?;
+                }
+
+                // Create agent instance with config
+                let agent = create_fn.call1((role_str, config_dict)).map_err(|e| {
                     error!("Failed to create agent for role {:?}: {}", role_clone, e);
                     MnemosyneError::Other(format!("Agent creation failed: {}", e))
                 })?;
