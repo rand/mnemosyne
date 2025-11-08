@@ -125,7 +125,7 @@ pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()
     let mut total_decayed = 0;
     let mut total_archived = 0;
 
-    match job {
+    let result = match job {
         EvolveJob::Importance { batch_size, .. } => {
             println!("Running importance recalibration job...");
             let job = ImportanceRecalibrator::new(storage.clone());
