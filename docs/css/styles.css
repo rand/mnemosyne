@@ -455,10 +455,37 @@ pre code {
     background: var(--background-subtle);
     border: 1px solid var(--border);
     border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .diagram-container pre {
     margin: 0;
+}
+
+.diagram-svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+/* Responsive diagram scaling */
+@media (max-width: 1024px) {
+    .diagram-svg {
+        max-width: 90%;
+    }
+}
+
+@media (max-width: 640px) {
+    .diagram-container {
+        padding: 1rem;
+    }
+
+    .diagram-svg {
+        max-width: 100%;
+    }
 }
 
 /* Footer */

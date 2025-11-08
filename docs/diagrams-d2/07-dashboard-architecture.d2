@@ -1,0 +1,214 @@
+# Dashboard Monitoring Architecture
+# Real-time web-based monitoring of multi-agent orchestration
+
+direction: down
+
+# User layer
+user: {
+  label: "User\n(Terminal 1)"
+  shape: rectangle
+  style: {
+    fill: "#3b82f6"
+    font-color: "#ffffff"
+    stroke: "#2563eb"
+  }
+}
+
+dashboard_user: {
+  label: "Dashboard User\n(Terminal 2)"
+  shape: rectangle
+  style: {
+    fill: "#3b82f6"
+    font-color: "#ffffff"
+    stroke: "#2563eb"
+  }
+}
+
+# Orchestration service
+orchestrate_cmd: {
+  label: "mnemosyne orchestrate\n--dashboard"
+  shape: rectangle
+  style: {
+    fill: "#8b5cf6"
+    font-color: "#ffffff"
+    stroke: "#7c3aed"
+  }
+}
+
+# HTTP API server
+api_server: {
+  label: "HTTP API Server\nlocalhost:3000\n\n• GET /metrics\n• GET /events (SSE)\n• GET /status\n• WebSocket support"
+  shape: rectangle
+  style: {
+    fill: "#10b981"
+    font-color: "#ffffff"
+    stroke: "#059669"
+  }
+}
+
+# Multi-agent system (data source)
+agents: {
+  label: "Multi-Agent System"
+
+  orchestrator: {
+    label: "Orchestrator\nWork coordination"
+    style: {
+      fill: "#8b5cf6"
+      font-color: "#ffffff"
+      stroke: "#7c3aed"
+    }
+  }
+
+  optimizer: {
+    label: "Optimizer\nContext management"
+    style: {
+      fill: "#10b981"
+      font-color: "#ffffff"
+      stroke: "#059669"
+    }
+  }
+
+  reviewer: {
+    label: "Reviewer\nQuality validation"
+    style: {
+      fill: "#ef4444"
+      font-color: "#ffffff"
+      stroke: "#dc2626"
+    }
+  }
+
+  executor: {
+    label: "Executor\nTask execution"
+    style: {
+      fill: "#f59e0b"
+      font-color: "#ffffff"
+      stroke: "#d97706"
+    }
+  }
+}
+
+# Dashboard client
+dash_client: {
+  label: "mnemosyne-dash\n--api http://127.0.0.1:3000\n\n6-Panel TUI:\n• Memory Panel\n• Context Panel\n• Work Panel\n• Agent Panel\n• Quality Panel\n• Events Panel"
+  shape: rectangle
+  style: {
+    fill: "#06b6d4"
+    font-color: "#ffffff"
+    stroke: "#0891b2"
+  }
+}
+
+# Real-time updates
+sse: {
+  label: "SSE Stream\n(Server-Sent Events)\nReal-time Metrics"
+  shape: rectangle
+  style: {
+    fill: "#ec4899"
+    font-color: "#ffffff"
+    stroke: "#db2777"
+  }
+}
+
+# Storage for metrics
+metrics_store: {
+  label: "Metrics Store\nTime-series Data\nSparkline History"
+  shape: cylinder
+  style: {
+    fill: "#64748b"
+    font-color: "#ffffff"
+    stroke: "#475569"
+  }
+}
+
+# Connections
+user -> orchestrate_cmd {
+  label: "start with dashboard"
+  style.stroke-width: 3
+}
+
+orchestrate_cmd -> api_server {
+  label: "spawn HTTP server"
+  style.stroke-width: 2
+}
+
+orchestrate_cmd -> agents.orchestrator {
+  label: "initialize agents"
+  style.stroke-width: 2
+}
+
+agents.orchestrator -> agents.optimizer {
+  style.stroke-width: 1
+}
+
+agents.optimizer -> agents.executor {
+  style.stroke-width: 1
+}
+
+agents.executor -> agents.reviewer {
+  style.stroke-width: 1
+}
+
+agents.orchestrator -> metrics_store {
+  label: "emit events"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+agents.optimizer -> metrics_store {
+  label: "emit events"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+agents.reviewer -> metrics_store {
+  label: "emit events"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+agents.executor -> metrics_store {
+  label: "emit events"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+metrics_store -> api_server {
+  label: "query metrics"
+  style.stroke-width: 2
+}
+
+api_server -> sse {
+  label: "stream updates"
+  style.stroke-width: 3
+}
+
+dashboard_user -> dash_client {
+  label: "launch client"
+  style.stroke-width: 3
+}
+
+dash_client -> api_server {
+  label: "connect via HTTP"
+  style.stroke-width: 3
+}
+
+sse -> dash_client {
+  label: "real-time data"
+  style.stroke-width: 3
+  style.stroke-dash: 3
+}
+
+# Features annotation
+features: {
+  label: "Dashboard Features:\n• Sparkline charts (50pt history)\n• Color-coded alerts\n• Context budget tracking\n• Critical path visualization\n• Live agent coordination"
+  shape: page
+  style: {
+    fill: "#fef3c7"
+    stroke: "#f59e0b"
+  }
+}
+
+features -> dash_client {
+  style.stroke-dash: 5
+  style.opacity: 0.3
+}

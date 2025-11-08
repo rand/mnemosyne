@@ -1,0 +1,173 @@
+# Multi-Agent Coordination Flow
+# Shows interaction between 4 primary agents and memory store
+
+direction: down
+
+# Participants
+user: {
+  label: "User Request"
+  shape: rectangle
+  style: {
+    fill: "#3b82f6"
+    font-color: "#ffffff"
+    stroke: "#2563eb"
+  }
+}
+
+orchestrator: {
+  label: "Orchestrator\nCoordination & State"
+  shape: rectangle
+  style: {
+    fill: "#8b5cf6"
+    font-color: "#ffffff"
+    stroke: "#7c3aed"
+  }
+}
+
+optimizer: {
+  label: "Optimizer\nContext & Skills"
+  shape: rectangle
+  style: {
+    fill: "#10b981"
+    font-color: "#ffffff"
+    stroke: "#059669"
+  }
+}
+
+reviewer: {
+  label: "Reviewer\nQuality Gates"
+  shape: rectangle
+  style: {
+    fill: "#ef4444"
+    font-color: "#ffffff"
+    stroke: "#dc2626"
+  }
+}
+
+executor: {
+  label: "Executor\nWork Execution"
+  shape: rectangle
+  style: {
+    fill: "#f59e0b"
+    font-color: "#ffffff"
+    stroke: "#d97706"
+  }
+}
+
+memory: {
+  label: "Memory Store\nLibSQL + Hybrid Search"
+  shape: cylinder
+  style: {
+    fill: "#64748b"
+    font-color: "#ffffff"
+    stroke: "#475569"
+  }
+}
+
+# Decision nodes
+decision_pass: {
+  label: "Quality Gates\nPass?"
+  shape: diamond
+  style: {
+    fill: "#fef3c7"
+    stroke: "#f59e0b"
+  }
+}
+
+# Flow: Session Start
+user -> orchestrator: "1. Start work session" {
+  style.stroke-width: 2
+}
+
+orchestrator -> memory: "2. Load project memories" {
+  style.stroke-width: 2
+}
+
+memory -> orchestrator: "3. Important memories" {
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+# Flow: Context Optimization
+orchestrator -> optimizer: "4. Estimate context needs" {
+  style.stroke-width: 2
+}
+
+optimizer -> memory: "5. Query relevant skills" {
+  style.stroke-width: 2
+}
+
+memory -> optimizer: "6. Discovered skills" {
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+optimizer -> orchestrator: "7. Context budget allocated" {
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+# Flow: Work Execution
+orchestrator -> executor: "8. Assign work item" {
+  style.stroke-width: 2
+}
+
+executor -> memory: "9. Recall context" {
+  style.stroke-width: 2
+}
+
+memory -> executor: "10. Relevant memories" {
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+executor -> executor: "11. Execute work" {
+  style.stroke-width: 2
+  style.stroke-dash: 5
+}
+
+executor -> memory: "12. Store results" {
+  style.stroke-width: 2
+}
+
+# Flow: Validation
+executor -> reviewer: "13. Request validation" {
+  style.stroke-width: 2
+}
+
+reviewer -> memory: "14. Check quality gates" {
+  style.stroke-width: 2
+}
+
+memory -> reviewer: "15. Requirements & specs" {
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+reviewer -> decision_pass: "16. Validate" {
+  style.stroke-width: 2
+}
+
+# Success path
+decision_pass -> orchestrator: "PASS: Approved" {
+  style.stroke: "#10b981"
+  style.stroke-width: 3
+}
+
+orchestrator -> memory: "17. Persist completion" {
+  style.stroke: "#10b981"
+  style.stroke-width: 2
+}
+
+# Failure path
+decision_pass -> executor: "FAIL: Rejected\nwith feedback" {
+  style.stroke: "#ef4444"
+  style.stroke-width: 3
+  style.stroke-dash: 3
+}
+
+executor -> orchestrator: "18. Needs revision" {
+  style.stroke: "#ef4444"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}

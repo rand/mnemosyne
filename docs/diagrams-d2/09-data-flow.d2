@@ -1,0 +1,321 @@
+# Data Flow Through Mnemosyne
+# End-to-end data movement from user input to storage and retrieval
+
+direction: down
+
+# User input
+user_input: {
+  label: "User Input\n• Store memory\n• Search query\n• Update request"
+  shape: oval
+  style: {
+    fill: "#3b82f6"
+    font-color: "#ffffff"
+    stroke: "#2563eb"
+  }
+}
+
+# Entry points
+entry: {
+  label: "Entry Points"
+
+  cli: {
+    label: "CLI\nmnemosyne [cmd]"
+    shape: rectangle
+    style: {
+      fill: "#10b981"
+      font-color: "#ffffff"
+      stroke: "#059669"
+    }
+  }
+
+  mcp: {
+    label: "MCP Server\nJSON-RPC 2.0"
+    shape: rectangle
+    style: {
+      fill: "#10b981"
+      font-color: "#ffffff"
+      stroke: "#059669"
+    }
+  }
+
+  rpc: {
+    label: "gRPC Server\nTonic + Protobuf"
+    shape: rectangle
+    style: {
+      fill: "#10b981"
+      font-color: "#ffffff"
+      stroke: "#059669"
+    }
+  }
+}
+
+# Processing layer
+processing: {
+  label: "Processing Layer"
+
+  validation: {
+    label: "Validation\n• Schema check\n• Type validation\n• Constraint verify"
+    shape: rectangle
+    style: {
+      fill: "#f59e0b"
+      font-color: "#ffffff"
+      stroke: "#d97706"
+    }
+  }
+
+  enrichment: {
+    label: "LLM Enrichment\n• Extract topics\n• Generate links\n• Infer importance"
+    shape: rectangle
+    style: {
+      fill: "#8b5cf6"
+      font-color: "#ffffff"
+      stroke: "#7c3aed"
+    }
+  }
+
+  transformation: {
+    label: "Transformation\n• Normalize data\n• Apply defaults\n• Generate metadata"
+    shape: rectangle
+    style: {
+      fill: "#f59e0b"
+      font-color: "#ffffff"
+      stroke: "#d97706"
+    }
+  }
+}
+
+# Storage operations
+storage_ops: {
+  label: "Storage Operations"
+
+  write: {
+    label: "Write Path\n• Insert memory\n• Update indexes\n• Create links"
+    shape: rectangle
+    style: {
+      fill: "#06b6d4"
+      font-color: "#ffffff"
+      stroke: "#0891b2"
+    }
+  }
+
+  search: {
+    label: "Search Path\n• FTS5 query\n• Graph traversal\n• Vector similarity"
+    shape: rectangle
+    style: {
+      fill: "#06b6d4"
+      font-color: "#ffffff"
+      stroke: "#0891b2"
+    }
+  }
+}
+
+# Storage layer
+storage: {
+  label: "LibSQL Storage"
+
+  memories: {
+    label: "Memories Table\n• Core data\n• Metadata\n• Timestamps"
+    shape: cylinder
+    style: {
+      fill: "#64748b"
+      font-color: "#ffffff"
+      stroke: "#475569"
+    }
+  }
+
+  fts: {
+    label: "FTS5 Index\n• Full-text\n• BM25 scores"
+    shape: cylinder
+    style: {
+      fill: "#64748b"
+      font-color: "#ffffff"
+      stroke: "#475569"
+    }
+  }
+
+  graph: {
+    label: "Memory Links\n• Relationships\n• Strength weights"
+    shape: cylinder
+    style: {
+      fill: "#64748b"
+      font-color: "#ffffff"
+      stroke: "#475569"
+    }
+  }
+}
+
+# Result processing
+results: {
+  label: "Result Processing"
+
+  merge: {
+    label: "Result Merging\n• Combine strategies\n• Weight scores\n• Deduplicate"
+    shape: rectangle
+    style: {
+      fill: "#ec4899"
+      font-color: "#ffffff"
+      stroke: "#db2777"
+    }
+  }
+
+  filter: {
+    label: "Filtering\n• Importance threshold\n• Namespace priority\n• Limit results"
+    shape: rectangle
+    style: {
+      fill: "#ec4899"
+      font-color: "#ffffff"
+      stroke: "#db2777"
+    }
+  }
+
+  format: {
+    label: "Format Response\n• Serialize JSON\n• Include metadata\n• Prepare output"
+    shape: rectangle
+    style: {
+      fill: "#ec4899"
+      font-color: "#ffffff"
+      stroke: "#db2777"
+    }
+  }
+}
+
+# Output
+user_output: {
+  label: "User Output\n• Stored memory ID\n• Search results\n• Updated record"
+  shape: oval
+  style: {
+    fill: "#10b981"
+    font-color: "#ffffff"
+    stroke: "#059669"
+  }
+}
+
+# Flow: Input to entry points
+user_input -> entry.cli {
+  label: "CLI command"
+  style.stroke-width: 2
+}
+
+user_input -> entry.mcp {
+  label: "MCP request"
+  style.stroke-width: 2
+}
+
+user_input -> entry.rpc {
+  label: "gRPC call"
+  style.stroke-width: 2
+}
+
+# Entry to processing
+entry.cli -> processing.validation {
+  style.stroke-width: 2
+}
+
+entry.mcp -> processing.validation {
+  style.stroke-width: 2
+}
+
+entry.rpc -> processing.validation {
+  style.stroke-width: 2
+}
+
+# Processing flow
+processing.validation -> processing.transformation {
+  label: "valid"
+  style.stroke-width: 2
+}
+
+processing.transformation -> processing.enrichment {
+  label: "async"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+# To storage operations
+processing.transformation -> storage_ops.write {
+  label: "store operation"
+  style.stroke-width: 2
+}
+
+processing.transformation -> storage_ops.search {
+  label: "query operation"
+  style.stroke-width: 2
+}
+
+# Storage operations to tables
+storage_ops.write -> storage.memories {
+  style.stroke-width: 2
+}
+
+storage_ops.write -> storage.fts {
+  label: "index"
+  style.stroke-width: 2
+}
+
+storage_ops.write -> storage.graph {
+  label: "link"
+  style.stroke-width: 2
+}
+
+storage_ops.search -> storage.fts {
+  label: "keyword"
+  style.stroke-width: 2
+}
+
+storage_ops.search -> storage.graph {
+  label: "traverse"
+  style.stroke-width: 2
+}
+
+storage_ops.search -> storage.memories {
+  label: "fetch"
+  style.stroke-width: 2
+}
+
+# From storage to results
+storage.memories -> results.merge {
+  style.stroke-width: 2
+}
+
+storage.fts -> results.merge {
+  style.stroke-width: 2
+}
+
+storage.graph -> results.merge {
+  style.stroke-width: 2
+}
+
+# Results processing
+results.merge -> results.filter {
+  style.stroke-width: 2
+}
+
+results.filter -> results.format {
+  style.stroke-width: 2
+}
+
+# Output
+results.format -> user_output {
+  style.stroke-width: 3
+}
+
+storage_ops.write -> user_output {
+  label: "write confirmation"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+# Annotations
+performance: {
+  label: "Performance:\n• Store: 2.25ms\n• Search: 1.61ms\n• Sub-ms retrieval"
+  shape: page
+  style: {
+    fill: "#ecfdf5"
+    stroke: "#10b981"
+  }
+}
+
+performance -> storage_ops.search {
+  style.stroke-dash: 5
+  style.opacity: 0.3
+}

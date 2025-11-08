@@ -1,0 +1,126 @@
+# Mnemosyne System Architecture
+# High-level component architecture showing data flow
+
+direction: down
+
+# Frontend Layer
+frontend: {
+  label: "Claude Code Frontend"
+  claude_code: {
+    label: "Claude Code\nMulti-Agent System"
+    style: {
+      fill: "#2563eb"
+      font-color: "#ffffff"
+      stroke: "#1e40af"
+    }
+  }
+}
+
+# MCP Server Layer
+mcp_layer: {
+  label: "MCP Server (stdio)"
+
+  mcp_server: {
+    label: "MCP Server\nJSON-RPC 2.0"
+    style: {
+      fill: "#10b981"
+      font-color: "#ffffff"
+      stroke: "#059669"
+    }
+  }
+
+  tools: {
+    label: "8 OODA Tools\nObserve • Orient • Decide • Act"
+    style: {
+      fill: "#10b981"
+      font-color: "#ffffff"
+      stroke: "#059669"
+    }
+  }
+}
+
+# Core Systems Layer
+core: {
+  label: "Core Systems"
+
+  storage: {
+    label: "Storage: LibSQL\nHybrid Search: FTS5 + Graph"
+    style: {
+      fill: "#f59e0b"
+      font-color: "#ffffff"
+      stroke: "#d97706"
+    }
+  }
+
+  services: {
+    label: "Services\nLLM: Claude Haiku\nEmbeddings"
+    style: {
+      fill: "#f59e0b"
+      font-color: "#ffffff"
+      stroke: "#d97706"
+    }
+  }
+
+  orchestration: {
+    label: "Orchestration: Ractor\n4 Agents • EventBroadcaster"
+    style: {
+      fill: "#8b5cf6"
+      font-color: "#ffffff"
+      stroke: "#7c3aed"
+    }
+  }
+}
+
+# Background Systems Layer
+background: {
+  label: "Background Systems"
+
+  evolution: {
+    label: "Evolution System\nConsolidation • Decay • Archival"
+    style: {
+      fill: "#64748b"
+      font-color: "#ffffff"
+      stroke: "#475569"
+    }
+  }
+
+  evaluation: {
+    label: "Evaluation: Privacy\nOnline Learning"
+    style: {
+      fill: "#64748b"
+      font-color: "#ffffff"
+      stroke: "#475569"
+    }
+  }
+}
+
+# Connections
+frontend.claude_code -> mcp_layer.mcp_server: "stdio" {
+  style.stroke-width: 3
+}
+
+mcp_layer.mcp_server -> mcp_layer.tools {
+  style.stroke-width: 2
+}
+
+mcp_layer.tools -> core.storage {
+  style.stroke-width: 2
+}
+
+mcp_layer.tools -> core.services {
+  style.stroke-width: 2
+}
+
+mcp_layer.tools -> core.orchestration {
+  style.stroke-width: 2
+}
+
+core.storage -> background.evolution {
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+core.orchestration -> background.evaluation {
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}

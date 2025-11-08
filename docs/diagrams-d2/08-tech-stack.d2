@@ -1,0 +1,294 @@
+# Mnemosyne Technology Stack
+# Comprehensive overview of languages, frameworks, and tools
+
+direction: down
+
+# Language layer
+languages: {
+  label: "Core Languages"
+
+  rust: {
+    label: "Rust 1.75+\n• Type Safety\n• Zero-cost Abstractions\n• Memory Safety\n• Async/Await"
+    shape: rectangle
+    style: {
+      fill: "#ce422b"
+      font-color: "#ffffff"
+      stroke: "#a33116"
+    }
+  }
+
+  python: {
+    label: "Python 3.10+\n• PyO3 Bindings\n• DSPy Integration\n• Type Hints"
+    shape: rectangle
+    style: {
+      fill: "#3776ab"
+      font-color: "#ffffff"
+      stroke: "#2c5f8a"
+    }
+  }
+}
+
+# Runtime & async
+runtime: {
+  label: "Runtime & Concurrency"
+
+  tokio: {
+    label: "Tokio\nAsync Runtime\n• Multi-threaded\n• Work-stealing"
+    shape: rectangle
+    style: {
+      fill: "#10b981"
+      font-color: "#ffffff"
+      stroke: "#059669"
+    }
+  }
+
+  ractor: {
+    label: "Ractor\nActor Framework\n• Supervision Trees\n• Message Passing"
+    shape: rectangle
+    style: {
+      fill: "#8b5cf6"
+      font-color: "#ffffff"
+      stroke: "#7c3aed"
+    }
+  }
+}
+
+# Storage & search
+storage: {
+  label: "Storage & Search"
+
+  libsql: {
+    label: "LibSQL\nSQLite-compatible\n• ACID guarantees\n• B-tree indexes"
+    shape: cylinder
+    style: {
+      fill: "#64748b"
+      font-color: "#ffffff"
+      stroke: "#475569"
+    }
+  }
+
+  fts5: {
+    label: "FTS5\nFull-text Search\n• BM25 ranking\n• Sub-millisecond"
+    shape: rectangle
+    style: {
+      fill: "#f59e0b"
+      font-color: "#ffffff"
+      stroke: "#d97706"
+    }
+  }
+}
+
+# AI/ML layer
+ai_ml: {
+  label: "AI & LLM Integration"
+
+  claude: {
+    label: "Claude Haiku 4.5\n• Memory enrichment\n• Link generation\n• Consolidation"
+    shape: rectangle
+    style: {
+      fill: "#8b5cf6"
+      font-color: "#ffffff"
+      stroke: "#7c3aed"
+    }
+  }
+
+  dspy: {
+    label: "DSPy\n• Semantic validation\n• Quality gates\n• Type inference"
+    shape: rectangle
+    style: {
+      fill: "#3b82f6"
+      font-color: "#ffffff"
+      stroke: "#2563eb"
+    }
+  }
+
+  anthropic_sdk: {
+    label: "Anthropic SDK\n• API client\n• Rate limiting\n• Error handling"
+    shape: rectangle
+    style: {
+      fill: "#06b6d4"
+      font-color: "#ffffff"
+      stroke: "#0891b2"
+    }
+  }
+}
+
+# RPC & protocols
+rpc: {
+  label: "RPC & Protocols"
+
+  tonic: {
+    label: "Tonic\ngRPC Framework\n• HTTP/2\n• Streaming"
+    shape: rectangle
+    style: {
+      fill: "#10b981"
+      font-color: "#ffffff"
+      stroke: "#059669"
+    }
+  }
+
+  protobuf: {
+    label: "Protocol Buffers\nType-safe schemas\n• Backward compat\n• Multi-language"
+    shape: rectangle
+    style: {
+      fill: "#34d399"
+      font-color: "#ffffff"
+      stroke: "#10b981"
+    }
+  }
+
+  mcp: {
+    label: "MCP\nModel Context Protocol\n• JSON-RPC 2.0\n• stdio transport"
+    shape: rectangle
+    style: {
+      fill: "#8b5cf6"
+      font-color: "#ffffff"
+      stroke: "#7c3aed"
+    }
+  }
+}
+
+# UI layer
+ui: {
+  label: "User Interface"
+
+  ratatui: {
+    label: "Ratatui\nTerminal UI\n• Rich widgets\n• Layout engine"
+    shape: rectangle
+    style: {
+      fill: "#ec4899"
+      font-color: "#ffffff"
+      stroke: "#db2777"
+    }
+  }
+
+  crossterm: {
+    label: "Crossterm\nTerminal I/O\n• Cross-platform\n• Event handling"
+    shape: rectangle
+    style: {
+      fill: "#f472b6"
+      font-color: "#ffffff"
+      stroke: "#ec4899"
+    }
+  }
+}
+
+# Testing & quality
+testing: {
+  label: "Testing & Quality"
+
+  cargo_test: {
+    label: "Cargo Test\n702 tests passing\n• Unit tests\n• Integration tests"
+    shape: rectangle
+    style: {
+      fill: "#10b981"
+      font-color: "#ffffff"
+      stroke: "#059669"
+    }
+  }
+
+  pytest: {
+    label: "Pytest\nPython tests\n• DSPy modules\n• E2E validation"
+    shape: rectangle
+    style: {
+      fill: "#3776ab"
+      font-color: "#ffffff"
+      stroke: "#2c5f8a"
+    }
+  }
+
+  clippy: {
+    label: "Clippy\nRust linter\n• Best practices\n• Zero warnings"
+    shape: rectangle
+    style: {
+      fill: "#f59e0b"
+      font-color: "#ffffff"
+      stroke: "#d97706"
+    }
+  }
+}
+
+# Build & deployment
+build: {
+  label: "Build & Deployment"
+
+  cargo: {
+    label: "Cargo\nBuild system\n• Dependency mgmt\n• Feature flags"
+    shape: rectangle
+    style: {
+      fill: "#ce422b"
+      font-color: "#ffffff"
+      stroke: "#a33116"
+    }
+  }
+
+  maturin: {
+    label: "Maturin\nPython packaging\n• PyO3 bridge\n• Wheel building"
+    shape: rectangle
+    style: {
+      fill: "#3776ab"
+      font-color: "#ffffff"
+      stroke: "#2c5f8a"
+    }
+  }
+}
+
+# Connections showing relationships
+languages.rust -> runtime.tokio {
+  style.stroke-width: 2
+}
+
+languages.rust -> runtime.ractor {
+  style.stroke-width: 2
+}
+
+languages.rust -> storage.libsql {
+  style.stroke-width: 2
+}
+
+languages.python -> ai_ml.dspy {
+  style.stroke-width: 2
+}
+
+runtime.tokio -> rpc.tonic {
+  style.stroke-width: 2
+}
+
+storage.libsql -> storage.fts5 {
+  style.stroke-width: 2
+}
+
+ai_ml.anthropic_sdk -> ai_ml.claude {
+  style.stroke-width: 2
+}
+
+rpc.tonic -> rpc.protobuf {
+  style.stroke-width: 2
+}
+
+ui.crossterm -> ui.ratatui {
+  style.stroke-width: 2
+}
+
+build.cargo -> languages.rust {
+  style.stroke-width: 2
+}
+
+build.maturin -> languages.python {
+  style.stroke-width: 2
+}
+
+# Production-ready annotation
+production: {
+  label: "Production Ready:\n✓ 702 passing tests\n✓ Zero compiler warnings\n✓ Type-safe throughout\n✓ Comprehensive docs"
+  shape: page
+  style: {
+    fill: "#ecfdf5"
+    stroke: "#10b981"
+  }
+}
+
+production -> testing.cargo_test {
+  style.stroke-dash: 5
+  style.opacity: 0.3
+}

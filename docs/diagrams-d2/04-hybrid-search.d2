@@ -1,0 +1,206 @@
+# Hybrid Search Architecture
+# Three-strategy search with weighted merging and filtering
+
+direction: down
+
+# Start node
+start: {
+  label: "User Query"
+  shape: oval
+  style: {
+    fill: "#3b82f6"
+    font-color: "#ffffff"
+    stroke: "#2563eb"
+  }
+}
+
+# Parallel decision
+parallel: {
+  label: "Run in Parallel"
+  shape: diamond
+  style: {
+    fill: "#fef3c7"
+    stroke: "#f59e0b"
+  }
+}
+
+# Search strategies
+fts: {
+  label: "FTS5 Keyword Search\n20% weight"
+  shape: rectangle
+  style: {
+    fill: "#3b82f6"
+    font-color: "#ffffff"
+    stroke: "#2563eb"
+  }
+}
+
+graph: {
+  label: "Graph Traversal\n10% weight"
+  shape: rectangle
+  style: {
+    fill: "#10b981"
+    font-color: "#ffffff"
+    stroke: "#059669"
+  }
+}
+
+vector: {
+  label: "Vector Similarity\n70% weight (planned)"
+  shape: rectangle
+  style: {
+    fill: "#8b5cf6"
+    font-color: "#ffffff"
+    stroke: "#7c3aed"
+  }
+}
+
+# Strategy results
+fts_result: {
+  label: "BM25 Ranked Results"
+  shape: rectangle
+  style: {
+    fill: "#60a5fa"
+    font-color: "#ffffff"
+    stroke: "#3b82f6"
+  }
+}
+
+graph_result: {
+  label: "Link-weighted Paths\nMax 2 hops"
+  shape: rectangle
+  style: {
+    fill: "#34d399"
+    font-color: "#ffffff"
+    stroke: "#10b981"
+  }
+}
+
+vector_result: {
+  label: "Cosine Similarity\nFuture: fastembed"
+  shape: rectangle
+  style: {
+    fill: "#a78bfa"
+    font-color: "#ffffff"
+    stroke: "#8b5cf6"
+  }
+}
+
+# Merging and filtering
+merge: {
+  label: "Weighted Score Merging\nCombine all strategies"
+  shape: rectangle
+  style: {
+    fill: "#f59e0b"
+    font-color: "#ffffff"
+    stroke: "#d97706"
+  }
+}
+
+namespace: {
+  label: "Namespace Priority Boost\nSession > Project > Global"
+  shape: rectangle
+  style: {
+    fill: "#f59e0b"
+    font-color: "#ffffff"
+    stroke: "#d97706"
+  }
+}
+
+filter: {
+  label: "Filter by Importance\nDefault: ≥1"
+  shape: rectangle
+  style: {
+    fill: "#fb923c"
+    font-color: "#ffffff"
+    stroke: "#f59e0b"
+  }
+}
+
+limit: {
+  label: "Return Top N\nDefault: 10"
+  shape: rectangle
+  style: {
+    fill: "#fb923c"
+    font-color: "#ffffff"
+    stroke: "#f59e0b"
+  }
+}
+
+# Final result
+result: {
+  label: "Ranked Memory List\nWith metadata & links"
+  shape: oval
+  style: {
+    fill: "#10b981"
+    font-color: "#ffffff"
+    stroke: "#059669"
+  }
+}
+
+# Flow connections
+start -> parallel {
+  style.stroke-width: 3
+}
+
+# Parallel execution
+parallel -> fts {
+  style.stroke: "#3b82f6"
+  style.stroke-width: 2
+}
+
+parallel -> graph {
+  style.stroke: "#10b981"
+  style.stroke-width: 2
+}
+
+parallel -> vector {
+  style.stroke: "#8b5cf6"
+  style.stroke-width: 2
+}
+
+# Results
+fts -> fts_result {
+  style.stroke: "#3b82f6"
+  style.stroke-width: 2
+}
+
+graph -> graph_result {
+  style.stroke: "#10b981"
+  style.stroke-width: 2
+}
+
+vector -> vector_result {
+  style.stroke: "#8b5cf6"
+  style.stroke-width: 2
+}
+
+# Merging
+fts_result -> merge {
+  style.stroke-width: 2
+}
+
+graph_result -> merge {
+  style.stroke-width: 2
+}
+
+vector_result -> merge {
+  style.stroke-width: 2
+}
+
+# Pipeline
+merge -> namespace {
+  style.stroke-width: 3
+}
+
+namespace -> filter {
+  style.stroke-width: 3
+}
+
+filter -> limit {
+  style.stroke-width: 3
+}
+
+limit -> result {
+  style.stroke-width: 3
+}

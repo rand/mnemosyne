@@ -1,0 +1,174 @@
+# ICS (Integrated Context Studio) Architecture
+# Terminal-based semantic editor with multi-panel UI
+
+direction: down
+
+# User interaction layer
+user: {
+  label: "User Input\n(Keyboard & Mouse)"
+  shape: oval
+  style: {
+    fill: "#3b82f6"
+    font-color: "#ffffff"
+    stroke: "#2563eb"
+  }
+}
+
+# Event processing
+crossterm: {
+  label: "Crossterm\nTerminal I/O"
+  shape: rectangle
+  style: {
+    fill: "#10b981"
+    font-color: "#ffffff"
+    stroke: "#059669"
+  }
+}
+
+# Main application
+app: {
+  label: "ICS App\n• Event Loop\n• State Management\n• Panel Coordination\n• Layout (Ratatui)"
+  shape: rectangle
+  style: {
+    fill: "#8b5cf6"
+    font-color: "#ffffff"
+    stroke: "#7c3aed"
+  }
+}
+
+# Core components
+editor: {
+  label: "Editor\n• Buffers (Rope-based)\n• CRDT (Collaborative)\n• Cursor Management\n• Syntax Highlighting\n• Auto-completion\n• Validation\n• Multi-user Sync"
+  shape: rectangle
+  style: {
+    fill: "#f59e0b"
+    font-color: "#ffffff"
+    stroke: "#d97706"
+  }
+}
+
+panels: {
+  label: "Panels\n• Memory Panel\n• Diagnostics Panel\n• Properties Panel\n• Agent Panel\n• Attributes Panel"
+  shape: rectangle
+  style: {
+    fill: "#f59e0b"
+    font-color: "#ffffff"
+    stroke: "#d97706"
+  }
+}
+
+semantic: {
+  label: "Semantic Analyzer\n(Background Task)\n• Code Analysis\n• Type Inference\n• Symbol Resolution"
+  shape: rectangle
+  style: {
+    fill: "#06b6d4"
+    font-color: "#ffffff"
+    stroke: "#0891b2"
+  }
+}
+
+# Storage
+storage: {
+  label: "Storage (LibSQL)\n• Memory Persistence\n• Buffer State\n• Configuration"
+  shape: cylinder
+  style: {
+    fill: "#64748b"
+    font-color: "#ffffff"
+    stroke: "#475569"
+  }
+}
+
+# Rendering
+render: {
+  label: "Terminal Render\n(Ratatui)"
+  shape: rectangle
+  style: {
+    fill: "#ec4899"
+    font-color: "#ffffff"
+    stroke: "#db2777"
+  }
+}
+
+# Flow connections
+user -> crossterm {
+  label: "keyboard/mouse events"
+  style.stroke-width: 3
+}
+
+crossterm -> app {
+  label: "input events"
+  style.stroke-width: 3
+}
+
+app -> editor {
+  label: "edit commands"
+  style.stroke-width: 2
+}
+
+app -> panels {
+  label: "panel state"
+  style.stroke-width: 2
+}
+
+app -> semantic {
+  label: "analysis triggers"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+editor -> storage {
+  label: "save/load"
+  style.stroke-width: 2
+}
+
+panels -> storage {
+  label: "persist state"
+  style.stroke-width: 2
+}
+
+semantic -> storage {
+  label: "cache analysis"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+app -> render {
+  label: "UI updates"
+  style.stroke-width: 3
+}
+
+render -> user {
+  label: "visual feedback"
+  style.stroke-width: 3
+  style.stroke-dash: 3
+}
+
+# State flow annotation
+state_flow: {
+  label: "State Flow:\nInput → Event → Update → Render"
+  shape: page
+  style: {
+    fill: "#fef3c7"
+    stroke: "#f59e0b"
+  }
+}
+
+state_flow -> app {
+  style.stroke-dash: 5
+  style.opacity: 0.3
+}
+
+# Collaborative editing annotation
+collab: {
+  label: "Collaborative Editing:\nCRDT for Multi-user Sync"
+  shape: page
+  style: {
+    fill: "#ecfdf5"
+    stroke: "#10b981"
+  }
+}
+
+collab -> editor {
+  style.stroke-dash: 5
+  style.opacity: 0.3
+}

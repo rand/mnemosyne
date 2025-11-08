@@ -1,0 +1,170 @@
+# gRPC Remote Access Architecture (v2.2.0)
+# Production-ready gRPC server for remote memory access
+
+direction: down
+
+# External clients layer
+clients: {
+  label: "External Applications"
+
+  python_client: {
+    label: "Python Client"
+    shape: rectangle
+    style: {
+      fill: "#3b82f6"
+      font-color: "#ffffff"
+      stroke: "#2563eb"
+    }
+  }
+
+  go_client: {
+    label: "Go Client"
+    shape: rectangle
+    style: {
+      fill: "#00add8"
+      font-color: "#ffffff"
+      stroke: "#00758f"
+    }
+  }
+
+  rust_client: {
+    label: "Rust Client"
+    shape: rectangle
+    style: {
+      fill: "#ce422b"
+      font-color: "#ffffff"
+      stroke: "#a33116"
+    }
+  }
+
+  js_client: {
+    label: "JavaScript Client"
+    shape: rectangle
+    style: {
+      fill: "#f7df1e"
+      font-color: "#000000"
+      stroke: "#c5b01a"
+    }
+  }
+}
+
+# Protocol layer
+protocol: {
+  label: "gRPC (HTTP/2 + Protocol Buffers)"
+  shape: rectangle
+  style: {
+    fill: "#10b981"
+    font-color: "#ffffff"
+    stroke: "#059669"
+  }
+}
+
+# Server layer
+server: {
+  label: "mnemosyne-rpc Binary"
+
+  rpc_server: {
+    label: "RpcServer\n• Setup\n• Routing\n• Configuration"
+    shape: rectangle
+    style: {
+      fill: "#8b5cf6"
+      font-color: "#ffffff"
+      stroke: "#7c3aed"
+    }
+  }
+
+  health_service: {
+    label: "HealthService\n• HealthCheck\n• GetStats\n• GetMetrics\n• GetMemoryUsage\n• StreamMetrics\n• GetVersion"
+    shape: rectangle
+    style: {
+      fill: "#f59e0b"
+      font-color: "#ffffff"
+      stroke: "#d97706"
+    }
+  }
+
+  memory_service: {
+    label: "MemoryService (13 methods)\n\nCRUD:\n• StoreMemory\n• GetMemory\n• UpdateMemory\n• DeleteMemory\n• ListMemories\n\nSearch:\n• Recall (hybrid)\n• SemanticSearch\n• GraphTraverse\n• GetContext\n\nStreaming:\n• RecallStream\n• ListMemoriesStream\n• StoreMemoryStream"
+    shape: rectangle
+    style: {
+      fill: "#f59e0b"
+      font-color: "#ffffff"
+      stroke: "#d97706"
+    }
+  }
+}
+
+# Storage layer
+storage: {
+  label: "Storage Backend"
+
+  libsql: {
+    label: "LibSQL Storage\nHybrid Search\nFTS5 + Graph"
+    shape: cylinder
+    style: {
+      fill: "#64748b"
+      font-color: "#ffffff"
+      stroke: "#475569"
+    }
+  }
+}
+
+# Connections from clients
+clients.python_client -> protocol {
+  style.stroke-width: 2
+}
+
+clients.go_client -> protocol {
+  style.stroke-width: 2
+}
+
+clients.rust_client -> protocol {
+  style.stroke-width: 2
+}
+
+clients.js_client -> protocol {
+  style.stroke-width: 2
+}
+
+# Protocol to server
+protocol -> server.rpc_server {
+  style.stroke-width: 3
+}
+
+# Server routing
+server.rpc_server -> server.health_service {
+  label: "route"
+  style.stroke-width: 2
+}
+
+server.rpc_server -> server.memory_service {
+  label: "route"
+  style.stroke-width: 2
+}
+
+# Services to storage
+server.health_service -> storage.libsql {
+  label: "stats & metrics"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+server.memory_service -> storage.libsql {
+  label: "CRUD & search"
+  style.stroke-width: 3
+}
+
+# Notes
+note_production: {
+  label: "✓ Production Ready\n✓ Feature-Gated (rpc)\n✓ Type-Safe Protocol\n✓ Streaming Support"
+  shape: page
+  style: {
+    fill: "#ecfdf5"
+    stroke: "#10b981"
+  }
+}
+
+note_production -> server.memory_service {
+  style.stroke-dash: 5
+  style.opacity: 0.3
+}

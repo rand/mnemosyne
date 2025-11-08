@@ -1,0 +1,287 @@
+# Quality Gates & Validation
+# Multi-layered quality assurance for reliable production operation
+
+direction: down
+
+# Input/work item
+work_item: {
+  label: "Work Item\n• Code change\n• Feature impl\n• Bug fix"
+  shape: oval
+  style: {
+    fill: "#3b82f6"
+    font-color: "#ffffff"
+    stroke: "#2563eb"
+  }
+}
+
+# Gate 1: Type System
+gate_types: {
+  label: "Gate 1: Type System\n• Rust type checking\n• Zero unsafe code\n• Result<T,E> errors\n• No panic! calls"
+  shape: rectangle
+  style: {
+    fill: "#8b5cf6"
+    font-color: "#ffffff"
+    stroke: "#7c3aed"
+  }
+}
+
+# Gate 2: Linting
+gate_lint: {
+  label: "Gate 2: Linting\n• Clippy warnings\n• Dead code check\n• Unused imports\n• Style violations"
+  shape: rectangle
+  style: {
+    fill: "#f59e0b"
+    font-color: "#ffffff"
+    stroke: "#d97706"
+  }
+}
+
+# Gate 3: Tests
+gate_tests: {
+  label: "Gate 3: Tests (702 tests)\n• Unit tests pass\n• Integration tests pass\n• E2E tests pass\n• Coverage ≥70%"
+  shape: rectangle
+  style: {
+    fill: "#10b981"
+    font-color: "#ffffff"
+    stroke: "#059669"
+  }
+}
+
+# Gate 4: Documentation
+gate_docs: {
+  label: "Gate 4: Documentation\n• Public APIs documented\n• Examples provided\n• README updated\n• CHANGELOG entry"
+  shape: rectangle
+  style: {
+    fill: "#06b6d4"
+    font-color: "#ffffff"
+    stroke: "#0891b2"
+  }
+}
+
+# Gate 5: Semantic Validation
+gate_semantic: {
+  label: "Gate 5: Semantic Validation\n• Intent satisfied\n• Requirements met\n• No anti-patterns\n• DSPy verification"
+  shape: rectangle
+  style: {
+    fill: "#ec4899"
+    font-color: "#ffffff"
+    stroke: "#db2777"
+  }
+}
+
+# Gate 6: Performance
+gate_perf: {
+  label: "Gate 6: Performance\n• No regressions\n• Latency targets met\n• Memory bounds checked\n• Benchmarks pass"
+  shape: rectangle
+  style: {
+    fill: "#f59e0b"
+    font-color: "#ffffff"
+    stroke: "#d97706"
+  }
+}
+
+# Gate 7: Security
+gate_security: {
+  label: "Gate 7: Security\n• No unsafe patterns\n• Input validation\n• SQL injection prevention\n• No credential leaks"
+  shape: rectangle
+  style: {
+    fill: "#ef4444"
+    font-color: "#ffffff"
+    stroke: "#dc2626"
+  }
+}
+
+# Gate 8: Integration
+gate_integration: {
+  label: "Gate 8: Integration\n• Builds cleanly\n• Tests pass in CI\n• No merge conflicts\n• Hooks validated"
+  shape: rectangle
+  style: {
+    fill: "#8b5cf6"
+    font-color: "#ffffff"
+    stroke: "#7c3aed"
+  }
+}
+
+# Decision nodes
+decision_pass_all: {
+  label: "All Gates\nPass?"
+  shape: diamond
+  style: {
+    fill: "#fef3c7"
+    stroke: "#f59e0b"
+  }
+}
+
+# Outcomes
+approved: {
+  label: "APPROVED\nReady for Merge"
+  shape: oval
+  style: {
+    fill: "#10b981"
+    font-color: "#ffffff"
+    stroke: "#059669"
+  }
+}
+
+rejected: {
+  label: "REJECTED\nNeeds Revision"
+  shape: oval
+  style: {
+    fill: "#ef4444"
+    font-color: "#ffffff"
+    stroke: "#dc2626"
+  }
+}
+
+# Feedback loop
+feedback: {
+  label: "Feedback Loop\n• Identify issues\n• Provide guidance\n• Suggest fixes"
+  shape: rectangle
+  style: {
+    fill: "#fb923c"
+    font-color: "#ffffff"
+    stroke: "#f59e0b"
+  }
+}
+
+# Flow through gates
+work_item -> gate_types {
+  label: "submit"
+  style.stroke-width: 3
+}
+
+gate_types -> gate_lint {
+  label: "✓ types valid"
+  style.stroke-width: 2
+}
+
+gate_lint -> gate_tests {
+  label: "✓ lint clean"
+  style.stroke-width: 2
+}
+
+gate_tests -> gate_docs {
+  label: "✓ tests pass"
+  style.stroke-width: 2
+}
+
+gate_docs -> gate_semantic {
+  label: "✓ docs complete"
+  style.stroke-width: 2
+}
+
+gate_semantic -> gate_perf {
+  label: "✓ intent satisfied"
+  style.stroke-width: 2
+}
+
+gate_perf -> gate_security {
+  label: "✓ perf OK"
+  style.stroke-width: 2
+}
+
+gate_security -> gate_integration {
+  label: "✓ secure"
+  style.stroke-width: 2
+}
+
+gate_integration -> decision_pass_all {
+  label: "✓ integrated"
+  style.stroke-width: 2
+}
+
+# Decision outcomes
+decision_pass_all -> approved {
+  label: "YES"
+  style.stroke: "#10b981"
+  style.stroke-width: 3
+}
+
+decision_pass_all -> rejected {
+  label: "NO"
+  style.stroke: "#ef4444"
+  style.stroke-width: 3
+}
+
+# Feedback loop
+rejected -> feedback {
+  style.stroke-width: 2
+}
+
+feedback -> work_item {
+  label: "revise & resubmit"
+  style.stroke-width: 2
+  style.stroke-dash: 3
+}
+
+# Failure points (any gate can trigger rejection)
+gate_types -> rejected {
+  label: "type errors"
+  style.stroke: "#ef4444"
+  style.stroke-dash: 3
+  style.opacity: 0.4
+}
+
+gate_lint -> rejected {
+  label: "warnings"
+  style.stroke: "#ef4444"
+  style.stroke-dash: 3
+  style.opacity: 0.4
+}
+
+gate_tests -> rejected {
+  label: "test failures"
+  style.stroke: "#ef4444"
+  style.stroke-dash: 3
+  style.opacity: 0.4
+}
+
+gate_docs -> rejected {
+  label: "missing docs"
+  style.stroke: "#ef4444"
+  style.stroke-dash: 3
+  style.opacity: 0.4
+}
+
+gate_semantic -> rejected {
+  label: "intent mismatch"
+  style.stroke: "#ef4444"
+  style.stroke-dash: 3
+  style.opacity: 0.4
+}
+
+gate_perf -> rejected {
+  label: "regression"
+  style.stroke: "#ef4444"
+  style.stroke-dash: 3
+  style.opacity: 0.4
+}
+
+gate_security -> rejected {
+  label: "vulnerability"
+  style.stroke: "#ef4444"
+  style.stroke-dash: 3
+  style.opacity: 0.4
+}
+
+gate_integration -> rejected {
+  label: "CI failure"
+  style.stroke: "#ef4444"
+  style.stroke-dash: 3
+  style.opacity: 0.4
+}
+
+# Metrics annotation
+metrics: {
+  label: "Quality Metrics:\n✓ 702 tests passing (100%)\n✓ Zero compiler warnings\n✓ Zero clippy warnings\n✓ Production-ready since v1.0"
+  shape: page
+  style: {
+    fill: "#ecfdf5"
+    stroke: "#10b981"
+  }
+}
+
+metrics -> approved {
+  style.stroke-dash: 5
+  style.opacity: 0.3
+}
