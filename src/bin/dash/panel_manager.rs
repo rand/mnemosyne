@@ -14,6 +14,7 @@ pub enum PanelId {
     Work,
     Context,
     Events,
+    Operations,
 }
 
 impl PanelId {
@@ -25,11 +26,12 @@ impl PanelId {
             PanelId::Skills,
             PanelId::Work,
             PanelId::Context,
+            PanelId::Operations,
             PanelId::Events,
         ]
     }
 
-    /// Get keyboard shortcut number (1-6)
+    /// Get keyboard shortcut number (1-7)
     pub fn shortcut_key(&self) -> char {
         match self {
             PanelId::Agents => '1',
@@ -37,7 +39,8 @@ impl PanelId {
             PanelId::Skills => '3',
             PanelId::Work => '4',
             PanelId::Context => '5',
-            PanelId::Events => '6',
+            PanelId::Operations => '6',
+            PanelId::Events => '7',
         }
     }
 
@@ -49,6 +52,7 @@ impl PanelId {
             PanelId::Skills => "Skills",
             PanelId::Work => "Work",
             PanelId::Context => "Context",
+            PanelId::Operations => "Operations",
             PanelId::Events => "Events",
         }
     }
@@ -61,6 +65,7 @@ impl PanelId {
             PanelId::Skills => Constraint::Length(7),
             PanelId::Work => Constraint::Length(8),
             PanelId::Context => Constraint::Length(8),
+            PanelId::Operations => Constraint::Length(10),
             PanelId::Events => Constraint::Min(10), // Events gets remaining space
         }
     }
@@ -73,6 +78,7 @@ impl PanelId {
             PanelId::Skills => 5,
             PanelId::Work => 6,
             PanelId::Context => 6,
+            PanelId::Operations => 8,
             PanelId::Events => 8,
         }
     }
@@ -86,6 +92,7 @@ pub struct PanelVisibility {
     pub skills: bool,
     pub work: bool,
     pub context: bool,
+    pub operations: bool,
     pub events: bool,
 }
 
@@ -98,6 +105,7 @@ impl PanelVisibility {
             skills: true,
             work: true,
             context: true,
+            operations: true,
             events: true,
         }
     }
@@ -110,6 +118,7 @@ impl PanelVisibility {
             skills: false,
             work: false,
             context: false,
+            operations: false,
             events: false,
         }
     }
@@ -122,6 +131,7 @@ impl PanelVisibility {
             PanelId::Skills => self.skills,
             PanelId::Work => self.work,
             PanelId::Context => self.context,
+            PanelId::Operations => self.operations,
             PanelId::Events => self.events,
         }
     }
@@ -134,6 +144,7 @@ impl PanelVisibility {
             PanelId::Skills => self.skills = visible,
             PanelId::Work => self.work = visible,
             PanelId::Context => self.context = visible,
+            PanelId::Operations => self.operations = visible,
             PanelId::Events => self.events = visible,
         }
     }
