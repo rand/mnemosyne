@@ -5,6 +5,7 @@
 
 #![cfg(feature = "rpc")]
 
+pub mod conversions;
 pub mod generated;
 pub mod server;
 pub mod services;

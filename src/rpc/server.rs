@@ -3,7 +3,10 @@
 use crate::rpc::generated::health_service_server::HealthServiceServer;
 use crate::rpc::generated::memory_service_server::MemoryServiceServer;
 use crate::rpc::services::{HealthServiceImpl, MemoryServiceImpl};
+use crate::services::LlmService;
+use crate::storage::StorageBackend;
 use anyhow::Result;
+use std::sync::Arc;
 use tonic::transport::Server;
 use tracing::info;
 
@@ -13,10 +16,10 @@ pub struct RpcServer {
 }
 
 impl RpcServer {
-    pub fn new() -> Self {
+    pub fn new(storage: Arc<dyn StorageBackend>, llm: Option<Arc<LlmService>>) -> Self {
         Self {
             health_service: HealthServiceImpl::new(),
-            memory_service: MemoryServiceImpl::new(),
+            memory_service: MemoryServiceImpl::new(storage, llm),
         }
     }
 
@@ -33,21 +36,5 @@ impl RpcServer {
             .await?;
 
         Ok(())
-    }
-}
-
-impl Default for RpcServer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_server_creation() {
-        let _server = RpcServer::new();
     }
 }
