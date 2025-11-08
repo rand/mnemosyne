@@ -3,10 +3,12 @@
 use mnemosyne_core::{
     error::Result, icons, ConnectionMode, EmbeddingService, LibsqlStorage, LlmConfig, LlmService,
     MemoryNote, Namespace, RemoteEmbeddingService, StorageBackend,
+    orchestration::events::AgentEvent,
 };
 use tracing::{debug, warn};
 
 use super::helpers::{get_db_path, parse_memory_type};
+use super::event_bridge;
 
 /// Handle memory creation command
 #[allow(clippy::too_many_arguments)]
@@ -20,6 +22,19 @@ pub async fn handle(
     format: String,
     global_db_path: Option<String>,
 ) -> Result<()> {
+    let start_time = std::time::Instant::now();
+
+    // Emit CLI command started event
+    event_bridge::emit_command_started(
+        "remember",
+        vec![
+            format!("--content={}", content.chars().take(50).collect::<String>()),
+            format!("--importance={}", importance),
+            format!("--namespace={}", namespace),
+        ],
+    )
+    .await;
+
     // Initialize storage and services
     let db_path = get_db_path(global_db_path);
     // Remember command creates database if it doesn't exist (write implies initialize)
@@ -191,6 +206,14 @@ pub async fn handle(
     // Store memory
     storage.store_memory(&memory).await?;
 
+    // Emit memory stored event
+    let remember_event = AgentEvent::RememberExecuted {
+        content_preview: memory.summary.chars().take(100).collect(),
+        memory_id: memory.id.clone(),
+        importance: memory.importance,
+    };
+    let _ = event_bridge::emit_event(remember_event).await;
+
     // Output result
     if format == "json" {
         println!(
@@ -210,6 +233,15 @@ pub async fn handle(
         println!("Importance: {}/10", memory.importance);
         println!("Tags: {}", memory.tags.join(", "));
     }
+
+    // Emit command completed event
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+    event_bridge::emit_command_completed(
+        "remember",
+        duration_ms,
+        format!("Stored memory {} (importance {})", memory.id, memory.importance),
+    )
+    .await;
 
     Ok(())
 }

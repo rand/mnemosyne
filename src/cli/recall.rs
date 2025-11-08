@@ -3,11 +3,13 @@
 use mnemosyne_core::{
     utils::string::truncate_at_char_boundary, ConnectionMode, EmbeddingService, LibsqlStorage,
     LlmConfig, Namespace, RemoteEmbeddingService, StorageBackend,
+    orchestration::events::AgentEvent,
 };
 use std::collections::HashMap;
 use tracing::debug;
 
 use super::helpers::get_db_path;
+use super::event_bridge;
 
 /// Handle memory recall command
 pub async fn handle(
@@ -18,6 +20,18 @@ pub async fn handle(
     format: String,
     global_db_path: Option<String>,
 ) -> mnemosyne_core::error::Result<()> {
+    let start_time = std::time::Instant::now();
+
+    // Emit CLI command started event
+    event_bridge::emit_command_started(
+        "recall",
+        vec![
+            format!("--query={}", query),
+            format!("--limit={}", limit),
+        ],
+    )
+    .await;
+
     // Initialize storage and services
     let db_path = get_db_path(global_db_path);
     let storage = LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
@@ -118,6 +132,8 @@ pub async fn handle(
         results.retain(|(m, _)| m.importance >= min_imp);
     }
 
+    let result_count = results.len();
+
     // Output results
     if format == "json" {
         let json_results: Vec<_> = results
@@ -163,6 +179,23 @@ pub async fn handle(
             );
         }
     }
+
+    // Emit recall executed event
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+    let recall_event = AgentEvent::RecallExecuted {
+        query: query.clone(),
+        result_count,
+        duration_ms,
+    };
+    let _ = event_bridge::emit_event(recall_event).await;
+
+    // Emit command completed event
+    event_bridge::emit_command_completed(
+        "recall",
+        duration_ms,
+        format!("Found {} results for query '{}'", result_count, query),
+    )
+    .await;
 
     Ok(())
 }
