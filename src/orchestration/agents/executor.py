@@ -225,24 +225,94 @@ Always follow best practices and validate your work before marking it complete."
 
             client = anthropic.Anthropic(api_key=api_key)
 
-            # Call Claude API with the execution prompt
-            logger.info(f"[Executor] Calling Claude API (model: claude-sonnet-4-5-20250929)")
-            response = client.messages.create(
-                model="claude-sonnet-4-5-20250929",
-                max_tokens=4096,
-                messages=[{
-                    "role": "user",
-                    "content": execution_prompt
-                }]
-            )
+            # Get tool definitions
+            tools = self._get_tool_definitions()
 
-            # Extract response content
-            response_text = response.content[0].text if response.content else "No response"
+            # Tool execution loop - continue until we get a final response
+            messages = [{"role": "user", "content": execution_prompt}]
+            total_input_tokens = 0
+            total_output_tokens = 0
+            tool_uses = []
+            max_iterations = 10  # Prevent infinite loops
 
-            logger.info(f"[Executor] Claude API returned {len(response_text)} characters")
-            logger.debug(f"[Executor] Response preview: {response_text[:200]}...")
+            logger.info(f"[Executor] Starting tool execution loop (max {max_iterations} iterations)")
 
-            # Create artifacts from response
+            for iteration in range(max_iterations):
+                logger.info(f"[Executor] API call iteration {iteration + 1}")
+
+                # Call Claude API with tools
+                response = client.messages.create(
+                    model="claude-sonnet-4-5-20250929",
+                    max_tokens=4096,
+                    tools=tools,
+                    messages=messages
+                )
+
+                total_input_tokens += response.usage.input_tokens
+                total_output_tokens += response.usage.output_tokens
+
+                logger.debug(f"[Executor] Response stop_reason: {response.stop_reason}")
+
+                # Check if Claude wants to use tools
+                if response.stop_reason == "tool_use":
+                    # Extract tool use requests
+                    assistant_content = []
+                    tool_results = []
+
+                    for block in response.content:
+                        if block.type == "tool_use":
+                            tool_name = block.name
+                            tool_input = block.input
+                            tool_use_id = block.id
+
+                            logger.info(f"[Executor] Tool requested: {tool_name}")
+                            tool_uses.append({"name": tool_name, "input": tool_input})
+
+                            # Execute the tool
+                            tool_result = await self._execute_tool(tool_name, tool_input)
+
+                            # Format result for API
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_id,
+                                "content": str(tool_result)
+                            })
+
+                            assistant_content.append(block)
+
+                        elif block.type == "text":
+                            assistant_content.append(block)
+
+                    # Add assistant message with tool use
+                    messages.append({
+                        "role": "assistant",
+                        "content": assistant_content
+                    })
+
+                    # Add tool results
+                    messages.append({
+                        "role": "user",
+                        "content": tool_results
+                    })
+
+                    logger.info(f"[Executor] Executed {len(tool_results)} tools, continuing conversation")
+
+                else:
+                    # Got final response, extract text
+                    response_text = ""
+                    for block in response.content:
+                        if block.type == "text":
+                            response_text += block.text
+
+                    logger.info(f"[Executor] Final response received ({len(response_text)} chars)")
+                    logger.debug(f"[Executor] Response preview: {response_text[:200]}...")
+                    break
+            else:
+                # Hit max iterations
+                logger.warning(f"[Executor] Max iterations ({max_iterations}) reached")
+                response_text = "Max tool execution iterations reached. Work incomplete."
+
+            # Create artifacts from response and tool uses
             artifacts = [{
                 "type": "llm_response",
                 "content": response_text,
@@ -250,9 +320,11 @@ Always follow best practices and validate your work before marking it complete."
                 "work_id": work_id,
                 "model": "claude-sonnet-4-5-20250929",
                 "tokens_used": {
-                    "input": response.usage.input_tokens,
-                    "output": response.usage.output_tokens
-                }
+                    "input": total_input_tokens,
+                    "output": total_output_tokens
+                },
+                "tool_uses": tool_uses,
+                "iterations": iteration + 1
             }]
 
             execution_summary = f"Executed work via Claude API: {prompt[:100]}"
@@ -325,6 +397,214 @@ Always follow best practices and validate your work before marking it complete."
         prompt_parts.append("Commit your changes when logical units are complete.\n")
 
         return "".join(prompt_parts)
+
+    def _get_tool_definitions(self) -> List[Dict[str, Any]]:
+        """
+        Define tools available to the executor.
+
+        Tools follow Anthropic's tool use API format.
+        """
+        return [
+            {
+                "name": "read_file",
+                "description": "Read the contents of a file. Use this to examine existing code or configuration.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Absolute path to the file to read"
+                        }
+                    },
+                    "required": ["file_path"]
+                }
+            },
+            {
+                "name": "create_file",
+                "description": "Create a new file with the specified content. Use this to write code, tests, or documentation.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Absolute path where the file should be created"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Content to write to the file"
+                        }
+                    },
+                    "required": ["file_path", "content"]
+                }
+            },
+            {
+                "name": "edit_file",
+                "description": "Edit an existing file by replacing old_text with new_text. Use this to modify code.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Absolute path to the file to edit"
+                        },
+                        "old_text": {
+                            "type": "string",
+                            "description": "Exact text to find and replace"
+                        },
+                        "new_text": {
+                            "type": "string",
+                            "description": "New text to insert"
+                        }
+                    },
+                    "required": ["file_path", "old_text", "new_text"]
+                }
+            },
+            {
+                "name": "run_command",
+                "description": "Execute a shell command. Use this to run tests, build code, or perform other operations.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "Shell command to execute"
+                        },
+                        "working_dir": {
+                            "type": "string",
+                            "description": "Working directory for command execution (optional)"
+                        }
+                    },
+                    "required": ["command"]
+                }
+            }
+        ]
+
+    async def _execute_tool(self, tool_name: str, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute a tool and return the result.
+
+        Args:
+            tool_name: Name of the tool to execute
+            tool_input: Input parameters for the tool
+
+        Returns:
+            Tool execution result
+        """
+        import subprocess
+        import os
+
+        logger.info(f"[Executor] Executing tool: {tool_name}")
+        logger.debug(f"[Executor] Tool input: {tool_input}")
+
+        try:
+            if tool_name == "read_file":
+                file_path = tool_input["file_path"]
+                logger.info(f"[Executor] Reading file: {file_path}")
+
+                if not os.path.exists(file_path):
+                    return {
+                        "success": False,
+                        "error": f"File not found: {file_path}"
+                    }
+
+                with open(file_path, 'r') as f:
+                    content = f.read()
+
+                return {
+                    "success": True,
+                    "content": content,
+                    "size": len(content)
+                }
+
+            elif tool_name == "create_file":
+                file_path = tool_input["file_path"]
+                content = tool_input["content"]
+                logger.info(f"[Executor] Creating file: {file_path}")
+
+                # Create parent directories if needed
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+                with open(file_path, 'w') as f:
+                    f.write(content)
+
+                return {
+                    "success": True,
+                    "message": f"File created: {file_path}",
+                    "size": len(content)
+                }
+
+            elif tool_name == "edit_file":
+                file_path = tool_input["file_path"]
+                old_text = tool_input["old_text"]
+                new_text = tool_input["new_text"]
+                logger.info(f"[Executor] Editing file: {file_path}")
+
+                if not os.path.exists(file_path):
+                    return {
+                        "success": False,
+                        "error": f"File not found: {file_path}"
+                    }
+
+                with open(file_path, 'r') as f:
+                    content = f.read()
+
+                if old_text not in content:
+                    return {
+                        "success": False,
+                        "error": f"Text to replace not found in {file_path}"
+                    }
+
+                new_content = content.replace(old_text, new_text, 1)
+
+                with open(file_path, 'w') as f:
+                    f.write(new_content)
+
+                return {
+                    "success": True,
+                    "message": f"File edited: {file_path}",
+                    "replaced_length": len(old_text),
+                    "new_length": len(new_text)
+                }
+
+            elif tool_name == "run_command":
+                command = tool_input["command"]
+                working_dir = tool_input.get("working_dir", os.getcwd())
+                logger.info(f"[Executor] Running command: {command}")
+
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    cwd=working_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=30  # 30 second timeout
+                )
+
+                return {
+                    "success": result.returncode == 0,
+                    "exit_code": result.returncode,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr
+                }
+
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown tool: {tool_name}"
+                }
+
+        except subprocess.TimeoutExpired:
+            logger.error(f"[Executor] Command timeout: {tool_input.get('command', 'unknown')}")
+            return {
+                "success": False,
+                "error": "Command execution timeout (30s limit)"
+            }
+        except Exception as e:
+            logger.error(f"[Executor] Tool execution failed: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     async def _store_message(self, message: Any):
         """Store important messages in memory."""
