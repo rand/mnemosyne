@@ -16,9 +16,6 @@ use tracing::{debug, info};
 /// Default connection pool size
 const DEFAULT_POOL_SIZE: usize = 20;
 
-/// Default idle timeout in seconds
-const DEFAULT_IDLE_TIMEOUT_SECS: u64 = 30;
-
 /// Vector storage backend using sqlite-vec with connection pooling
 pub struct SqliteVectorStorage {
     pool: Pool,

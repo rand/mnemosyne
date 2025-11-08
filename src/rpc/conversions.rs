@@ -2,7 +2,7 @@
 
 use crate::rpc::generated;
 use crate::types::{
-    LinkType as InternalLinkType, MemoryLink as InternalMemoryLink,
+    LinkType as InternalLinkType,
     MemoryNote as InternalMemoryNote, MemoryType as InternalMemoryType,
     Namespace as InternalNamespace,
 };

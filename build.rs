@@ -5,7 +5,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         tonic_build::configure()
             .build_server(true)
             .build_client(false) // Server-only for now
-            .compile(
+            .compile_protos(
                 &[
                     "proto/mnemosyne/v1/types.proto",
                     "proto/mnemosyne/v1/memory.proto",

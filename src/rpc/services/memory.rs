@@ -355,7 +355,7 @@ impl MemoryService for MemoryServiceImpl {
         request: Request<GetContextRequest>,
     ) -> Result<Response<GetContextResponse>, Status> {
         use crate::rpc::conversions::memory_note_to_proto;
-        use std::collections::{HashMap, HashSet};
+        use std::collections::HashSet;
 
         let req = request.into_inner();
 
