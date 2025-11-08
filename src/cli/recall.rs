@@ -189,6 +189,15 @@ pub async fn handle(
     };
     let _ = event_bridge::emit_event(recall_event).await;
 
+    // Emit search performed event
+    let search_event = AgentEvent::SearchPerformed {
+        query: query.clone(),
+        search_type: "hybrid".to_string(), // keyword + vector search
+        result_count,
+        duration_ms,
+    };
+    let _ = event_bridge::emit_event(search_event).await;
+
     // Emit command completed event
     event_bridge::emit_command_completed(
         "recall",

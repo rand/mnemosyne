@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Event emission integrated in `remember`, `recall`, and `evolve` commands
 - Comprehensive test coverage: 11 unit tests for OperationsPanel widget
 
+### Fixed
+
+**CLI Operations Tracking**
+- Fixed evolve command stats tracking: `EvolveCompleted` event now correctly reports actual consolidation, decay, and archival counts instead of always showing zeros
+- Added `SearchPerformed` event emission to recall command for comprehensive search operation visibility
+
 ### Changed
 
 **Dashboard Panel Management**

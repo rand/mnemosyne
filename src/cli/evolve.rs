@@ -163,6 +163,7 @@ pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()
 
             match job.run(&config).await {
                 Ok(report) => {
+                    total_decayed += report.changes_made;
                     println!(" Link decay complete:");
                     println!("  Links processed: {}", report.memories_processed);
                     println!("  Changes made: {}", report.changes_made);
@@ -188,6 +189,7 @@ pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()
 
             match job.run(&config).await {
                 Ok(report) => {
+                    total_archived += report.changes_made;
                     println!(" Archival complete:");
                     println!("  Memories processed: {}", report.memories_processed);
                     println!("  Changes made: {}", report.changes_made);
@@ -213,6 +215,7 @@ pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()
 
             match job.run(&config).await {
                 Ok(report) => {
+                    total_consolidations += report.changes_made;
                     println!(" Consolidation complete:");
                     println!("  Memories processed: {}", report.memories_processed);
                     println!("  Changes made: {}", report.changes_made);
@@ -258,6 +261,7 @@ pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()
             let link_job = LinkDecayJob::new(storage.clone());
             match link_job.run(&config).await {
                 Ok(report) => {
+                    total_decayed += report.changes_made;
                     println!(
                         "   {} links processed, {} updated",
                         report.memories_processed, report.changes_made
@@ -274,6 +278,7 @@ pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()
             let archival_job = ArchivalJob::new(storage.clone());
             match archival_job.run(&config).await {
                 Ok(report) => {
+                    total_archived += report.changes_made;
                     println!(
                         "   {} memories processed, {} archived",
                         report.memories_processed, report.changes_made
