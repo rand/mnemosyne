@@ -415,13 +415,10 @@ async fn main() -> Result<()> {
         }
         None => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};
-            use mnemosyne_core::orchestration::{OrchestrationEngine, SupervisionConfig};
-            use mnemosyne_core::{ConnectionMode, LibsqlStorage};
             use std::net::SocketAddr;
-            use std::sync::Arc;
 
-            // Default: launch multi-agent orchestration system with PyO3 bridge
-            debug!("Launching multi-agent orchestration system with PyO3 bridge...");
+            // Default: launch orchestrated Claude Code session
+            debug!("Launching orchestrated Claude Code session...");
 
             // Get database path
             let db_path = get_db_path(cli.db_path);
@@ -463,67 +460,17 @@ async fn main() -> Result<()> {
             info!("Run 'mnemosyne-dash' in another terminal to monitor activity");
             info!("");
 
-            // Show playful loading messages with 3-line animation
-            let progress = launcher::ui::LaunchProgress::new();
-            progress.show_multiline_loading();
+            // Launch orchestrated Claude Code session with all 4 agents
+            info!("Launching Claude Code with orchestration support...");
+            info!("");
 
-            // Create storage backend
-            let storage = match LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await {
-                Ok(storage) => Arc::new(storage) as Arc<dyn mnemosyne_core::storage::StorageBackend>,
-                Err(e) => {
-                    progress.show_error(&format!("Failed to initialize storage: {}", e));
-                    error!("Storage initialization failed: {}", e);
-                    return Err(e);
-                }
-            };
-
-            // Create orchestration configuration
-            let orchestration_config = SupervisionConfig {
-                max_restarts: 3,
-                restart_window_secs: 60,
-                enable_subagents: true,
-                max_concurrent_agents: 4,
-            };
-
-            // Create orchestration engine with PyO3 bridge
-            info!("🚀 Starting orchestration engine with PyO3 bridge...");
-            let mut engine = match OrchestrationEngine::new_with_state(
-                storage.clone(),
-                orchestration_config,
-                Some(event_broadcaster.clone()),
-                Some(state_manager.clone()),
+            let result = launcher::launch_orchestrated_session(
+                Some(db_path),
+                None, // No initial prompt
+                Some(event_broadcaster),
+                Some(state_manager),
             )
-            .await
-            {
-                Ok(engine) => engine,
-                Err(e) => {
-                    progress.show_error(&format!("Failed to create orchestration engine: {}", e));
-                    error!("Orchestration engine creation failed: {}", e);
-                    api_handle.abort();
-                    return Err(e);
-                }
-            };
-
-            // Start the engine (spawns all 4 agents via PyO3)
-            match engine.start().await {
-                Ok(()) => {
-                    info!("✓ Orchestration engine started");
-                    info!("✓ 4 agents running via PyO3 bridge");
-                    info!("");
-                }
-                Err(e) => {
-                    progress.show_error(&format!("Failed to start orchestration engine: {}", e));
-                    error!("Orchestration engine start failed: {}", e);
-                    api_handle.abort();
-                    return Err(e);
-                }
-            }
-
-            progress.show_transition();
-            progress.show_step_complete("Orchestration ready");
-
-            // Launch interactive mode
-            let result = cli::interactive::run(engine, Some(state_manager.clone())).await;
+            .await;
 
             // Clean up API server
             api_handle.abort();
