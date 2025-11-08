@@ -1,6 +1,6 @@
 # Mnemosyne Documentation Index
 
-**Last Updated**: 2025-11-02
+**Last Updated**: 2025-11-08
 
 Navigate the Mnemosyne documentation efficiently with this comprehensive index.
 
@@ -76,6 +76,14 @@ Located in [`features/`](features/) directory:
 ### Privacy
 - [**PRIVACY**](features/PRIVACY.md) - Privacy-preserving evaluation system
 
+### RPC Server
+- [**RPC**](features/RPC.md) - gRPC remote access to memory system
+  - Full CRUD operations
+  - Semantic search, graph traversal, hybrid recall
+  - Streaming APIs for large datasets
+  - Client examples (Python, Rust, Go)
+  - Deployment configurations
+
 ---
 
 ## 📖 How-To Guides
@@ -84,6 +92,7 @@ Located in [`guides/`](guides/) directory:
 
 - [**LLM Reviewer Guide**](guides/llm-reviewer.md) - Using the LLM-enhanced reviewer agent
 - [**LLM Reviewer Setup**](guides/llm-reviewer-setup.md) - Configuration and troubleshooting
+- [**RPC Getting Started**](guides/RPC_GETTING_STARTED.md) - Quick start guide for the gRPC server
 - [**Migration Guide**](guides/migration.md) - Migrating from TUI to composable tools
 - [**Workflows**](guides/workflows.md) - Common development workflows
 
@@ -223,6 +232,7 @@ Located in [`historical/`](historical/) directory:
 | **Architecture** | ARCHITECTURE, ORCHESTRATION, MCP_SERVER |
 | **Types & Schema** | TYPES_REFERENCE, STORAGE_SCHEMA |
 | **Features** | features/ directory |
+| **RPC Server** | features/RPC.md, guides/RPC_GETTING_STARTED.md, src/rpc/README.md |
 | **Testing** | tests/e2e/README, specs/test-plan.md |
 | **Build & Deploy** | BUILD_OPTIMIZATION, INSTALL |
 | **Troubleshooting** | TROUBLESHOOTING, STORAGE_SCHEMA |

@@ -31,6 +31,7 @@ Mnemosyne is a **high-performance agentic memory system** for Claude Code's mult
 - **Evolution System**: Memory consolidation, importance scoring, link decay, archival
 - **Interactive Context Studio (ICS)**: CRDT-based collaborative editor with semantic highlighting
 - **MCP Server**: 8 OODA-aligned tools via JSON-RPC over stdio
+- **gRPC Remote Access**: Production-ready RPC server with full CRUD, search, and streaming APIs
 
 ### Current Status
 - **Version**: 2.1.2 (stable release)
@@ -64,6 +65,11 @@ cargo test --test '*'               # All tests including e2e
 cargo run --bin mnemosyne -- --help
 cargo run --bin mnemosyne-ics
 cargo run --bin mnemosyne-dash
+cargo run --bin mnemosyne-rpc --features rpc
+
+# Build RPC server (requires --features rpc)
+cargo build --release --features rpc --bin mnemosyne-rpc
+cargo test --features rpc --test rpc_services_test
 ```
 
 **Build Performance Comparison**:
@@ -150,6 +156,7 @@ For detailed architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
 - **Storage** (`src/storage/`): LibSQL backend with vector search
 - **Services** (`src/services/`): LLM and embedding services
 - **MCP** (`src/mcp/`): JSON-RPC server and tool handlers
+- **RPC** (`src/rpc/`): gRPC server for remote access (feature-gated: `--features rpc`)
 - **Orchestration** (`src/orchestration/`): Multi-agent coordination
 - **ICS** (`src/ics/`): Interactive Context Studio editor
 - **Evaluation** (`src/evaluation/`): Privacy-preserving relevance scoring
