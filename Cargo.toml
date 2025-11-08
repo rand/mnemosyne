@@ -18,6 +18,11 @@ path = "src/bin/ics.rs"
 name = "mnemosyne-dash"
 path = "src/bin/dash/main.rs"
 
+[[bin]]
+name = "mnemosyne-rpc"
+path = "src/bin/mnemosyne-rpc.rs"
+required-features = ["rpc"]
+
 [lib]
 name = "mnemosyne_core"
 crate-type = ["cdylib", "rlib"]  # cdylib for Python, rlib for Rust binary
@@ -63,7 +68,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.6", features = ["v4", "serde"] }
 config = "0.13"
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.4", features = ["derive", "env"] }
 async-trait = "0.1"
 regex = "1.10"
 rand = "0.8"
