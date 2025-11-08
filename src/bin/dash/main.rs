@@ -29,7 +29,7 @@ use crossterm::{
 use panel_manager::{PanelId, PanelManager};
 use panels::{
     AgentInfo, AgentsPanel, ContextPanel, EventLogPanel, MemoryOpsMetrics, MemoryPanel,
-    SkillsMetrics, SkillsPanel, WorkMetrics, WorkPanel,
+    OperationsPanel, SkillsMetrics, SkillsPanel, WorkMetrics, WorkPanel,
 };
 use ratatui::{
     backend::CrosstermBackend,
@@ -109,6 +109,7 @@ struct App {
     skills_panel: SkillsPanel,
     work_panel: WorkPanel,
     context_panel: ContextPanel,
+    operations_panel: OperationsPanel,
     event_log_panel: EventLogPanel,
 
     /// Panel manager for visibility/layout
@@ -130,6 +131,7 @@ impl App {
             skills_panel: SkillsPanel::new(),
             work_panel: WorkPanel::new(),
             context_panel: ContextPanel::new(),
+            operations_panel: OperationsPanel::new(),
             event_log_panel: EventLogPanel::new().max_events(1000),
             panel_manager: PanelManager::new(),
             connected: false,
@@ -140,8 +142,59 @@ impl App {
 
     fn process_events(&mut self) {
         // Drain all available events from channel
-        while let Ok(event) = self.event_rx.try_recv() {
-            self.event_log_panel.add_event(event);
+        while let Ok(event_str) = self.event_rx.try_recv() {
+            // Add to event log
+            self.event_log_panel.add_event(event_str.clone());
+
+            // Parse and handle CLI operation events
+            if let Some(event_data) = event_str.strip_prefix("[") {
+                if let Some(bracket_end) = event_data.find(']') {
+                    let event_type = &event_data[..bracket_end];
+                    let data_part = &event_data[bracket_end + 2..]; // Skip '] '
+
+                    match event_type {
+                        "cli_command_started" => {
+                            // Parse: {"command":"remember","args":["--content=..."],...}
+                            if let Ok(data) = serde_json::from_str::<serde_json::Value>(data_part) {
+                                if let (Some(command), Some(args)) = (
+                                    data.get("command").and_then(|v| v.as_str()),
+                                    data.get("args").and_then(|v| v.as_array())
+                                ) {
+                                    let args_vec: Vec<String> = args.iter()
+                                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                        .collect();
+                                    self.operations_panel.add_started(command.to_string(), args_vec);
+                                }
+                            }
+                        }
+                        "cli_command_completed" => {
+                            // Parse: {"command":"remember","duration_ms":123,"result_summary":"..."}
+                            if let Ok(data) = serde_json::from_str::<serde_json::Value>(data_part) {
+                                if let (Some(command), Some(duration), Some(summary)) = (
+                                    data.get("command").and_then(|v| v.as_str()),
+                                    data.get("duration_ms").and_then(|v| v.as_u64()),
+                                    data.get("result_summary").and_then(|v| v.as_str())
+                                ) {
+                                    self.operations_panel.update_completed(command, duration, summary.to_string());
+                                }
+                            }
+                        }
+                        "cli_command_failed" => {
+                            // Parse: {"command":"remember","error":"...","duration_ms":123}
+                            if let Ok(data) = serde_json::from_str::<serde_json::Value>(data_part) {
+                                if let (Some(command), Some(error), Some(duration)) = (
+                                    data.get("command").and_then(|v| v.as_str()),
+                                    data.get("error").and_then(|v| v.as_str()),
+                                    data.get("duration_ms").and_then(|v| v.as_u64())
+                                ) {
+                                    self.operations_panel.update_failed(command, error.to_string(), duration);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
     }
 
@@ -198,7 +251,7 @@ impl App {
             KeyCode::Char('q') | KeyCode::Esc => return true, // Quit
             KeyCode::Char('0') => {
                 // Toggle all panels
-                if self.panel_manager.visible_count() == 6 {
+                if self.panel_manager.visible_count() == 7 {
                     self.panel_manager.hide_all();
                 } else {
                     self.panel_manager.show_all();
@@ -209,7 +262,8 @@ impl App {
             KeyCode::Char('3') => self.panel_manager.toggle_panel(PanelId::Skills),
             KeyCode::Char('4') => self.panel_manager.toggle_panel(PanelId::Work),
             KeyCode::Char('5') => self.panel_manager.toggle_panel(PanelId::Context),
-            KeyCode::Char('6') => self.panel_manager.toggle_panel(PanelId::Events),
+            KeyCode::Char('6') => self.panel_manager.toggle_panel(PanelId::Operations),
+            KeyCode::Char('7') => self.panel_manager.toggle_panel(PanelId::Events),
             _ => {}
         }
         false // Don't quit
@@ -426,6 +480,10 @@ async fn run_app<B: ratatui::backend::Backend>(
                 app.context_panel.render(f, panel_chunks[chunk_index]);
                 chunk_index += 1;
             }
+            if app.panel_manager.is_panel_visible(PanelId::Operations) {
+                app.operations_panel.render(f, panel_chunks[chunk_index]);
+                chunk_index += 1;
+            }
             if app.panel_manager.is_panel_visible(PanelId::Events) {
                 app.event_log_panel.render(f, panel_chunks[chunk_index]);
             }
@@ -434,7 +492,7 @@ async fn run_app<B: ratatui::backend::Backend>(
             let visible_count = app.panel_manager.visible_count();
             let footer_text = if app.connected {
                 format!(
-                    "Press '0' to toggle all | '1-6' for panels | 'q' to quit | {} panels visible",
+                    "Press '0' to toggle all | '1-7' for panels | 'q' to quit | {} panels visible",
                     visible_count
                 )
             } else {
