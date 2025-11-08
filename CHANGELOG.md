@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+**CLI Operations Tracking in Dashboard**
+- Added real-time CLI operations visibility in `mnemosyne-dash`
+- New Operations panel (keyboard shortcut: `6`) displaying CLI command activity
+- Event types: `CliCommandStarted`, `CliCommandCompleted`, `CliCommandFailed`, `RecallExecuted`, `RememberExecuted`, `EvolveStarted`, `EvolveCompleted`, `SearchPerformed`, `DatabaseOperation`
+- Color-coded status indicators: Running (blue), Completed (green), Failed (red)
+- Table display shows: Time, Command, Status, Duration, Result
+- HTTP event bridge from CLI commands to API server via `/events/emit` endpoint
+- Smart health check caching with exponential backoff to avoid connection spam
+- Event emission integrated in `remember`, `recall`, and `evolve` commands
+- Comprehensive test coverage: 11 unit tests for OperationsPanel widget
+
+### Changed
+
+**Dashboard Panel Management**
+- Updated panel manager to support 7 panels (was 6)
+- Operations panel added between Context and Events
+- Events panel shortcut changed from `6` to `7`
+- Panel visibility system updated to handle new Operations panel
+
+**API Server**
+- StateManager updated to handle CLI operation event types
+- Events endpoint now broadcasts CLI command activity
+
 ## [2.2.0] - 2025-11-08
 
 ### Added

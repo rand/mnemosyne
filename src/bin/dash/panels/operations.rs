@@ -257,3 +257,121 @@ impl Default for OperationsPanel {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_operations_panel_creation() {
+        let panel = OperationsPanel::new();
+        assert_eq!(panel.operation_count(), 0);
+        assert_eq!(panel.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_add_started_operation() {
+        let mut panel = OperationsPanel::new();
+        panel.add_started("remember".to_string(), vec!["--content".to_string(), "test".to_string()]);
+
+        assert_eq!(panel.operation_count(), 1);
+    }
+
+    #[test]
+    fn test_update_completed() {
+        let mut panel = OperationsPanel::new();
+        panel.add_started("remember".to_string(), vec![]);
+        panel.update_completed("remember", 1500, "Memory stored".to_string());
+
+        assert_eq!(panel.operation_count(), 1);
+    }
+
+    #[test]
+    fn test_update_failed() {
+        let mut panel = OperationsPanel::new();
+        panel.add_started("recall".to_string(), vec![]);
+        panel.update_failed("recall", "Database error".to_string(), 500);
+
+        assert_eq!(panel.operation_count(), 1);
+    }
+
+    #[test]
+    fn test_operation_status_color() {
+        assert_eq!(OperationStatus::Running.color(), Color::Blue);
+        assert_eq!(OperationStatus::Completed.color(), Color::Green);
+        assert_eq!(OperationStatus::Failed("error".to_string()).color(), Color::Red);
+    }
+
+    #[test]
+    fn test_operation_status_display() {
+        assert_eq!(OperationStatus::Running.display(), "RUNNING");
+        assert_eq!(OperationStatus::Completed.display(), "DONE");
+        assert_eq!(OperationStatus::Failed("error".to_string()).display(), "FAIL");
+    }
+
+    #[test]
+    fn test_max_operations_limit() {
+        let mut panel = OperationsPanel::new();
+
+        // Add more than max_operations
+        for i in 0..150 {
+            panel.add_started(format!("cmd{}", i), vec![]);
+        }
+
+        // Should be capped at max_operations
+        assert_eq!(panel.operation_count(), 100);
+    }
+
+    #[test]
+    fn test_clear_operations() {
+        let mut panel = OperationsPanel::new();
+        panel.add_started("test".to_string(), vec![]);
+        panel.add_started("test2".to_string(), vec![]);
+
+        assert_eq!(panel.operation_count(), 2);
+
+        panel.clear();
+        assert_eq!(panel.operation_count(), 0);
+        assert_eq!(panel.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_scroll_operations() {
+        let mut panel = OperationsPanel::new();
+        for i in 0..10 {
+            panel.add_started(format!("cmd{}", i), vec![]);
+        }
+
+        panel.scroll_up(3);
+        assert_eq!(panel.scroll_offset(), 3);
+
+        panel.scroll_down(2);
+        assert_eq!(panel.scroll_offset(), 1);
+
+        panel.scroll_down(5);
+        assert_eq!(panel.scroll_offset(), 0);
+    }
+
+    #[test]
+    fn test_format_duration() {
+        assert_eq!(OperationsPanel::format_duration(500), "500ms");
+        assert_eq!(OperationsPanel::format_duration(1500), "1.5s");
+        assert_eq!(OperationsPanel::format_duration(65000), "1.1m");
+    }
+
+    #[test]
+    fn test_multiple_running_operations() {
+        let mut panel = OperationsPanel::new();
+        panel.add_started("remember".to_string(), vec![]);
+        panel.add_started("recall".to_string(), vec![]);
+        panel.add_started("evolve".to_string(), vec![]);
+
+        assert_eq!(panel.operation_count(), 3);
+
+        // Complete first remember command
+        panel.update_completed("remember", 1000, "Success".to_string());
+
+        // Should still have 3 operations
+        assert_eq!(panel.operation_count(), 3);
+    }
+}

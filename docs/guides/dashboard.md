@@ -26,7 +26,18 @@ The mnemosyne dashboard provides live visibility into the orchestration system's
 
 ## Dashboard Features
 
-The dashboard provides a **6-panel layout** with real-time sparkline visualizations showing time-series trends for all metrics.
+The dashboard provides a **7-panel layout** with real-time sparkline visualizations showing time-series trends for all metrics.
+
+### Panel Keyboard Shortcuts
+
+- `1` - Memory Panel
+- `2` - Context Panel
+- `3` - Work Panel
+- `4` - Active Agents Panel
+- `5` - Beads Panel (Task Tracking)
+- `6` - Operations Panel (CLI Commands)
+- `7` - Event Log Panel
+- `q` - Quit dashboard
 
 ### Panel 1: Memory Panel
 
@@ -98,7 +109,50 @@ Integrates with Beads task management:
 
 **Note**: Requires Beads to be initialized in the project.
 
-### Panel 6: Event Log Panel
+### Panel 6: Operations Panel (CLI Commands)
+
+Real-time visibility into CLI command activity:
+
+- **Command**: The CLI command being executed (remember, recall, evolve, etc.)
+- **Arguments**: Command arguments (truncated for display)
+- **Status**: Color-coded execution status
+  - **RUNNING** (blue): Command currently executing
+  - **DONE** (green): Command completed successfully
+  - **FAIL** (red): Command encountered an error
+- **Duration**: Execution time (ms, seconds, or minutes)
+- **Result**: Summary of the operation result or error message
+
+**Features**:
+- Table view with 5 columns: Time, Command, Status, Duration, Result
+- Shows most recent operations first (reverse chronological)
+- Scrollable history (last 100 operations)
+- Automatic updates as CLI commands are executed
+- Works independently of orchestration (shows direct CLI usage)
+
+**Event Types**:
+- `CliCommandStarted`: Command initiated
+- `CliCommandCompleted`: Command finished successfully
+- `CliCommandFailed`: Command encountered error
+- `RecallExecuted`: Memory search performed
+- `RememberExecuted`: Memory stored
+- `EvolveStarted`: Memory evolution job started
+- `EvolveCompleted`: Memory evolution finished
+- `SearchPerformed`: Database search executed
+- `DatabaseOperation`: Direct database operation
+
+**Example Display**:
+```
+┌─ CLI Operations (3 total) ───────────────────────────────┐
+│ Time     Command       Status   Duration  Result         │
+│ 14:23:45 remember      DONE     1.9s      Stored memo... │
+│ 14:23:30 recall        DONE     453ms     Found 5 mem... │
+│ 14:23:15 evolve        RUNNING  -         ...            │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Integration**: This panel shows CLI activity even when not using `mnemosyne orchestrate`. It provides visibility into direct command usage via the event bridge system.
+
+### Panel 7: Event Log Panel
 
 Scrollable event stream with real-time updates:
 
@@ -173,6 +227,25 @@ mnemosyne orchestrate --plan "$(cat plan.json)" --dashboard
 # Connect dashboard
 mnemosyne-dash --api http://127.0.0.1:3000
 ```
+
+### Monitoring CLI Commands
+
+The dashboard can monitor direct CLI usage without orchestration:
+
+```bash
+# Terminal 1: Start API server
+mnemosyne api-server
+
+# Terminal 2: Start dashboard
+mnemosyne-dash --api http://127.0.0.1:3000
+
+# Terminal 3: Run CLI commands - visible in dashboard Operations panel
+mnemosyne remember -c "Testing dashboard visibility" -n "test" -i 7
+mnemosyne recall -q "dashboard" -l 5
+mnemosyne evolve
+```
+
+The Operations panel (keyboard shortcut `6`) will show real-time status for each command.
 
 ### Multiple Concurrent Orchestrations
 
