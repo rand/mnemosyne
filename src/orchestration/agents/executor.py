@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Callable, Any
 from enum import Enum
 import asyncio
+import time
 
 try:
     from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
@@ -42,6 +43,142 @@ except ImportError:
     from metrics import get_metrics_collector
 
 logger = get_logger("executor")
+
+
+class CircuitState(Enum):
+    """Circuit breaker states."""
+    CLOSED = "closed"       # Normal operation
+    OPEN = "open"          # Failing, rejecting requests
+    HALF_OPEN = "half_open"  # Testing if service recovered
+
+
+class CircuitBreaker:
+    """
+    Circuit breaker for LLM API calls.
+
+    Protects against cascading failures by tracking consecutive errors
+    and temporarily rejecting requests when failure threshold is reached.
+
+    States:
+    - CLOSED: Normal operation, tracking failures
+    - OPEN: Too many failures, rejecting requests
+    - HALF_OPEN: Cooldown expired, testing recovery
+
+    Transitions:
+    - CLOSED → OPEN: After N consecutive failures
+    - OPEN → HALF_OPEN: After cooldown period
+    - HALF_OPEN → CLOSED: After successful call
+    - HALF_OPEN → OPEN: If call fails
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = 3,
+        cooldown_seconds: float = 60.0,
+        half_open_attempts: int = 1
+    ):
+        """
+        Initialize circuit breaker.
+
+        Args:
+            failure_threshold: Consecutive failures before opening circuit
+            cooldown_seconds: Time to wait before entering half-open state
+            half_open_attempts: Number of successful calls needed to close
+        """
+        self.failure_threshold = failure_threshold
+        self.cooldown_seconds = cooldown_seconds
+        self.half_open_attempts = half_open_attempts
+
+        self.state = CircuitState.CLOSED
+        self.failure_count = 0
+        self.success_count = 0
+        self.last_failure_time: Optional[float] = None
+
+        logger.info(
+            f"[CircuitBreaker] Initialized: threshold={failure_threshold}, "
+            f"cooldown={cooldown_seconds}s"
+        )
+
+    def can_attempt(self) -> bool:
+        """Check if request can proceed."""
+        if self.state == CircuitState.CLOSED:
+            return True
+
+        if self.state == CircuitState.OPEN:
+            # Check if cooldown has expired
+            if self.last_failure_time is not None:
+                elapsed = time.time() - self.last_failure_time
+                if elapsed >= self.cooldown_seconds:
+                    logger.info("[CircuitBreaker] Cooldown expired, entering HALF_OPEN")
+                    self.state = CircuitState.HALF_OPEN
+                    self.success_count = 0
+                    return True
+            return False
+
+        if self.state == CircuitState.HALF_OPEN:
+            return True
+
+        return False
+
+    def record_success(self):
+        """Record successful API call."""
+        if self.state == CircuitState.CLOSED:
+            # Reset failure count on success
+            if self.failure_count > 0:
+                logger.info(
+                    f"[CircuitBreaker] Success after {self.failure_count} failures, "
+                    "resetting counter"
+                )
+            self.failure_count = 0
+
+        elif self.state == CircuitState.HALF_OPEN:
+            self.success_count += 1
+            logger.info(
+                f"[CircuitBreaker] HALF_OPEN success {self.success_count}/"
+                f"{self.half_open_attempts}"
+            )
+
+            if self.success_count >= self.half_open_attempts:
+                logger.info("[CircuitBreaker] Closing circuit after successful recovery")
+                self.state = CircuitState.CLOSED
+                self.failure_count = 0
+                self.success_count = 0
+
+    def record_failure(self):
+        """Record failed API call."""
+        self.last_failure_time = time.time()
+
+        if self.state == CircuitState.CLOSED:
+            self.failure_count += 1
+            logger.warning(
+                f"[CircuitBreaker] Failure {self.failure_count}/{self.failure_threshold}"
+            )
+
+            if self.failure_count >= self.failure_threshold:
+                logger.error(
+                    f"[CircuitBreaker] Opening circuit after {self.failure_count} "
+                    f"consecutive failures"
+                )
+                self.state = CircuitState.OPEN
+
+        elif self.state == CircuitState.HALF_OPEN:
+            logger.warning("[CircuitBreaker] Failure in HALF_OPEN, reopening circuit")
+            self.state = CircuitState.OPEN
+            self.failure_count = self.failure_threshold  # Keep it open
+            self.success_count = 0
+
+    def get_status(self) -> Dict[str, Any]:
+        """Get current circuit breaker status."""
+        return {
+            "state": self.state.value,
+            "failure_count": self.failure_count,
+            "success_count": self.success_count,
+            "last_failure_time": self.last_failure_time,
+            "cooldown_remaining": (
+                max(0, self.cooldown_seconds - (time.time() - self.last_failure_time))
+                if self.last_failure_time is not None else 0
+            )
+        }
 
 
 class ExecutorPhase(Enum):
@@ -155,6 +292,13 @@ Always follow best practices and validate your work before marking it complete."
         self._checkpoint_count = 0
         self._session_active = False
 
+        # Circuit breaker for LLM API resilience
+        self._circuit_breaker = CircuitBreaker(
+            failure_threshold=3,
+            cooldown_seconds=60.0,
+            half_open_attempts=1
+        )
+
     async def start_session(self):
         """Start Claude agent session."""
         if not self._session_active:
@@ -175,88 +319,248 @@ Always follow best practices and validate your work before marking it complete."
 
     async def execute_work_plan(self, work_plan: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute work plan following Work Plan Protocol using Claude Agent SDK.
+        Execute work plan using Anthropic API for LLM reasoning.
+
+        ZFC: Deterministic state machine + LLM API calls for intelligent decisions.
 
         Args:
-            work_plan: Work plan with phases 1-4
+            work_plan: Work plan with prompt, phase, etc.
 
         Returns:
-            Execution results
+            Execution results with status and artifacts
         """
-        logger.info(f"Starting work plan execution: {work_plan.get('prompt', 'N/A')[:100]}")
+        prompt = work_plan.get('prompt', 'No description')
+        phase = work_plan.get('phase', 'spec')
+        work_id = work_plan.get('id', 'unknown')
+
+        logger.info(f"[Executor] Executing work (phase={phase}): {prompt[:100]}")
         self.coordinator.update_agent_state(self.config.agent_id, "running")
         self._current_phase = ExecutorPhase.ANALYZING
 
         try:
-            # Ensure session is active
-            if not self._session_active:
-                logger.debug("Session not active, starting new session")
-                await self.start_session()
-
-            # Validate work plan
-            logger.debug("Validating work plan")
-            validation_result = await self._validate_work_plan(work_plan)
-
-            if not validation_result["valid"]:
-                # Challenge vague requirements
-                if self.config.challenge_vague_requirements:
-                    logger.warning(f"Work plan validation failed: {validation_result['issues']}")
-                    return {
-                        "status": "challenged",
-                        "issues": validation_result["issues"],
-                        "questions": validation_result["questions"]
-                    }
-
-            # Execute all phases using Claude Agent SDK
-            self._current_phase = ExecutorPhase.PLANNING
-
-            # Construct comprehensive prompt for Claude
+            # Phase 1: Analysis - Build execution prompt
+            logger.info(f"[Executor] Phase 1: Analyzing work item {work_id}")
             execution_prompt = self._build_execution_prompt(work_plan)
 
-            # Send work plan to Claude agent
-            await self.claude_client.query(execution_prompt)
+            analysis = {
+                "description": prompt,
+                "phase": phase,
+                "complexity": "simple" if len(prompt) < 100 else "moderate",
+                "prompt_length": len(execution_prompt)
+            }
 
-            # Collect responses
-            responses = []
-            async for message in self.claude_client.receive_response():
-                responses.append(message)
-                # Store important messages in memory
-                await self._store_message(message)
+            # Phase 2: Planning - Prepare API call
+            self._current_phase = ExecutorPhase.PLANNING
+            logger.info(f"[Executor] Phase 2: Calling Anthropic API for intelligent execution")
 
-            # Extract artifacts from responses
-            artifacts = self._extract_artifacts(responses)
+            # Phase 3: Execution - Call Anthropic API
+            self._current_phase = ExecutorPhase.EXECUTING
 
-            # Validation
-            if self.config.validation_required:
-                self._current_phase = ExecutorPhase.VALIDATING
-                await self._validate_artifacts(artifacts)
+            # Check circuit breaker before attempting API calls
+            if not self._circuit_breaker.can_attempt():
+                circuit_status = self._circuit_breaker.get_status()
+                logger.error(
+                    f"[Executor] Circuit breaker is {circuit_status['state']}, "
+                    f"rejecting request. Cooldown: {circuit_status['cooldown_remaining']:.1f}s"
+                )
 
-            # Commit
-            if self.config.auto_commit_checkpoints:
-                self._current_phase = ExecutorPhase.COMMITTING
-                await self._commit_work(artifacts)
+                # Return fallback response
+                fallback_response = (
+                    f"LLM API is temporarily unavailable (circuit breaker {circuit_status['state']}). "
+                    f"Retry in {circuit_status['cooldown_remaining']:.0f} seconds. "
+                    "This work item will be re-queued automatically."
+                )
 
+                artifacts = [{
+                    "type": "circuit_breaker_rejection",
+                    "content": fallback_response,
+                    "circuit_status": circuit_status,
+                    "work_id": work_id
+                }]
+
+                self.coordinator.update_agent_state(self.config.agent_id, "degraded")
+
+                return {
+                    "status": "circuit_open",
+                    "artifacts": artifacts,
+                    "analysis": analysis,
+                    "response_text": fallback_response,
+                    "retry_after": circuit_status['cooldown_remaining']
+                }
+
+            # Import here to allow graceful degradation if not available
+            import anthropic
+            import os
+
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+            if not api_key:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY not set. Cannot execute work without API access. "
+                    "Get your key from: https://console.anthropic.com/settings/keys"
+                )
+
+            client = anthropic.Anthropic(api_key=api_key)
+
+            # Get tool definitions
+            tools = self._get_tool_definitions()
+
+            # Tool execution loop - continue until we get a final response
+            messages = [{"role": "user", "content": execution_prompt}]
+            total_input_tokens = 0
+            total_output_tokens = 0
+            tool_uses = []
+            max_iterations = 10  # Prevent infinite loops
+
+            logger.info(f"[Executor] Starting tool execution loop (max {max_iterations} iterations)")
+
+            for iteration in range(max_iterations):
+                logger.info(f"[Executor] API call iteration {iteration + 1}")
+
+                try:
+                    # Call Claude API with tools
+                    response = client.messages.create(
+                        model="claude-sonnet-4-5-20250929",
+                        max_tokens=4096,
+                        tools=tools,
+                        messages=messages
+                    )
+
+                    # Record success with circuit breaker
+                    self._circuit_breaker.record_success()
+
+                except Exception as api_error:
+                    # Record failure with circuit breaker
+                    self._circuit_breaker.record_failure()
+
+                    logger.error(
+                        f"[Executor] API call failed (iteration {iteration + 1}): {api_error}"
+                    )
+
+                    # Re-raise for outer exception handler
+                    raise
+
+                total_input_tokens += response.usage.input_tokens
+                total_output_tokens += response.usage.output_tokens
+
+                logger.debug(f"[Executor] Response stop_reason: {response.stop_reason}")
+
+                # Check if Claude wants to use tools
+                if response.stop_reason == "tool_use":
+                    # Extract tool use requests
+                    assistant_content = []
+                    tool_results = []
+
+                    for block in response.content:
+                        if block.type == "tool_use":
+                            tool_name = block.name
+                            tool_input = block.input
+                            tool_use_id = block.id
+
+                            logger.info(f"[Executor] Tool requested: {tool_name}")
+                            tool_uses.append({"name": tool_name, "input": tool_input})
+
+                            # Execute the tool
+                            tool_result = await self._execute_tool(tool_name, tool_input)
+
+                            # Format result for API
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": tool_use_id,
+                                "content": str(tool_result)
+                            })
+
+                            assistant_content.append(block)
+
+                        elif block.type == "text":
+                            assistant_content.append(block)
+
+                    # Add assistant message with tool use
+                    messages.append({
+                        "role": "assistant",
+                        "content": assistant_content
+                    })
+
+                    # Add tool results
+                    messages.append({
+                        "role": "user",
+                        "content": tool_results
+                    })
+
+                    logger.info(f"[Executor] Executed {len(tool_results)} tools, continuing conversation")
+
+                else:
+                    # Got final response, extract text
+                    response_text = ""
+                    for block in response.content:
+                        if block.type == "text":
+                            response_text += block.text
+
+                    logger.info(f"[Executor] Final response received ({len(response_text)} chars)")
+                    logger.debug(f"[Executor] Response preview: {response_text[:200]}...")
+                    break
+            else:
+                # Hit max iterations
+                logger.warning(f"[Executor] Max iterations ({max_iterations}) reached")
+                response_text = "Max tool execution iterations reached. Work incomplete."
+
+            # Create artifacts from response and tool uses
+            artifacts = [{
+                "type": "llm_response",
+                "content": response_text,
+                "phase": phase,
+                "work_id": work_id,
+                "model": "claude-sonnet-4-5-20250929",
+                "tokens_used": {
+                    "input": total_input_tokens,
+                    "output": total_output_tokens
+                },
+                "tool_uses": tool_uses,
+                "iterations": iteration + 1
+            }]
+
+            execution_summary = f"Executed work via Claude API: {prompt[:100]}"
+
+            # Phase 4: Completion
             self._current_phase = ExecutorPhase.COMPLETED
             self.coordinator.update_agent_state(self.config.agent_id, "complete")
 
-            logger.info(
-                f"Work plan completed successfully: "
-                f"{len(self._completed_tasks)} tasks, "
-                f"{self._checkpoint_count} checkpoints"
-            )
+            logger.info(f"[Executor] Work completed successfully: {work_id}")
+            logger.info(f"[Executor] Tokens: {response.usage.input_tokens} in, {response.usage.output_tokens} out")
 
             return {
                 "status": "success",
                 "artifacts": artifacts,
-                "checkpoints": self._checkpoint_count,
-                "completed_tasks": len(self._completed_tasks),
-                "responses": responses
+                "analysis": analysis,
+                "summary": execution_summary,
+                "phase": phase,
+                "response_text": response_text  # Include full response for debugging
             }
 
+        except ImportError as e:
+            self.coordinator.update_agent_state(self.config.agent_id, "failed")
+            error_msg = f"Anthropic SDK not installed: {e}. Install with: uv pip install anthropic"
+            logger.error(f"[Executor] {error_msg}")
+            return {
+                "status": "failed",
+                "error": error_msg,
+                "phase": phase
+            }
+        except ValueError as e:
+            self.coordinator.update_agent_state(self.config.agent_id, "failed")
+            logger.error(f"[Executor] Configuration error: {e}")
+            return {
+                "status": "failed",
+                "error": str(e),
+                "phase": phase
+            }
         except Exception as e:
             self.coordinator.update_agent_state(self.config.agent_id, "failed")
-            logger.error(f"Execution failed: {type(e).__name__}: {str(e)}", exc_info=True)
-            raise RuntimeError(f"Execution failed: {e}") from e
+            logger.error(f"[Executor] Execution failed: {type(e).__name__}: {str(e)}", exc_info=True)
+            return {
+                "status": "failed",
+                "error": str(e),
+                "phase": phase
+            }
 
     def _build_execution_prompt(self, work_plan: Dict[str, Any]) -> str:
         """Build comprehensive execution prompt for Claude agent."""
@@ -284,6 +588,214 @@ Always follow best practices and validate your work before marking it complete."
         prompt_parts.append("Commit your changes when logical units are complete.\n")
 
         return "".join(prompt_parts)
+
+    def _get_tool_definitions(self) -> List[Dict[str, Any]]:
+        """
+        Define tools available to the executor.
+
+        Tools follow Anthropic's tool use API format.
+        """
+        return [
+            {
+                "name": "read_file",
+                "description": "Read the contents of a file. Use this to examine existing code or configuration.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Absolute path to the file to read"
+                        }
+                    },
+                    "required": ["file_path"]
+                }
+            },
+            {
+                "name": "create_file",
+                "description": "Create a new file with the specified content. Use this to write code, tests, or documentation.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Absolute path where the file should be created"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "Content to write to the file"
+                        }
+                    },
+                    "required": ["file_path", "content"]
+                }
+            },
+            {
+                "name": "edit_file",
+                "description": "Edit an existing file by replacing old_text with new_text. Use this to modify code.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Absolute path to the file to edit"
+                        },
+                        "old_text": {
+                            "type": "string",
+                            "description": "Exact text to find and replace"
+                        },
+                        "new_text": {
+                            "type": "string",
+                            "description": "New text to insert"
+                        }
+                    },
+                    "required": ["file_path", "old_text", "new_text"]
+                }
+            },
+            {
+                "name": "run_command",
+                "description": "Execute a shell command. Use this to run tests, build code, or perform other operations.",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "command": {
+                            "type": "string",
+                            "description": "Shell command to execute"
+                        },
+                        "working_dir": {
+                            "type": "string",
+                            "description": "Working directory for command execution (optional)"
+                        }
+                    },
+                    "required": ["command"]
+                }
+            }
+        ]
+
+    async def _execute_tool(self, tool_name: str, tool_input: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute a tool and return the result.
+
+        Args:
+            tool_name: Name of the tool to execute
+            tool_input: Input parameters for the tool
+
+        Returns:
+            Tool execution result
+        """
+        import subprocess
+        import os
+
+        logger.info(f"[Executor] Executing tool: {tool_name}")
+        logger.debug(f"[Executor] Tool input: {tool_input}")
+
+        try:
+            if tool_name == "read_file":
+                file_path = tool_input["file_path"]
+                logger.info(f"[Executor] Reading file: {file_path}")
+
+                if not os.path.exists(file_path):
+                    return {
+                        "success": False,
+                        "error": f"File not found: {file_path}"
+                    }
+
+                with open(file_path, 'r') as f:
+                    content = f.read()
+
+                return {
+                    "success": True,
+                    "content": content,
+                    "size": len(content)
+                }
+
+            elif tool_name == "create_file":
+                file_path = tool_input["file_path"]
+                content = tool_input["content"]
+                logger.info(f"[Executor] Creating file: {file_path}")
+
+                # Create parent directories if needed
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+                with open(file_path, 'w') as f:
+                    f.write(content)
+
+                return {
+                    "success": True,
+                    "message": f"File created: {file_path}",
+                    "size": len(content)
+                }
+
+            elif tool_name == "edit_file":
+                file_path = tool_input["file_path"]
+                old_text = tool_input["old_text"]
+                new_text = tool_input["new_text"]
+                logger.info(f"[Executor] Editing file: {file_path}")
+
+                if not os.path.exists(file_path):
+                    return {
+                        "success": False,
+                        "error": f"File not found: {file_path}"
+                    }
+
+                with open(file_path, 'r') as f:
+                    content = f.read()
+
+                if old_text not in content:
+                    return {
+                        "success": False,
+                        "error": f"Text to replace not found in {file_path}"
+                    }
+
+                new_content = content.replace(old_text, new_text, 1)
+
+                with open(file_path, 'w') as f:
+                    f.write(new_content)
+
+                return {
+                    "success": True,
+                    "message": f"File edited: {file_path}",
+                    "replaced_length": len(old_text),
+                    "new_length": len(new_text)
+                }
+
+            elif tool_name == "run_command":
+                command = tool_input["command"]
+                working_dir = tool_input.get("working_dir", os.getcwd())
+                logger.info(f"[Executor] Running command: {command}")
+
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    cwd=working_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=30  # 30 second timeout
+                )
+
+                return {
+                    "success": result.returncode == 0,
+                    "exit_code": result.returncode,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr
+                }
+
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown tool: {tool_name}"
+                }
+
+        except subprocess.TimeoutExpired:
+            logger.error(f"[Executor] Command timeout: {tool_input.get('command', 'unknown')}")
+            return {
+                "success": False,
+                "error": "Command execution timeout (30s limit)"
+            }
+        except Exception as e:
+            logger.error(f"[Executor] Tool execution failed: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     async def _store_message(self, message: Any):
         """Store important messages in memory."""

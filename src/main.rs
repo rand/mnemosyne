@@ -415,12 +415,13 @@ async fn main() -> Result<()> {
         }
         None => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};
-            use mnemosyne_core::orchestration::{AgentSpawner, AgentSpawnerConfig};
+            use mnemosyne_core::orchestration::{OrchestrationEngine, SupervisionConfig};
+            use mnemosyne_core::{ConnectionMode, LibsqlStorage};
             use std::net::SocketAddr;
             use std::sync::Arc;
 
-            // Default: launch orchestrated Claude Code session with independent agents
-            debug!("Launching orchestrated session with independent agent processes...");
+            // Default: launch multi-agent orchestration system with PyO3 bridge
+            debug!("Launching multi-agent orchestration system with PyO3 bridge...");
 
             // Get database path
             let db_path = get_db_path(cli.db_path);
@@ -466,75 +467,63 @@ async fn main() -> Result<()> {
             let progress = launcher::ui::LaunchProgress::new();
             progress.show_multiline_loading();
 
-            // Create agent spawner configuration
-            let spawner_config = AgentSpawnerConfig {
-                python_path: "/opt/homebrew/bin/python3".to_string(),
-                agents_dir: "src/orchestration/agents".to_string(),
-                api_url: format!("http://{}", socket_addr),
-                database_path: db_path.clone(),
-                namespace: "project:mnemosyne".to_string(),
+            // Create storage backend
+            let storage = match LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await {
+                Ok(storage) => Arc::new(storage) as Arc<dyn mnemosyne_core::storage::StorageBackend>,
+                Err(e) => {
+                    progress.show_error(&format!("Failed to initialize storage: {}", e));
+                    error!("Storage initialization failed: {}", e);
+                    return Err(e);
+                }
             };
 
-            // Create agent spawner
-            let event_broadcaster_arc = Arc::new(event_broadcaster.clone());
-            let state_manager_arc = state_manager.clone();
-            let spawner = AgentSpawner::new(
-                spawner_config,
-                Some(event_broadcaster_arc),
-                Some(state_manager_arc),
-            );
+            // Create orchestration configuration
+            let orchestration_config = SupervisionConfig {
+                max_restarts: 3,
+                restart_window_secs: 60,
+                enable_subagents: true,
+                max_concurrent_agents: 4,
+            };
 
-            // Spawn all 4 independent agent processes
-            info!("🚀 Spawning independent agent processes...");
-            match spawner.spawn_all().await {
-                Ok(spawned_roles) => {
-                    info!("✓ Successfully spawned {} agents", spawned_roles.len());
+            // Create orchestration engine with PyO3 bridge
+            info!("🚀 Starting orchestration engine with PyO3 bridge...");
+            let mut engine = match OrchestrationEngine::new_with_state(
+                storage.clone(),
+                orchestration_config,
+                Some(event_broadcaster.clone()),
+                Some(state_manager.clone()),
+            )
+            .await
+            {
+                Ok(engine) => engine,
+                Err(e) => {
+                    progress.show_error(&format!("Failed to create orchestration engine: {}", e));
+                    error!("Orchestration engine creation failed: {}", e);
+                    api_handle.abort();
+                    return Err(e);
+                }
+            };
 
-                    // Show PIDs
-                    let pids = spawner.get_pids().await;
-                    for (role, pid) in pids {
-                        info!("  • {} agent running (PID: {})", role.as_str(), pid);
-                    }
-
-                    // Wait for agents to register with API server
-                    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-
-                    // Verify agents are visible to dashboard
-                    let agents = state_manager.list_agents().await;
-                    info!("✓ {} agents registered with API server", agents.len());
+            // Start the engine (spawns all 4 agents via PyO3)
+            match engine.start().await {
+                Ok(()) => {
+                    info!("✓ Orchestration engine started");
+                    info!("✓ 4 agents running via PyO3 bridge");
                     info!("");
                 }
                 Err(e) => {
-                    progress.show_error(&format!("Failed to spawn agents: {}", e));
-                    error!("Agent spawning failed: {}", e);
-                    // Continue anyway - maybe some agents spawned
+                    progress.show_error(&format!("Failed to start orchestration engine: {}", e));
+                    error!("Orchestration engine start failed: {}", e);
+                    api_handle.abort();
+                    return Err(e);
                 }
             }
 
             progress.show_transition();
+            progress.show_step_complete("Orchestration ready");
 
-            // Launch orchestrated session (agents already running, just start Claude Code)
-            let result = launcher::launch_orchestrated_session(
-                Some(db_path.clone()),
-                None,
-                Some(event_broadcaster.clone()),
-                Some(state_manager.clone()),
-            )
-            .await;
-
-            // Show completion or error
-            if result.is_ok() {
-                progress.show_step_complete("Orchestration ready");
-                println!(); // Extra spacing after startup
-            } else if let Err(ref e) = result {
-                progress.show_error(&format!("{}", e));
-            }
-
-            // Cleanup
-            info!("Shutting down agents...");
-            if let Err(e) = spawner.shutdown_all().await {
-                warn!("Error during agent shutdown: {}", e);
-            }
+            // Launch interactive mode
+            let result = cli::interactive::run(engine, Some(state_manager.clone())).await;
 
             // Clean up API server
             api_handle.abort();

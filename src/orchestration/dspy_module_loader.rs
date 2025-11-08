@@ -363,7 +363,7 @@ impl DSpyModuleLoader {
                 // Match pattern: optimized_{module_name}_{version}.json
                 if file_name.starts_with("optimized_")
                     && file_name.ends_with(".json")
-                    && !file_name.contains(".results.")
+                    && !file_name.contains(".results")
                 {
                     if let Some((module_name, version)) = Self::parse_module_filename(file_name) {
                         let metrics = self.load_module_metrics(&module_name, &version).await;

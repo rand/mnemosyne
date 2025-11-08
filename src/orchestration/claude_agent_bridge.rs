@@ -43,6 +43,8 @@
 #[cfg(feature = "python")]
 use crate::api::Event;
 #[cfg(feature = "python")]
+use crate::config::ConfigManager;
+#[cfg(feature = "python")]
 use crate::error::{MnemosyneError, Result};
 #[cfg(feature = "python")]
 use crate::launcher::agents::AgentRole;
@@ -117,6 +119,18 @@ impl ClaudeAgentBridge {
 
         info!("Spawning Python Claude SDK agent for role: {:?}", role);
 
+        // Get API key from ConfigManager (optional, will gracefully handle missing key)
+        let api_key = match ConfigManager::new().and_then(|c| c.get_api_key()) {
+            Ok(key) => {
+                info!("Retrieved API key from ConfigManager for Python agent");
+                Some(key)
+            }
+            Err(e) => {
+                warn!("Could not retrieve API key from ConfigManager: {}. Python agent will check environment.", e);
+                None
+            }
+        };
+
         // Spawn in blocking task to avoid blocking tokio runtime
         let agent = tokio::task::spawn_blocking(move || {
             Python::with_gil(|py| {
@@ -142,8 +156,17 @@ impl ClaudeAgentBridge {
                     AgentRole::Executor => "executor",
                 };
 
-                // Create agent instance
-                let agent = create_fn.call1((role_str,)).map_err(|e| {
+                // Create config dict with API key if available
+                let config_dict = pyo3::types::PyDict::new_bound(py);
+                if let Some(ref key) = api_key {
+                    config_dict.set_item("anthropic_api_key", key).map_err(|e| {
+                        error!("Failed to set API key in config dict: {}", e);
+                        MnemosyneError::Other(format!("Config dict creation failed: {}", e))
+                    })?;
+                }
+
+                // Create agent instance with config
+                let agent = create_fn.call1((role_str, config_dict)).map_err(|e| {
                     error!("Failed to create agent for role {:?}: {}", role_clone, e);
                     MnemosyneError::Other(format!("Agent creation failed: {}", e))
                 })?;
@@ -637,7 +660,7 @@ impl ClaudeAgentBridge {
 
         // Respawn agent
         let role_clone = self.role;
-        let event_tx_clone = self.event_tx.clone();
+        let _event_tx_clone = self.event_tx.clone();
 
         let new_agent = tokio::task::spawn_blocking(move || {
             Python::with_gil(|py| {
@@ -718,8 +741,18 @@ mod tests {
     use super::*;
     use crate::api::EventBroadcaster;
 
+    /// Initialize Python interpreter for tests (call once per test)
+    fn init_python() {
+        use std::sync::Once;
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            pyo3::prepare_freethreaded_python();
+        });
+    }
+
     #[test]
     fn test_work_item_to_python_conversion() {
+        init_python();
         Python::with_gil(|py| {
             let work_item = WorkItem::new(
                 "Test work".to_string(),
@@ -757,6 +790,7 @@ mod tests {
 
     #[test]
     fn test_extract_work_result() {
+        init_python();
         Python::with_gil(|py| {
             // Create mock Python result dict
             let py_dict = PyDict::new_bound(py);
