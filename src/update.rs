@@ -271,34 +271,51 @@ impl UpdateManager {
         Ok("Successfully installed Claude Code".to_string())
     }
 
-    /// Update beads (try npm first, then homebrew)
+    /// Update beads (detect package manager from binary path)
     async fn update_beads(&self) -> Result<String> {
-        // Try npm first
-        info!("Attempting to update beads via npm...");
-        let npm_result = Command::new("npm")
-            .args(["update", "-g", "@beads/bd"])
-            .output();
+        // Detect which package manager to use based on installation path
+        let binary_path = self.version_checker.detect_tool_path(Tool::Beads);
 
-        if let Ok(output) = npm_result {
-            if output.status.success() {
-                return Ok("Successfully updated beads via npm".to_string());
+        let use_homebrew = if let Some(path) = &binary_path {
+            let path_str = path.to_string_lossy();
+            path_str.contains("/homebrew/") || path_str.contains("/usr/local/")
+        } else {
+            false
+        };
+
+        if use_homebrew {
+            // Homebrew installation detected
+            info!("Updating beads via homebrew (detected at {:?})...", binary_path);
+            let brew_result = Command::new("brew")
+                .args(["upgrade", "bd"])
+                .output();
+
+            if let Ok(output) = brew_result {
+                if output.status.success() {
+                    return Ok("Successfully updated beads via homebrew".to_string());
+                }
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                // Homebrew returns success even if package is already up-to-date
+                if stderr.contains("already installed") || stderr.is_empty() {
+                    return Ok("Beads is already up-to-date (homebrew)".to_string());
+                }
             }
-        }
+        } else {
+            // Try npm for non-homebrew installations
+            info!("Updating beads via npm...");
+            let npm_result = Command::new("npm")
+                .args(["install", "-g", "@beads/bd@latest"])
+                .output();
 
-        // Try homebrew
-        info!("Attempting to update beads via homebrew...");
-        let brew_result = Command::new("brew")
-            .args(["upgrade", "bd"])
-            .output();
-
-        if let Ok(output) = brew_result {
-            if output.status.success() {
-                return Ok("Successfully updated beads via homebrew".to_string());
+            if let Ok(output) = npm_result {
+                if output.status.success() {
+                    return Ok("Successfully updated beads via npm".to_string());
+                }
             }
         }
 
         Err(MnemosyneError::InvalidOperation(
-            "Failed to update beads via npm or homebrew. Is it installed?".to_string(),
+            "Failed to update beads. Try manually: 'brew upgrade bd' or 'npm install -g @beads/bd@latest'".to_string(),
         ))
     }
 
