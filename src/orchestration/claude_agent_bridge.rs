@@ -741,8 +741,18 @@ mod tests {
     use super::*;
     use crate::api::EventBroadcaster;
 
+    /// Initialize Python interpreter for tests (call once per test)
+    fn init_python() {
+        use std::sync::Once;
+        static INIT: Once = Once::new();
+        INIT.call_once(|| {
+            pyo3::prepare_freethreaded_python();
+        });
+    }
+
     #[test]
     fn test_work_item_to_python_conversion() {
+        init_python();
         Python::with_gil(|py| {
             let work_item = WorkItem::new(
                 "Test work".to_string(),
@@ -780,6 +790,7 @@ mod tests {
 
     #[test]
     fn test_extract_work_result() {
+        init_python();
         Python::with_gil(|py| {
             // Create mock Python result dict
             let py_dict = PyDict::new_bound(py);
