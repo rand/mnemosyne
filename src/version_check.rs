@@ -146,11 +146,13 @@ impl VersionChecker {
         let installed = self.detect_installed_version(tool);
         let is_installed = installed.is_some();
 
-        // Fetch latest version
+        // Fetch latest version from appropriate source
+        // Note: Use npm for Beads since that's the primary distribution method,
+        // even though GitHub releases may have newer versions not yet published to npm
         let (latest, release_url) = match tool {
             Tool::Mnemosyne => self.fetch_github_latest("rand", "mnemosyne").await?,
             Tool::ClaudeCode => self.fetch_npm_latest("@anthropic-ai/claude-code").await?,
-            Tool::Beads => self.fetch_github_latest("steveyegge", "beads").await?,
+            Tool::Beads => self.fetch_npm_latest("@beads/bd").await?,
         };
 
         let update_available = if let Some(installed_ver) = &installed {
