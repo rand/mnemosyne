@@ -1,7 +1,7 @@
 # Mnemosyne Agent Guide
 
-**Last Updated**: 2025-11-02
-**Version**: 2.1.1
+**Last Updated**: 2025-11-08
+**Version**: 2.2.0
 **For**: Agents working in the Mnemosyne codebase
 
 ---

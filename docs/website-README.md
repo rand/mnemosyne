@@ -339,16 +339,16 @@ Add to `<head>`:
 
 1. Update version number in `index.html`:
    ```html
-   <span class="brand-version">v2.1.1</span>
+   <span class="brand-version">v2.2.0</span>
    ```
 
 2. Update footer:
    ```html
-   <p class="footer-version">Version 2.1.1 (November 5, 2025)</p>
+   <p class="footer-version">Version 2.2.0 (November 8, 2025)</p>
    ```
 
 3. Update GitHub links if tag changes:
-   - Replace all instances of `v2.1.1` with new version
+   - Replace all instances of `v2.2.0` with new version
    - Use find-and-replace in editor
 
 ### Content Sync
@@ -361,16 +361,16 @@ Keep website synchronized with markdown whitepaper:
 
 ## License
 
-Same as main repository (MIT). See [LICENSE](https://github.com/rand/mnemosyne/blob/v2.1.1/LICENSE).
+Same as main repository (MIT). See [LICENSE](https://github.com/rand/mnemosyne/blob/v2.2.0/LICENSE).
 
 ## Support
 
 - **Issues**: https://github.com/rand/mnemosyne/issues
 - **Discussions**: https://github.com/rand/mnemosyne/discussions
-- **Documentation**: https://github.com/rand/mnemosyne/tree/v2.1.1/docs
+- **Documentation**: https://github.com/rand/mnemosyne/tree/v2.2.0/docs
 
 ---
 
-**Last Updated**: 2025-11-06
-**Mnemosyne Version**: v2.1.1
+**Last Updated**: 2025-11-08
+**Mnemosyne Version**: v2.2.0
 **Website Version**: 1.0

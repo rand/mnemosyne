@@ -672,7 +672,17 @@ See LICENSE file for details.
 
 ## Status
 
-**Current Version**: 2.1.2
+**Current Version**: 2.2.0
+
+**v2.2.0 Release (2025-11-08)** - gRPC Remote Access:
+- ✅ **gRPC Server**: Production-ready gRPC server for remote memory access
+- ✅ **MemoryService**: 13 RPC methods (CRUD, search, streaming operations)
+- ✅ **HealthService**: System monitoring, metrics, statistics
+- ✅ **Language-Agnostic**: Protocol buffer API for Rust, Python, Go, TypeScript, etc.
+- ✅ **Feature-Gated**: Optional `rpc` feature, no impact on default builds
+- ✅ **Test Suite**: 11 RPC integration tests passing, 728 library tests passing
+- ✅ **Documentation**: 1,868 lines of comprehensive RPC documentation
+- ✅ **Clean Warnings**: Fixed all compiler warnings in RPC code
 
 **v2.1.2 Release (2025-11-06)** - Clean Build & Repository Cleanup:
 - ✅ **Clean Build**: Fixed all 6 compiler warnings (unused variables, imports, fields)

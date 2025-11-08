@@ -2,9 +2,9 @@
 
 **A Production-Ready System for Persistent Context and Autonomous Coordination**
 
-**Version**: v2.1.2 (November 6, 2025)
+**Version**: v2.2.0 (November 8, 2025)
 **Repository**: [github.com/rand/mnemosyne](https://github.com/rand/mnemosyne)
-**Tagged Release**: [v2.1.2](https://github.com/rand/mnemosyne/tree/v2.1.2)
+**Tagged Release**: [v2.2.0](https://github.com/rand/mnemosyne/tree/v2.2.0)
 
 ---
 
@@ -16,7 +16,7 @@ Built in Rust with LibSQL storage, it provides sub-millisecond retrieval (0.88ms
 
 Hybrid search combines keyword matching (FTS5), graph traversal, and vector similarity with weighted scoring. Privacy-preserving evaluation, comprehensive testing, and production deployment enable persistent context across sessions, autonomous agent coordination, and continuous memory optimization.
 
-This paper presents the architecture, validates claims against tagged source code (v2.1.2), compares with existing solutions (MemGPT, Mem0, LangChain Memory), and demonstrates production readiness through comprehensive testing and real-world integration.
+This paper presents the architecture, validates claims against tagged source code (v2.2.0), compares with existing solutions (MemGPT, Mem0, LangChain Memory), and demonstrates production readiness through comprehensive testing and real-world integration.
 
 ---
 
