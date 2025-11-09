@@ -268,6 +268,15 @@ class TestEngineConfiguration:
     @pytest.mark.asyncio
     async def test_engine_initialization(self, temp_db):
         """Test that engine initializes all components correctly."""
+        import subprocess
+
+        # Initialize database
+        subprocess.run(
+            ["mnemosyne", "init", "--database", temp_db],
+            capture_output=True,
+            timeout=5
+        )
+
         config = EngineConfig(
             db_path=temp_db,
             polling_interval=0.01,
@@ -296,6 +305,15 @@ class TestEngineConfiguration:
     @pytest.mark.asyncio
     async def test_engine_start_stop(self, temp_db):
         """Test engine lifecycle management."""
+        import subprocess
+
+        # Initialize database
+        subprocess.run(
+            ["mnemosyne", "init", "--database", temp_db],
+            capture_output=True,
+            timeout=5
+        )
+
         config = EngineConfig(
             db_path=temp_db,
             enable_dashboard=False
