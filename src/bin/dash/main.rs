@@ -570,46 +570,47 @@ fn spawn_sse_client(api_url: String, event_tx: mpsc::UnboundedSender<Event>) {
             let mut current_data = String::new();
             const MAX_SSE_DATA_SIZE: usize = 1_000_000; // 1MB limit
 
-            // Read SSE format line by line with error recovery
-            let parse_result: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
-                while let Some(line) = lines.next_line().await? {
-                if line.is_empty() {
-                    // Empty line marks end of event - process accumulated data
-                    if !current_data.is_empty() {
-                        // Parse JSON event
-                        if let Ok(event) = serde_json::from_str::<Event>(&current_data) {
-                            if event_tx.send(event).is_err() {
-                                error!("Event channel closed, stopping SSE client");
-                                return;
+            // Read SSE format line by line with robust error handling
+            loop {
+                match lines.next_line().await {
+                    Ok(Some(line)) => {
+                        if line.is_empty() {
+                            // Empty line marks end of event - process accumulated data
+                            if !current_data.is_empty() {
+                                // Parse JSON event
+                                if let Ok(event) = serde_json::from_str::<Event>(&current_data) {
+                                    if event_tx.send(event).is_err() {
+                                        error!("Event channel closed, stopping SSE client");
+                                        return;
+                                    }
+                                } else {
+                                    debug!("Failed to parse event: {}", current_data);
+                                }
+                                current_data.clear();
                             }
-                        } else {
-                            debug!("Failed to parse event: {}", current_data);
+                        } else if let Some(data) = line.strip_prefix("data: ") {
+                            // Accumulate data lines with size limit
+                            if current_data.len() + data.len() > MAX_SSE_DATA_SIZE {
+                                error!(
+                                    "SSE data exceeds maximum size ({}), discarding event",
+                                    MAX_SSE_DATA_SIZE
+                                );
+                                current_data.clear();
+                                continue;
+                            }
+                            current_data.push_str(data);
                         }
-                        current_data.clear();
+                        // Ignore other SSE fields (id:, event:, retry:)
                     }
-                } else if let Some(data) = line.strip_prefix("data: ") {
-                    // Accumulate data lines with size limit
-                    if current_data.len() + data.len() > MAX_SSE_DATA_SIZE {
-                        error!(
-                            "SSE data exceeds maximum size ({}), discarding event",
-                            MAX_SSE_DATA_SIZE
-                        );
-                        current_data.clear();
-                        continue;
+                    Ok(None) => {
+                        debug!("SSE stream ended normally");
+                        break;
                     }
-                    current_data.push_str(data);
+                    Err(e) => {
+                        error!("SSE stream read error: {}", e);
+                        break;
+                    }
                 }
-                // Ignore other SSE fields (id:, event:, retry:)
-            }
-                Ok(())
-            }
-            .await;
-
-            // Handle any errors from SSE parsing
-            if let Err(e) = parse_result {
-                error!("SSE parsing error: {}", e);
-            } else {
-                debug!("SSE stream disconnected normally");
             }
 
             debug!("Reconnecting in 5s...");
