@@ -60,21 +60,22 @@ if BINDINGS_AVAILABLE:
 # Check if API key available (from secure storage)
 def _check_api_key_available():
     """Check if API key is available via secure storage."""
-    import subprocess
+    # Check environment variable
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return True
+
+    # Check keyring (macOS keychain)
     try:
-        result = subprocess.run(
-            ["mnemosyne", "config", "show-key"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        if result.returncode == 0:
-            for line in result.stdout.split('\n'):
-                if 'API key configured:' in line:
-                    return True
-        return False
+        import keyring
+        key = keyring.get_password("mnemosyne-memory-system", "anthropic-api-key")
+        if key:
+            return True
+    except ImportError:
+        pass
     except Exception:
-        return False
+        pass
+
+    return False
 
 API_KEY_AVAILABLE = _check_api_key_available()
 
