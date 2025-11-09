@@ -1,79 +1,47 @@
-// Theme toggle functionality with SVG diagram switching
+// Theme toggle functionality - Simple two-state light/dark toggle
 (function() {
-    'use strict';
+    // Theme key should be project-specific when used
+    // Override THEME_KEY in project-specific wrapper if needed
+    const THEME_KEY = window.THEME_KEY || 'docs-theme';
 
-    const THEME_KEY = 'theme-preference';
-
-    // Get current theme
-    function getCurrentTheme() {
+    // Get saved theme, default to light
+    function getSavedTheme() {
         return localStorage.getItem(THEME_KEY) || 'light';
     }
 
-    // Save theme preference
+    // Save theme to localStorage
     function saveTheme(theme) {
         localStorage.setItem(THEME_KEY, theme);
     }
 
-    // Update SVG diagrams based on theme
-    function updateDiagrams(theme) {
-        const pictures = document.querySelectorAll('picture');
-        pictures.forEach(picture => {
-            const sources = picture.querySelectorAll('source');
-            const img = picture.querySelector('img');
-
-            sources.forEach(source => {
-                const media = source.getAttribute('media');
-                // Hide/show sources based on theme
-                if (theme === 'dark' && media === '(prefers-color-scheme: dark)') {
-                    source.disabled = false;
-                } else if (theme === 'light' && media === '(prefers-color-scheme: dark)') {
-                    source.disabled = true;
-                }
-            });
-
-            // Update img src directly for theme
-            if (img) {
-                const srcPath = img.src || img.getAttribute('src');
-                if (srcPath) {
-                    const basePath = srcPath.replace(/-light\.svg$/, '.svg').replace(/-dark\.svg$/, '.svg');
-                    const newSrc = basePath.replace(/\.svg$/, theme === 'dark' ? '-dark.svg' : '-light.svg');
-
-                    // Check if themed version exists, otherwise use base
-                    const testSrc = newSrc.includes('-light.svg') || newSrc.includes('-dark.svg') ? newSrc : srcPath;
-                    img.src = testSrc;
-                }
-            }
-        });
-    }
-
-    // Apply theme to document
+    // Apply theme to body
     function applyTheme(theme) {
         document.body.classList.remove('light-theme', 'dark-theme');
-        document.body.classList.add(`${theme}-theme`);
-        updateDiagrams(theme);
+        document.body.classList.add(theme + '-theme');
     }
 
-    // Toggle theme
+    // Toggle between light and dark
     function toggleTheme() {
-        const current = getCurrentTheme();
-        const newTheme = current === 'light' ? 'dark' : 'light';
+        const currentTheme = getSavedTheme();
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
         saveTheme(newTheme);
         applyTheme(newTheme);
     }
 
-    // Initialize theme
+    // Initialize theme on page load
     function initTheme() {
-        const savedTheme = getCurrentTheme();
+        const savedTheme = getSavedTheme();
         applyTheme(savedTheme);
 
-        // Add toggle listener
-        const toggleBtn = document.querySelector('.theme-toggle');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', toggleTheme);
+        // Add event listener to theme toggle button
+        const toggleButton = document.querySelector('.theme-toggle');
+        if (toggleButton) {
+            toggleButton.addEventListener('click', toggleTheme);
         }
     }
 
-    // Run on load
+    // Run on DOMContentLoaded
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initTheme);
     } else {

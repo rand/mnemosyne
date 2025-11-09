@@ -1,0 +1,36 @@
+/* pedantic_raven Theme - Teal */
+/* Glyph: ⟡ (white square) */
+
+:root {
+  --md-primary-fg-color: #16A085;
+  --md-accent-fg-color: #1ABC9C;
+
+  /* Gradient colors for h2 headings (teal to purple) */
+  --gradient-1: #16A085;  /* teal */
+  --gradient-2: #1ABC9C;  /* lighter teal */
+  --gradient-3: #48C9B0;  /* light teal */
+  --gradient-4: #76D7C4;  /* pale teal */
+  --gradient-5: #A3E4D7;  /* very pale teal */
+  --gradient-6: #D1F2EB;  /* ultra pale teal */
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #1ABC9C;
+  --md-accent-fg-color: #48C9B0;
+}
+
+/* Teal-purple gradient for h2 headings */
+.md-typeset h2 {
+  background: linear-gradient(135deg, var(--gradient-1) 0%, var(--gradient-2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Logo glyph */
+.md-header__button.md-logo::after {
+  content: "⟡";
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--md-accent-fg-color);
+}

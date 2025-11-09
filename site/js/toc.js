@@ -1,85 +1,55 @@
-// Dynamic table of contents with scroll tracking
+// Table of Contents generation (optional enhancement)
+// Projects can use this to auto-generate TOCs from h2/h3 headings
+
 (function() {
-    'use strict';
-
-    // Generate TOC from page headings
     function generateTOC() {
-        const main = document.querySelector('main');
-        const headings = main.querySelectorAll('h2, h3');
-
-        if (headings.length === 0) return;
-
-        const tocContainer = document.querySelector('.sidebar-toc');
+        const tocContainer = document.querySelector('#toc');
         if (!tocContainer) return;
+
+        const headings = document.querySelectorAll('h2[id], h3[id]');
+        if (headings.length === 0) return;
 
         const tocList = document.createElement('ul');
         tocList.className = 'toc-list';
 
+        let currentLevel = 2;
+        let currentList = tocList;
+        const listStack = [tocList];
+
         headings.forEach(heading => {
-            const id = heading.id || heading.textContent.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
-            if (!heading.id) heading.id = id;
+            const level = parseInt(heading.tagName.substring(1));
+            const item = document.createElement('li');
+            const link = document.createElement('a');
 
-            const li = document.createElement('li');
-            li.className = `toc-item toc-${heading.tagName.toLowerCase()}`;
+            link.href = '#' + heading.id;
+            link.textContent = heading.textContent;
+            link.className = 'toc-link';
 
-            const a = document.createElement('a');
-            a.href = `#${id}`;
-            a.textContent = heading.textContent;
-            a.className = 'toc-link';
+            item.appendChild(link);
 
-            li.appendChild(a);
-            tocList.appendChild(li);
+            // Handle nesting for h3 under h2
+            if (level > currentLevel) {
+                const nestedList = document.createElement('ul');
+                nestedList.className = 'toc-nested';
+                currentList.lastElementChild.appendChild(nestedList);
+                listStack.push(nestedList);
+                currentList = nestedList;
+            } else if (level < currentLevel) {
+                listStack.pop();
+                currentList = listStack[listStack.length - 1];
+            }
+
+            currentList.appendChild(item);
+            currentLevel = level;
         });
 
         tocContainer.appendChild(tocList);
     }
 
-    // Track scroll position and highlight current section
-    function trackScroll() {
-        const headings = document.querySelectorAll('main h2, main h3');
-        const tocLinks = document.querySelectorAll('.toc-link');
-
-        if (headings.length === 0 || tocLinks.length === 0) return;
-
-        let current = '';
-
-        headings.forEach(heading => {
-            const rect = heading.getBoundingClientRect();
-            if (rect.top <= 100) {
-                current = heading.id;
-            }
-        });
-
-        tocLinks.forEach(link => {
-            link.classList.remove('active');
-            if (link.getAttribute('href') === `#${current}`) {
-                link.classList.add('active');
-            }
-        });
-    }
-
-    // Initialize
+    // Run on DOMContentLoaded
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            generateTOC();
-            trackScroll();
-        });
+        document.addEventListener('DOMContentLoaded', generateTOC);
     } else {
         generateTOC();
-        trackScroll();
     }
-
-    // Track scroll
-    window.addEventListener('scroll', trackScroll, { passive: true });
-
-    // Smooth scroll for TOC links
-    document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('toc-link')) {
-            e.preventDefault();
-            const target = document.querySelector(e.target.getAttribute('href'));
-            if (target) {
-                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }
-    });
 })();

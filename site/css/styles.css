@@ -12,16 +12,16 @@
     --border: #eaeaea;
     --background: #fff;
     --background-subtle: #fafafa;
-    --accent: #ff006e;  /* Vibrant pink accent */
+    --accent: #0891B2;  /* Teal accent */
     --code-bg: #fafafa;
     --code-border: #eaeaea;
-    /* Pink gradient colors only */
-    --gradient-1: #ff006e;  /* pink */
-    --gradient-2: #ff1a8c;  /* bright pink */
-    --gradient-3: #ff3399;  /* hot pink */
-    --gradient-4: #c71585;  /* medium violet red */
-    --gradient-5: #ff006e;  /* pink accent */
-    --gradient-6: #d946ef;  /* fuchsia */
+    /* Teal gradient colors */
+    --gradient-1: #0891B2;  /* teal */
+    --gradient-2: #06b6d4;  /* cyan */
+    --gradient-3: #22d3ee;  /* light cyan */
+    --gradient-4: #0e7490;  /* dark teal */
+    --gradient-5: #0891B2;  /* teal accent */
+    --gradient-6: #06b6d4;  /* cyan */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,16 +31,16 @@
         --border: #333;
         --background: #000;
         --background-subtle: #111;
-        --accent: #ff1a8c;  /* Brighter pink for dark mode */
+        --accent: #22d3ee;  /* Light cyan for dark mode */
         --code-bg: #111;
         --code-border: #333;
-        /* Pink gradient colors for dark mode */
-        --gradient-1: #ff1a8c;
-        --gradient-2: #ff3399;
-        --gradient-3: #ff4db8;
-        --gradient-4: #d946ef;
-        --gradient-5: #ff1a8c;
-        --gradient-6: #e879f9;
+        /* Teal gradient colors for dark mode */
+        --gradient-1: #22d3ee;
+        --gradient-2: #06b6d4;
+        --gradient-3: #67e8f9;
+        --gradient-4: #0891B2;
+        --gradient-5: #22d3ee;
+        --gradient-6: #06b6d4;
     }
 }
 
@@ -51,15 +51,15 @@ body.light-theme {
     --border: #eaeaea;
     --background: #fff;
     --background-subtle: #fafafa;
-    --accent: #ff006e;
+    --accent: #0891B2;
     --code-bg: #fafafa;
     --code-border: #eaeaea;
-    --gradient-1: #ff006e;
-    --gradient-2: #ff1a8c;
-    --gradient-3: #ff3399;
-    --gradient-4: #c71585;
-    --gradient-5: #ff006e;
-    --gradient-6: #d946ef;
+    --gradient-1: #0891B2;
+    --gradient-2: #06b6d4;
+    --gradient-3: #22d3ee;
+    --gradient-4: #0e7490;
+    --gradient-5: #0891B2;
+    --gradient-6: #06b6d4;
 }
 
 body.dark-theme {
@@ -68,15 +68,15 @@ body.dark-theme {
     --border: #333;
     --background: #000;
     --background-subtle: #111;
-    --accent: #ff1a8c;
+    --accent: #22d3ee;
     --code-bg: #111;
     --code-border: #333;
-    --gradient-1: #ff1a8c;
-    --gradient-2: #ff3399;
-    --gradient-3: #ff4db8;
-    --gradient-4: #d946ef;
-    --gradient-5: #ff1a8c;
-    --gradient-6: #e879f9;
+    --gradient-1: #22d3ee;
+    --gradient-2: #06b6d4;
+    --gradient-3: #67e8f9;
+    --gradient-4: #0891B2;
+    --gradient-5: #22d3ee;
+    --gradient-6: #06b6d4;
 }
 
 body {
@@ -135,7 +135,7 @@ body {
 }
 
 .logo-glyph::before {
-    content: "⊛";  /* Circled asterisk */
+    content: "Ψ";  /* Greek letter Psi */
 }
 
 .theme-toggle {

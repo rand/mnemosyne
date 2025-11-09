@@ -1,0 +1,132 @@
+/* Comprehensive Table Styling */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2rem 0;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+table th,
+table td {
+    text-align: left;
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--border);
+}
+
+table th {
+    background: var(--background-subtle);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    letter-spacing: -0.01em;
+    border-bottom: 2px solid var(--border);
+}
+
+table tbody tr:hover {
+    background: var(--background-subtle);
+}
+
+table td {
+    vertical-align: top;
+    color: var(--text-primary);
+}
+
+table strong {
+    font-weight: 600;
+}
+
+table code {
+    font-size: 0.8em;
+}
+
+/* Comparison tables */
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2rem 0;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.comparison-table th,
+.comparison-table td {
+    text-align: left;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.comparison-table th {
+    background: var(--background-subtle);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    letter-spacing: -0.01em;
+}
+
+.comparison-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.comparison-table tbody tr:hover {
+    background: var(--background-subtle);
+}
+
+.comparison-table td {
+    vertical-align: top;
+    color: var(--text-primary);
+}
+
+.comparison-table strong {
+    font-weight: 600;
+}
+
+/* Responsive table handling */
+@media (max-width: 768px) {
+    table,
+    .comparison-table {
+        font-size: 0.75rem;
+        overflow-x: auto;
+        display: block;
+    }
+
+    table th,
+    table td,
+    .comparison-table th,
+    .comparison-table td {
+        padding: 0.625rem 0.75rem;
+        min-width: 120px;
+    }
+
+    /* First column sticky on mobile for better readability */
+    table th:first-child,
+    table td:first-child {
+        position: sticky;
+        left: 0;
+        background: var(--background);
+        z-index: 1;
+    }
+
+    table th:first-child {
+        background: var(--background-subtle);
+    }
+}
+
+/* Zebra striping for large tables */
+table.striped tbody tr:nth-child(even) {
+    background: var(--background-subtle);
+}
+
+table.striped tbody tr:nth-child(odd) {
+    background: var(--background);
+}
+
+table.striped tbody tr:hover {
+    background: var(--code-bg);
+}
