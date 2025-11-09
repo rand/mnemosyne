@@ -248,30 +248,6 @@ body.dark-theme .theme-toggle-icon::before {
     line-height: 1.4;
 }
 
-.sidebar-status {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    font-family: 'Geist Mono', monospace;
-}
-
-.status-glyph {
-    display: inline-block;
-    width: 1em;
-    height: 1em;
-}
-
-.status-glyph::before {
-    content: "ℹ";
-    color: var(--accent);
-    font-size: 1rem;
-}
-
-.status-message {
-    flex: 1;
-}
 
 /* Paper Header */
 .paper-header {
