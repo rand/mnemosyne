@@ -923,6 +923,53 @@ impl OrchestratorActor {
 
         Ok(())
     }
+
+    /// Handle CLI event received from SSE subscriber
+    async fn handle_cli_event(
+        state: &mut OrchestratorState,
+        event: AgentEvent,
+    ) -> Result<()> {
+        tracing::debug!("Orchestrator received CLI event: {}", event.summary());
+
+        // Persist the event for audit trail and memory
+        state.events.persist(event.clone()).await?;
+
+        // React to specific event types that require orchestration coordination
+        match &event {
+            // Memory operations might need context refresh
+            AgentEvent::RememberExecuted { .. } | AgentEvent::RecallExecuted { .. } => {
+                tracing::debug!("Memory operation detected, work queue unaffected");
+            }
+
+            // CLI commands completion might affect work queue
+            AgentEvent::CliCommandCompleted { command, .. } => {
+                tracing::debug!("CLI command completed: {}", command);
+                // Future: Could trigger work queue updates based on command type
+            }
+
+            // Session lifecycle
+            AgentEvent::SessionStarted { instance_id, .. } => {
+                tracing::info!("Claude Code session started: {}", instance_id);
+            }
+
+            AgentEvent::SessionEnded { instance_id, .. } => {
+                tracing::info!("Claude Code session ended: {}", instance_id);
+                // Future: Could trigger cleanup or state persistence
+            }
+
+            // Database operations
+            AgentEvent::DatabaseOperation { operation, table, .. } => {
+                tracing::debug!("Database operation: {} on {}", operation, table);
+            }
+
+            // Other events are logged but don't require action
+            _ => {
+                tracing::debug!("CLI event received (no action required): {}", event.summary());
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[ractor::async_trait]
@@ -1069,6 +1116,11 @@ impl Actor for OrchestratorActor {
                 )
                 .await
                 .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+            }
+            OrchestratorMessage::CliEventReceived { event } => {
+                Self::handle_cli_event(state, event)
+                    .await
+                    .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
             }
         }
 

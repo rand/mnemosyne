@@ -95,6 +95,12 @@ pub struct SupervisionTree {
 
     /// Executor actor
     executor: Option<ActorRef<ExecutorMessage>>,
+
+    /// SSE subscriber shutdown signal
+    sse_shutdown_tx: Option<tokio::sync::broadcast::Sender<()>>,
+
+    /// SSE subscriber task handle
+    sse_subscriber_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 impl SupervisionTree {
@@ -161,6 +167,8 @@ impl SupervisionTree {
             optimizer: None,
             reviewer: None,
             executor: None,
+            sse_shutdown_tx: None,
+            sse_subscriber_handle: None,
         })
     }
 
@@ -196,6 +204,8 @@ impl SupervisionTree {
             optimizer: None,
             reviewer: None,
             executor: None,
+            sse_shutdown_tx: None,
+            sse_subscriber_handle: None,
         })
     }
 
@@ -523,6 +533,35 @@ impl SupervisionTree {
             }
         }
 
+        // Start SSE subscriber for bidirectional event flow (CLI → Orchestrator)
+        if let Some(ref orchestrator) = self.orchestrator {
+            tracing::info!("Starting SSE subscriber for CLI event subscription");
+
+            // Create shutdown channel
+            let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
+
+            // Create SSE subscriber
+            let sse_config = crate::orchestration::SseSubscriberConfig::default();
+            let sse_subscriber = crate::orchestration::SseSubscriber::new(
+                sse_config,
+                orchestrator.clone(),
+                shutdown_rx,
+            );
+
+            // Spawn SSE subscriber task
+            let sse_handle = tokio::spawn(async move {
+                sse_subscriber.run().await;
+            });
+
+            // Store shutdown sender and handle for cleanup
+            self.sse_shutdown_tx = Some(shutdown_tx);
+            self.sse_subscriber_handle = Some(sse_handle);
+
+            tracing::info!("SSE subscriber started - orchestrator will receive CLI events");
+        } else {
+            tracing::warn!("No orchestrator available, skipping SSE subscriber initialization");
+        }
+
         tracing::debug!("Supervision tree started with {} agents", 4);
 
         // Bootstrap work protocol with error handling
@@ -686,6 +725,29 @@ impl SupervisionTree {
         tracing::debug!("Stopping supervision tree (timeout: {:?})", timeout);
 
         let stop_start = std::time::Instant::now();
+
+        // Stop SSE subscriber first (before orchestrator)
+        if let Some(shutdown_tx) = self.sse_shutdown_tx.take() {
+            tracing::debug!("Sending shutdown signal to SSE subscriber");
+            let _ = shutdown_tx.send(());
+
+            // Wait for SSE subscriber to stop (with timeout)
+            if let Some(mut handle) = self.sse_subscriber_handle.take() {
+                tokio::select! {
+                    _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => {
+                        tracing::warn!("SSE subscriber did not stop within 5s, aborting");
+                        handle.abort();
+                    }
+                    result = &mut handle => {
+                        if let Err(e) = result {
+                            tracing::warn!("SSE subscriber task error during shutdown: {}", e);
+                        } else {
+                            tracing::debug!("SSE subscriber stopped gracefully");
+                        }
+                    }
+                }
+            }
+        }
 
         // Stop in reverse order (children first, then supervisor)
         if let Some(executor) = self.executor.take() {

@@ -38,6 +38,9 @@ axum = { version = "0.7", features = ["macros"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 
+# SSE client for event subscription
+eventsource-client = "0.13"
+
 # Database
 libsql = { version = "0.9", features = ["core", "replication", "sync"] }
 libsql_migration = { version = "0.2", features = ["dir"] }

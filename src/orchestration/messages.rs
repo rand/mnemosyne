@@ -83,6 +83,11 @@ pub enum OrchestratorMessage {
         consolidated_memory_id: MemoryId,
         estimated_tokens: usize,
     },
+
+    /// CLI event received from event stream
+    CliEventReceived {
+        event: crate::orchestration::events::AgentEvent,
+    },
 }
 
 /// Messages for the Optimizer agent

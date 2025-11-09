@@ -59,6 +59,7 @@ pub mod prompts;
 pub mod proposal_queue;
 pub mod registry;
 pub mod skills;
+pub mod sse_subscriber;
 pub mod state;
 pub mod status_line;
 pub mod supervision;
@@ -129,6 +130,7 @@ pub use prompts::{
 pub use proposal_queue::{ProposalQueue, ProposalSender, SendError};
 pub use registry::AgentRegistry;
 pub use skills::{get_skills_directory, SkillMatch, SkillMetadata, SkillsDiscovery};
+pub use sse_subscriber::{SseSubscriber, SseSubscriberConfig};
 pub use state::{AgentState, Phase, WorkItem, WorkQueue};
 pub use status_line::{ShellIntegration, StatusLine, StatusLineFormat, StatusLineProvider};
 pub use supervision::{SupervisionConfig, SupervisionTree};
