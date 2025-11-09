@@ -102,8 +102,9 @@ impl ActivityStreamPanel {
         if let Some(correlated) = self.correlation_tracker.process(event.clone()) {
             // Successfully correlated - add as operation
             self.entries.push_back(ActivityEntry::CorrelatedOperation(correlated));
-        } else {
-            // Not a correlatable event or no matching start - add as raw event
+        } else if !Self::is_start_event(&event) {
+            // Not a start event and not correlated - add as raw event
+            // (start events are tracked internally by correlation tracker, don't display until complete)
             let timestamp = Self::extract_timestamp(&event).unwrap_or_else(Utc::now);
 
             // Apply filter
@@ -114,6 +115,7 @@ impl ActivityStreamPanel {
                 self.entries.push_back(ActivityEntry::RawEvent { event, timestamp });
             }
         }
+        // If it's a start event, it's now tracked by correlation tracker, don't display yet
 
         // Trim to max entries
         while self.entries.len() > self.max_entries {
@@ -131,6 +133,18 @@ impl ActivityStreamPanel {
     /// Get entry count
     pub fn entry_count(&self) -> usize {
         self.entries.len()
+    }
+
+    /// Check if event is a start event (tracked for correlation)
+    fn is_start_event(event: &Event) -> bool {
+        use mnemosyne_core::api::events::EventType::*;
+        matches!(
+            &event.event_type,
+            CliCommandStarted { .. }
+                | AgentStarted { .. }
+                | MemoryEvolutionStarted { .. }
+                | WorkItemAssigned { .. }
+        )
     }
 
     /// Extract timestamp from event
