@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Event Broadcasting Race Condition**: Fixed race condition where orchestration actors received `Initialize` messages before `RegisterEventBroadcaster` messages, causing events to be stored but not broadcast to dashboard. Broadcaster registration now happens immediately after actor spawn and before initialization (src/orchestration/supervision.rs:221-372)
+- **Dashboard Event Flow**: Added comprehensive debug logging to trace event broadcaster availability and broadcast attempts throughout the orchestration event system
+
 ## [2.3.0] - 2025-11-08
 
 ### Changed
