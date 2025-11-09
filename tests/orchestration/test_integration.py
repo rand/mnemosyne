@@ -60,15 +60,32 @@ if BINDINGS_AVAILABLE:
 # Check if API key available (from secure storage)
 def _check_api_key_available():
     """Check if API key is available via secure storage."""
+    import subprocess
+
     # Check environment variable
     if os.environ.get("ANTHROPIC_API_KEY"):
         return True
 
-    # Check keyring (macOS keychain)
+    # Check mnemosyne secrets (age-encrypted file)
+    try:
+        result = subprocess.run(
+            ["mnemosyne", "secrets", "get", "ANTHROPIC_API_KEY"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            key = result.stdout.strip()
+            if key and len(key) > 20:  # Valid API keys are long
+                return True
+    except Exception:
+        pass
+
+    # Check keyring (macOS keychain) as fallback
     try:
         import keyring
         key = keyring.get_password("mnemosyne-memory-system", "anthropic-api-key")
-        if key:
+        if key and len(key) > 20:  # Valid API keys are long
             return True
     except ImportError:
         pass
@@ -104,7 +121,7 @@ def coordinator():
 
 @pytest.fixture
 def api_key():
-    """Get API key from secure storage (environment variable or keyring)."""
+    """Get API key from secure storage."""
     import subprocess
 
     # Try environment variable first
@@ -112,18 +129,33 @@ def api_key():
     if api_key:
         return api_key
 
-    # Try keyring (macOS keychain)
+    # Try mnemosyne secrets (age-encrypted file)
+    try:
+        result = subprocess.run(
+            ["mnemosyne", "secrets", "get", "ANTHROPIC_API_KEY"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            key = result.stdout.strip()
+            if key and len(key) > 20:  # Valid API keys are long
+                return key
+    except Exception:
+        pass
+
+    # Try keyring (macOS keychain) as fallback
     try:
         import keyring
         key = keyring.get_password("mnemosyne-memory-system", "anthropic-api-key")
-        if key:
+        if key and len(key) > 20:  # Valid API keys are long
             return key
     except ImportError:
         pass
     except Exception:
         pass
 
-    pytest.skip("API key not configured. Set ANTHROPIC_API_KEY or run: mnemosyne config set-key")
+    pytest.skip("API key not configured. Set ANTHROPIC_API_KEY or run: mnemosyne secrets init")
 
 
 @pytest.fixture
