@@ -12,7 +12,7 @@
 //! - Ring buffer to prevent unlimited growth
 
 use crate::correlation::{CorrelatedEvent, CorrelationTracker, OperationStatus};
-use crate::filters::{EventCategory, EventFilter, FilterStats};
+use crate::filters::{EventCategory, EventFilter, FilterPresets, FilterStats};
 use mnemosyne_core::api::events::Event;
 use chrono::{DateTime, Utc};
 use ratatui::{
@@ -26,6 +26,17 @@ use std::collections::VecDeque;
 
 /// Maximum events to retain in ring buffer
 const MAX_EVENTS: usize = 1000;
+
+/// Focus mode for activity stream filtering
+#[derive(Debug, Clone, PartialEq)]
+pub enum FocusMode {
+    /// Normal mode (default filter)
+    Normal,
+    /// Error focus (show only errors and failures)
+    ErrorFocus,
+    /// Agent focus (show events from specific agent)
+    AgentFocus(String),
+}
 
 /// Activity stream entry (either raw event or correlated operation)
 #[derive(Debug, Clone)]
@@ -66,6 +77,8 @@ pub struct ActivityStreamPanel {
     filter_stats: FilterStats,
     /// Maximum entries to retain
     max_entries: usize,
+    /// Focus mode
+    focus_mode: FocusMode,
 }
 
 impl ActivityStreamPanel {

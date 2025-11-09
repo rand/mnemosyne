@@ -193,22 +193,61 @@ impl App {
     /// Handle keyboard input
     fn handle_key(&mut self, key: KeyCode) -> bool {
         match key {
-            KeyCode::Char('q') | KeyCode::Esc => return true, // Quit
+            // Quit
+            KeyCode::Char('q') | KeyCode::Esc => return true,
 
-            // Toggle all panels
+            // Panel toggles
             KeyCode::Char('0') => {
+                // Toggle all panels
                 if self.panel_manager.visible_count() == 4 {
                     self.panel_manager.hide_all();
                 } else {
                     self.panel_manager.show_all();
                 }
             }
-
-            // Panel toggles (0-3 for 4-panel layout)
             KeyCode::Char('h') => self.panel_manager.toggle_panel(PanelId::SystemOverview),
             KeyCode::Char('1') => self.panel_manager.toggle_panel(PanelId::ActivityStream),
             KeyCode::Char('2') => self.panel_manager.toggle_panel(PanelId::AgentDetails),
             KeyCode::Char('3') => self.panel_manager.toggle_panel(PanelId::Operations),
+
+            // Activity Stream controls
+            KeyCode::Char('c') => {
+                // Clear activity stream
+                self.activity_stream.clear();
+            }
+
+            // Operations panel controls
+            KeyCode::Char('v') => {
+                // Cycle view mode (List → Grouped → Statistics)
+                // Will be implemented by sub-agent
+            }
+
+            // Focus modes (filter presets)
+            KeyCode::Char('e') => {
+                // Error focus mode - will be implemented by sub-agent
+            }
+            KeyCode::Char('a') => {
+                // Agent focus mode - will be implemented by sub-agent
+            }
+
+            // Help overlay
+            KeyCode::Char('?') => {
+                // Show help overlay - will be implemented later
+            }
+
+            // Scrolling (Up/Down for active panel)
+            KeyCode::Up => {
+                // Scroll up in focused panel - will be enhanced by sub-agent
+            }
+            KeyCode::Down => {
+                // Scroll down in focused panel - will be enhanced by sub-agent
+            }
+            KeyCode::PageUp => {
+                // Page up - will be enhanced by sub-agent
+            }
+            KeyCode::PageDown => {
+                // Page down - will be enhanced by sub-agent
+            }
 
             _ => {}
         }

@@ -298,6 +298,14 @@ impl FilterPresets {
             EventFilter::Category(EventCategory::Work),
         ])
     }
+
+    /// Error focus: show only Error category events + failures, hide heartbeats
+    pub fn error_focus() -> EventFilter {
+        EventFilter::All(vec![
+            EventFilter::HideHeartbeats,
+            EventFilter::ErrorsOnly,
+        ])
+    }
 }
 
 /// Filter statistics
