@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] - 2025-11-09
+
 ### Fixed
 - **Dashboard Crash and Terminal Corruption**: Fixed critical crash in mnemosyne-dash that occurred when rendering health metrics containing NaN values, which left the terminal in a corrupted state requiring restart
   - **Root Cause**: Sparkline widget used unsafe `partial_cmp().unwrap()` on floating-point values. NaN comparisons return `None`, causing panic. Since terminal was in raw mode, panic messages went to corrupted display (src/bin/dash/widgets/sparkline.rs:61,67)
