@@ -110,71 +110,86 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
             constraint,
             namespace,
         } => {
-            println!("Creating project constitution for '{}'...", project);
+            event_helpers::with_event_lifecycle("artifact-create-constitution", vec![], async {
+                println!("Creating project constitution for '{}'...", project);
 
-            // Ensure artifact directory exists
-            let artifacts_dir = PathBuf::from(".mnemosyne/artifacts");
-            if !artifacts_dir.exists() {
-                eprintln!("✗ Artifact directory not found. Run 'mnemosyne artifact init' first.");
-                std::process::exit(1);
-            }
-
-            // Validate that at least one principle is provided
-            if principle.is_empty() {
-                eprintln!("✗ At least one principle is required (use --principle)");
-                std::process::exit(1);
-            }
-
-            // Initialize storage and workflow
-            let db_path = get_db_path(global_db_path.clone());
-            let storage = Arc::new(
-                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?
-            );
-            let workflow = ArtifactWorkflow::new(artifacts_dir.clone(), storage)?;
-
-            // Build constitution
-            let mut builder = Constitution::builder(project.clone());
-            for p in principle {
-                builder = builder.principle(p);
-            }
-            for gate in quality_gate {
-                builder = builder.quality_gate(gate);
-            }
-            for c in constraint {
-                builder = builder.constraint(c);
-            }
-            let mut constitution = builder.build();
-
-            // Determine namespace
-            let ns = if let Some(ns_str) = namespace {
-                // Parse namespace string (e.g., "project:myapp")
-                if ns_str.starts_with("project:") {
-                    let name = ns_str.strip_prefix("project:").unwrap().to_string();
-                    Namespace::Project { name }
-                } else if ns_str == "global" {
-                    Namespace::Global
-                } else {
-                    eprintln!("✗ Invalid namespace format. Use 'global' or 'project:NAME'");
+                // Ensure artifact directory exists
+                let artifacts_dir = PathBuf::from(".mnemosyne/artifacts");
+                if !artifacts_dir.exists() {
+                    eprintln!("✗ Artifact directory not found. Run 'mnemosyne artifact init' first.");
                     std::process::exit(1);
                 }
-            } else {
-                // Default to project namespace
-                Namespace::Project { name: project.clone() }
-            };
 
-            // Save constitution
-            let memory_id = workflow.save_constitution(&mut constitution, ns).await?;
+                // Validate that at least one principle is provided
+                if principle.is_empty() {
+                    eprintln!("✗ At least one principle is required (use --principle)");
+                    std::process::exit(1);
+                }
 
-            println!("{} Constitution saved!", icons::status::success());
-            println!("   Memory ID: {}", memory_id);
-            println!("   File: {}", constitution.file_path().display());
-            println!();
-            println!("Next steps:");
-            println!("  - View: mnemosyne artifact show constitution");
-            println!("  - Edit: $EDITOR .mnemosyne/artifacts/{}", constitution.file_path().display());
-            println!("  - Create feature spec: mnemosyne artifact create-feature-spec ...");
+                // Initialize storage and workflow
+                let db_path = get_db_path(global_db_path.clone());
+                let storage = Arc::new(
+                    LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?
+                );
+                let workflow = ArtifactWorkflow::new(artifacts_dir.clone(), storage)?;
 
-            Ok(())
+                // Build constitution
+                let mut builder = Constitution::builder(project.clone());
+                for p in principle {
+                    builder = builder.principle(p);
+                }
+                for gate in quality_gate {
+                    builder = builder.quality_gate(gate);
+                }
+                for c in constraint {
+                    builder = builder.constraint(c);
+                }
+                let mut constitution = builder.build();
+
+                // Determine namespace
+                let ns = if let Some(ns_str) = namespace {
+                    // Parse namespace string (e.g., "project:myapp")
+                    if ns_str.starts_with("project:") {
+                        let name = ns_str.strip_prefix("project:").unwrap().to_string();
+                        Namespace::Project { name }
+                    } else if ns_str == "global" {
+                        Namespace::Global
+                    } else {
+                        eprintln!("✗ Invalid namespace format. Use 'global' or 'project:NAME'");
+                        std::process::exit(1);
+                    }
+                } else {
+                    // Default to project namespace
+                    Namespace::Project { name: project.clone() }
+                };
+
+                // Save constitution
+                let memory_id = workflow.save_constitution(&mut constitution, ns).await?;
+
+                // Get file size for event
+                let file_path = constitution.file_path();
+                let size_bytes = std::fs::metadata(&file_path)
+                    .map(|m| m.len() as usize)
+                    .unwrap_or(0);
+
+                // Emit domain event
+                event_helpers::emit_domain_event(AgentEvent::ArtifactCreated {
+                    artifact_type: "constitution".to_string(),
+                    artifact_id: memory_id.0.to_string(),
+                    size_bytes,
+                }).await;
+
+                println!("{} Constitution saved!", icons::status::success());
+                println!("   Memory ID: {}", memory_id);
+                println!("   File: {}", file_path.display());
+                println!();
+                println!("Next steps:");
+                println!("  - View: mnemosyne artifact show constitution");
+                println!("  - Edit: $EDITOR .mnemosyne/artifacts/{}", file_path.display());
+                println!("  - Create feature spec: mnemosyne artifact create-feature-spec ...");
+
+                Ok(())
+            }).await
         }
         ArtifactCommands::CreateFeatureSpec {
             id,
@@ -185,92 +200,108 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
             constitution_id,
             namespace,
         } => {
-            println!("Creating feature specification '{}'...", name);
+            event_helpers::with_event_lifecycle("artifact-create-spec", vec![], async {
+                println!("Creating feature specification '{}'...", name);
 
-            // Ensure artifact directory exists
-            let artifacts_dir = PathBuf::from(".mnemosyne/artifacts");
-            if !artifacts_dir.exists() {
-                eprintln!("✗ Artifact directory not found. Run 'mnemosyne artifact init' first.");
-                std::process::exit(1);
-            }
-
-            // Initialize storage and workflow
-            let db_path = get_db_path(global_db_path.clone());
-            let storage = Arc::new(
-                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?
-            );
-            let workflow = ArtifactWorkflow::new(artifacts_dir.clone(), storage)?;
-
-            // Build feature spec
-            let mut builder = FeatureSpec::builder(id.clone(), name.clone());
-            if let Some(p) = parent {
-                builder = builder.parent_feature(p);
-            }
-            for req in requirement {
-                builder = builder.requirement(req);
-            }
-            for criterion in success_criterion {
-                builder = builder.success_criterion(criterion);
-            }
-            let mut spec = builder.build();
-
-            // Determine namespace
-            let ns = if let Some(ns_str) = namespace {
-                // Parse namespace string
-                if ns_str.starts_with("project:") {
-                    let proj_name = ns_str.strip_prefix("project:").unwrap().to_string();
-                    Namespace::Project { name: proj_name }
-                } else if ns_str == "global" {
-                    Namespace::Global
-                } else {
-                    eprintln!("✗ Invalid namespace format. Use 'global' or 'project:NAME'");
+                // Ensure artifact directory exists
+                let artifacts_dir = PathBuf::from(".mnemosyne/artifacts");
+                if !artifacts_dir.exists() {
+                    eprintln!("✗ Artifact directory not found. Run 'mnemosyne artifact init' first.");
                     std::process::exit(1);
                 }
-            } else {
-                // Try to infer project name from git root or use "default"
-                let project_name = std::env::current_dir()
-                    .ok()
-                    .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-                    .unwrap_or_else(|| "default".to_string());
-                Namespace::Project { name: project_name }
-            };
 
-            // Save feature spec
-            let memory_id = workflow.save_feature_spec(&mut spec, ns, constitution_id).await?;
+                // Initialize storage and workflow
+                let db_path = get_db_path(global_db_path.clone());
+                let storage = Arc::new(
+                    LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?
+                );
+                let workflow = ArtifactWorkflow::new(artifacts_dir.clone(), storage)?;
 
-            println!("{} Feature spec saved!", icons::status::success());
-            println!("   Memory ID: {}", memory_id);
-            println!("   File: {}", spec.file_path().display());
-            if let Some(ref const_id) = spec.metadata().references.first() {
-                println!("   Linked to constitution: {}", const_id);
-            }
-            println!();
-            println!("Next steps:");
-            println!("  - View: mnemosyne artifact show {}", id);
-            println!("  - Edit: $EDITOR .mnemosyne/artifacts/{}", spec.file_path().display());
-            println!("  - List all specs: mnemosyne artifact list --artifact-type spec");
+                // Build feature spec
+                let mut builder = FeatureSpec::builder(id.clone(), name.clone());
+                if let Some(p) = parent {
+                    builder = builder.parent_feature(p);
+                }
+                for req in requirement {
+                    builder = builder.requirement(req);
+                }
+                for criterion in success_criterion {
+                    builder = builder.success_criterion(criterion);
+                }
+                let mut spec = builder.build();
 
-            Ok(())
+                // Determine namespace
+                let ns = if let Some(ns_str) = namespace {
+                    // Parse namespace string
+                    if ns_str.starts_with("project:") {
+                        let proj_name = ns_str.strip_prefix("project:").unwrap().to_string();
+                        Namespace::Project { name: proj_name }
+                    } else if ns_str == "global" {
+                        Namespace::Global
+                    } else {
+                        eprintln!("✗ Invalid namespace format. Use 'global' or 'project:NAME'");
+                        std::process::exit(1);
+                    }
+                } else {
+                    // Try to infer project name from git root or use "default"
+                    let project_name = std::env::current_dir()
+                        .ok()
+                        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+                        .unwrap_or_else(|| "default".to_string());
+                    Namespace::Project { name: project_name }
+                };
+
+                // Save feature spec
+                let memory_id = workflow.save_feature_spec(&mut spec, ns, constitution_id).await?;
+
+                // Get file size for event
+                let file_path = spec.file_path();
+                let size_bytes = std::fs::metadata(&file_path)
+                    .map(|m| m.len() as usize)
+                    .unwrap_or(0);
+
+                // Emit domain event
+                event_helpers::emit_domain_event(AgentEvent::ArtifactCreated {
+                    artifact_type: "spec".to_string(),
+                    artifact_id: id.clone(),
+                    size_bytes,
+                }).await;
+
+                println!("{} Feature spec saved!", icons::status::success());
+                println!("   Memory ID: {}", memory_id);
+                println!("   File: {}", file_path.display());
+                if let Some(ref const_id) = spec.metadata().references.first() {
+                    println!("   Linked to constitution: {}", const_id);
+                }
+                println!();
+                println!("Next steps:");
+                println!("  - View: mnemosyne artifact show {}", id);
+                println!("  - Edit: $EDITOR .mnemosyne/artifacts/{}", file_path.display());
+                println!("  - List all specs: mnemosyne artifact list --artifact-type spec");
+
+                Ok(())
+            }).await
         }
         ArtifactCommands::Init => {
-            println!("Initializing artifact directory structure...");
+            event_helpers::with_event_lifecycle("artifact-init", vec![], async {
+                println!("Initializing artifact directory structure...");
 
-            // Create artifact directories
-            let base = PathBuf::from(".mnemosyne/artifacts");
-            let subdirs = [
-                "constitution",
-                "specs",
-                "plans",
-                "tasks",
-                "checklists",
-                "clarifications",
-            ];
+                // Create artifact directories
+                let base = PathBuf::from(".mnemosyne/artifacts");
+                let subdirs = [
+                    "constitution",
+                    "specs",
+                    "plans",
+                    "tasks",
+                    "checklists",
+                    "clarifications",
+                ];
 
-            for subdir in &subdirs {
-                let path = base.join(subdir);
-                fs::create_dir_all(&path)?;
-                println!("  ✓ Created {}", path.display());
-            }
+                for subdir in &subdirs {
+                    let path = base.join(subdir);
+                    fs::create_dir_all(&path)?;
+                    println!("  ✓ Created {}", path.display());
+                }
 
             // Create README
             let readme_path = base.join("README.md");
@@ -308,16 +339,18 @@ For more information, see: docs/specs/specification-artifacts.md
             fs::write(&readme_path, readme_content)?;
             println!("  ✓ Created {}", readme_path.display());
 
-            println!();
-            println!("✓ Artifact structure initialized successfully!");
-            println!();
-            println!("Next steps:");
-            println!("  1. Create constitution: /project-constitution");
-            println!("  2. Create feature spec: /feature-specify <description>");
-            println!("  3. View artifacts: mnemosyne artifact list");
-            Ok(())
+                println!();
+                println!("✓ Artifact structure initialized successfully!");
+                println!();
+                println!("Next steps:");
+                println!("  1. Create constitution: /project-constitution");
+                println!("  2. Create feature spec: /feature-specify <description>");
+                println!("  3. View artifacts: mnemosyne artifact list");
+                Ok(())
+            }).await
         }
         ArtifactCommands::List { artifact_type } => {
+            event_helpers::with_event_lifecycle("artifact-list", vec![], async {
             println!("Listing artifacts...");
 
             let base = PathBuf::from(".mnemosyne/artifacts");
@@ -397,58 +430,82 @@ For more information, see: docs/specs/specification-artifacts.md
                 }
             }
 
-            if !found_any {
-                println!("No artifacts found.");
-                println!("Create your first artifact with: /project-constitution");
-            }
-
-            Ok(())
-        }
-        ArtifactCommands::Show { artifact } => {
-            // Try to find artifact by ID or path
-            let path = if artifact.ends_with(".md") {
-                PathBuf::from(artifact)
-            } else {
-                // Search for artifact by ID in all directories
-                let base = PathBuf::from(".mnemosyne/artifacts");
-                let search_dirs = [
-                    base.join("constitution"),
-                    base.join("specs"),
-                    base.join("plans"),
-                    base.join("tasks"),
-                    base.join("checklists"),
-                    base.join("clarifications"),
-                ];
-
-                let mut found_path: Option<PathBuf> = None;
-                for dir in &search_dirs {
-                    if !dir.exists() {
-                        continue;
-                    }
-
-                    let artifact_file = format!("{}.md", artifact);
-                    let candidate = dir.join(&artifact_file);
-                    if candidate.exists() {
-                        found_path = Some(candidate);
-                        break;
-                    }
+                if !found_any {
+                    println!("No artifacts found.");
+                    println!("Create your first artifact with: /project-constitution");
                 }
 
-                found_path.unwrap_or_else(|| {
-                    eprintln!("✗ Artifact not found: {}", artifact);
-                    eprintln!("Try: mnemosyne artifact list");
+                Ok(())
+            }).await
+        }
+        ArtifactCommands::Show { artifact } => {
+            event_helpers::with_event_lifecycle("artifact-show", vec![], async {
+                // Try to find artifact by ID or path
+                let path = if artifact.ends_with(".md") {
+                    PathBuf::from(artifact.clone())
+                } else {
+                    // Search for artifact by ID in all directories
+                    let base = PathBuf::from(".mnemosyne/artifacts");
+                    let search_dirs = [
+                        base.join("constitution"),
+                        base.join("specs"),
+                        base.join("plans"),
+                        base.join("tasks"),
+                        base.join("checklists"),
+                        base.join("clarifications"),
+                    ];
+
+                    let mut found_path: Option<PathBuf> = None;
+                    for dir in &search_dirs {
+                        if !dir.exists() {
+                            continue;
+                        }
+
+                        let artifact_file = format!("{}.md", artifact);
+                        let candidate = dir.join(&artifact_file);
+                        if candidate.exists() {
+                            found_path = Some(candidate);
+                            break;
+                        }
+                    }
+
+                    found_path.unwrap_or_else(|| {
+                        eprintln!("✗ Artifact not found: {}", artifact);
+                        eprintln!("Try: mnemosyne artifact list");
+                        std::process::exit(1);
+                    })
+                };
+
+                if !path.exists() {
+                    eprintln!("✗ File not found: {}", path.display());
                     std::process::exit(1);
-                })
-            };
+                }
 
-            if !path.exists() {
-                eprintln!("✗ File not found: {}", path.display());
-                std::process::exit(1);
-            }
+                let content = fs::read_to_string(&path)?;
+                println!("{}", content);
 
-            let content = fs::read_to_string(&path)?;
-            println!("{}", content);
-            Ok(())
+                // Extract artifact type from directory
+                let artifact_type = path
+                    .parent()
+                    .and_then(|p| p.file_name())
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+
+                // Get metadata
+                let metadata = fs::metadata(&path)?;
+                let last_modified = metadata.modified()
+                    .map(|t| chrono::DateTime::<Utc>::from(t))
+                    .unwrap_or_else(|_| Utc::now());
+
+                // Emit domain event
+                event_helpers::emit_domain_event(AgentEvent::ArtifactLoaded {
+                    artifact_type,
+                    artifact_id: artifact.clone(),
+                    last_modified,
+                }).await;
+
+                Ok(())
+            }).await
         }
         ArtifactCommands::Validate { path } => {
             println!("Validating artifact: {}", path);

@@ -176,18 +176,28 @@ pub async fn handle(
     if use_stdout {
         let stdout = std::io::stdout();
         let mut handle = stdout.lock();
-        write_output(&mut handle)?;
+        let (size,) = write_output(&mut handle)?;
+        output_size_bytes = size;
     } else {
         use std::fs::File;
         let output_path = PathBuf::from(output.as_ref().unwrap());
         let mut file = File::create(&output_path)?;
-        write_output(&mut file)?;
+        let (size,) = write_output(&mut file)?;
+        output_size_bytes = size;
         eprintln!(
             " Exported {} memories to {}",
             memories.len(),
             output_path.display()
         );
     }
+
+    // Emit ExportCompleted event
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+    event_helpers::emit_domain_event(AgentEvent::ExportCompleted {
+        memories_exported: memories.len(),
+        output_size_bytes,
+        duration_ms,
+    }).await;
 
     Ok(())
 }
