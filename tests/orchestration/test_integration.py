@@ -103,24 +103,26 @@ def coordinator():
 
 @pytest.fixture
 def api_key():
-    """Get API key from secure storage via mnemosyne CLI."""
+    """Get API key from secure storage (environment variable or keyring)."""
     import subprocess
+
+    # Try environment variable first
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if api_key:
+        return api_key
+
+    # Try keyring (macOS keychain)
     try:
-        result = subprocess.run(
-            ["mnemosyne", "config", "show-key"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        if result.returncode == 0:
-            # Extract key from output like " API key configured: sk-ant-..."
-            for line in result.stdout.split('\n'):
-                if 'API key configured:' in line:
-                    key = line.split(':', 1)[1].strip()
-                    return key
-        pytest.skip(f"API key not configured: {result.stderr}")
-    except Exception as e:
-        pytest.skip(f"Failed to retrieve API key: {e}")
+        import keyring
+        key = keyring.get_password("mnemosyne-memory-system", "anthropic-api-key")
+        if key:
+            return key
+    except ImportError:
+        pass
+    except Exception:
+        pass
+
+    pytest.skip("API key not configured. Set ANTHROPIC_API_KEY or run: mnemosyne config set-key")
 
 
 @pytest.fixture
@@ -414,7 +416,6 @@ class TestAgentSDKIntegration:
         """Test Optimizer can discover skills with Claude."""
         config = OptimizerConfig(
             agent_id="test_optimizer",
-            skills_dir="~/.claude/skills",  # Use default skills directory
             api_key=api_key
         )
 
