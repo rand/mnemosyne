@@ -47,6 +47,7 @@ static API_SERVER_AVAILABLE: Lazy<RwLock<Option<(std::time::Instant, bool, u32)>
 async fn is_api_server_available() -> bool {
     // Check if event emission is disabled via environment variable
     if std::env::var("MNEMOSYNE_DISABLE_EVENTS").is_ok() {
+        tracing::debug!("Event emission disabled via MNEMOSYNE_DISABLE_EVENTS");
         return false;
     }
 
@@ -65,7 +66,16 @@ async fn is_api_server_available() -> bool {
             };
 
             if last_check.elapsed() < cache_duration {
+                if !is_available {
+                    tracing::debug!(
+                        "API server cached as unavailable (failures={}), backoff: {}s remaining",
+                        consecutive_failures,
+                        cache_duration.as_secs().saturating_sub(last_check.elapsed().as_secs())
+                    );
+                }
                 return is_available;
+            } else {
+                tracing::debug!("Cache expired, rechecking API server health...");
             }
         }
     }
@@ -75,8 +85,15 @@ async fn is_api_server_available() -> bool {
         .get(format!("{}/health", API_SERVER_URL))
         .send()
         .await
-        .map(|resp| resp.status().is_success())
-        .unwrap_or(false);
+        .map(|resp| {
+            let success = resp.status().is_success();
+            tracing::debug!("API server health check: status={}, available={}", resp.status(), success);
+            success
+        })
+        .unwrap_or_else(|e| {
+            tracing::debug!("API server health check failed: {}", e);
+            false
+        });
 
     // Update cache with failure tracking
     {
@@ -92,6 +109,12 @@ async fn is_api_server_available() -> bool {
         } else {
             if is_available { 0 } else { 1 }
         };
+
+        tracing::debug!(
+            "API server availability updated: available={}, consecutive_failures={}",
+            is_available,
+            consecutive_failures
+        );
 
         *cache = Some((std::time::Instant::now(), is_available, consecutive_failures));
     }
@@ -110,9 +133,11 @@ async fn is_api_server_available() -> bool {
 /// # Returns
 /// * `Ok(())` whether event was sent successfully or not (never fails)
 pub async fn emit_event(event: AgentEvent) -> Result<(), Box<dyn std::error::Error>> {
+    tracing::debug!("Attempting to emit event: {}", event.summary());
+
     // Check if server is available
     if !is_api_server_available().await {
-        tracing::trace!("API server not available, skipping event emission");
+        tracing::warn!("API server not available, event will not be emitted: {}", event.summary());
         return Ok(());
     }
 
@@ -120,7 +145,7 @@ pub async fn emit_event(event: AgentEvent) -> Result<(), Box<dyn std::error::Err
     let api_event = match event_to_api_event(&event) {
         Some(e) => e,
         None => {
-            tracing::trace!("Event type not mapped to API event, skipping");
+            tracing::debug!("Event type not mapped to API event, skipping: {}", event.summary());
             return Ok(());
         }
     };
@@ -134,13 +159,13 @@ pub async fn emit_event(event: AgentEvent) -> Result<(), Box<dyn std::error::Err
     {
         Ok(response) => {
             if response.status().is_success() {
-                tracing::debug!("Emitted CLI event: {}", event.summary());
+                tracing::info!("✓ Emitted CLI event: {}", event.summary());
             } else {
-                tracing::debug!("API server rejected event: {}", response.status());
+                tracing::warn!("API server rejected event ({}): {}", response.status(), event.summary());
             }
         }
         Err(e) => {
-            tracing::debug!("Failed to emit CLI event: {}", e);
+            tracing::warn!("Failed to emit CLI event: {} (error: {})", event.summary(), e);
             // Mark server as unavailable in cache and increment failure count
             let mut cache = API_SERVER_AVAILABLE.write().unwrap();
             let consecutive_failures = if let Some((_, _, failures)) = *cache {
