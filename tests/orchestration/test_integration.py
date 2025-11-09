@@ -367,9 +367,9 @@ class TestAgentSDKIntegration:
     """Test actual Claude Agent SDK integration (requires API key)."""
 
     @pytest.mark.asyncio
-    async def test_executor_session_lifecycle(self, coordinator, storage, parallel_executor):
+    async def test_executor_session_lifecycle(self, coordinator, storage, parallel_executor, api_key):
         """Test Executor can start and stop Claude agent sessions."""
-        config = ExecutorConfig(agent_id="test_executor")
+        config = ExecutorConfig(agent_id="test_executor", api_key=api_key)
 
         executor = ExecutorAgent(
             config=config,
@@ -391,9 +391,9 @@ class TestAgentSDKIntegration:
         assert executor._session_active is False
 
     @pytest.mark.asyncio
-    async def test_executor_context_manager(self, coordinator, storage, parallel_executor):
+    async def test_executor_context_manager(self, coordinator, storage, parallel_executor, api_key):
         """Test Executor async context manager."""
-        config = ExecutorConfig(agent_id="test_executor")
+        config = ExecutorConfig(agent_id="test_executor", api_key=api_key)
 
         executor = ExecutorAgent(
             config=config,
@@ -410,11 +410,12 @@ class TestAgentSDKIntegration:
         assert executor._session_active is False
 
     @pytest.mark.asyncio
-    async def test_optimizer_skill_discovery(self, coordinator, storage):
+    async def test_optimizer_skill_discovery(self, coordinator, storage, api_key):
         """Test Optimizer can discover skills with Claude."""
         config = OptimizerConfig(
             agent_id="test_optimizer",
-            skills_dir="~/.claude/skills"  # Use default skills directory
+            skills_dir="~/.claude/skills",  # Use default skills directory
+            api_key=api_key
         )
 
         optimizer = OptimizerAgent(
@@ -442,11 +443,12 @@ class TestAgentSDKIntegration:
             assert allocation["critical"] > 0
 
     @pytest.mark.asyncio
-    async def test_reviewer_quality_gates(self, coordinator, storage):
+    async def test_reviewer_quality_gates(self, coordinator, storage, api_key):
         """Test Reviewer can evaluate quality gates with Claude."""
         config = ReviewerConfig(
             agent_id="test_reviewer",
-            strict_mode=True
+            strict_mode=True,
+            api_key=api_key
         )
 
         reviewer = ReviewerAgent(
@@ -493,11 +495,24 @@ class TestEndToEndWorkflow:
     """Test complete multi-agent workflow (requires API key)."""
 
     @pytest.mark.asyncio
-    async def test_simple_work_plan_execution(self, temp_db):
+    async def test_simple_work_plan_execution(self, temp_db, api_key):
         """Test executing a simple work plan through the engine."""
+        import subprocess
+
+        # Initialize database
+        subprocess.run(
+            ["mnemosyne", "init", "--database", temp_db],
+            capture_output=True,
+            timeout=5
+        )
+
         config = EngineConfig(
             db_path=temp_db,
-            enable_dashboard=False
+            enable_dashboard=False,
+            orchestrator_config=OrchestratorConfig(api_key=api_key),
+            optimizer_config=OptimizerConfig(api_key=api_key),
+            reviewer_config=ReviewerConfig(api_key=api_key),
+            executor_config=ExecutorConfig(api_key=api_key)
         )
 
         engine = OrchestrationEngine(config)
@@ -526,11 +541,24 @@ class TestEndToEndWorkflow:
             await engine.stop()
 
     @pytest.mark.asyncio
-    async def test_work_plan_with_validation(self, temp_db):
+    async def test_work_plan_with_validation(self, temp_db, api_key):
         """Test work plan that gets validated by Reviewer."""
+        import subprocess
+
+        # Initialize database
+        subprocess.run(
+            ["mnemosyne", "init", "--database", temp_db],
+            capture_output=True,
+            timeout=5
+        )
+
         config = EngineConfig(
             db_path=temp_db,
-            enable_dashboard=False
+            enable_dashboard=False,
+            orchestrator_config=OrchestratorConfig(api_key=api_key),
+            optimizer_config=OptimizerConfig(api_key=api_key),
+            reviewer_config=ReviewerConfig(api_key=api_key),
+            executor_config=ExecutorConfig(api_key=api_key)
         )
 
         engine = OrchestrationEngine(config)
