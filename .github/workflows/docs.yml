@@ -34,7 +34,9 @@ jobs:
         run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install Zensical
-        run: uv add zensical
+        run: |
+          uv init --no-workspace || true
+          uv add zensical
 
       - name: Build site with Zensical
         run: uv run zensical build --clean
