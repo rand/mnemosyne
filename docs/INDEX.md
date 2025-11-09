@@ -84,6 +84,14 @@ Located in [`features/`](features/) directory:
   - Client examples (Python, Rust, Go)
   - Deployment configurations
 
+### Monitoring & Dashboard
+- [**DASHBOARD**](DASHBOARD.md) - Real-time monitoring dashboard
+  - 4-panel layout (System Overview, Activity Stream, Agent Details, Operations)
+  - Smart event filtering (8 categories, compound logic)
+  - Event correlation engine (duration tracking, slow operation detection)
+  - CLI operations tracking
+  - Keyboard shortcuts and usage guide
+
 ---
 
 ## 📖 How-To Guides

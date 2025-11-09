@@ -683,7 +683,20 @@ See LICENSE file for details.
 
 ## Status
 
-**Current Version**: 2.2.0
+**Current Version**: 2.3.0
+
+**v2.3.0 Release (2025-11-08)** - Dashboard Redesign & CLI Operations Tracking:
+- ✅ **Dashboard Redesign**: 4-panel layout replacing 7-panel "wall of garbage"
+  - System Overview (top): At-a-glance health metrics
+  - Activity Stream (left, 60%): Intelligent event log with filtering
+  - Agent Details (right-top, 40%): Per-agent status and work queues
+  - Operations (right-bottom, 40%): CLI command history with outcomes
+- ✅ **Smart Event Filtering**: 8 categories, compound AND/OR/NOT logic, filter presets
+- ✅ **Event Correlation Engine**: Links start→complete events, duration tracking, slow operation detection
+- ✅ **CLI Operations Tracking**: Real-time CLI command visibility in dashboard
+- ✅ **Full Keyboard Control**: Interactive navigation (q/Esc, 0-3 panel toggles, c to clear)
+- ✅ **Production Quality**: 124+ tests, 6,122 lines of code, comprehensive error handling
+- ✅ **Documentation**: `docs/DASHBOARD.md` (300+ lines) with architecture, features, troubleshooting
 
 **v2.2.0 Release (2025-11-08)** - gRPC Remote Access:
 - ✅ **gRPC Server**: Production-ready gRPC server for remote memory access
@@ -693,7 +706,6 @@ See LICENSE file for details.
 - ✅ **Feature-Gated**: Optional `rpc` feature, no impact on default builds
 - ✅ **Test Suite**: 11 RPC integration tests passing, 728 library tests passing
 - ✅ **Documentation**: 1,868 lines of comprehensive RPC documentation
-- ✅ **Clean Warnings**: Fixed all compiler warnings in RPC code
 
 **v2.1.2 Release (2025-11-06)** - Clean Build & Repository Cleanup:
 - ✅ **Clean Build**: Fixed all 6 compiler warnings (unused variables, imports, fields)
@@ -734,17 +746,14 @@ See LICENSE file for details.
 - ✅ MCP server integration
 - ✅ **11 new documentation files** (5,000+ lines)
 
-**Known Issues (v2.1.1)**:
+**Known Issues (v2.3.0)**:
 - ⚠️ PyO3 0.22.6 doesn't support Python 3.14+ (use Python 3.9-3.13)
 - ⚠️ Tier 3 LLM integration is scaffolding only (not fully functional)
 
-**In Progress** (v2.2):
-- 🔄 Tier 3 LLM integration completion
-- 🔄 Incremental semantic analysis scheduling
-- 🔄 ICS-semantic highlighter integration
-- 🔄 Test coverage expansion (target: 85%+)
-
-**Roadmap** (post-v2.1):
+**Roadmap** (post-v2.3):
+- ⏳ Tier 3 LLM integration completion
+- ⏳ Incremental semantic analysis scheduling
+- ⏳ ICS-semantic highlighter integration
 - ⏳ Performance benchmarks for semantic highlighting
 - ⏳ Advanced observability and metrics
 - ⏳ Dynamic agent scaling

@@ -1,7 +1,7 @@
 # Mnemosyne Agent Guide
 
 **Last Updated**: 2025-11-08
-**Version**: 2.2.0
+**Version**: 2.3.0
 **For**: Agents working in the Mnemosyne codebase
 
 ---
@@ -34,8 +34,8 @@ Mnemosyne is a **high-performance agentic memory system** for Claude Code's mult
 - **gRPC Remote Access**: Production-ready RPC server with full CRUD, search, and streaming APIs
 
 ### Current Status
-- **Version**: 2.1.2 (stable release)
-- **Test Status**: 610 tests passing, 10 known failures (storage backend tests)
+- **Version**: 2.3.0 (stable release - Dashboard Redesign)
+- **Test Status**: 728+ library tests passing, 124+ dashboard tests
 - **Build Time**: ~1-2m clean build, ~1-3s incremental (fast-release), ~2-3m production build
 - **Language**: Rust 1.75+, Python 3.10-3.13 (via PyO3)
 
@@ -1291,7 +1291,7 @@ Mnemosyne follows [Semantic Versioning 2.0.0](https://semver.org/) specification
 | **MINOR** | New features, backward-compatible | `2.0.x` → `2.1.0` |
 | **PATCH** | Bug fixes, backward-compatible | `2.1.0` → `2.1.1` |
 
-**Current Version**: 2.1.2 (as of 2025-11-07)
+**Current Version**: 2.3.0 (as of 2025-11-08)
 
 ### Release Triggers
 
