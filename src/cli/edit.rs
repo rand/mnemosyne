@@ -152,7 +152,7 @@ pub async fn handle(
     let mut app = IcsApp::new(config.clone(), storage_backend, None, None);
 
     // Load file if provided
-    if let Some(file_path) = file {
+    if let Some(ref file_path) = file {
         if file_path.exists() {
             debug!("Loading file: {}", file_path.display());
             app.load_file(file_path.clone())?;

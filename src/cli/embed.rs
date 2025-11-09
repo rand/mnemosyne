@@ -24,7 +24,7 @@ pub async fn handle(
         // Initialize embedding service
         println!("Initializing local embedding service...");
         let embedding_config = EmbeddingConfig::default();
-        let model_name = embedding_config.model_name.clone();
+        let model_name = embedding_config.model.clone();
         let embedding_service = Arc::new(LocalEmbeddingService::new(embedding_config).await?);
 
         // Initialize storage

@@ -32,9 +32,9 @@ pub async fn handle(verbose: bool, fix: bool, json: bool, global_db_path: Option
     let summary = run_health_checks(&storage, verbose, fix).await?;
 
     // Extract check counts
-    let checks_passed = summary.results.iter().filter(|r| matches!(r.status, CheckStatus::Pass)).count() as u32;
-    let checks_failed = summary.results.iter().filter(|r| matches!(r.status, CheckStatus::Fail)).count() as u32;
-    let checks_warned = summary.results.iter().filter(|r| matches!(r.status, CheckStatus::Warn)).count() as u32;
+    let checks_passed = summary.checks.iter().filter(|r| matches!(r.status, CheckStatus::Pass)).count() as u32;
+    let checks_failed = summary.checks.iter().filter(|r| matches!(r.status, CheckStatus::Fail)).count() as u32;
+    let checks_warned = summary.checks.iter().filter(|r| matches!(r.status, CheckStatus::Warn)).count() as u32;
 
     // Output results
     if json {

@@ -106,7 +106,7 @@ pub async fn run(
 
     // Emit interactive mode ended event
     let duration_ms = start_time.elapsed().as_millis() as u64;
-    let total_commands = commands_executed.load(Ordering::Relaxed);
+    let total_commands = commands_executed.load(Ordering::Relaxed) as usize;
     event_helpers::emit_domain_event(AgentEvent::InteractiveModeEnded {
         commands_executed: total_commands,
         duration_ms,
