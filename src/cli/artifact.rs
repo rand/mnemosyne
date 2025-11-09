@@ -566,9 +566,10 @@ For more information, see: docs/specs/specification-artifacts.md
                     eprintln!("✗ Invalid artifact: {}", e);
                     std::process::exit(1);
                 }
-            }
+                }
 
-            Ok(())
+                Ok(())
+            }).await
         }
     }
 }
