@@ -27,22 +27,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install UV package manager
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install dependencies
+        run: pip install markdown jinja2 pygments
 
-      - name: Add UV to PATH
-        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Install Zensical
-        run: |
-          uv venv
-          . .venv/bin/activate
-          uv pip install zensical
-
-      - name: Build site with Zensical
-        run: |
-          . .venv/bin/activate
-          zensical build --clean
+      - name: Build documentation
+        run: python scripts/build-docs.py
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3

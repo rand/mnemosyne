@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ project_name }}: Semantic Memory and Multi-Agent Orchestration for LLM Systems{% endblock %}</title>
+    <meta name="description" content="{% block description %}A production-ready semantic memory system with multi-agent orchestration for LLM-based systems. Technical whitepaper.{% endblock %}">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ site_url }}">
+    <meta property="og:title" content="{{ project_name }}: Semantic Memory & Multi-Agent Orchestration">
+    <meta property="og:description" content="Production-ready semantic memory system with hybrid search (FTS5 + graph + vectors) and four-agent orchestration framework. Sub-millisecond retrieval.">
+    <meta property="og:image" content="{{ site_url }}og-image.png">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="{{ site_url }}">
+    <meta name="twitter:title" content="{{ project_name }}: Semantic Memory & Multi-Agent Orchestration">
+    <meta name="twitter:description" content="Production-ready semantic memory system with hybrid search (FTS5 + graph + vectors) and four-agent orchestration framework. Sub-millisecond retrieval.">
+    <meta name="twitter:image" content="{{ site_url }}og-image.png">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/geist.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="nav-brand">
+                <span class="logo-glyph"></span>
+                <strong>{{ project_name }}</strong> {{ project_version }}
+            </a>
+            <div class="nav-links">
+                {% for link in nav_links %}
+                    {% if link.external %}
+                        <a href="{{ link.href }}" target="_blank">{{ link.title }}</a>
+                    {% else %}
+                        <a href="{{ link.href }}">{{ link.title }}</a>
+                    {% endif %}
+                {% endfor %}
+                <button class="theme-toggle" aria-label="Toggle theme">
+                    <span class="theme-toggle-icon"></span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <aside class="sidebar">
+        <div class="sidebar-content">
+            <div class="sidebar-tagline">{{ project_tagline }}</div>
+        </div>
+    </aside>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="js/theme.js"></script>
+    <script src="js/sidebar.js"></script>
+</body>
+</html>
