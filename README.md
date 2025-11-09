@@ -683,7 +683,15 @@ See LICENSE file for details.
 
 ## Status
 
-**Current Version**: 2.3.0
+**Current Version**: 2.3.1
+
+**v2.3.1 Release (2025-11-09)** - Dashboard Crash Fix:
+- ✅ **Critical Bug Fix**: Fixed dashboard crash from NaN values in health metrics
+- ✅ **Terminal Corruption Prevention**: Added panic handler to restore terminal state
+- ✅ **Floating-Point Safety**: Fixed unsafe `partial_cmp().unwrap()` patterns
+- ✅ **Enhanced Error Handling**: SSE bounds checking, graceful error recovery
+- ✅ **Comprehensive Tests**: 11 sparkline tests + 8 anaphora tests passing
+- ✅ **Documentation**: Troubleshooting guide + development best practices
 
 **v2.3.0 Release (2025-11-08)** - Dashboard Redesign & CLI Operations Tracking:
 - ✅ **Dashboard Redesign**: 4-panel layout replacing 7-panel "wall of garbage"
@@ -746,11 +754,11 @@ See LICENSE file for details.
 - ✅ MCP server integration
 - ✅ **11 new documentation files** (5,000+ lines)
 
-**Known Issues (v2.3.0)**:
+**Known Issues (v2.3.1)**:
 - ⚠️ PyO3 0.22.6 doesn't support Python 3.14+ (use Python 3.9-3.13)
 - ⚠️ Tier 3 LLM integration is scaffolding only (not fully functional)
 
-**Roadmap** (post-v2.3):
+**Roadmap** (post-v2.3.1):
 - ⏳ Tier 3 LLM integration completion
 - ⏳ Incremental semantic analysis scheduling
 - ⏳ ICS-semantic highlighter integration
