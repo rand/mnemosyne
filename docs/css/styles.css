@@ -114,30 +114,28 @@ body {
     font-weight: 500;
     color: var(--text-primary);
     letter-spacing: -0.01em;
-    display: flex;
-    align-items: center;
+    display: inline-flex;
+    align-items: baseline;
     gap: 0.5rem;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.nav-brand:hover {
+    opacity: 0.7;
 }
 
 .logo-glyph {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1em;
-    height: 1em;
-    position: relative;
+    font-size: 1.125rem;
+    line-height: 1;
+    color: var(--accent);
 }
 
 .logo-glyph::before {
-    content: "\f5dc";
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-    font-size: 1.125rem;
-    line-height: 1;
-    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-3), var(--gradient-5));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    content: "⊛";  /* Circled asterisk */
 }
 
 .theme-toggle {
@@ -263,31 +261,16 @@ body.dark-theme .theme-toggle-icon::before {
     display: inline-block;
     width: 1em;
     height: 1em;
-    animation: glyphRotate 3s ease-in-out infinite;
 }
 
 .status-glyph::before {
-    content: "\f013";
-    font-family: "Font Awesome 6 Free";
-    font-weight: 900;
-    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-5));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-@keyframes glyphRotate {
-    0%, 100% { transform: rotate(0deg); opacity: 1; }
-    50% { transform: rotate(180deg); opacity: 0.7; }
+    content: "ℹ";
+    color: var(--accent);
+    font-size: 1rem;
 }
 
 .status-message {
-    animation: messageFade 4s ease-in-out infinite;
-}
-
-@keyframes messageFade {
-    0%, 100% { opacity: 0.7; }
-    50% { opacity: 1; }
+    flex: 1;
 }
 
 /* Paper Header */
@@ -565,10 +548,6 @@ body.dark-theme .diagram-svg {
 
     .nav-brand {
         font-size: 0.875rem;
-    }
-
-    .logo-glyph {
-        display: none;
     }
 
     .comparison-table {
