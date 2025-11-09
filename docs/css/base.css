@@ -311,7 +311,7 @@ body.dark-theme .theme-toggle-icon::before {
     color: var(--color-info);
 }
 
-/* Sections */
+/* Sections and Main Content Typography */
 .section {
     padding: 2.5rem 0;
 }
@@ -320,27 +320,42 @@ body.dark-theme .theme-toggle-icon::before {
     border-top: 1px solid var(--border);
 }
 
-.section h2 {
+/* Apply beautiful typography to all content, not just .section */
+.section h2,
+main h2,
+.container h2 {
     font-size: 1.875rem;
     font-weight: 600;
-    margin-bottom: 1.5rem;
+    margin: 3rem 0 1.5rem;
     letter-spacing: -0.02em;
     color: var(--text-primary);
 }
 
-.section h3 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin: 2.5rem 0 1rem;
-    letter-spacing: -0.01em;
-}
-
-.section h3:first-child {
+.section h2:first-child,
+main h2:first-child,
+.container h2:first-child {
     margin-top: 0;
 }
 
-.section p {
-    margin-bottom: 1.25rem;
+.section h3,
+main h3,
+.container h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 2rem 0 1rem;
+    letter-spacing: -0.01em;
+}
+
+.section h3:first-child,
+main h3:first-child,
+.container h3:first-child {
+    margin-top: 0;
+}
+
+.section p,
+main p,
+.container p {
+    margin-bottom: 1.5rem;
     color: var(--text-primary);
     font-size: 1rem;
     line-height: 1.7;
@@ -348,35 +363,49 @@ body.dark-theme .theme-toggle-icon::before {
 }
 
 .section ul,
-.section ol {
-    margin: 1.25rem 0;
-    padding-left: 2.5rem;
+.section ol,
+main ul,
+main ol,
+.container ul,
+.container ol {
+    margin: 1.5rem 0;
+    padding-left: 2rem;
     max-width: 70ch;
 }
 
-.section ol {
+.section ol,
+main ol,
+.container ol {
     list-style-position: outside;
     list-style-type: decimal;
 }
 
-.section li {
-    margin-bottom: 0.75rem;
+.section li,
+main li,
+.container li {
+    margin-bottom: 0.5rem;
     color: var(--text-primary);
     line-height: 1.7;
     padding-left: 0.5rem;
 }
 
-.section li strong {
+.section li strong,
+main li strong,
+.container li strong {
     font-weight: 600;
 }
 
-.section a {
+.section a,
+main a,
+.container a {
     color: var(--accent);
     text-decoration: none;
     transition: opacity 0.2s ease;
 }
 
-.section a:hover {
+.section a:hover,
+main a:hover,
+.container a:hover {
     opacity: 0.8;
 }
 
@@ -402,7 +431,7 @@ pre {
 
 pre code {
     display: block;
-    padding: 1.25rem 1.5rem;
+    padding: 1.5rem;
     overflow-x: auto;
     line-height: 1.6;
     border: none;
@@ -411,8 +440,11 @@ pre code {
 }
 
 /* Blockquotes */
-blockquote {
-    border-left: 3px solid var(--accent);
+blockquote,
+.section blockquote,
+main blockquote,
+.container blockquote {
+    border-left: 4px solid var(--accent);
     padding-left: 1.5rem;
     margin: 1.5rem 0;
     color: var(--text-secondary);
