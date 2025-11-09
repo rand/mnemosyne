@@ -26,6 +26,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DEFAULT_BIN_DIR="${HOME}/.local/bin"
 BIN_DIR="${DEFAULT_BIN_DIR}"
 USE_FULL_RELEASE=false
+BINARIES=("mnemosyne" "mnemosyne-dash" "mnemosyne-ics")
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -166,11 +167,9 @@ build_binary() {
     echo "$profile"
 }
 
-# Install binary with direct copy (skips cargo install overhead)
+# Install binaries with direct copy (skips cargo install overhead)
 install_binary() {
     local profile="$1"
-    local source_binary="${PROJECT_ROOT}/target/${profile}/mnemosyne"
-    local dest_binary="${BIN_DIR}/mnemosyne"
 
     echo ""
     echo "Installing to ${BIN_DIR}..."
@@ -178,29 +177,33 @@ install_binary() {
     # Create bin directory if needed
     mkdir -p "$BIN_DIR"
 
-    # Remove existing file or symlink
-    if [ -e "$dest_binary" ] || [ -L "$dest_binary" ]; then
-        rm -f "$dest_binary"
-    fi
+    # Install each binary
+    for binary in "${BINARIES[@]}"; do
+        local source_binary="${PROJECT_ROOT}/target/${profile}/${binary}"
+        local dest_binary="${BIN_DIR}/${binary}"
 
-    # Copy binary directly (much faster than cargo install)
-    if ! cp "$source_binary" "$dest_binary"; then
-        echo -e "${YELLOW}Failed to copy binary${NC}"
-        echo "Source: $source_binary"
-        echo "Dest: $dest_binary"
-        exit 1
-    fi
+        # Remove existing file or symlink
+        if [ -e "$dest_binary" ] || [ -L "$dest_binary" ]; then
+            rm -f "$dest_binary"
+        fi
 
-    # Make executable
-    chmod +x "$dest_binary"
+        # Copy binary directly (much faster than cargo install)
+        if ! cp "$source_binary" "$dest_binary"; then
+            echo -e "${YELLOW}Failed to copy ${binary}${NC}"
+            echo "Source: $source_binary"
+            echo "Dest: $dest_binary"
+            exit 1
+        fi
 
-    echo -e "${GREEN}✓${NC} Binary installed to: ${dest_binary}"
+        # Make executable
+        chmod +x "$dest_binary"
+
+        echo -e "${GREEN}✓${NC} ${binary} installed to: ${dest_binary}"
+    done
 }
 
-# Re-sign binary for macOS Gatekeeper compatibility
+# Re-sign binaries for macOS Gatekeeper compatibility
 sign_binary() {
-    local bin_path="${BIN_DIR}/mnemosyne"
-
     if [[ "$OSTYPE" != "darwin"* ]]; then
         echo ""
         echo -e "${GREEN}✓${NC} Code signing not needed on ${OSTYPE}"
@@ -208,76 +211,82 @@ sign_binary() {
     fi
 
     echo ""
-    echo "Re-signing binary for macOS compatibility..."
+    echo "Re-signing binaries for macOS compatibility..."
 
-    # Remove Gatekeeper attribute (prevents 'zsh: killed' errors)
-    xattr -d com.apple.provenance "$bin_path" 2>/dev/null || true
+    for binary in "${BINARIES[@]}"; do
+        local bin_path="${BIN_DIR}/${binary}"
 
-    # Force re-sign with adhoc signature
-    if ! codesign --force --sign - "$bin_path" 2>/dev/null; then
-        echo -e "${YELLOW}⚠ Warning:${NC} Failed to re-sign binary"
-        echo "You may encounter 'zsh: killed' errors on macOS"
-        echo ""
-        echo "To fix manually:"
-        echo "  xattr -d com.apple.provenance $bin_path"
-        echo "  codesign --force --sign - $bin_path"
-        echo ""
-        return 1
-    fi
+        # Remove Gatekeeper attribute (prevents 'zsh: killed' errors)
+        xattr -d com.apple.provenance "$bin_path" 2>/dev/null || true
 
-    echo -e "${GREEN}✓${NC} Binary re-signed successfully"
+        # Force re-sign with adhoc signature
+        if ! codesign --force --sign - "$bin_path" 2>/dev/null; then
+            echo -e "${YELLOW}⚠ Warning:${NC} Failed to re-sign ${binary}"
+            echo "You may encounter 'zsh: killed' errors on macOS"
+            echo ""
+            echo "To fix manually:"
+            echo "  xattr -d com.apple.provenance $bin_path"
+            echo "  codesign --force --sign - $bin_path"
+            echo ""
+            return 1
+        fi
 
-    # Verify code signature
-    if codesign -dv "$bin_path" 2>&1 | grep -q "adhoc"; then
-        echo -e "${GREEN}✓${NC} Code signature verified (adhoc)"
-    else
-        echo -e "${YELLOW}⚠ Warning:${NC} Unexpected code signature"
-    fi
+        echo -e "${GREEN}✓${NC} ${binary} re-signed successfully"
+
+        # Verify code signature
+        if codesign -dv "$bin_path" 2>&1 | grep -q "adhoc"; then
+            echo -e "${GREEN}✓${NC} ${binary} code signature verified (adhoc)"
+        else
+            echo -e "${YELLOW}⚠ Warning:${NC} Unexpected code signature for ${binary}"
+        fi
+    done
 }
 
-# Verify binary executes successfully
+# Verify binaries execute successfully
 verify_binary() {
     echo ""
     echo "Verifying installation..."
 
-    local bin_path="${BIN_DIR}/mnemosyne"
+    for binary in "${BINARIES[@]}"; do
+        local bin_path="${BIN_DIR}/${binary}"
 
-    # Check executable
-    if [ ! -x "$bin_path" ]; then
-        echo -e "${YELLOW}Binary not executable${NC}"
-        exit 1
-    fi
-    echo -e "${GREEN}✓${NC} Binary is executable"
-
-    # Test execution (detect SIGKILL)
-    # Note: timeout command may not be available on all systems
-    if command -v timeout &>/dev/null || command -v gtimeout &>/dev/null; then
-        local timeout_cmd="timeout"
-        command -v gtimeout &>/dev/null && timeout_cmd="gtimeout"
-
-        if ! $timeout_cmd 5 "$bin_path" --version &>/dev/null; then
-            echo -e "${YELLOW}Binary won't execute${NC}"
-            echo "Possible causes:"
-            echo "  - macOS Gatekeeper SIGKILL (needs re-signing)"
-            echo "  - Missing library dependencies"
-            echo "  - Corrupted binary"
-            echo ""
-            echo "Try re-signing manually:"
-            echo "  xattr -d com.apple.provenance $bin_path"
-            echo "  codesign --force --sign - $bin_path"
+        # Check executable
+        if [ ! -x "$bin_path" ]; then
+            echo -e "${YELLOW}${binary} not executable${NC}"
             exit 1
         fi
-    else
-        # No timeout command, just test execution
-        if ! "$bin_path" --version &>/dev/null; then
-            echo -e "${YELLOW}Binary won't execute${NC}"
-            exit 1
-        fi
-    fi
+        echo -e "${GREEN}✓${NC} ${binary} is executable"
 
-    # Get and display version
-    local version=$("$bin_path" --version 2>&1)
-    echo -e "${GREEN}✓${NC} Binary verified: $version"
+        # Test execution (detect SIGKILL)
+        # Note: timeout command may not be available on all systems
+        if command -v timeout &>/dev/null || command -v gtimeout &>/dev/null; then
+            local timeout_cmd="timeout"
+            command -v gtimeout &>/dev/null && timeout_cmd="gtimeout"
+
+            if ! $timeout_cmd 5 "$bin_path" --version &>/dev/null; then
+                echo -e "${YELLOW}${binary} won't execute${NC}"
+                echo "Possible causes:"
+                echo "  - macOS Gatekeeper SIGKILL (needs re-signing)"
+                echo "  - Missing library dependencies"
+                echo "  - Corrupted binary"
+                echo ""
+                echo "Try re-signing manually:"
+                echo "  xattr -d com.apple.provenance $bin_path"
+                echo "  codesign --force --sign - $bin_path"
+                exit 1
+            fi
+        else
+            # No timeout command, just test execution
+            if ! "$bin_path" --version &>/dev/null; then
+                echo -e "${YELLOW}${binary} won't execute${NC}"
+                exit 1
+            fi
+        fi
+
+        # Get and display version
+        local version=$("$bin_path" --version 2>&1)
+        echo -e "${GREEN}✓${NC} ${binary} verified: $version"
+    done
 
     # Check if bin directory is in PATH
     if [[ ":$PATH:" != *":${BIN_DIR}:"* ]]; then

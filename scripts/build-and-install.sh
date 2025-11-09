@@ -19,7 +19,8 @@ NC='\033[0m' # No Color
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-BIN_PATH="${HOME}/.cargo/bin/mnemosyne"
+BIN_DIR="${HOME}/.cargo/bin"
+BINARIES=("mnemosyne" "mnemosyne-dash" "mnemosyne-ics")
 
 echo ""
 echo "Building and installing mnemosyne..."
@@ -48,35 +49,39 @@ if grep -q 'python' Cargo.toml 2>/dev/null; then
     fi
 fi
 
-# Install using cargo install (handles dependencies and copies binary)
+# Install using cargo install (handles dependencies and copies all binaries)
 echo ""
-echo "Installing to ${BIN_PATH}..."
-if ! RUSTFLAGS="-A warnings" cargo install --path . --locked --force; then
+echo "Installing all binaries to ${BIN_DIR}..."
+if ! RUSTFLAGS="-A warnings" cargo install --path . --bins --locked --force; then
     echo -e "${YELLOW}Install failed${NC}"
     exit 1
 fi
-echo -e "${GREEN}✓${NC} Installed to ${BIN_PATH}"
+echo -e "${GREEN}✓${NC} Installed all binaries to ${BIN_DIR}/"
 
 # Re-sign for macOS (prevents 'zsh: killed' errors)
 if [[ "$OSTYPE" == "darwin"* ]]; then
     echo ""
-    echo "Re-signing binary for macOS compatibility..."
+    echo "Re-signing binaries for macOS compatibility..."
 
-    # Strip com.apple.provenance attribute
-    xattr -d com.apple.provenance "$BIN_PATH" 2>/dev/null || true
+    for binary in "${BINARIES[@]}"; do
+        local bin_path="${BIN_DIR}/${binary}"
 
-    # Force re-sign with adhoc signature
-    if ! codesign --force --sign - "$BIN_PATH" 2>/dev/null; then
-        echo -e "${YELLOW}⚠ Warning:${NC} Failed to re-sign binary"
-        echo "You may encounter 'zsh: killed' errors"
-        echo ""
-        echo "To fix manually:"
-        echo "  xattr -d com.apple.provenance $BIN_PATH"
-        echo "  codesign --force --sign - $BIN_PATH"
-        echo ""
-    else
-        echo -e "${GREEN}✓${NC} Binary re-signed successfully"
-    fi
+        # Strip com.apple.provenance attribute
+        xattr -d com.apple.provenance "$bin_path" 2>/dev/null || true
+
+        # Force re-sign with adhoc signature
+        if ! codesign --force --sign - "$bin_path" 2>/dev/null; then
+            echo -e "${YELLOW}⚠ Warning:${NC} Failed to re-sign $binary"
+            echo "You may encounter 'zsh: killed' errors"
+            echo ""
+            echo "To fix manually:"
+            echo "  xattr -d com.apple.provenance $bin_path"
+            echo "  codesign --force --sign - $bin_path"
+            echo ""
+        else
+            echo -e "${GREEN}✓${NC} $binary re-signed successfully"
+        fi
+    done
 fi
 
 echo ""
