@@ -54,35 +54,28 @@ fn create_test_namespace() -> Namespace {
     }
 }
 
-/// Helper to start API server on dynamic port for testing
-async fn start_test_api_server() -> (ApiServer, u16) {
+/// Helper to start API server on fixed port for testing
+async fn start_test_api_server() -> (tokio::task::JoinHandle<()>, Arc<ApiServer>, u16) {
+    let port = 13000 + (std::process::id() % 1000) as u16; // Semi-unique port per process
     let config = ApiServerConfig {
-        addr: ([127, 0, 0, 1], 0).into(), // Port 0 = OS assigns free port
+        addr: ([127, 0, 0, 1], port).into(),
         event_capacity: 100,
     };
 
-    let server = ApiServer::new(config);
-
-    // Get broadcaster before serving
-    let broadcaster = server.broadcaster().clone();
+    let server = Arc::new(ApiServer::new(config));
+    let server_clone = server.clone();
 
     // Start server in background task
-    let server_handle = tokio::spawn({
-        async move {
-            if let Err(e) = server.serve().await {
-                tracing::error!("API server error: {}", e);
-            }
+    let server_handle = tokio::spawn(async move {
+        if let Err(e) = server_clone.serve().await {
+            tracing::error!("API server error: {}", e);
         }
     });
 
-    // Give server time to start and find port
-    tokio::time::sleep(Duration::from_millis(200)).await;
+    // Give server time to start
+    tokio::time::sleep(Duration::from_millis(300)).await;
 
-    // Return mock server with broadcaster
-    let config = ApiServerConfig::default();
-    let server = ApiServer::new(config);
-
-    (server, 3000) // Return default port for now (TODO: extract actual port)
+    (server_handle, server, port)
 }
 
 // =============================================================================
@@ -92,7 +85,7 @@ async fn start_test_api_server() -> (ApiServer, u16) {
 #[tokio::test]
 async fn test_cli_event_emission_to_api_server() {
     // Start API server
-    let (server, port) = start_test_api_server().await;
+    let (_handle, server, port) = start_test_api_server().await;
     let broadcaster = server.broadcaster();
 
     // Subscribe to events
@@ -134,7 +127,7 @@ async fn test_event_persistence_via_api() {
     let namespace = create_test_namespace();
 
     // Start API server
-    let (server, port) = start_test_api_server().await;
+    let (_handle, server, port) = start_test_api_server().await;
 
     // Emit multiple events
     let client = reqwest::Client::new();
@@ -162,7 +155,7 @@ async fn test_event_persistence_via_api() {
 
 #[tokio::test]
 async fn test_event_broadcaster_forwards_to_sse_stream() {
-    let (server, _port) = start_test_api_server().await;
+    let (_handle, server, _port) = start_test_api_server().await;
     let broadcaster = server.broadcaster();
 
     // Subscribe multiple clients
@@ -206,7 +199,7 @@ async fn test_sse_subscriber_connects_to_api_server() {
     let orchestrator = engine.orchestrator();
 
     // Start API server
-    let (_server, port) = start_test_api_server().await;
+    let (_handle, _server, port) = start_test_api_server().await;
 
     // Create SSE subscriber
     let sse_config = SseSubscriberConfig {
@@ -250,7 +243,7 @@ async fn test_sse_subscriber_receives_events() {
     let orchestrator = engine.orchestrator();
 
     // Start API server
-    let (server, port) = start_test_api_server().await;
+    let (_handle, server, port) = start_test_api_server().await;
     let broadcaster = server.broadcaster();
 
     // Create SSE subscriber
@@ -324,7 +317,7 @@ async fn test_end_to_end_cli_event_flow() {
     let orchestrator = engine.orchestrator();
 
     // Start API server
-    let (server, port) = start_test_api_server().await;
+    let (_handle, server, port) = start_test_api_server().await;
     let broadcaster = server.broadcaster();
 
     // Create SSE subscriber
@@ -381,7 +374,7 @@ async fn test_memory_operation_event_flow() {
     engine.start().await.expect("Failed to start engine");
 
     // Start API server
-    let (server, port) = start_test_api_server().await;
+    let (_handle, server, port) = start_test_api_server().await;
     let broadcaster = server.broadcaster();
 
     // Subscribe to events
@@ -429,7 +422,7 @@ async fn test_session_lifecycle_event_flow() {
     engine.start().await.expect("Failed to start engine");
 
     // Start API server
-    let (server, _port) = start_test_api_server().await;
+    let (_handle, server, _port) = start_test_api_server().await;
     let broadcaster = server.broadcaster();
 
     // Subscribe to events
@@ -473,7 +466,7 @@ async fn test_sse_subscriber_reconnection_logic() {
     let orchestrator = engine.orchestrator();
 
     // Start API server
-    let (_server, port) = start_test_api_server().await;
+    let (_handle, _server, port) = start_test_api_server().await;
 
     // Create SSE subscriber with short reconnect delays
     let sse_config = SseSubscriberConfig {
@@ -545,7 +538,7 @@ async fn test_sse_subscriber_handles_server_unavailable() {
 
 #[tokio::test]
 async fn test_event_ordering_preserved() {
-    let (server, _port) = start_test_api_server().await;
+    let (_handle, server, _port) = start_test_api_server().await;
     let broadcaster = server.broadcaster();
 
     // Subscribe
@@ -593,7 +586,7 @@ async fn test_sse_subscriber_timeout_handling() {
     let orchestrator = engine.orchestrator();
 
     // Start API server
-    let (_server, port) = start_test_api_server().await;
+    let (_handle, _server, port) = start_test_api_server().await;
 
     // Create SSE subscriber
     let sse_config = SseSubscriberConfig {
@@ -672,11 +665,12 @@ async fn test_orchestrator_processes_memory_events() {
     let orchestrator = engine.orchestrator();
 
     // Send memory operation events
+    let test_memory_id = MemoryId::new(); // Generate valid UUID
     let events = vec![
         AgentEvent::RememberExecuted {
             content_preview: "Test memory".to_string(),
             importance: 7,
-            memory_id: MemoryId::from_string("mem-1").unwrap(),
+            memory_id: test_memory_id,
         },
         AgentEvent::RecallExecuted {
             query: "test query".to_string(),
