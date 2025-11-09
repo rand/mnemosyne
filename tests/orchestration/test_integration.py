@@ -57,8 +57,26 @@ if BINDINGS_AVAILABLE:
         ParallelExecutor,
     )
 
-# Check if API key available
-API_KEY_AVAILABLE = bool(os.environ.get("ANTHROPIC_API_KEY"))
+# Check if API key available (from secure storage)
+def _check_api_key_available():
+    """Check if API key is available via secure storage."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["mnemosyne", "config", "show-key"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            for line in result.stdout.split('\n'):
+                if 'API key configured:' in line:
+                    return True
+        return False
+    except Exception:
+        return False
+
+API_KEY_AVAILABLE = _check_api_key_available()
 
 
 # ============================================================================
@@ -343,7 +361,7 @@ class TestEngineConfiguration:
 @pytest.mark.integration
 @pytest.mark.skipif(
     not API_KEY_AVAILABLE,
-    reason="ANTHROPIC_API_KEY not set. Required for integration tests."
+    reason="API key not configured. Run: mnemosyne config set-key"
 )
 class TestAgentSDKIntegration:
     """Test actual Claude Agent SDK integration (requires API key)."""
@@ -469,7 +487,7 @@ class TestAgentSDKIntegration:
 @pytest.mark.integration
 @pytest.mark.skipif(
     not API_KEY_AVAILABLE,
-    reason="ANTHROPIC_API_KEY not set. Required for integration tests."
+    reason="API key not configured. Run: mnemosyne config set-key"
 )
 class TestEndToEndWorkflow:
     """Test complete multi-agent workflow (requires API key)."""
@@ -563,11 +581,12 @@ def test_anthropic_sdk_importable():
 def test_api_key_info():
     """Show API key availability (for debugging test runs)."""
     if API_KEY_AVAILABLE:
-        print("\n✓ ANTHROPIC_API_KEY is set - integration tests will run")
+        print("\n✓ API key configured (secure storage) - integration tests will run")
     else:
-        print("\n✗ ANTHROPIC_API_KEY not set - integration tests will be skipped")
-        print("  Set API key to run full integration tests:")
-        print("  export ANTHROPIC_API_KEY=sk-ant-...")
+        print("\n✗ API key not configured - integration tests will be skipped")
+        print("  Configure API key to run full integration tests:")
+        print("  mnemosyne config set-key sk-ant-...")
+        print("  OR: mnemosyne secrets init")
 
 
 if __name__ == "__main__":
