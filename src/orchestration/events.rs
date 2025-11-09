@@ -425,7 +425,7 @@ impl EventPersistence {
         if event_broadcaster.is_some() {
             tracing::info!("Creating EventPersistence WITH broadcaster for namespace: {}", namespace);
         } else {
-            tracing::warn!("Creating EventPersistence WITHOUT broadcaster for namespace: {}", namespace);
+            tracing::debug!("Creating EventPersistence WITHOUT broadcaster for namespace: {} (broadcaster will be registered shortly)", namespace);
         }
         Self {
             storage,
