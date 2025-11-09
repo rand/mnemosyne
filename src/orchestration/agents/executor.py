@@ -3,7 +3,7 @@ Executor Agent - Primary Work Agent and Sub-Agent Manager.
 
 Responsibilities:
 - Follow Work Plan Protocol (Phases 1-4)
-- Execute atomic tasks from plans using Claude Agent SDK
+- Execute atomic tasks from plans using direct Anthropic API
 - Spawn sub-agents for safe parallel work
 - Apply loaded skills
 - Challenge vague requirements
@@ -18,7 +18,6 @@ import asyncio
 import time
 
 try:
-    from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
     from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
     from .logging_config import get_logger
     from .error_context import (
@@ -31,7 +30,6 @@ try:
 except ImportError:
     import sys, os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
     from base_agent import AgentExecutionMixin, WorkItem, WorkResult
     from logging_config import get_logger
     from error_context import (
@@ -200,9 +198,8 @@ class ExecutorConfig:
     challenge_vague_requirements: bool = True
     auto_commit_checkpoints: bool = True
     validation_required: bool = True
-    # Claude Agent SDK configuration
-    allowed_tools: Optional[List[str]] = None
-    permission_mode: str = "acceptEdits"
+    # Anthropic API key (injected from Rust via environment)
+    api_key: Optional[str] = None
 
 
 @dataclass
@@ -221,13 +218,13 @@ class ExecutorAgent(AgentExecutionMixin):
     """
     Primary work agent and sub-agent manager.
 
-    Executes work following the Work Plan Protocol using Claude Agent SDK:
+    Executes work following the Work Plan Protocol using direct Anthropic API:
     - Phase 1: Prompt → Spec
     - Phase 2: Spec → Full Spec
     - Phase 3: Full Spec → Plan
     - Phase 4: Plan → Artifacts
 
-    Uses ClaudeSDKClient to maintain conversation context and execute tasks.
+    Uses direct Anthropic API calls with tool execution for intelligent work execution.
 
     **PyO3 Bridge Integration**: Inherits from AgentExecutionMixin to provide
     standard interface for Rust bridge communication.
@@ -259,7 +256,7 @@ Always follow best practices and validate your work before marking it complete."
         parallel_executor
     ):
         """
-        Initialize Executor agent with Claude Agent SDK.
+        Initialize Executor agent with direct Anthropic API access.
 
         Args:
             config: Executor configuration
@@ -272,15 +269,9 @@ Always follow best practices and validate your work before marking it complete."
         self.storage = storage
         self.parallel_executor = parallel_executor
 
-        # Initialize Claude Agent SDK client
-        self.claude_client = ClaudeSDKClient(
-            options=ClaudeAgentOptions(
-                allowed_tools=config.allowed_tools or [
-                    "Read", "Write", "Edit", "Bash", "Glob", "Grep"
-                ],
-                permission_mode=config.permission_mode
-            )
-        )
+        # Store API key (injected from Rust environment)
+        import os
+        self.api_key = config.api_key or os.getenv("ANTHROPIC_API_KEY")
 
         # Register with coordinator
         self.coordinator.register_agent(config.agent_id)
@@ -299,21 +290,27 @@ Always follow best practices and validate your work before marking it complete."
             half_open_attempts=1
         )
 
+        logger.info(f"[Executor] Initialized with direct Anthropic API access")
+
     async def start_session(self):
-        """Start Claude agent session."""
+        """Start agent session (validates API key availability)."""
         if not self._session_active:
             logger.info(f"Starting session for agent {self.config.agent_id}")
-            await self.claude_client.connect()
-            # Initialize with system prompt
-            await self.claude_client.query(self.EXECUTOR_SYSTEM_PROMPT)
+
+            # Validate API key is available
+            if not self.api_key:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY not set. Cannot start session without API access. "
+                    "Get your key from: https://console.anthropic.com/settings/keys"
+                )
+
             self._session_active = True
             logger.info(f"Session started successfully for {self.config.agent_id}")
 
     async def stop_session(self):
-        """Stop Claude agent session."""
+        """Stop agent session."""
         if self._session_active:
             logger.info(f"Stopping session for agent {self.config.agent_id}")
-            await self.claude_client.disconnect()
             self._session_active = False
             logger.info(f"Session stopped for {self.config.agent_id}")
 
@@ -390,16 +387,14 @@ Always follow best practices and validate your work before marking it complete."
 
             # Import here to allow graceful degradation if not available
             import anthropic
-            import os
 
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-            if not api_key:
+            if not self.api_key:
                 raise ValueError(
                     "ANTHROPIC_API_KEY not set. Cannot execute work without API access. "
                     "Get your key from: https://console.anthropic.com/settings/keys"
                 )
 
-            client = anthropic.Anthropic(api_key=api_key)
+            client = anthropic.Anthropic(api_key=self.api_key)
 
             # Get tool definitions
             tools = self._get_tool_definitions()
@@ -924,7 +919,7 @@ Always follow best practices and validate your work before marking it complete."
 
     async def spawn_subagent(self, task: WorkTask) -> str:
         """
-        Spawn sub-agent for task execution using Claude Agent SDK.
+        Spawn sub-agent for task execution using direct Anthropic API.
 
         Safety checks:
         - Task truly independent
@@ -951,8 +946,8 @@ Always follow best practices and validate your work before marking it complete."
         # Generate sub-agent ID
         subagent_id = f"{self.config.agent_id}_sub_{len(self._active_subagents)}"
 
-        # Create new Claude client for sub-agent
-        # (In production, this would spawn a separate Claude session)
+        # TODO: Create new Anthropic API client for sub-agent with separate context
+        # (In production, this would spawn a separate API session with isolated state)
 
         # Register sub-agent
         self.coordinator.register_agent(subagent_id)

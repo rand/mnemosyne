@@ -31,13 +31,11 @@ from pathlib import Path
 import hashlib
 
 try:
-    from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
     from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
     from .logging_config import get_logger
 except ImportError:
     import sys, os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
     from base_agent import AgentExecutionMixin, WorkItem, WorkResult
     from logging_config import get_logger
 
@@ -85,9 +83,8 @@ class OptimizerConfig:
     max_skills_loaded: int = 7
     skill_relevance_threshold: float = 0.60
     prioritize_local_skills: bool = True   # Give project-local skills +10% score bonus
-    # Claude Agent SDK configuration
-    allowed_tools: Optional[List[str]] = None
-    permission_mode: str = "default"  # Optimizer reads to analyze, doesn't edit
+    # Anthropic API key (injected from Rust via environment)
+    api_key: Optional[str] = None
     # Evaluation system configuration (privacy-preserving)
     enable_evaluation: bool = True  # Enable adaptive learning (local-only, privacy-preserving)
     db_path: Optional[str] = None  # Use default if None (.mnemosyne/project.db or ~/.local/share/mnemosyne/mnemosyne.db)
@@ -106,7 +103,7 @@ class SkillMatch:
 
 class OptimizerAgent(AgentExecutionMixin):
     """
-    Context and resource optimization specialist using Claude Agent SDK.
+    Context and resource optimization specialist using direct Anthropic API.
 
     Manages:
     - Dynamic skill discovery and loading
@@ -151,7 +148,7 @@ Provide reasoning for your optimization decisions."""
 
     def __init__(self, config: OptimizerConfig, coordinator, storage):
         """
-        Initialize Optimizer agent with Claude Agent SDK and evaluation system.
+        Initialize Optimizer agent with direct Anthropic API access and evaluation system.
 
         Args:
             config: Optimizer configuration
@@ -162,13 +159,9 @@ Provide reasoning for your optimization decisions."""
         self.coordinator = coordinator
         self.storage = storage
 
-        # Initialize Claude Agent SDK client
-        self.claude_client = ClaudeSDKClient(
-            options=ClaudeAgentOptions(
-                allowed_tools=config.allowed_tools or ["Read", "Glob"],
-                permission_mode=config.permission_mode
-            )
-        )
+        # Store API key (injected from Rust environment)
+        import os
+        self.api_key = config.api_key or os.getenv("ANTHROPIC_API_KEY")
 
         # Register with coordinator
         self.coordinator.register_agent(config.agent_id)
@@ -197,20 +190,79 @@ Provide reasoning for your optimization decisions."""
         self._session_active = False
         self._current_session_id: Optional[str] = None
         self._context_metadata: Dict[str, Any] = {}  # Task metadata for evaluation
+        self._conversation_history: List[Dict[str, Any]] = []
+
+        logger.info(f"[Optimizer] Initialized with direct Anthropic API access")
 
     async def start_session(self):
-        """Start Claude agent session."""
+        """Start agent session (validates API key availability)."""
         if not self._session_active:
-            await self.claude_client.connect()
-            # Initialize with system prompt
-            await self.claude_client.query(self.OPTIMIZER_SYSTEM_PROMPT)
+            logger.info(f"Starting session for agent {self.config.agent_id}")
+
+            # Validate API key is available
+            if not self.api_key:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY not set. Cannot start session without API access. "
+                    "Get your key from: https://console.anthropic.com/settings/keys"
+                )
+
+            # Initialize conversation with system prompt
+            self._conversation_history = []
             self._session_active = True
+            logger.info(f"Session started successfully for {self.config.agent_id}")
 
     async def stop_session(self):
-        """Stop Claude agent session."""
+        """Stop agent session."""
         if self._session_active:
-            await self.claude_client.disconnect()
+            logger.info(f"Stopping session for agent {self.config.agent_id}")
             self._session_active = False
+            self._conversation_history = []
+            logger.info(f"Session stopped for {self.config.agent_id}")
+
+    async def _call_api(self, prompt: str) -> str:
+        """
+        Helper method to make Anthropic API calls.
+
+        Args:
+            prompt: User prompt to send
+
+        Returns:
+            Text response from API
+        """
+        import anthropic
+
+        if not self.api_key:
+            raise ValueError("ANTHROPIC_API_KEY not set. Cannot make API calls.")
+
+        client = anthropic.Anthropic(api_key=self.api_key)
+
+        # Add to conversation history
+        self._conversation_history.append({
+            "role": "user",
+            "content": prompt
+        })
+
+        # Call API
+        response = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=2048,
+            system=self.OPTIMIZER_SYSTEM_PROMPT,
+            messages=self._conversation_history
+        )
+
+        # Extract text
+        response_text = ""
+        for block in response.content:
+            if block.type == "text":
+                response_text += block.text
+
+        # Add to conversation history
+        self._conversation_history.append({
+            "role": "assistant",
+            "content": response_text
+        })
+
+        return response_text
 
     async def _execute_work_item(self, work_item: WorkItem) -> WorkResult:
         """

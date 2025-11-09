@@ -15,7 +15,6 @@ from enum import Enum
 import json
 
 try:
-    from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
     from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
     from .logging_config import get_logger
 except ImportError:
@@ -23,7 +22,6 @@ except ImportError:
     import sys
     import os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
     from base_agent import AgentExecutionMixin, WorkItem, WorkResult
     from logging_config import get_logger
 
@@ -49,14 +47,13 @@ class OrchestratorConfig:
     snapshot_dir: str = ".claude/context-snapshots"
     checkpoint_frequency: int = 5  # Checkpoint every 5 phase transitions
     deadlock_timeout: float = 60.0  # Detect deadlock after 60s of no progress
-    # Claude Agent SDK configuration
-    allowed_tools: Optional[List[str]] = None
-    permission_mode: str = "default"  # Orchestrator observes, doesn't edit
+    # Anthropic API key (injected from Rust via environment)
+    api_key: Optional[str] = None
 
 
 class OrchestratorAgent(AgentExecutionMixin):
     """
-    Central coordinator for multi-agent orchestration using Claude Agent SDK.
+    Central coordinator for multi-agent orchestration using direct Anthropic API.
 
     Manages:
     - Agent lifecycle (spawn, monitor, terminate)
@@ -92,7 +89,7 @@ Focus on orchestration strategy, not implementation details."""
 
     def __init__(self, config: OrchestratorConfig, coordinator, storage, context_monitor):
         """
-        Initialize Orchestrator agent with Claude Agent SDK.
+        Initialize Orchestrator agent with direct Anthropic API access.
 
         Args:
             config: Orchestrator configuration
@@ -105,13 +102,9 @@ Focus on orchestration strategy, not implementation details."""
         self.storage = storage
         self.context_monitor = context_monitor
 
-        # Initialize Claude Agent SDK client
-        self.claude_client = ClaudeSDKClient(
-            options=ClaudeAgentOptions(
-                allowed_tools=config.allowed_tools or ["Read", "Glob"],
-                permission_mode=config.permission_mode
-            )
-        )
+        # Store API key (injected from Rust environment)
+        import os
+        self.api_key = config.api_key or os.getenv("ANTHROPIC_API_KEY")
 
         # Register with coordinator
         self.coordinator.register_agent(config.agent_id)
@@ -122,20 +115,34 @@ Focus on orchestration strategy, not implementation details."""
         self._work_graph: Dict[str, List[str]] = {}  # task_id -> dependencies
         self._checkpoint_count = 0
         self._session_active = False
+        self._conversation_history: List[Dict[str, Any]] = []
+
+        logger.info(f"[Orchestrator] Initialized with direct Anthropic API access")
 
     async def start_session(self):
-        """Start Claude agent session."""
+        """Start agent session (validates API key availability)."""
         if not self._session_active:
-            await self.claude_client.connect()
-            # Initialize with system prompt
-            await self.claude_client.query(self.ORCHESTRATOR_SYSTEM_PROMPT)
+            logger.info(f"Starting session for agent {self.config.agent_id}")
+
+            # Validate API key is available
+            if not self.api_key:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY not set. Cannot start session without API access. "
+                    "Get your key from: https://console.anthropic.com/settings/keys"
+                )
+
+            # Initialize conversation with system prompt
+            self._conversation_history = []
             self._session_active = True
+            logger.info(f"Session started successfully for {self.config.agent_id}")
 
     async def stop_session(self):
-        """Stop Claude agent session."""
+        """Stop agent session."""
         if self._session_active:
-            await self.claude_client.disconnect()
+            logger.info(f"Stopping session for agent {self.config.agent_id}")
             self._session_active = False
+            self._conversation_history = []
+            logger.info(f"Session stopped for {self.config.agent_id}")
 
     async def _execute_work_item(self, work_item: WorkItem) -> WorkResult:
         """
@@ -189,7 +196,7 @@ Focus on orchestration strategy, not implementation details."""
 
     async def coordinate_workflow(self, work_plan: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Coordinate multi-agent workflow execution using Claude Agent SDK.
+        Coordinate multi-agent workflow execution using direct Anthropic API.
 
         Args:
             work_plan: Work plan with phases and tasks
@@ -205,15 +212,51 @@ Focus on orchestration strategy, not implementation details."""
             if not self._session_active:
                 await self.start_session()
 
+            # Import Anthropic API
+            import anthropic
+
+            if not self.api_key:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY not set. Cannot coordinate workflow without API access."
+                )
+
+            client = anthropic.Anthropic(api_key=self.api_key)
+
             # Phase 1: Ask Claude to analyze work plan and build dependency graph
             planning_prompt = self._build_planning_prompt(work_plan)
-            await self.claude_client.query(planning_prompt)
 
-            # Collect Claude's analysis
-            planning_responses = []
-            async for message in self.claude_client.receive_response():
-                planning_responses.append(message)
-                await self._store_message(message, "planning")
+            # Add user message to conversation
+            self._conversation_history.append({
+                "role": "user",
+                "content": planning_prompt
+            })
+
+            logger.info("[Orchestrator] Calling Anthropic API for workflow planning")
+
+            # Call Anthropic API for planning analysis
+            response = client.messages.create(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=4096,
+                system=self.ORCHESTRATOR_SYSTEM_PROMPT,
+                messages=self._conversation_history
+            )
+
+            # Extract text response
+            planning_analysis = ""
+            for block in response.content:
+                if block.type == "text":
+                    planning_analysis += block.text
+
+            # Add assistant response to conversation
+            self._conversation_history.append({
+                "role": "assistant",
+                "content": planning_analysis
+            })
+
+            logger.info(f"[Orchestrator] Planning analysis complete ({len(planning_analysis)} chars)")
+
+            # Store analysis in memory
+            await self._store_message(planning_analysis, "planning")
 
             # Build work graph from analysis
             self._build_work_graph(work_plan)
@@ -221,7 +264,7 @@ Focus on orchestration strategy, not implementation details."""
             # Phase 2: Spawn required agents
             await self._spawn_agents(work_plan.get("agents", []))
 
-            # Phase 3: Monitor execution with Claude's guidance
+            # Phase 3: Monitor execution
             self._phase = OrchestratorPhase.EXECUTING
             results = await self._execute_workflow(work_plan)
 
@@ -235,11 +278,20 @@ Focus on orchestration strategy, not implementation details."""
                 "status": "success",
                 "results": results,
                 "checkpoints": self._checkpoint_count,
-                "planning_analysis": planning_responses
+                "planning_analysis": planning_analysis
             }
 
+        except ImportError as e:
+            self.coordinator.update_agent_state(self.config.agent_id, "failed")
+            error_msg = f"Anthropic SDK not installed: {e}. Install with: uv pip install anthropic"
+            logger.error(f"[Orchestrator] {error_msg}")
+            return {
+                "status": "failed",
+                "error": error_msg
+            }
         except Exception as e:
             self.coordinator.update_agent_state(self.config.agent_id, "failed")
+            logger.error(f"[Orchestrator] Coordination failed: {type(e).__name__}: {str(e)}", exc_info=True)
             raise RuntimeError(f"Orchestration failed: {e}") from e
 
     def _build_planning_prompt(self, work_plan: Dict[str, Any]) -> str:
