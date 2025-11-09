@@ -6,7 +6,6 @@
 //! - High-frequency context monitoring (10ms polling)
 //! - Shared memory coordination between agents
 
-mod config;
 mod coordination;
 mod evaluation;
 mod memory;
@@ -23,9 +22,6 @@ pub use reviewer::{collect_implementation_from_memories, execution_memories_to_p
 /// Exposes Rust types and functions to Python as the `mnemosyne_core` module.
 #[pymodule]
 fn mnemosyne_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Configuration management
-    m.add_class::<config::PyConfigManager>()?;
-
     // Storage layer
     m.add_class::<storage::PyStorage>()?;
 
