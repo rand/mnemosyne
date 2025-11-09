@@ -786,15 +786,8 @@ ISSUES (if FAIL):
 
 Be strict: FAIL if ANY requirement is MISSING or PARTIAL."""
 
-        # Query Claude
-        await self.claude_client.query(prompt)
-
-        # Collect response
-        responses = []
-        async for message in self.claude_client.receive_response():
-            responses.append(str(message))
-
-        full_response = " ".join(responses)
+        # Call API for completeness check
+        full_response = await self._call_api(prompt)
 
         # Parse verdict and issues
         passed = "VERDICT: PASS" in full_response
@@ -880,13 +873,8 @@ MISSING/PARTIAL REQUIREMENTS:
 
 Be strict: FAIL if ANY requirement is not COMPLETE."""
 
-        await self.claude_client.query(prompt)
-
-        responses = []
-        async for message in self.claude_client.receive_response():
-            responses.append(str(message))
-
-        full_response = " ".join(responses)
+        # Call API for correctness check
+        full_response = await self._call_api(prompt)
 
         passed = "VERDICT: PASS" in full_response
         missing = []
@@ -987,13 +975,8 @@ ISSUES (if FAIL):
 
 Be thorough: FAIL if logic issues, unhandled edges, or missing error handling."""
 
-        await self.claude_client.query(prompt)
-
-        responses = []
-        async for message in self.claude_client.receive_response():
-            responses.append(str(message))
-
-        full_response = " ".join(responses)
+        # Call API for principled implementation check
+        full_response = await self._call_api(prompt)
 
         passed = "VERDICT: PASS" in full_response
         issues = []
@@ -1099,13 +1082,8 @@ When you've completed these fixes:
 
 Be specific and actionable. Focus on WHAT to fix and HOW to fix it."""
 
-        await self.claude_client.query(prompt)
-
-        responses = []
-        async for message in self.claude_client.receive_response():
-            responses.append(str(message))
-
-        return " ".join(responses)
+        # Call API for feedback generation
+        return await self._call_api(prompt)
 
     async def extract_requirements_from_intent(
         self,
@@ -1164,13 +1142,8 @@ Example format:
 
 Extract the requirements now, returning ONLY the JSON array:"""
 
-        await self.claude_client.query(prompt)
-
-        responses = []
-        async for message in self.claude_client.receive_response():
-            responses.append(str(message))
-
-        response_text = " ".join(responses)
+        # Call API for requirement extraction
+        response_text = await self._call_api(prompt)
 
         # Parse JSON response
         try:
