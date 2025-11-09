@@ -4,11 +4,13 @@ use mnemosyne_core::{
     error::{MnemosyneError, Result},
     storage::MemorySortOrder,
     ConnectionMode, LibsqlStorage, Namespace, StorageBackend,
+    orchestration::events::AgentEvent,
 };
 use std::{io::Write, path::PathBuf};
 use tracing::debug;
 
 use super::helpers::get_db_path;
+use super::event_helpers;
 
 /// Handle memory export command
 pub async fn handle(
@@ -16,11 +18,19 @@ pub async fn handle(
     namespace: Option<String>,
     global_db_path: Option<String>,
 ) -> Result<()> {
+    let start_time = std::time::Instant::now();
+
     if let Some(ref out_path) = output {
         debug!("Exporting memories to {}...", out_path);
     } else {
         debug!("Exporting memories to stdout...");
     }
+
+    // Emit ExportStarted event
+    event_helpers::emit_domain_event(AgentEvent::ExportStarted {
+        output_path: output.clone(),
+        namespace_filter: namespace.clone(),
+    }).await;
 
     // Initialize storage (read-only)
     let db_path = get_db_path(global_db_path);
@@ -73,52 +83,83 @@ pub async fn handle(
         ("json", true)
     };
 
+    // Track output size for event emission
+    let mut output_size_bytes = 0usize;
+
     // Helper closure to write formatted output
-    let write_output = |writer: &mut dyn Write| -> Result<()> {
+    let write_output = |writer: &mut dyn Write| -> Result<(usize,)> {
+        let mut bytes_written = 0usize;
         match format {
             "json" => {
                 // Pretty-printed JSON
                 let json = serde_json::to_string_pretty(&memories)?;
+                bytes_written += json.len();
                 writer.write_all(json.as_bytes())?;
+                bytes_written += 1;
                 writer.write_all(b"\n")?;
             }
             "jsonl" => {
                 // Newline-delimited JSON (one object per line)
                 for memory in &memories {
                     let json = serde_json::to_string(memory)?;
+                    bytes_written += json.len() + 1; // +1 for newline
                     writeln!(writer, "{}", json)?;
                 }
             }
             "markdown" => {
                 // Human-readable Markdown
-                writeln!(writer, "# Memory Export\n")?;
-                writeln!(writer, "Exported {} memories\n", memories.len())?;
-                writeln!(writer, "---\n")?;
+                let line = format!("# Memory Export\n");
+                bytes_written += line.len();
+                writer.write_all(line.as_bytes())?;
+
+                let line = format!("Exported {} memories\n", memories.len());
+                bytes_written += line.len();
+                writer.write_all(line.as_bytes())?;
+
+                let line = "---\n\n";
+                bytes_written += line.len();
+                writer.write_all(line.as_bytes())?;
 
                 for (i, memory) in memories.iter().enumerate() {
-                    writeln!(writer, "## {}. {}\n", i + 1, memory.summary)?;
-                    writeln!(writer, "**ID**: {}", memory.id)?;
-                    writeln!(
-                        writer,
-                        "**Namespace**: {}",
-                        serde_json::to_string(&memory.namespace)?
-                    )?;
-                    writeln!(writer, "**Importance**: {}/10", memory.importance)?;
-                    writeln!(writer, "**Type**: {:?}", memory.memory_type)?;
-                    writeln!(
-                        writer,
-                        "**Created**: {}",
-                        memory.created_at.format("%Y-%m-%d %H:%M:%S")
-                    )?;
+                    let lines = vec![
+                        format!("## {}. {}\n\n", i + 1, memory.summary),
+                        format!("**ID**: {}\n", memory.id),
+                        format!(
+                            "**Namespace**: {}\n",
+                            serde_json::to_string(&memory.namespace)?
+                        ),
+                        format!("**Importance**: {}/10\n", memory.importance),
+                        format!("**Type**: {:?}\n", memory.memory_type),
+                        format!(
+                            "**Created**: {}\n",
+                            memory.created_at.format("%Y-%m-%d %H:%M:%S")
+                        ),
+                    ];
+                    for line in lines {
+                        bytes_written += line.len();
+                        writer.write_all(line.as_bytes())?;
+                    }
+
                     if !memory.tags.is_empty() {
-                        writeln!(writer, "**Tags**: {}", memory.tags.join(", "))?;
+                        let line = format!("**Tags**: {}\n", memory.tags.join(", "));
+                        bytes_written += line.len();
+                        writer.write_all(line.as_bytes())?;
                     }
                     if !memory.keywords.is_empty() {
-                        writeln!(writer, "**Keywords**: {}", memory.keywords.join(", "))?;
+                        let line = format!("**Keywords**: {}\n", memory.keywords.join(", "));
+                        bytes_written += line.len();
+                        writer.write_all(line.as_bytes())?;
                     }
-                    writeln!(writer, "\n### Content\n")?;
-                    writeln!(writer, "{}\n", memory.content)?;
-                    writeln!(writer, "---\n")?;
+
+                    let lines = vec![
+                        "\n### Content\n\n".to_string(),
+                        format!("{}\n\n", memory.content),
+                        "---\n\n".to_string(),
+                    ];
+                    for line in lines {
+                        bytes_written += line.len();
+                        writer.write_all(line.as_bytes())?;
+                    }
                 }
             }
             _ => {
@@ -128,7 +169,7 @@ pub async fn handle(
                 )));
             }
         }
-        Ok(())
+        Ok((bytes_written,))
     };
 
     // Write to stdout or file

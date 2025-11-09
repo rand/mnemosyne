@@ -1,9 +1,18 @@
 //! TUI wrapper command (deprecated)
 
-use mnemosyne_core::{error::Result, icons};
+use mnemosyne_core::{error::Result, icons, orchestration::events::AgentEvent};
+use super::event_helpers;
 
 /// Handle TUI wrapper command (deprecated)
 pub async fn handle() -> Result<()> {
+    let start_time = std::time::Instant::now();
+
+    // Emit dashboard started event (even though deprecated)
+    event_helpers::emit_domain_event(AgentEvent::DashboardStarted {
+        dashboard_type: "tui".to_string(),
+        timestamp: chrono::Utc::now(),
+    }).await;
+
     // TUI wrapper mode is deprecated due to TUI-in-TUI conflicts
     eprintln!();
     eprintln!(
@@ -42,6 +51,13 @@ pub async fn handle() -> Result<()> {
     eprintln!("   {} Migration Guide:", icons::data::folder());
     eprintln!("      https://github.com/rand/mnemosyne/blob/main/docs/MIGRATION.md");
     eprintln!();
+
+    // Emit dashboard stopped event
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+    event_helpers::emit_domain_event(AgentEvent::DashboardStopped {
+        dashboard_type: "tui".to_string(),
+        duration_ms,
+    }).await;
 
     std::process::exit(1);
 }

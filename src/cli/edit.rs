@@ -3,12 +3,13 @@
 use clap::ValueEnum;
 use mnemosyne_core::{
     error::Result, icons, ics::{IcsApp, IcsConfig, PanelType}, ConnectionMode, LibsqlStorage,
-    StorageBackend,
+    StorageBackend, orchestration::events::AgentEvent,
 };
 use std::{path::PathBuf, sync::Arc};
 use tracing::debug;
 
 use super::helpers::get_db_path;
+use super::event_helpers;
 
 /// ICS template options
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -113,7 +114,16 @@ pub async fn handle(
     session_context: Option<PathBuf>,
     global_db_path: Option<String>,
 ) -> Result<()> {
+    let start_time = std::time::Instant::now();
+
     debug!("Launching Integrated Context Studio (ICS)...");
+
+    // Emit IcsSessionStarted event
+    event_helpers::emit_domain_event(AgentEvent::IcsSessionStarted {
+        file_path: file.as_ref().map(|p| p.display().to_string()),
+        template: template.map(|t| format!("{:?}", t)),
+        timestamp: chrono::Utc::now(),
+    }).await;
 
     // Initialize storage backend
     let db_path = get_db_path(global_db_path);
@@ -220,6 +230,14 @@ pub async fn handle(
     app.run().await?;
 
     debug!("ICS exiting cleanly");
+
+    // Emit IcsSessionEnded event
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+    event_helpers::emit_domain_event(AgentEvent::IcsSessionEnded {
+        file_path: file.as_ref().map(|p| p.display().to_string()),
+        changes_saved: true, // ICS always saves changes on exit (Ctrl+S or auto-save)
+        duration_ms,
+    }).await;
 
     // TODO: If session_context provided, write result
     // This will be done in Phase 2

@@ -8,20 +8,31 @@ use mnemosyne_core::{
     error::Result,
     launcher::agents::AgentRole,
     orchestration::{
+        events::AgentEvent,
         messages::OrchestratorMessage,
         state::{AgentState, Phase, WorkItem, WorkItemId},
         OrchestrationEngine,
     },
 };
 use std::io::{self, Write};
-use std::sync::Arc;
+use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
 use tracing::{debug, error, info};
+use super::event_helpers;
 
 /// Run interactive mode with orchestration engine
 pub async fn run(
     mut engine: OrchestrationEngine,
     state_manager: Option<Arc<StateManager>>,
 ) -> Result<()> {
+    let start_time = std::time::Instant::now();
+    let commands_executed = Arc::new(AtomicU64::new(0));
+
+    // Emit interactive mode started event
+    event_helpers::emit_domain_event(AgentEvent::InteractiveModeStarted {
+        mode: "orchestration".to_string(),
+        timestamp: chrono::Utc::now(),
+    }).await;
+
     println!();
     println!("📋 Mnemosyne Multi-Agent System");
     println!("════════════════════════════════════════════════════════════");
@@ -55,25 +66,33 @@ pub async fn run(
 
         match trimmed {
             "" => continue,
-            "help" => show_help(),
+            "help" => {
+                show_help();
+                commands_executed.fetch_add(1, Ordering::Relaxed);
+            }
             "quit" | "exit" => {
                 info!("Shutting down...");
+                commands_executed.fetch_add(1, Ordering::Relaxed);
                 break;
             }
             "status" => {
                 show_status(&state_manager).await?;
+                commands_executed.fetch_add(1, Ordering::Relaxed);
             }
             cmd if cmd.starts_with("recall:") => {
                 let query = cmd.strip_prefix("recall:").unwrap().trim();
                 println!("Memory recall: {} (not yet implemented)", query);
+                commands_executed.fetch_add(1, Ordering::Relaxed);
             }
             cmd if cmd.starts_with("work:") => {
                 let desc = cmd.strip_prefix("work:").unwrap().trim();
                 submit_work(&orchestrator, desc).await?;
+                commands_executed.fetch_add(1, Ordering::Relaxed);
             }
             desc => {
                 // Treat any other input as work description
                 submit_work(&orchestrator, desc).await?;
+                commands_executed.fetch_add(1, Ordering::Relaxed);
             }
         }
     }
@@ -84,6 +103,15 @@ pub async fn run(
 
     println!();
     println!("✓ Shutdown complete");
+
+    // Emit interactive mode ended event
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+    let total_commands = commands_executed.load(Ordering::Relaxed);
+    event_helpers::emit_domain_event(AgentEvent::InteractiveModeEnded {
+        commands_executed: total_commands,
+        duration_ms,
+    }).await;
+
     Ok(())
 }
 

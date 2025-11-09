@@ -6,10 +6,13 @@ use mnemosyne_core::{
     icons,
     ConnectionMode, LibsqlStorage,
 };
+use mnemosyne_core::orchestration::events::AgentEvent;
 use std::path::PathBuf;
 use std::sync::Arc;
+use chrono::Utc;
 
 use super::helpers::get_db_path;
+use super::event_helpers;
 
 #[derive(Debug, Subcommand)]
 pub enum ArtifactCommands {

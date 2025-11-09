@@ -4,14 +4,23 @@ use mnemosyne_core::{
     error::Result,
     health::{run_health_checks, print_health_summary, CheckStatus},
     LibsqlStorage,
+    orchestration::events::AgentEvent,
 };
 use tracing::debug;
 
 use super::helpers::get_db_path;
+use super::event_helpers;
 
 /// Handle doctor command
 pub async fn handle(verbose: bool, fix: bool, json: bool, global_db_path: Option<String>) -> Result<()> {
+    let start_time = std::time::Instant::now();
+
     debug!("Running health checks...");
+
+    // Emit HealthCheckStarted event
+    event_helpers::emit_domain_event(AgentEvent::HealthCheckStarted {
+        timestamp: chrono::Utc::now(),
+    }).await;
 
     // Get database path
     let db_path = get_db_path(global_db_path);
@@ -22,12 +31,26 @@ pub async fn handle(verbose: bool, fix: bool, json: bool, global_db_path: Option
     // Run health checks
     let summary = run_health_checks(&storage, verbose, fix).await?;
 
+    // Extract check counts
+    let checks_passed = summary.results.iter().filter(|r| matches!(r.status, CheckStatus::Pass)).count() as u32;
+    let checks_failed = summary.results.iter().filter(|r| matches!(r.status, CheckStatus::Fail)).count() as u32;
+    let checks_warned = summary.results.iter().filter(|r| matches!(r.status, CheckStatus::Warn)).count() as u32;
+
     // Output results
     if json {
         println!("{}", serde_json::to_string_pretty(&summary)?);
     } else {
         print_health_summary(&summary, verbose);
     }
+
+    // Emit HealthCheckCompleted event
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+    event_helpers::emit_domain_event(AgentEvent::HealthCheckCompleted {
+        checks_passed,
+        checks_failed,
+        checks_warned,
+        duration_ms,
+    }).await;
 
     // Exit with appropriate code
     match summary.status {

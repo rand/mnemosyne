@@ -4,10 +4,12 @@ use mnemosyne_core::{
     error::Result, ConnectionMode, EmbeddingConfig, LibsqlStorage, LocalEmbeddingService,
     MemoryId, Namespace, StorageBackend,
 };
+use mnemosyne_core::orchestration::events::AgentEvent;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use super::helpers::get_db_path;
+use super::event_helpers;
 
 /// Handle embedding generation command
 pub async fn handle(
@@ -18,20 +20,22 @@ pub async fn handle(
     progress: bool,
     global_db_path: Option<String>,
 ) -> Result<()> {
-    // Initialize embedding service
-    println!("Initializing local embedding service...");
-    let embedding_config = EmbeddingConfig::default();
-    let embedding_service = Arc::new(LocalEmbeddingService::new(embedding_config).await?);
+    event_helpers::with_event_lifecycle("embed", vec![], async {
+        // Initialize embedding service
+        println!("Initializing local embedding service...");
+        let embedding_config = EmbeddingConfig::default();
+        let model_name = embedding_config.model_name.clone();
+        let embedding_service = Arc::new(LocalEmbeddingService::new(embedding_config).await?);
 
-    // Initialize storage
-    let db_path = get_db_path(global_db_path);
-    let mut storage = LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
+        // Initialize storage
+        let db_path = get_db_path(global_db_path);
+        let mut storage = LibsqlStorage::new(ConnectionMode::Local(db_path.clone())).await?;
 
-    // Set embedding service on storage
-    storage.set_embedding_service(embedding_service.clone());
+        // Set embedding service on storage
+        storage.set_embedding_service(embedding_service.clone());
 
-    // Determine which memories to embed
-    let memories = if let Some(id_str) = memory_id {
+        // Determine which memories to embed
+        let memories = if let Some(id_str) = memory_id {
         // Single memory
         let uuid =
             Uuid::parse_str(&id_str).map_err(|e| anyhow::anyhow!("Invalid memory ID: {}", e))?;
@@ -79,44 +83,72 @@ pub async fn handle(
     let total = memories.len();
     println!("Generating embeddings for {} memories...", total);
 
-    // Process memories in batches
-    let mut processed = 0;
-    let mut succeeded = 0;
-    let mut failed = 0;
+        // Process memories in batches
+        let mut processed = 0;
+        let mut succeeded = 0;
+        let mut failed = 0;
+        let batch_start = std::time::Instant::now();
 
-    for chunk in memories.chunks(batch_size) {
-        for memory in chunk {
-            processed += 1;
+        for chunk in memories.chunks(batch_size) {
+            for memory in chunk {
+                processed += 1;
 
-            if progress {
-                print!("\rProgress: {}/{} ", processed, total);
-                use std::io::Write;
-                std::io::stdout().flush().unwrap();
-            }
+                if progress {
+                    print!("\rProgress: {}/{} ", processed, total);
+                    use std::io::Write;
+                    std::io::stdout().flush().unwrap();
+                }
 
-            match storage
-                .generate_and_store_embedding(&memory.id, &memory.content)
-                .await
-            {
-                Ok(_) => succeeded += 1,
-                Err(e) => {
-                    if progress {
-                        eprintln!("\nFailed to embed memory {}: {}", memory.id, e);
+                let embed_start = std::time::Instant::now();
+                match storage
+                    .generate_and_store_embedding(&memory.id, &memory.content)
+                    .await
+                {
+                    Ok(_) => {
+                        succeeded += 1;
+                        let duration_ms = embed_start.elapsed().as_millis() as u64;
+
+                        // For single memory operations, emit individual event
+                        if total == 1 {
+                            event_helpers::emit_domain_event(AgentEvent::EmbeddingGenerated {
+                                memory_id: memory.id.0.to_string(),
+                                model_name: model_name.clone(),
+                                dimension: 768, // Default dimension for nomic-embed-text-v1.5
+                                duration_ms,
+                            }).await;
+                        }
                     }
-                    failed += 1;
+                    Err(e) => {
+                        if progress {
+                            eprintln!("\nFailed to embed memory {}: {}", memory.id, e);
+                        }
+                        failed += 1;
+                    }
                 }
             }
         }
-    }
 
-    if progress {
-        println!();
-    }
+        if progress {
+            println!();
+        }
 
-    println!("Embedding generation complete!");
-    println!("  Total: {}", total);
-    println!("  Succeeded: {}", succeeded);
-    println!("  Failed: {}", failed);
+        let total_duration_ms = batch_start.elapsed().as_millis() as u64;
 
-    Ok(())
+        // For batch operations (multiple memories), emit batch completed event
+        if total > 1 {
+            event_helpers::emit_domain_event(AgentEvent::EmbeddingBatchCompleted {
+                batch_size: total,
+                successful: succeeded,
+                failed,
+                total_duration_ms,
+            }).await;
+        }
+
+        println!("Embedding generation complete!");
+        println!("  Total: {}", total);
+        println!("  Succeeded: {}", succeeded);
+        println!("  Failed: {}", failed);
+
+        Ok(())
+    }).await
 }

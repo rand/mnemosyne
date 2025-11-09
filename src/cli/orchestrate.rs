@@ -5,11 +5,13 @@ use mnemosyne_core::{
     error::Result,
     icons,
     launcher,
+    orchestration::events::AgentEvent,
 };
 use std::sync::Arc;
 use tracing::debug;
 
 use super::helpers::{get_db_path, process_structured_plan};
+use super::event_helpers;
 
 /// Handle multi-agent orchestration command
 pub async fn handle(
@@ -18,6 +20,8 @@ pub async fn handle(
     dashboard: bool,
     max_concurrent: u8,
 ) -> Result<()> {
+    let start_time = std::time::Instant::now();
+
     debug!("Launching multi-agent orchestration system...");
 
     let db_path = get_db_path(database);
@@ -34,6 +38,19 @@ pub async fn handle(
     // Note: max_concurrent_agents is currently not used by launch_orchestrated_session
     // TODO: Add max_concurrent support to orchestration engine
     let _ = max_concurrent; // Acknowledge parameter
+
+    // Emit OrchestrationStarted event
+    let plan_description = if plan.len() > 100 {
+        format!("{}...", plan.chars().take(100).collect::<String>())
+    } else {
+        plan.clone()
+    };
+
+    event_helpers::emit_domain_event(AgentEvent::OrchestrationStarted {
+        plan_description,
+        max_concurrent,
+        timestamp: chrono::Utc::now(),
+    }).await;
 
     // Start embedded API server if dashboard requested
     let (event_broadcaster, state_manager, api_task) = if dashboard {
@@ -109,5 +126,17 @@ pub async fn handle(
 
     println!();
     println!("{} Orchestration session complete", icons::status::ready());
+
+    // Emit OrchestrationCompleted event
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+
+    // For now, we don't have work item counts from launch_orchestrated_session
+    // TODO: Update launch_orchestrated_session to return work item stats
+    event_helpers::emit_domain_event(AgentEvent::OrchestrationCompleted {
+        work_items_completed: 0,  // TODO: extract from results
+        work_items_failed: 0,     // TODO: extract from results
+        duration_ms,
+    }).await;
+
     Ok(())
 }
