@@ -11,6 +11,7 @@
 //! - Auto-scroll with recent events at bottom
 //! - Ring buffer to prevent unlimited growth
 
+use crate::colors::DashboardColors;
 use crate::correlation::{CorrelatedEvent, CorrelationTracker, OperationStatus};
 use crate::filters::{EventCategory, EventFilter, FilterPresets, FilterStats};
 use mnemosyne_core::api::events::Event;
@@ -90,6 +91,7 @@ impl ActivityStreamPanel {
             correlation_tracker: CorrelationTracker::new(100),
             filter_stats: FilterStats::default(),
             max_entries: MAX_EVENTS,
+            focus_mode: FocusMode::Normal,
         }
     }
 
@@ -107,6 +109,72 @@ impl ActivityStreamPanel {
     /// Get filter statistics
     pub fn filter_stats(&self) -> &FilterStats {
         &self.filter_stats
+    }
+
+    /// Set focus mode
+    pub fn set_focus_mode(&mut self, mode: FocusMode) {
+        self.focus_mode = mode.clone();
+
+        // Update filter based on focus mode
+        match mode {
+            FocusMode::Normal => {
+                self.filter = FilterPresets::default();
+            }
+            FocusMode::ErrorFocus => {
+                self.filter = FilterPresets::error_focus();
+            }
+            FocusMode::AgentFocus(agent_id) => {
+                self.filter = FilterPresets::agent_focus(agent_id);
+            }
+        }
+
+        self.filter_stats.reset();
+    }
+
+    /// Get current focus mode
+    pub fn get_focus_mode(&self) -> &FocusMode {
+        &self.focus_mode
+    }
+
+    /// Toggle error focus mode (on/off)
+    pub fn toggle_error_focus(&mut self) {
+        match self.focus_mode {
+            FocusMode::ErrorFocus => {
+                // Disable error focus, go back to normal
+                self.set_focus_mode(FocusMode::Normal);
+            }
+            _ => {
+                // Enable error focus
+                self.set_focus_mode(FocusMode::ErrorFocus);
+            }
+        }
+    }
+
+    /// Toggle agent focus mode (cycle through agents or disable)
+    pub fn toggle_agent_focus(&mut self, available_agents: Vec<String>) {
+        match &self.focus_mode {
+            FocusMode::AgentFocus(current_agent) => {
+                // Find next agent in list, or go back to normal if at end
+                if let Some(pos) = available_agents.iter().position(|id| id == current_agent) {
+                    if pos + 1 < available_agents.len() {
+                        // Move to next agent
+                        self.set_focus_mode(FocusMode::AgentFocus(available_agents[pos + 1].clone()));
+                    } else {
+                        // At end of list, disable agent focus
+                        self.set_focus_mode(FocusMode::Normal);
+                    }
+                } else {
+                    // Current agent not in list, disable
+                    self.set_focus_mode(FocusMode::Normal);
+                }
+            }
+            _ => {
+                // Enable agent focus with first available agent
+                if let Some(first_agent) = available_agents.first() {
+                    self.set_focus_mode(FocusMode::AgentFocus(first_agent.clone()));
+                }
+            }
+        }
     }
 
     /// Add an event to the activity stream
@@ -213,10 +281,10 @@ impl ActivityStreamPanel {
             // Empty state
             vec![
                 ListItem::new(Line::from(vec![
-                    Span::styled("No events yet", Style::default().fg(Color::DarkGray)),
+                    Span::styled("No events yet", Style::default().fg(DashboardColors::MUTED)),
                 ])),
                 ListItem::new(Line::from(vec![
-                    Span::styled("Waiting for activity...", Style::default().fg(Color::DarkGray)),
+                    Span::styled("Waiting for activity...", Style::default().fg(DashboardColors::MUTED)),
                 ])),
             ]
         } else {
@@ -228,22 +296,37 @@ impl ActivityStreamPanel {
         };
 
         // Calculate filter stats for title
+        let focus_indicator = match &self.focus_mode {
+            FocusMode::Normal => String::new(),
+            FocusMode::ErrorFocus => " [ERRORS]".to_string(),
+            FocusMode::AgentFocus(agent_id) => {
+                // Truncate agent ID if too long
+                let truncated = if agent_id.len() > 12 {
+                    format!("{}...", &agent_id[..9])
+                } else {
+                    agent_id.clone()
+                };
+                format!(" [AGENT: {}]", truncated)
+            }
+        };
+
         let title = if self.filter_stats.total > 0 {
             format!(
-                "Activity Stream ({}/{} events, {:.0}% pass rate)",
+                "Activity Stream{} ({}/{} events, {:.0}% pass rate)",
+                focus_indicator,
                 self.filter_stats.passed,
                 self.filter_stats.total,
                 self.filter_stats.pass_rate()
             )
         } else {
-            "Activity Stream".to_string()
+            format!("Activity Stream{}", focus_indicator)
         };
 
         let list = List::new(items).block(
             Block::default()
                 .borders(Borders::ALL)
                 .title(title)
-                .border_style(Style::default().fg(Color::Cyan)),
+                .border_style(Style::default().fg(DashboardColors::BORDER)),
         );
 
         frame.render_widget(list, area);
@@ -269,7 +352,7 @@ impl ActivityStreamPanel {
         ListItem::new(Line::from(vec![
             Span::styled(
                 format!("{:>6} ", relative_time),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DashboardColors::SECONDARY),
             ),
             Span::styled(
                 format!("[{}] ", category_prefix),
@@ -277,7 +360,7 @@ impl ActivityStreamPanel {
                     .fg(category_color)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(description, Style::default().fg(Color::White)),
+            Span::styled(description, Style::default().fg(DashboardColors::TEXT)),
         ]))
     }
 
@@ -288,9 +371,9 @@ impl ActivityStreamPanel {
 
         // Status color and symbol
         let (status_color, status_symbol) = match corr.status {
-            OperationStatus::InProgress => (Color::Yellow, "⟳"),
-            OperationStatus::Completed => (Color::Green, "✓"),
-            OperationStatus::Failed => (Color::Red, "✗"),
+            OperationStatus::InProgress => (DashboardColors::IN_PROGRESS, "⟳"),
+            OperationStatus::Completed => (DashboardColors::SUCCESS, "✓"),
+            OperationStatus::Failed => (DashboardColors::ERROR, "✗"),
         };
 
         // Duration string (if completed)
@@ -303,7 +386,7 @@ impl ActivityStreamPanel {
         ListItem::new(Line::from(vec![
             Span::styled(
                 format!("{:>6} ", relative_time),
-                Style::default().fg(Color::DarkGray),
+                Style::default().fg(DashboardColors::SECONDARY),
             ),
             Span::styled(
                 format!("[{}] ", status_symbol),
@@ -311,13 +394,13 @@ impl ActivityStreamPanel {
                     .fg(status_color)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(description, Style::default().fg(Color::White)),
+            Span::styled(description, Style::default().fg(DashboardColors::TEXT)),
             Span::styled(
                 duration_str,
                 Style::default().fg(if corr.is_slow() {
-                    Color::Yellow
+                    DashboardColors::WARNING
                 } else {
-                    Color::DarkGray
+                    DashboardColors::SECONDARY
                 }),
             ),
         ]))
@@ -326,14 +409,14 @@ impl ActivityStreamPanel {
     /// Get color for event category
     fn category_color(category: &EventCategory) -> Color {
         match category {
-            EventCategory::Cli => Color::Blue,
-            EventCategory::Memory => Color::Magenta,
-            EventCategory::Agent => Color::Yellow,
-            EventCategory::Skill => Color::Cyan,
-            EventCategory::Work => Color::Green,
-            EventCategory::Context => Color::LightBlue,
-            EventCategory::System => Color::DarkGray,
-            EventCategory::Error => Color::Red,
+            EventCategory::Cli => DashboardColors::CLI,
+            EventCategory::Memory => DashboardColors::MEMORY,
+            EventCategory::Agent => DashboardColors::AGENT,
+            EventCategory::Skill => DashboardColors::SKILL,
+            EventCategory::Work => DashboardColors::WORK,
+            EventCategory::Context => DashboardColors::CONTEXT,
+            EventCategory::System => DashboardColors::IDLE,
+            EventCategory::Error => DashboardColors::ERROR,
         }
     }
 
@@ -634,8 +717,8 @@ mod tests {
 
     #[test]
     fn test_category_colors_and_prefixes() {
-        assert_eq!(ActivityStreamPanel::category_color(&EventCategory::Cli), Color::Blue);
-        assert_eq!(ActivityStreamPanel::category_color(&EventCategory::Error), Color::Red);
+        assert_eq!(ActivityStreamPanel::category_color(&EventCategory::Cli), DashboardColors::CLI);
+        assert_eq!(ActivityStreamPanel::category_color(&EventCategory::Error), DashboardColors::ERROR);
 
         assert_eq!(ActivityStreamPanel::category_prefix(&EventCategory::Cli), "CLI");
         assert_eq!(ActivityStreamPanel::category_prefix(&EventCategory::Error), "ERR");
@@ -648,5 +731,127 @@ mod tests {
             ActivityStreamPanel::truncate("very long string here", 10),
             "very lo..."
         );
+    }
+
+    #[test]
+    fn test_focus_mode_normal() {
+        let mut panel = ActivityStreamPanel::new();
+        assert_eq!(*panel.get_focus_mode(), FocusMode::Normal);
+
+        // Normal mode should show non-heartbeat events
+        panel.add_event(create_memory_stored());
+        assert_eq!(panel.entry_count(), 1);
+    }
+
+    #[test]
+    fn test_toggle_error_focus() {
+        let mut panel = ActivityStreamPanel::new();
+
+        // Initially in Normal mode
+        assert_eq!(*panel.get_focus_mode(), FocusMode::Normal);
+
+        // Toggle to error focus
+        panel.toggle_error_focus();
+        assert_eq!(*panel.get_focus_mode(), FocusMode::ErrorFocus);
+
+        // Toggle back to normal
+        panel.toggle_error_focus();
+        assert_eq!(*panel.get_focus_mode(), FocusMode::Normal);
+    }
+
+    #[test]
+    fn test_error_focus_filters_events() {
+        let mut panel = ActivityStreamPanel::new();
+        panel.set_focus_mode(FocusMode::ErrorFocus);
+
+        // Normal events should be filtered
+        panel.add_event(create_memory_stored());
+        assert_eq!(panel.entry_count(), 0);
+
+        // Error events should pass
+        let error = Event::new(EventType::AgentFailed {
+            agent_id: "test".to_string(),
+            error: "Error".to_string(),
+            timestamp: Utc::now(),
+        });
+        panel.add_event(error);
+        assert_eq!(panel.entry_count(), 1);
+    }
+
+    #[test]
+    fn test_toggle_agent_focus_no_agents() {
+        let mut panel = ActivityStreamPanel::new();
+
+        // Toggle with no agents should do nothing
+        panel.toggle_agent_focus(vec![]);
+        assert_eq!(*panel.get_focus_mode(), FocusMode::Normal);
+    }
+
+    #[test]
+    fn test_toggle_agent_focus_single_agent() {
+        let mut panel = ActivityStreamPanel::new();
+
+        // Toggle to agent focus
+        panel.toggle_agent_focus(vec!["executor".to_string()]);
+        assert_eq!(*panel.get_focus_mode(), FocusMode::AgentFocus("executor".to_string()));
+
+        // Toggle again should disable (end of list)
+        panel.toggle_agent_focus(vec!["executor".to_string()]);
+        assert_eq!(*panel.get_focus_mode(), FocusMode::Normal);
+    }
+
+    #[test]
+    fn test_toggle_agent_focus_multiple_agents() {
+        let mut panel = ActivityStreamPanel::new();
+
+        let agents = vec!["executor".to_string(), "optimizer".to_string(), "reviewer".to_string()];
+
+        // First toggle: focus on first agent
+        panel.toggle_agent_focus(agents.clone());
+        assert_eq!(*panel.get_focus_mode(), FocusMode::AgentFocus("executor".to_string()));
+
+        // Second toggle: focus on second agent
+        panel.toggle_agent_focus(agents.clone());
+        assert_eq!(*panel.get_focus_mode(), FocusMode::AgentFocus("optimizer".to_string()));
+
+        // Third toggle: focus on third agent
+        panel.toggle_agent_focus(agents.clone());
+        assert_eq!(*panel.get_focus_mode(), FocusMode::AgentFocus("reviewer".to_string()));
+
+        // Fourth toggle: back to normal (end of list)
+        panel.toggle_agent_focus(agents);
+        assert_eq!(*panel.get_focus_mode(), FocusMode::Normal);
+    }
+
+    #[test]
+    fn test_set_focus_mode_resets_stats() {
+        let mut panel = ActivityStreamPanel::new();
+
+        // Add some events
+        panel.add_event(create_memory_stored());
+        panel.add_event(create_memory_stored());
+
+        assert!(panel.filter_stats().total > 0);
+
+        // Changing focus mode should reset stats
+        panel.set_focus_mode(FocusMode::ErrorFocus);
+        assert_eq!(panel.filter_stats().total, 0);
+    }
+
+    #[test]
+    fn test_focus_mode_transitions() {
+        let mut panel = ActivityStreamPanel::new();
+
+        // Set to error focus
+        panel.set_focus_mode(FocusMode::ErrorFocus);
+        assert_eq!(*panel.get_focus_mode(), FocusMode::ErrorFocus);
+
+        // Set to agent focus
+        panel.set_focus_mode(FocusMode::AgentFocus("executor".to_string()));
+        assert_eq!(*panel.get_focus_mode(), FocusMode::AgentFocus("executor".to_string()));
+
+        // Toggle error focus should enable it (not disable, since we're in agent mode)
+        panel.toggle_error_focus();
+        assert_eq!(*panel.get_focus_mode(), FocusMode::ErrorFocus);
     }
 }

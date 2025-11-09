@@ -8,13 +8,14 @@
 //! - Scrolling support for many agents
 //! - Health indicators from events
 
+use crate::colors::DashboardColors;
 use crate::time_series::TimeSeriesBuffer;
 use crate::widgets::{Sparkline, StateIndicator, StateType};
 use chrono::{DateTime, Utc};
 use mnemosyne_core::api::events::{Event, EventType};
 use ratatui::{
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem},
     Frame,
@@ -363,9 +364,9 @@ impl AgentsPanel {
         if stats.total > 0 {
             // Row 1: Totals and state breakdown
             let stats_line = Line::from(vec![
-                Span::styled("Stats: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled("Stats: ", Style::default().add_modifier(Modifier::BOLD).add_modifier(Modifier::DIM)),
                 Span::raw("Total: "),
-                Span::styled(format!("{}", stats.total), Style::default().fg(Color::Cyan)),
+                Span::styled(format!("{}", stats.total), Style::default().fg(DashboardColors::HIGHLIGHT)),
                 Span::raw(" | "),
                 StateIndicator::new(StateType::Active, format!("{}", stats.active)).render(),
                 Span::raw(" "),
@@ -380,13 +381,13 @@ impl AgentsPanel {
             // Row 2: Average operation duration
             if stats.avg_operation_duration_ms > 0 {
                 let avg_duration_line = Line::from(vec![
-                    Span::styled("Avg Duration: ", Style::default().add_modifier(Modifier::BOLD)),
+                    Span::styled("Avg Duration: ", Style::default().add_modifier(Modifier::BOLD).add_modifier(Modifier::DIM)),
                     Span::styled(
                         Self::format_duration_ms(stats.avg_operation_duration_ms),
                         Style::default().fg(if stats.avg_operation_duration_ms > 10000 {
-                            Color::Yellow
+                            DashboardColors::WARNING
                         } else {
-                            Color::Green
+                            DashboardColors::SUCCESS
                         }),
                     ),
                 ]);
@@ -397,7 +398,7 @@ impl AgentsPanel {
             if !active_count_data.is_empty() {
                 let sparkline = Sparkline::new(&active_count_data)
                     .width(20)
-                    .style(Style::default().fg(Color::Green));
+                    .style(Style::default().fg(DashboardColors::SUCCESS));
 
                 let mut spans = vec![
                     Span::styled(
@@ -416,7 +417,7 @@ impl AgentsPanel {
             items.push(ListItem::new(Line::from(vec![Span::styled(
                 "No active agents",
                 Style::default()
-                    .fg(Color::DarkGray)
+                    .fg(DashboardColors::MUTED)
                     .add_modifier(Modifier::ITALIC),
             )])));
         } else {
@@ -474,8 +475,8 @@ impl AgentsPanel {
                         ),
                         Span::raw(" "),
                         StateIndicator::new(state_type, state_text).render(),
-                        Span::styled(duration_str, Style::default().fg(Color::DarkGray)),
-                        Span::styled(task_str, Style::default().fg(Color::Gray)),
+                        Span::styled(duration_str, Style::default().fg(DashboardColors::SECONDARY)),
+                        Span::styled(task_str, Style::default().fg(DashboardColors::IDLE)),
                     ];
 
                     if let Some(health) = health_span {
@@ -548,6 +549,18 @@ impl AgentsPanel {
     /// Get number of agents
     pub fn agent_count(&self) -> usize {
         self.agents.len()
+    }
+
+    /// Get list of active agent IDs (sorted by priority)
+    pub fn get_active_agent_ids(&self) -> Vec<String> {
+        let mut agents: Vec<&TrackedAgent> = self.tracked_agents.values().collect();
+        agents.sort_by(|a, b| {
+            let a_priority = Self::state_priority(&a.state);
+            let b_priority = Self::state_priority(&b.state);
+            a_priority.cmp(&b_priority).then_with(|| a.id.cmp(&b.id))
+        });
+
+        agents.iter().map(|a| a.id.clone()).collect()
     }
 }
 

@@ -15,7 +15,7 @@ pub mod events;
 pub mod operations;
 pub mod system_overview;
 
-pub use activity_stream::ActivityStreamPanel;
+pub use activity_stream::{ActivityStreamPanel, FocusMode};
 pub use agents::{AgentInfo, AgentsPanel};
 pub use events::EventLogPanel;
 pub use operations::{OperationEntry, OperationStatus, OperationsPanel};

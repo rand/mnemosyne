@@ -476,5 +476,46 @@ mod tests {
         let _ = FilterPresets::activity_focus();
         let _ = FilterPresets::recent(5);
         let _ = FilterPresets::high_priority();
+        let _ = FilterPresets::error_focus();
+    }
+
+    #[test]
+    fn test_error_focus_preset() {
+        let filter = FilterPresets::error_focus();
+
+        // Should hide heartbeats
+        let heartbeat = Event::new(EventType::Heartbeat {
+            instance_id: "test".to_string(),
+            timestamp: chrono::Utc::now(),
+        });
+        assert!(!filter.matches(&heartbeat));
+
+        // Should show errors
+        let error = Event::new(EventType::AgentFailed {
+            agent_id: "agent-1".to_string(),
+            error: "Test error".to_string(),
+            timestamp: chrono::Utc::now(),
+        });
+        assert!(filter.matches(&error));
+
+        // Should not show normal events
+        let normal = Event::new(EventType::MemoryStored {
+            memory_id: "mem-123".to_string(),
+            summary: "Test".to_string(),
+            timestamp: chrono::Utc::now(),
+        });
+        assert!(!filter.matches(&normal));
+    }
+
+    #[test]
+    fn test_agent_focus_preset_hides_heartbeats() {
+        let filter = FilterPresets::agent_focus("executor");
+
+        // Should hide heartbeats even from the focused agent
+        let heartbeat = Event::new(EventType::Heartbeat {
+            instance_id: "test".to_string(),
+            timestamp: chrono::Utc::now(),
+        });
+        assert!(!filter.matches(&heartbeat));
     }
 }

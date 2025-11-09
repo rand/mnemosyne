@@ -7,18 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+**Dashboard Complete Redesign** - "From Static Wall of Garbage to Production Monitoring"
+- **4-Panel Layout**: Redesigned from rigid 7-panel layout to clean, hierarchical 4-panel system
+  - System Overview (top, 6-8 lines): At-a-glance health metrics, agent counts, event rates
+  - Activity Stream (left, 60%): Intelligent event log with filtering and correlation
+  - Agent Details (right-top, 40%): Per-agent status, work queues, health metrics
+  - Operations (right-bottom, 40%): CLI command history with outcomes and timings
+- **Smart Event Filtering**: Intelligent noise reduction with 8 event categories
+  - Default: Hide heartbeats, show actionable events
+  - Categories: CLI, Memory, Agent, Skill, Work, Context, System, Error
+  - Compound filters: AND/OR/NOT logic, regex search, time ranges
+  - Filter presets: errors-only, agent-focus, activity-focus, high-priority
+  - Statistics tracking: Pass rate, total/filtered event counts
+- **Event Correlation Engine**: Links related events for operation lifecycles
+  - Correlates: CLI commands, agent operations, memory evolution, work items
+  - Automatic duration calculation between start→complete events
+  - Slow operation detection: >1s CLI, >5s agents, >10s evolution, >2s work items
+  - Success rate tracking and failure analysis
+  - Maintains history (default 100 operations) with circular buffer
+- **Real-time SSE Streaming**: Zero-latency event delivery from API server
+  - Persistent HTTP connection with auto-reconnect (5-second backoff)
+  - Multiplexed stream across all MCP instances (owner + clients)
+  - Event parsing with SSE protocol (`data:`, empty line delimiters)
+  - Async event routing via unbounded channels
+- **Full Keyboard Control**: Interactive navigation without mouse
+  - `q`/`Esc`: Quit dashboard
+  - `0`: Toggle all panels
+  - `h`: Toggle System Overview
+  - `1`: Toggle Activity Stream
+  - `2`: Toggle Agent Details
+  - `3`: Toggle Operations
+  - `c`: Clear Activity Stream history
+  - Planned: `v` (cycle view), `e` (error focus), `a` (agent focus), `?` (help)
+- **Color-Coded Events**: Visual hierarchy for quick scanning
+  - Red: Errors, failures, degraded health
+  - Yellow: Warnings, slow operations
+  - Green: Success, completions
+  - Blue: CLI operations, work items
+  - Cyan: Agent activity
+  - Magenta: Memory operations
+  - Gray: System events (heartbeats, health)
+- **Production Quality**:
+  - 124+ comprehensive tests across 12 test modules
+  - 6,122 total lines of code
+  - Test coverage: filters (8 tests), correlation (11 tests), panels (~100 tests)
+  - Comprehensive error handling and edge case management
+  - Clean separation: filters.rs, correlation.rs, panel_manager.rs, panels/*
+- **Breaking Changes**:
+  - Old 7-panel layout removed (Memory, Context, Work Progress, Active Agents, Beads Tasks, Events, System Overview)
+  - Panel keyboard shortcuts changed: `6` is now `3` (Operations), `7` removed
+  - Sparkline visualizations moved to System Overview panel (implementation pending)
+
 ### Added
 
-**CLI Operations Tracking in Dashboard**
-- Added real-time CLI operations visibility in `mnemosyne-dash`
-- New Operations panel (keyboard shortcut: `6`) displaying CLI command activity
+**Dashboard Documentation**
+- Created comprehensive guide: `docs/DASHBOARD.md` (300+ lines)
+- Sections: Overview, Architecture, Features, Panel Reference, Keyboard Shortcuts, Usage Guide, Technical Details, Testing, Troubleshooting
+- ASCII diagrams for panel layout and event flow
+- Keyboard shortcut reference tables (current + planned)
+- Monitoring scenarios and advanced usage examples
+- Design decisions documentation (why 4 panels, why hide heartbeats, why SSE)
+
+**CLI Operations Tracking**
+- Real-time CLI command visibility in Operations panel
 - Event types: `CliCommandStarted`, `CliCommandCompleted`, `CliCommandFailed`, `RecallExecuted`, `RememberExecuted`, `EvolveStarted`, `EvolveCompleted`, `SearchPerformed`, `DatabaseOperation`
-- Color-coded status indicators: Running (blue), Completed (green), Failed (red)
-- Table display shows: Time, Command, Status, Duration, Result
 - HTTP event bridge from CLI commands to API server via `/events/emit` endpoint
 - Smart health check caching with exponential backoff to avoid connection spam
 - Event emission integrated in `remember`, `recall`, and `evolve` commands
-- Comprehensive test coverage: 11 unit tests for OperationsPanel widget
 
 ### Fixed
 
@@ -26,17 +83,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed evolve command stats tracking: `EvolveCompleted` event now correctly reports actual consolidation, decay, and archival counts instead of always showing zeros
 - Added `SearchPerformed` event emission to recall command for comprehensive search operation visibility
 
-### Changed
+### Technical Details
 
-**Dashboard Panel Management**
-- Updated panel manager to support 7 panels (was 6)
-- Operations panel added between Context and Events
-- Events panel shortcut changed from `6` to `7`
-- Panel visibility system updated to handle new Operations panel
+**New Modules**:
+- `src/bin/dash/filters.rs` (473 lines): Smart filtering engine with 8 categories, compound logic, presets
+- `src/bin/dash/correlation.rs` (489 lines): Event correlation tracker with duration calculation
+- `src/bin/dash/panel_manager.rs`: Visibility controls, dynamic layout logic
+- `src/bin/dash/panels/activity_stream.rs`: Filtered event log with correlation display
+- `src/bin/dash/panels/operations.rs`: CLI command history with status tracking
+- `src/bin/dash/panels/agents.rs`: Per-agent status and work queues
+- `src/bin/dash/panels/system_overview.rs`: Health metrics aggregation
 
-**API Server**
-- StateManager updated to handle CLI operation event types
-- Events endpoint now broadcasts CLI command activity
+**Architecture Improvements**:
+- Event-driven architecture with SSE client (`spawn_sse_client`)
+- Event router (`App::process_events`) for panel-specific routing
+- Correlation tracker integrates with Activity Stream for operation timings
+- Panel manager calculates dynamic layout constraints based on visibility
+- 60 FPS rendering loop with 16ms event polling
 
 ## [2.2.0] - 2025-11-08
 

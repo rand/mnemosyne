@@ -1,5 +1,6 @@
 //! Operations panel - Shows recent CLI operations and their status
 
+use crate::colors::DashboardColors;
 use chrono::{DateTime, Duration, Utc};
 use ratatui::{
     layout::{Constraint, Rect},
@@ -33,9 +34,9 @@ impl OperationStatus {
     /// Get color for status
     fn color(&self) -> Color {
         match self {
-            OperationStatus::Running => Color::Blue,
-            OperationStatus::Completed => Color::Green,
-            OperationStatus::Failed(_) => Color::Red,
+            OperationStatus::Running => DashboardColors::IN_PROGRESS,
+            OperationStatus::Completed => DashboardColors::SUCCESS,
+            OperationStatus::Failed(_) => DashboardColors::ERROR,
         }
     }
 
@@ -251,7 +252,7 @@ impl OperationsPanel {
 
             let empty_text = Span::styled(
                 "No operations match current filter",
-                Style::default().fg(Color::Gray).add_modifier(Modifier::ITALIC),
+                Style::default().fg(DashboardColors::MUTED).add_modifier(Modifier::ITALIC),
             );
             let x = area.x + 2;
             let y = area.y + 1;
@@ -302,18 +303,18 @@ impl OperationsPanel {
                 let slow_indicator = if op.duration_ms.unwrap_or(0) > 1000 { "⚠" } else { "" };
 
                 Row::new(vec![
-                    Cell::from(time_display).style(Style::default().fg(Color::DarkGray)),
+                    Cell::from(time_display).style(Style::default().fg(DashboardColors::SECONDARY)),
                     Cell::from(cmd_display),
                     Cell::from(op.status.display()).style(Style::default().fg(status_color).add_modifier(Modifier::BOLD)),
                     Cell::from(format!("{}{}", slow_indicator, duration_display)).style(Style::default().fg(duration_color)),
-                    Cell::from(result_display).style(Style::default().fg(Color::White)),
+                    Cell::from(result_display).style(Style::default().fg(DashboardColors::TEXT)),
                 ])
             })
             .collect();
 
         // Header
         let header = Row::new(vec!["Time", "Command", "Status", "Duration", "Result"])
-            .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+            .style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD))
             .bottom_margin(0);
 
         // Table
@@ -363,7 +364,7 @@ impl OperationsPanel {
                 // Group header row
                 let header_text = format!("{} {} ({} ops)", collapse_indicator, cmd, ops.len());
                 rows.push(Row::new(vec![
-                    Cell::from(header_text).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                    Cell::from(header_text).style(Style::default().fg(DashboardColors::HIGHLIGHT).add_modifier(Modifier::BOLD)),
                 ]));
                 visible_count += 1;
 
@@ -380,7 +381,7 @@ impl OperationsPanel {
 
                         rows.push(Row::new(vec![
                             Cell::from(format!("  {} | {} | {}", time, status, duration))
-                                .style(Style::default().fg(Color::White)),
+                                .style(Style::default().fg(DashboardColors::TEXT)),
                         ]));
                         visible_count += 1;
                     }
@@ -388,7 +389,7 @@ impl OperationsPanel {
                     if ops.len() > 5 {
                         rows.push(Row::new(vec![
                             Cell::from(format!("  ... {} more", ops.len() - 5))
-                                .style(Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC)),
+                                .style(Style::default().fg(DashboardColors::MUTED).add_modifier(Modifier::ITALIC)),
                         ]));
                         visible_count += 1;
                     }
@@ -410,47 +411,47 @@ impl OperationsPanel {
 
         let mut rows = vec![
             Row::new(vec![
-                Cell::from("Total Operations:").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Cell::from("Total Operations:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
                 Cell::from(format!("{}", stats.total_count)),
             ]),
             Row::new(vec![
-                Cell::from("  Completed:").style(Style::default().fg(Color::Green)),
+                Cell::from("  Completed:").style(Style::default().fg(DashboardColors::SUCCESS)),
                 Cell::from(format!("{}", stats.completed_count)),
             ]),
             Row::new(vec![
-                Cell::from("  Failed:").style(Style::default().fg(Color::Red)),
+                Cell::from("  Failed:").style(Style::default().fg(DashboardColors::ERROR)),
                 Cell::from(format!("{}", stats.failed_count)),
             ]),
             Row::new(vec![
-                Cell::from("  Running:").style(Style::default().fg(Color::Blue)),
+                Cell::from("  Running:").style(Style::default().fg(DashboardColors::IN_PROGRESS)),
                 Cell::from(format!("{}", stats.running_count)),
             ]),
             Row::new(vec![
-                Cell::from("Success Rate:").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Cell::from("Success Rate:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
                 Cell::from(format!("{:.1}%", stats.success_rate)),
             ]),
             Row::new(vec![
-                Cell::from("Average Duration:").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Cell::from("Average Duration:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
                 Cell::from(Self::format_duration(stats.avg_duration_ms)),
             ]),
         ];
 
         if let Some((cmd, dur)) = &stats.slowest_command {
             rows.push(Row::new(vec![
-                Cell::from("Slowest Command:").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Cell::from("Slowest Command:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
                 Cell::from(format!("{} ({})", cmd, Self::format_duration(*dur))),
             ]));
         }
 
         if let Some((cmd, count)) = &stats.most_frequent_command {
             rows.push(Row::new(vec![
-                Cell::from("Most Frequent:").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+                Cell::from("Most Frequent:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
                 Cell::from(format!("{} ({} times)", cmd, count)),
             ]));
         }
 
         rows.push(Row::new(vec![
-            Cell::from("Ops/Minute:").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Cell::from("Ops/Minute:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
             Cell::from(format!("{:.2}", stats.operations_per_minute)),
         ]));
 
@@ -659,11 +660,11 @@ impl OperationsPanel {
     /// Get color for duration (green=fast, yellow=medium, red=slow)
     fn duration_color(duration_ms: u64) -> Color {
         if duration_ms < 500 {
-            Color::Green
+            DashboardColors::PERF_FAST
         } else if duration_ms < 2000 {
-            Color::Yellow
+            DashboardColors::PERF_MEDIUM
         } else {
-            Color::Red
+            DashboardColors::PERF_SLOW
         }
     }
 
@@ -725,9 +726,9 @@ mod tests {
 
     #[test]
     fn test_operation_status_color() {
-        assert_eq!(OperationStatus::Running.color(), Color::Blue);
-        assert_eq!(OperationStatus::Completed.color(), Color::Green);
-        assert_eq!(OperationStatus::Failed("error".to_string()).color(), Color::Red);
+        assert_eq!(OperationStatus::Running.color(), DashboardColors::IN_PROGRESS);
+        assert_eq!(OperationStatus::Completed.color(), DashboardColors::SUCCESS);
+        assert_eq!(OperationStatus::Failed("error".to_string()).color(), DashboardColors::ERROR);
     }
 
     #[test]
@@ -1117,9 +1118,9 @@ mod tests {
 
     #[test]
     fn test_duration_color() {
-        assert_eq!(OperationsPanel::duration_color(300), Color::Green);    // Fast
-        assert_eq!(OperationsPanel::duration_color(1000), Color::Yellow);  // Medium
-        assert_eq!(OperationsPanel::duration_color(3000), Color::Red);     // Slow
+        assert_eq!(OperationsPanel::duration_color(300), DashboardColors::PERF_FAST);    // Fast
+        assert_eq!(OperationsPanel::duration_color(1000), DashboardColors::PERF_MEDIUM);  // Medium
+        assert_eq!(OperationsPanel::duration_color(3000), DashboardColors::PERF_SLOW);     // Slow
     }
 
     #[test]

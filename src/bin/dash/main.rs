@@ -30,6 +30,7 @@
 //!   mnemosyne-dash --api http://localhost:3000
 //!   mnemosyne-dash --refresh 500     # Faster refresh (ms)
 
+mod colors;
 mod correlation;
 mod filters;
 mod panel_manager;
@@ -47,7 +48,7 @@ use crossterm::{
 };
 use panel_manager::{PanelId, PanelManager};
 use panels::{
-    ActivityStreamPanel, AgentInfo, AgentsPanel, OperationsPanel,
+    ActivityStreamPanel, AgentInfo, AgentsPanel, FocusMode, OperationsPanel,
     SystemOverviewPanel,
 };
 use ratatui::{
@@ -224,10 +225,13 @@ impl App {
 
             // Focus modes (filter presets)
             KeyCode::Char('e') => {
-                // Error focus mode - will be implemented by sub-agent
+                // Toggle error focus mode
+                self.activity_stream.toggle_error_focus();
             }
             KeyCode::Char('a') => {
-                // Agent focus mode - will be implemented by sub-agent
+                // Toggle agent focus mode (cycle through active agents)
+                let available_agents = self.agents_panel.get_active_agent_ids();
+                self.activity_stream.toggle_agent_focus(available_agents);
             }
 
             // Help overlay
@@ -258,9 +262,23 @@ impl App {
     fn render(&mut self, frame: &mut Frame) {
         let size = frame.area();
 
+        // Get focus mode indicator
+        let focus_text = match self.activity_stream.get_focus_mode() {
+            FocusMode::Normal => String::new(),
+            FocusMode::ErrorFocus => " | Focus: ERRORS".to_string(),
+            FocusMode::AgentFocus(agent_id) => {
+                let truncated = if agent_id.len() > 12 {
+                    format!("{}...", &agent_id[..9])
+                } else {
+                    agent_id.clone()
+                };
+                format!(" | Focus: {}", truncated)
+            }
+        };
+
         // Create header with status
         let status_text = if self.connected {
-            format!(" Connected to {} | Press 'q' to quit, '0' to toggle all, '1-3' for panels ", self.api_url)
+            format!(" Connected to {}{} | Press 'q' to quit, 'e' errors, 'a' agents ", self.api_url, focus_text)
         } else {
             format!(" Connecting to {}... ", self.api_url)
         };

@@ -7,6 +7,7 @@
 //! - Recent critical events (errors/warnings only)
 //! - System health metrics (CPU, memory, subscribers, last event age)
 
+use crate::colors::DashboardColors;
 use crate::filters::EventCategory;
 use mnemosyne_core::api::events::{Event, EventType};
 use crate::time_series::TimeSeriesBuffer;
@@ -14,7 +15,7 @@ use crate::widgets::{Sparkline, StateIndicator, StateType};
 use chrono::{DateTime, Utc};
 use ratatui::{
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem},
     Frame,
@@ -198,28 +199,28 @@ impl SystemOverviewPanel {
         };
 
         items.push(ListItem::new(Line::from(vec![
-            Span::styled("[", Style::default().fg(Color::DarkGray)),
+            Span::styled("[", Style::default().fg(DashboardColors::SECONDARY)),
             Span::styled(
                 &instance_id[..instance_id.len().min(8)],
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default().fg(DashboardColors::HIGHLIGHT).add_modifier(Modifier::BOLD),
             ),
-            Span::styled("]", Style::default().fg(Color::DarkGray)),
+            Span::styled("]", Style::default().fg(DashboardColors::SECONDARY)),
             Span::raw(" Uptime: "),
-            Span::styled(uptime_str, Style::default().fg(Color::Green)),
+            Span::styled(uptime_str, Style::default().fg(DashboardColors::SUCCESS)),
             Span::raw(" | Agents: "),
             Span::styled(
                 format!("{}", self.metrics.agents_total),
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+                Style::default().fg(DashboardColors::AGENT).add_modifier(Modifier::BOLD),
             ),
             Span::raw(" | Graph: "),
             Span::styled(
                 format!("{}", self.metrics.graph_size),
-                Style::default().fg(Color::Magenta),
+                Style::default().fg(DashboardColors::MEMORY),
             ),
             Span::raw(" | Activity: "),
             Span::styled(
                 format!("{:.1} ops/min", self.metrics.ops_per_min),
-                Style::default().fg(Color::Blue),
+                Style::default().fg(DashboardColors::IN_PROGRESS),
             ),
         ])));
 
@@ -248,11 +249,16 @@ impl SystemOverviewPanel {
         if !stores_data.is_empty() {
             let stores_sparkline = Sparkline::new(&stores_data)
                 .width(20)
-                .style(Style::default().fg(Color::Green));
+                .style(Style::default().fg(DashboardColors::SUCCESS));
 
-            let mut stores_spans = vec![Span::raw("Memory Stores: ")];
+            let mut stores_spans = vec![
+                Span::styled("Memory Stores: ", Style::default().add_modifier(Modifier::DIM)),
+            ];
             stores_spans.extend(stores_sparkline.render().spans);
-            stores_spans.push(Span::raw(format!(" ({:.1}/min)", self.metrics.stores_per_min)));
+            stores_spans.push(Span::styled(
+                format!(" ({:.1}/min)", self.metrics.stores_per_min),
+                Style::default().fg(DashboardColors::SECONDARY),
+            ));
 
             items.push(ListItem::new(Line::from(stores_spans)));
         }
@@ -260,11 +266,16 @@ impl SystemOverviewPanel {
         if !recalls_data.is_empty() {
             let recalls_sparkline = Sparkline::new(&recalls_data)
                 .width(20)
-                .style(Style::default().fg(Color::Cyan));
+                .style(Style::default().fg(DashboardColors::SKILL));
 
-            let mut recalls_spans = vec![Span::raw("Memory Recalls: ")];
+            let mut recalls_spans = vec![
+                Span::styled("Memory Recalls: ", Style::default().add_modifier(Modifier::DIM)),
+            ];
             recalls_spans.extend(recalls_sparkline.render().spans);
-            recalls_spans.push(Span::raw(format!(" ({:.1}/min)", self.metrics.recalls_per_min)));
+            recalls_spans.push(Span::styled(
+                format!(" ({:.1}/min)", self.metrics.recalls_per_min),
+                Style::default().fg(DashboardColors::SECONDARY),
+            ));
 
             items.push(ListItem::new(Line::from(recalls_spans)));
         }
@@ -272,10 +283,10 @@ impl SystemOverviewPanel {
         // Row 5: Recent critical events
         if !self.critical_events.is_empty() {
             let events_line = Line::from(vec![
-                Span::styled("Critical: ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                Span::styled("Critical: ", Style::default().fg(DashboardColors::ERROR).add_modifier(Modifier::BOLD)),
                 Span::styled(
                     self.critical_events.last().unwrap().description.clone(),
-                    Style::default().fg(Color::Red),
+                    Style::default().fg(DashboardColors::ERROR),
                 ),
             ]);
             items.push(ListItem::new(events_line));
@@ -283,19 +294,19 @@ impl SystemOverviewPanel {
 
         // Row 6: System health
         let cpu_color = if self.metrics.cpu_percent > 80.0 {
-            Color::Red
+            DashboardColors::USAGE_HIGH
         } else if self.metrics.cpu_percent > 50.0 {
-            Color::Yellow
+            DashboardColors::USAGE_MEDIUM
         } else {
-            Color::Green
+            DashboardColors::USAGE_LOW
         };
 
         let mem_color = if self.metrics.memory_mb > 1000.0 {
-            Color::Red
+            DashboardColors::USAGE_HIGH
         } else if self.metrics.memory_mb > 500.0 {
-            Color::Yellow
+            DashboardColors::USAGE_MEDIUM
         } else {
-            Color::Green
+            DashboardColors::USAGE_LOW
         };
 
         let last_event_str = if let Some(last_event) = self.metrics.last_event_at {
@@ -313,14 +324,15 @@ impl SystemOverviewPanel {
         };
 
         items.push(ListItem::new(Line::from(vec![
-            Span::raw("Health: CPU: "),
-            Span::styled(format!("{:.0}%", self.metrics.cpu_percent), Style::default().fg(cpu_color)),
+            Span::styled("Health: ", Style::default().add_modifier(Modifier::DIM)),
+            Span::raw("CPU: "),
+            Span::styled(format!("{:.0}%", self.metrics.cpu_percent), Style::default().fg(cpu_color).add_modifier(Modifier::BOLD)),
             Span::raw(" | RAM: "),
-            Span::styled(format!("{:.0}MB", self.metrics.memory_mb), Style::default().fg(mem_color)),
+            Span::styled(format!("{:.0}MB", self.metrics.memory_mb), Style::default().fg(mem_color).add_modifier(Modifier::BOLD)),
             Span::raw(" | API: "),
-            Span::styled(format!("{} sub", self.metrics.subscribers), Style::default().fg(Color::Blue)),
+            Span::styled(format!("{} sub", self.metrics.subscribers), Style::default().fg(DashboardColors::IN_PROGRESS)),
             Span::raw(" | Last event: "),
-            Span::styled(last_event_str, Style::default().fg(Color::Gray)),
+            Span::styled(last_event_str, Style::default().fg(DashboardColors::SECONDARY)),
         ])));
 
         // Render with border
@@ -328,7 +340,7 @@ impl SystemOverviewPanel {
             Block::default()
                 .borders(Borders::ALL)
                 .title("System Overview")
-                .border_style(Style::default().fg(Color::Cyan)),
+                .border_style(Style::default().fg(DashboardColors::BORDER)),
         );
 
         frame.render_widget(list, area);
