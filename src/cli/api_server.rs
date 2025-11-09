@@ -63,5 +63,5 @@ pub async fn handle(addr: String, capacity: usize) -> Result<()> {
         requests_handled: 0, // TODO: Track request count if ApiServer provides metrics
     }).await;
 
-    result
+    result.map_err(Into::into)
 }
