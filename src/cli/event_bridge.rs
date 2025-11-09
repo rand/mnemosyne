@@ -256,6 +256,171 @@ fn event_to_api_event(event: &AgentEvent) -> Option<mnemosyne_core::api::Event> 
             *affected_rows,
             *duration_ms,
         )),
+        // Orchestration events
+        AgentEvent::OrchestrationStarted { plan_description, max_concurrent, timestamp } => {
+            // Map to CLI command started for now (could add dedicated orchestration events to API)
+            Some(Event::cli_command_started(
+                "orchestrate".to_string(),
+                vec![format!("max_concurrent={}", max_concurrent), plan_description.clone()],
+            ))
+        }
+        AgentEvent::OrchestrationCompleted { work_items_completed, work_items_failed, duration_ms } => {
+            Some(Event::cli_command_completed(
+                "orchestrate".to_string(),
+                *duration_ms,
+                format!("{} completed, {} failed", work_items_completed, work_items_failed),
+            ))
+        }
+        // Health & Status events
+        AgentEvent::HealthCheckStarted { .. } => {
+            Some(Event::cli_command_started("doctor".to_string(), vec![]))
+        }
+        AgentEvent::HealthCheckCompleted { checks_passed, checks_failed, checks_warned, duration_ms } => {
+            Some(Event::cli_command_completed(
+                "doctor".to_string(),
+                *duration_ms,
+                format!("{} passed, {} failed, {} warned", checks_passed, checks_failed, checks_warned),
+            ))
+        }
+        AgentEvent::StatusCheckExecuted { status_summary, memory_count, database_size_mb } => {
+            Some(Event::cli_command_completed(
+                "status".to_string(),
+                0,
+                format!("{}: {} memories, {:.2} MB", status_summary, memory_count, database_size_mb),
+            ))
+        }
+        // ICS/Editor events
+        AgentEvent::IcsSessionStarted { file_path, template, .. } => {
+            let args = match (file_path, template) {
+                (Some(path), _) => vec![path.clone()],
+                (None, Some(tmpl)) => vec![format!("--template={}", tmpl)],
+                _ => vec![],
+            };
+            Some(Event::cli_command_started("ics".to_string(), args))
+        }
+        AgentEvent::IcsSessionEnded { file_path, changes_saved, duration_ms } => {
+            let summary = match (file_path, changes_saved) {
+                (Some(path), true) => format!("Saved: {}", path),
+                (Some(path), false) => format!("Discarded: {}", path),
+                (None, true) => "Changes saved".to_string(),
+                (None, false) => "Changes discarded".to_string(),
+            };
+            Some(Event::cli_command_completed("ics".to_string(), *duration_ms, summary))
+        }
+        // Configuration events
+        AgentEvent::DatabaseInitialized { database_path, migrations_applied } => {
+            Some(Event::cli_command_completed(
+                "init".to_string(),
+                0,
+                format!("Database initialized at {} ({} migrations)", database_path, migrations_applied),
+            ))
+        }
+        AgentEvent::ExportStarted { output_path, namespace_filter } => {
+            let args = vec![
+                output_path.as_ref().map(|p| format!("--output={}", p)).unwrap_or_default(),
+                namespace_filter.as_ref().map(|n| format!("--namespace={}", n)).unwrap_or_default(),
+            ].into_iter().filter(|s| !s.is_empty()).collect();
+            Some(Event::cli_command_started("export".to_string(), args))
+        }
+        AgentEvent::ExportCompleted { memories_exported, output_size_bytes, duration_ms } => {
+            Some(Event::cli_command_completed(
+                "export".to_string(),
+                *duration_ms,
+                format!("{} memories exported ({} bytes)", memories_exported, output_size_bytes),
+            ))
+        }
+        AgentEvent::MemoryUpdated { memory_id, fields_changed } => {
+            Some(Event::cli_command_completed(
+                "update".to_string(),
+                0,
+                format!("Updated memory {} ({} fields)", memory_id, fields_changed.len()),
+            ))
+        }
+        AgentEvent::ConfigChanged { setting, new_value, .. } => {
+            Some(Event::cli_command_completed(
+                "config".to_string(),
+                0,
+                format!("Setting changed: {}", setting),
+            ))
+        }
+        AgentEvent::SecretsModified { operation, secret_name } => {
+            Some(Event::cli_command_completed(
+                "secrets".to_string(),
+                0,
+                format!("Secret {} operation: {}", operation, secret_name),
+            ))
+        }
+        // Advanced operations
+        AgentEvent::EmbeddingGenerated { memory_id, model_name, dimension, duration_ms } => {
+            Some(Event::cli_command_completed(
+                "embed".to_string(),
+                *duration_ms,
+                format!("Generated embedding for {} using {} (dimension: {})", memory_id, model_name, dimension),
+            ))
+        }
+        AgentEvent::EmbeddingBatchCompleted { batch_size, successful, failed, total_duration_ms } => {
+            Some(Event::cli_command_completed(
+                "embed".to_string(),
+                *total_duration_ms,
+                format!("{}/{} successful, {} failed", successful, batch_size, failed),
+            ))
+        }
+        AgentEvent::ModelOperationCompleted { operation, model_name, result_summary } => {
+            Some(Event::cli_command_completed(
+                "models".to_string(),
+                0,
+                format!("{}: {}", operation, result_summary),
+            ))
+        }
+        AgentEvent::ArtifactCreated { artifact_type, artifact_id, size_bytes } => {
+            Some(Event::cli_command_completed(
+                "artifact".to_string(),
+                0,
+                format!("Created {} {} ({} bytes)", artifact_type, artifact_id, size_bytes),
+            ))
+        }
+        AgentEvent::ArtifactLoaded { artifact_type, artifact_id, .. } => {
+            Some(Event::cli_command_completed(
+                "artifact".to_string(),
+                0,
+                format!("Loaded {} {}", artifact_type, artifact_id),
+            ))
+        }
+        // UI/Interactive events
+        AgentEvent::InteractiveModeStarted { mode, .. } => {
+            Some(Event::cli_command_started("interactive".to_string(), vec![mode.clone()]))
+        }
+        AgentEvent::InteractiveModeEnded { commands_executed, duration_ms } => {
+            Some(Event::cli_command_completed(
+                "interactive".to_string(),
+                *duration_ms,
+                format!("{} commands executed", commands_executed),
+            ))
+        }
+        AgentEvent::ServerStarted { server_type, listen_addr, instance_id } => {
+            Some(Event::cli_command_completed(
+                if server_type == "api" { "api-server" } else { "serve" }.to_string(),
+                0,
+                format!("{} server started at {} (instance: {})", server_type, listen_addr, instance_id),
+            ))
+        }
+        AgentEvent::ServerStopped { server_type, uptime_ms, requests_handled } => {
+            Some(Event::cli_command_completed(
+                if server_type == "api" { "api-server" } else { "serve" }.to_string(),
+                *uptime_ms,
+                format!("{} requests handled", requests_handled),
+            ))
+        }
+        AgentEvent::DashboardStarted { dashboard_type, .. } => {
+            Some(Event::cli_command_started("tui".to_string(), vec![dashboard_type.clone()]))
+        }
+        AgentEvent::DashboardStopped { dashboard_type, duration_ms } => {
+            Some(Event::cli_command_completed(
+                "tui".to_string(),
+                *duration_ms,
+                format!("{} dashboard stopped", dashboard_type),
+            ))
+        }
         // Other events are not relevant for CLI operations
         _ => None,
     }

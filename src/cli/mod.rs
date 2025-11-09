@@ -24,4 +24,5 @@ pub mod doctor;
 pub mod update;
 pub mod interactive;
 pub mod event_bridge;
+pub mod event_helpers;
 pub mod internal;

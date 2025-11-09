@@ -187,6 +187,174 @@ pub enum AgentEvent {
         duration_ms: u64,
     },
 
+    // Orchestration Events
+    /// Orchestration process started
+    OrchestrationStarted {
+        plan_description: String,
+        max_concurrent: u8,
+        timestamp: chrono::DateTime<Utc>,
+    },
+
+    /// Orchestration process completed
+    OrchestrationCompleted {
+        work_items_completed: usize,
+        work_items_failed: usize,
+        duration_ms: u64,
+    },
+
+    // Health & Status Events
+    /// Health check started
+    HealthCheckStarted {
+        timestamp: chrono::DateTime<Utc>,
+    },
+
+    /// Health check completed
+    HealthCheckCompleted {
+        checks_passed: usize,
+        checks_failed: usize,
+        checks_warned: usize,
+        duration_ms: u64,
+    },
+
+    /// Status check executed
+    StatusCheckExecuted {
+        status_summary: String,
+        memory_count: usize,
+        database_size_mb: f64,
+    },
+
+    // ICS/Editor Events
+    /// ICS editor session started
+    IcsSessionStarted {
+        file_path: Option<String>,
+        template: Option<String>,
+        timestamp: chrono::DateTime<Utc>,
+    },
+
+    /// ICS editor session ended
+    IcsSessionEnded {
+        file_path: Option<String>,
+        changes_saved: bool,
+        duration_ms: u64,
+    },
+
+    // Configuration Events
+    /// Database initialized
+    DatabaseInitialized {
+        database_path: String,
+        migrations_applied: usize,
+    },
+
+    /// Export started
+    ExportStarted {
+        output_path: Option<String>,
+        namespace_filter: Option<String>,
+    },
+
+    /// Export completed
+    ExportCompleted {
+        memories_exported: usize,
+        output_size_bytes: usize,
+        duration_ms: u64,
+    },
+
+    /// Memory updated
+    MemoryUpdated {
+        memory_id: String,
+        fields_changed: Vec<String>,
+    },
+
+    /// Configuration changed
+    ConfigChanged {
+        setting: String,
+        old_value: Option<String>, // Obfuscated for secrets
+        new_value: Option<String>,  // Obfuscated for secrets
+    },
+
+    /// Secrets modified
+    SecretsModified {
+        operation: String, // "set", "delete", "rotate"
+        secret_name: String,
+        // Never store actual secret values
+    },
+
+    // Advanced Operations
+    /// Embedding generated
+    EmbeddingGenerated {
+        memory_id: String,
+        model_name: String,
+        dimension: usize,
+        duration_ms: u64,
+    },
+
+    /// Embedding batch completed
+    EmbeddingBatchCompleted {
+        batch_size: usize,
+        successful: usize,
+        failed: usize,
+        total_duration_ms: u64,
+    },
+
+    /// Model operation completed
+    ModelOperationCompleted {
+        operation: String, // "list", "info", "switch"
+        model_name: Option<String>,
+        result_summary: String,
+    },
+
+    /// Artifact created
+    ArtifactCreated {
+        artifact_type: String, // "spec", "plan", "traceability"
+        artifact_id: String,
+        size_bytes: usize,
+    },
+
+    /// Artifact loaded
+    ArtifactLoaded {
+        artifact_type: String,
+        artifact_id: String,
+        last_modified: chrono::DateTime<Utc>,
+    },
+
+    // UI/Interactive Events
+    /// Interactive mode started
+    InteractiveModeStarted {
+        mode: String, // "command", "chat", "explore"
+        timestamp: chrono::DateTime<Utc>,
+    },
+
+    /// Interactive mode ended
+    InteractiveModeEnded {
+        commands_executed: usize,
+        duration_ms: u64,
+    },
+
+    /// Server started
+    ServerStarted {
+        server_type: String, // "mcp", "api", "both"
+        listen_addr: String,
+        instance_id: String,
+    },
+
+    /// Server stopped
+    ServerStopped {
+        server_type: String,
+        uptime_ms: u64,
+        requests_handled: usize,
+    },
+
+    /// Dashboard started
+    DashboardStarted {
+        dashboard_type: String, // "tui", "web"
+        timestamp: chrono::DateTime<Utc>,
+    },
+
+    /// Dashboard stopped
+    DashboardStopped {
+        dashboard_type: String,
+        duration_ms: u64,
+    },
+
     // Session Lifecycle Events
     /// Claude Code session started
     SessionStarted {
@@ -243,6 +411,37 @@ impl AgentEvent {
             AgentEvent::MessageSent { .. } => 3,
             AgentEvent::CliCommandStarted { .. } => 3,
             AgentEvent::DatabaseOperation { .. } => 2,
+            // Orchestration
+            AgentEvent::OrchestrationStarted { .. } => 9,
+            AgentEvent::OrchestrationCompleted { .. } => 8,
+            // Health & Status
+            AgentEvent::HealthCheckStarted { .. } => 5,
+            AgentEvent::HealthCheckCompleted { .. } => 6,
+            AgentEvent::StatusCheckExecuted { .. } => 4,
+            // ICS/Editor
+            AgentEvent::IcsSessionStarted { .. } => 6,
+            AgentEvent::IcsSessionEnded { .. } => 6,
+            // Configuration
+            AgentEvent::DatabaseInitialized { .. } => 8,
+            AgentEvent::ExportStarted { .. } => 5,
+            AgentEvent::ExportCompleted { .. } => 6,
+            AgentEvent::MemoryUpdated { .. } => 6,
+            AgentEvent::ConfigChanged { .. } => 7,
+            AgentEvent::SecretsModified { .. } => 8,
+            // Advanced Operations
+            AgentEvent::EmbeddingGenerated { .. } => 4,
+            AgentEvent::EmbeddingBatchCompleted { .. } => 6,
+            AgentEvent::ModelOperationCompleted { .. } => 5,
+            AgentEvent::ArtifactCreated { .. } => 7,
+            AgentEvent::ArtifactLoaded { .. } => 5,
+            // UI/Interactive
+            AgentEvent::InteractiveModeStarted { .. } => 5,
+            AgentEvent::InteractiveModeEnded { .. } => 5,
+            AgentEvent::ServerStarted { .. } => 8,
+            AgentEvent::ServerStopped { .. } => 8,
+            AgentEvent::DashboardStarted { .. } => 6,
+            AgentEvent::DashboardStopped { .. } => 6,
+            // Session Lifecycle
             AgentEvent::SessionStarted { .. } => 8,
             AgentEvent::SessionEnded { .. } => 8,
         }
@@ -413,6 +612,105 @@ impl AgentEvent {
                     operation, affected_rows, table, duration_ms
                 )
             }
+            AgentEvent::OrchestrationStarted { plan_description, max_concurrent, .. } => {
+                format!("Orchestration started: {} (max concurrent: {})", plan_description, max_concurrent)
+            }
+            AgentEvent::OrchestrationCompleted { work_items_completed, work_items_failed, duration_ms } => {
+                format!("Orchestration completed in {}ms: {} succeeded, {} failed",
+                    duration_ms, work_items_completed, work_items_failed)
+            }
+            AgentEvent::HealthCheckStarted { .. } => {
+                "Health check started".to_string()
+            }
+            AgentEvent::HealthCheckCompleted { checks_passed, checks_failed, checks_warned, duration_ms } => {
+                format!("Health check completed in {}ms: {} passed, {} failed, {} warned",
+                    duration_ms, checks_passed, checks_failed, checks_warned)
+            }
+            AgentEvent::StatusCheckExecuted { status_summary, memory_count, database_size_mb } => {
+                format!("Status check: {} ({} memories, {:.2} MB database)",
+                    status_summary, memory_count, database_size_mb)
+            }
+            AgentEvent::IcsSessionStarted { file_path, template, .. } => {
+                match (file_path, template) {
+                    (Some(path), _) => format!("ICS editor started: {}", path),
+                    (None, Some(tmpl)) => format!("ICS editor started with template: {}", tmpl),
+                    (None, None) => "ICS editor started".to_string(),
+                }
+            }
+            AgentEvent::IcsSessionEnded { file_path, changes_saved, duration_ms } => {
+                let saved_status = if *changes_saved { "saved" } else { "discarded" };
+                match file_path {
+                    Some(path) => format!("ICS editor ended: {} ({}, {}ms)", path, saved_status, duration_ms),
+                    None => format!("ICS editor ended: {} ({}ms)", saved_status, duration_ms),
+                }
+            }
+            AgentEvent::DatabaseInitialized { database_path, migrations_applied } => {
+                format!("Database initialized at {} ({} migrations applied)", database_path, migrations_applied)
+            }
+            AgentEvent::ExportStarted { output_path, namespace_filter } => {
+                match (output_path, namespace_filter) {
+                    (Some(path), Some(ns)) => format!("Export started to {} (namespace: {})", path, ns),
+                    (Some(path), None) => format!("Export started to {}", path),
+                    (None, Some(ns)) => format!("Export started (namespace: {})", ns),
+                    (None, None) => "Export started".to_string(),
+                }
+            }
+            AgentEvent::ExportCompleted { memories_exported, output_size_bytes, duration_ms } => {
+                format!("Export completed in {}ms: {} memories ({} bytes)",
+                    duration_ms, memories_exported, output_size_bytes)
+            }
+            AgentEvent::MemoryUpdated { memory_id, fields_changed } => {
+                format!("Memory {} updated: {} fields changed", memory_id, fields_changed.len())
+            }
+            AgentEvent::ConfigChanged { setting, new_value, .. } => {
+                match new_value {
+                    Some(val) => format!("Config changed: {} = {}", setting, val),
+                    None => format!("Config changed: {} (cleared)", setting),
+                }
+            }
+            AgentEvent::SecretsModified { operation, secret_name } => {
+                format!("Secret {} operation: {}", operation, secret_name)
+            }
+            AgentEvent::EmbeddingGenerated { memory_id, model_name, dimension, duration_ms } => {
+                format!("Embedding generated for {} using {} (dimension: {}, {}ms)",
+                    memory_id, model_name, dimension, duration_ms)
+            }
+            AgentEvent::EmbeddingBatchCompleted { batch_size, successful, failed, total_duration_ms } => {
+                format!("Embedding batch completed in {}ms: {}/{} successful, {} failed",
+                    total_duration_ms, successful, batch_size, failed)
+            }
+            AgentEvent::ModelOperationCompleted { operation, model_name, result_summary } => {
+                match model_name {
+                    Some(name) => format!("Model operation '{}' on {}: {}", operation, name, result_summary),
+                    None => format!("Model operation '{}': {}", operation, result_summary),
+                }
+            }
+            AgentEvent::ArtifactCreated { artifact_type, artifact_id, size_bytes } => {
+                format!("Artifact created: {} {} ({} bytes)", artifact_type, artifact_id, size_bytes)
+            }
+            AgentEvent::ArtifactLoaded { artifact_type, artifact_id, last_modified } => {
+                format!("Artifact loaded: {} {} (modified: {})",
+                    artifact_type, artifact_id, last_modified.format("%Y-%m-%d %H:%M:%S UTC"))
+            }
+            AgentEvent::InteractiveModeStarted { mode, .. } => {
+                format!("Interactive mode started: {}", mode)
+            }
+            AgentEvent::InteractiveModeEnded { commands_executed, duration_ms } => {
+                format!("Interactive mode ended: {} commands in {}ms", commands_executed, duration_ms)
+            }
+            AgentEvent::ServerStarted { server_type, listen_addr, instance_id } => {
+                format!("Server started: {} at {} (instance: {})", server_type, listen_addr, instance_id)
+            }
+            AgentEvent::ServerStopped { server_type, uptime_ms, requests_handled } => {
+                format!("Server stopped: {} (uptime: {}ms, {} requests handled)",
+                    server_type, uptime_ms, requests_handled)
+            }
+            AgentEvent::DashboardStarted { dashboard_type, .. } => {
+                format!("Dashboard started: {}", dashboard_type)
+            }
+            AgentEvent::DashboardStopped { dashboard_type, duration_ms } => {
+                format!("Dashboard stopped: {} (ran for {}ms)", dashboard_type, duration_ms)
+            }
             AgentEvent::SessionStarted { instance_id, timestamp } => {
                 format!("Session started: {} at {}", instance_id, timestamp.format("%Y-%m-%d %H:%M:%S UTC"))
             }
@@ -556,7 +854,7 @@ impl EventPersistence {
             AgentEvent::RecallExecuted {
                 query,
                 result_count,
-                duration_ms,
+                ..
             } => Some(Event::memory_recalled(query.clone(), *result_count)),
             AgentEvent::RememberExecuted {
                 content_preview,
