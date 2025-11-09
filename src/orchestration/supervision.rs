@@ -218,6 +218,19 @@ impl SupervisionTree {
         .await
         .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
 
+        // Register event broadcaster BEFORE Initialize to avoid race condition
+        if let Some(broadcaster) = &self.event_broadcaster {
+            optimizer_ref
+                .cast(OptimizerMessage::RegisterEventBroadcaster(
+                    broadcaster.clone(),
+                ))
+                .map_err(|e| {
+                    tracing::warn!("Failed to register broadcaster with Optimizer: {:?}", e);
+                    crate::error::MnemosyneError::ActorError(e.to_string())
+                })?;
+            tracing::debug!("Event broadcaster registered with Optimizer");
+        }
+
         optimizer_ref
             .cast(OptimizerMessage::Initialize)
             .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
@@ -245,6 +258,19 @@ impl SupervisionTree {
         )
         .await
         .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
+
+        // Register event broadcaster BEFORE Initialize to avoid race condition
+        if let Some(broadcaster) = &self.event_broadcaster {
+            reviewer_ref
+                .cast(ReviewerMessage::RegisterEventBroadcaster(
+                    broadcaster.clone(),
+                ))
+                .map_err(|e| {
+                    tracing::warn!("Failed to register broadcaster with Reviewer: {:?}", e);
+                    crate::error::MnemosyneError::ActorError(e.to_string())
+                })?;
+            tracing::debug!("Event broadcaster registered with Reviewer");
+        }
 
         reviewer_ref
             .cast(ReviewerMessage::Initialize)
@@ -292,6 +318,19 @@ impl SupervisionTree {
         .await
         .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
 
+        // Register event broadcaster BEFORE Initialize to avoid race condition
+        if let Some(broadcaster) = &self.event_broadcaster {
+            executor_ref
+                .cast(ExecutorMessage::RegisterEventBroadcaster(
+                    broadcaster.clone(),
+                ))
+                .map_err(|e| {
+                    tracing::warn!("Failed to register broadcaster with Executor: {:?}", e);
+                    crate::error::MnemosyneError::ActorError(e.to_string())
+                })?;
+            tracing::debug!("Event broadcaster registered with Executor");
+        }
+
         executor_ref
             .cast(ExecutorMessage::Initialize)
             .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
@@ -319,6 +358,19 @@ impl SupervisionTree {
         )
         .await
         .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
+
+        // Register event broadcaster BEFORE Initialize to avoid race condition
+        if let Some(broadcaster) = &self.event_broadcaster {
+            orchestrator_ref
+                .cast(OrchestratorMessage::RegisterEventBroadcaster(
+                    broadcaster.clone(),
+                ))
+                .map_err(|e| {
+                    tracing::warn!("Failed to register broadcaster with Orchestrator: {:?}", e);
+                    crate::error::MnemosyneError::ActorError(e.to_string())
+                })?;
+            tracing::debug!("Event broadcaster registered with Orchestrator");
+        }
 
         orchestrator_ref
             .cast(OrchestratorMessage::Initialize)
@@ -371,62 +423,12 @@ impl SupervisionTree {
             tracing::debug!("Agents wired: Full mesh topology established");
         }
 
-        // Register event broadcaster with all actors for real-time observability
-        tracing::info!("About to check event broadcaster for registration");
-        if let Some(broadcaster) = &self.event_broadcaster {
-            tracing::info!("Event broadcaster found! Registering with all actors");
-
-            // Register with Orchestrator
-            if let Some(ref orchestrator) = self.orchestrator {
-                orchestrator
-                    .cast(OrchestratorMessage::RegisterEventBroadcaster(
-                        broadcaster.clone(),
-                    ))
-                    .map_err(|e| {
-                        tracing::warn!("Failed to register broadcaster with Orchestrator: {:?}", e);
-                        crate::error::MnemosyneError::ActorError(e.to_string())
-                    })?;
-            }
-
-            // Register with Optimizer
-            if let Some(ref optimizer) = self.optimizer {
-                optimizer
-                    .cast(OptimizerMessage::RegisterEventBroadcaster(
-                        broadcaster.clone(),
-                    ))
-                    .map_err(|e| {
-                        tracing::warn!("Failed to register broadcaster with Optimizer: {:?}", e);
-                        crate::error::MnemosyneError::ActorError(e.to_string())
-                    })?;
-            }
-
-            // Register with Reviewer
-            if let Some(ref reviewer) = self.reviewer {
-                reviewer
-                    .cast(ReviewerMessage::RegisterEventBroadcaster(
-                        broadcaster.clone(),
-                    ))
-                    .map_err(|e| {
-                        tracing::warn!("Failed to register broadcaster with Reviewer: {:?}", e);
-                        crate::error::MnemosyneError::ActorError(e.to_string())
-                    })?;
-            }
-
-            // Register with Executor
-            if let Some(ref executor) = self.executor {
-                executor
-                    .cast(ExecutorMessage::RegisterEventBroadcaster(
-                        broadcaster.clone(),
-                    ))
-                    .map_err(|e| {
-                        tracing::warn!("Failed to register broadcaster with Executor: {:?}", e);
-                        crate::error::MnemosyneError::ActorError(e.to_string())
-                    })?;
-            }
-
-            tracing::info!("Event broadcaster registered with all 4 actors");
+        // Event broadcaster registration moved to immediately after actor spawn
+        // to avoid race condition with Initialize message
+        if self.event_broadcaster.is_some() {
+            tracing::info!("Event broadcaster registered with all 4 actors during spawn");
         } else {
-            tracing::warn!("No event broadcaster available, skipping registration - dashboard will not receive events!");
+            tracing::warn!("No event broadcaster available - dashboard will not receive events!");
         }
 
         // Initialize and register Python Claude SDK agent bridges (if Python feature enabled)
