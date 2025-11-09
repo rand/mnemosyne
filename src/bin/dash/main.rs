@@ -53,9 +53,10 @@ use panels::{
 };
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
-    widgets::{Block, Borders, Paragraph},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame, Terminal,
 };
 use reqwest::Client;
@@ -106,6 +107,8 @@ struct App {
     api_url: String,
     /// Event receiver from SSE stream
     event_rx: mpsc::UnboundedReceiver<Event>,
+    /// Help overlay visibility
+    show_help: bool,
 }
 
 impl App {
@@ -119,6 +122,7 @@ impl App {
             connected: false,
             api_url,
             event_rx,
+            show_help: false,
         }
     }
 
@@ -193,9 +197,20 @@ impl App {
 
     /// Handle keyboard input
     fn handle_key(&mut self, key: KeyCode) -> bool {
+        // If help is showing, any key dismisses it (except '?' to toggle)
+        if self.show_help && key != KeyCode::Char('?') {
+            self.show_help = false;
+            return false;
+        }
+
         match key {
             // Quit
             KeyCode::Char('q') | KeyCode::Esc => return true,
+
+            // Help overlay toggle
+            KeyCode::Char('?') => {
+                self.show_help = !self.show_help;
+            }
 
             // Panel toggles
             KeyCode::Char('0') => {
@@ -232,11 +247,6 @@ impl App {
                 // Toggle agent focus mode (cycle through active agents)
                 let available_agents = self.agents_panel.get_active_agent_ids();
                 self.activity_stream.toggle_agent_focus(available_agents);
-            }
-
-            // Help overlay
-            KeyCode::Char('?') => {
-                // Show help overlay - will be implemented later
             }
 
             // Scrolling (Up/Down for active panel)
@@ -278,7 +288,7 @@ impl App {
 
         // Create header with status
         let status_text = if self.connected {
-            format!(" Connected to {}{} | Press 'q' to quit, 'e' errors, 'a' agents ", self.api_url, focus_text)
+            format!(" Connected to {}{} | Press '?' for help, 'q' to quit ", self.api_url, focus_text)
         } else {
             format!(" Connecting to {}... ", self.api_url)
         };
@@ -301,6 +311,11 @@ impl App {
 
         // Body layout depends on visible panels
         self.render_panels(frame, main_chunks[1]);
+
+        // Render help overlay if active
+        if self.show_help {
+            self.render_help_overlay(frame, size);
+        }
     }
 
     /// Render panels based on visibility
@@ -391,6 +406,133 @@ impl App {
                 frame.render_widget(placeholder, right_vert_chunks[1]);
             }
         }
+    }
+
+    /// Render help overlay with keyboard shortcuts
+    fn render_help_overlay(&self, frame: &mut Frame, area: Rect) {
+        // Center the help box (60% width, 70% height)
+        let popup_width = (area.width as f32 * 0.6) as u16;
+        let popup_height = (area.height as f32 * 0.7) as u16;
+        let x = (area.width.saturating_sub(popup_width)) / 2;
+        let y = (area.height.saturating_sub(popup_height)) / 2;
+
+        let popup_area = Rect {
+            x: area.x + x,
+            y: area.y + y,
+            width: popup_width,
+            height: popup_height,
+        };
+
+        // Build help text with formatting
+        let help_lines = vec![
+            Line::from(vec![
+                Span::styled(
+                    "MNEMOSYNE DASHBOARD - KEYBOARD SHORTCUTS",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("General", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            ]),
+            Line::from(vec![
+                Span::styled("  q, Esc  ", Style::default().fg(Color::Green)),
+                Span::raw("Quit dashboard"),
+            ]),
+            Line::from(vec![
+                Span::styled("  ?       ", Style::default().fg(Color::Green)),
+                Span::raw("Toggle this help screen"),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("Panel Visibility", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            ]),
+            Line::from(vec![
+                Span::styled("  0       ", Style::default().fg(Color::Green)),
+                Span::raw("Toggle all panels"),
+            ]),
+            Line::from(vec![
+                Span::styled("  h       ", Style::default().fg(Color::Green)),
+                Span::raw("Toggle System Overview (header)"),
+            ]),
+            Line::from(vec![
+                Span::styled("  1       ", Style::default().fg(Color::Green)),
+                Span::raw("Toggle Activity Stream"),
+            ]),
+            Line::from(vec![
+                Span::styled("  2       ", Style::default().fg(Color::Green)),
+                Span::raw("Toggle Agent Details"),
+            ]),
+            Line::from(vec![
+                Span::styled("  3       ", Style::default().fg(Color::Green)),
+                Span::raw("Toggle Operations"),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("Activity Stream", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            ]),
+            Line::from(vec![
+                Span::styled("  c       ", Style::default().fg(Color::Green)),
+                Span::raw("Clear activity stream"),
+            ]),
+            Line::from(vec![
+                Span::styled("  e       ", Style::default().fg(Color::Green)),
+                Span::raw("Toggle error focus mode (errors only)"),
+            ]),
+            Line::from(vec![
+                Span::styled("  a       ", Style::default().fg(Color::Green)),
+                Span::raw("Toggle agent focus mode (cycle through agents)"),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("Operations Panel", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            ]),
+            Line::from(vec![
+                Span::styled("  v       ", Style::default().fg(Color::Green)),
+                Span::raw("Cycle view mode (List → Grouped → Statistics)"),
+                Span::styled(" [Coming Soon]", Style::default().fg(Color::DarkGray)),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled("Navigation", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            ]),
+            Line::from(vec![
+                Span::styled("  ↑/↓     ", Style::default().fg(Color::Green)),
+                Span::raw("Scroll up/down in focused panel"),
+                Span::styled(" [Coming Soon]", Style::default().fg(Color::DarkGray)),
+            ]),
+            Line::from(vec![
+                Span::styled("  PgUp/Dn ", Style::default().fg(Color::Green)),
+                Span::raw("Page up/down in focused panel"),
+                Span::styled(" [Coming Soon]", Style::default().fg(Color::DarkGray)),
+            ]),
+            Line::from(""),
+            Line::from(vec![
+                Span::styled(
+                    "Press any key to dismiss this help",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::ITALIC),
+                ),
+            ]),
+        ];
+
+        let help_text = Paragraph::new(help_lines)
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Yellow))
+                    .title(" Help ")
+                    .title_alignment(Alignment::Center),
+            )
+            .alignment(Alignment::Left)
+            .style(Style::default().bg(Color::Black));
+
+        // Clear background and render help
+        frame.render_widget(Clear, popup_area);
+        frame.render_widget(help_text, popup_area);
     }
 }
 
