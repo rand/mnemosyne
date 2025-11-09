@@ -84,18 +84,25 @@ def coordinator():
 
 
 @pytest.fixture
-def config_manager():
-    """Create test config manager for secure API key access."""
-    return mnemosyne_core.PyConfigManager()
-
-
-@pytest.fixture
-def api_key(config_manager):
-    """Get API key from secure storage."""
+def api_key():
+    """Get API key from secure storage via mnemosyne CLI."""
+    import subprocess
     try:
-        return config_manager.get_api_key()
+        result = subprocess.run(
+            ["mnemosyne", "config", "show-key"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            # Extract key from output like " API key configured: sk-ant-..."
+            for line in result.stdout.split('\n'):
+                if 'API key configured:' in line:
+                    key = line.split(':', 1)[1].strip()
+                    return key
+        pytest.skip(f"API key not configured: {result.stderr}")
     except Exception as e:
-        pytest.skip(f"API key not configured: {e}")
+        pytest.skip(f"Failed to retrieve API key: {e}")
 
 
 @pytest.fixture

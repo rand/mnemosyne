@@ -4,13 +4,12 @@
 
 use pyo3::prelude::*;
 use crate::config::ConfigManager;
-use crate::error::Result;
 
 /// Python wrapper for ConfigManager.
 ///
 /// Provides access to configuration including secure API key retrieval
 /// from environment variables, age-encrypted config, or OS keychain.
-#[pyclass(name = "PyConfigManager")]
+#[pyclass]
 pub struct PyConfigManager {
     manager: ConfigManager,
 }
