@@ -133,9 +133,16 @@ impl App {
             use mnemosyne_core::api::events::EventType::*;
             match &event.event_type {
                 // Agent events → Agents panel
-                AgentStarted { .. } => {
-                    // Note: We'll enhance agent tracking in Phase 2.3
-                    // For now, agents are fetched from API endpoint
+                AgentStarted { .. }
+                | AgentCompleted { .. }
+                | AgentFailed { .. }
+                | AgentBlocked { .. }
+                | AgentUnblocked { .. }
+                | AgentRestarted { .. }
+                | AgentHealthDegraded { .. }
+                | WorkItemAssigned { .. }
+                | WorkItemCompleted { .. } => {
+                    self.agents_panel.add_event(event.clone());
                 }
 
                 // CLI events → Operations panel
@@ -145,9 +152,8 @@ impl App {
                 CliCommandCompleted { command, duration_ms, result_summary, .. } => {
                     self.operations_panel.update_completed(command, *duration_ms, result_summary.clone());
                 }
-                CliCommandFailed { command, error, .. } => {
-                    // Calculate rough duration (we don't have it in the failed event currently)
-                    self.operations_panel.update_failed(command, error.clone(), 0);
+                CliCommandFailed { command, error, duration_ms, .. } => {
+                    self.operations_panel.update_failed(command, error.clone(), *duration_ms);
                 }
 
                 _ => {
