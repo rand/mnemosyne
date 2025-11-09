@@ -67,9 +67,10 @@ API_KEY_AVAILABLE = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 @pytest.fixture
 def temp_db():
-    """Create temporary database for testing."""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        db_path = f.name
+    """Create temporary database path for testing (file does not exist initially)."""
+    import time
+    # Generate path but don't create file (mnemosyne init needs to create it)
+    db_path = f"/tmp/test_mnemosyne_{int(time.time() * 1000000)}.db"
     yield db_path
     # Cleanup
     if os.path.exists(db_path):
@@ -83,6 +84,21 @@ def coordinator():
 
 
 @pytest.fixture
+def config_manager():
+    """Create test config manager for secure API key access."""
+    return mnemosyne_core.PyConfigManager()
+
+
+@pytest.fixture
+def api_key(config_manager):
+    """Get API key from secure storage."""
+    try:
+        return config_manager.get_api_key()
+    except Exception as e:
+        pytest.skip(f"API key not configured: {e}")
+
+
+@pytest.fixture
 def storage(temp_db):
     """Create test storage instance with initialized database."""
     from pathlib import Path
@@ -91,10 +107,10 @@ def storage(temp_db):
     # Ensure database directory exists
     Path(temp_db).parent.mkdir(parents=True, exist_ok=True)
 
-    # Initialize database using Rust CLI init command
+    # Initialize database using installed mnemosyne CLI
     try:
         result = subprocess.run(
-            ["./target/release/mnemosyne", "init", "--database", temp_db],
+            ["mnemosyne", "init", "--database", temp_db],
             capture_output=True,
             text=True,
             timeout=5
@@ -138,10 +154,11 @@ class TestAgentInitialization:
     """Test that agents initialize correctly without API calls."""
 
     @pytest.mark.asyncio
-    async def test_executor_initialization(self, coordinator, storage, parallel_executor):
+    async def test_executor_initialization(self, coordinator, storage, parallel_executor, api_key):
         """Test ExecutorAgent initializes with direct Anthropic API access."""
         config = ExecutorConfig(
-            agent_id="test_executor"
+            agent_id="test_executor",
+            api_key=api_key
         )
 
         executor = ExecutorAgent(
@@ -153,7 +170,8 @@ class TestAgentInitialization:
 
         # Check initialization
         assert executor.config.agent_id == "test_executor"
-        assert executor.api_key is not None  # Should get from environment
+        assert executor.api_key is not None  # Should get from secure storage
+        assert executor.api_key == api_key
         assert not executor._session_active
         assert executor._current_phase.value == "idle"
 
@@ -163,11 +181,12 @@ class TestAgentInitialization:
         assert status["checkpoints"] == 0
 
     @pytest.mark.asyncio
-    async def test_orchestrator_initialization(self, coordinator, storage, context_monitor):
+    async def test_orchestrator_initialization(self, coordinator, storage, context_monitor, api_key):
         """Test OrchestratorAgent initializes with direct Anthropic API access."""
         config = OrchestratorConfig(
             agent_id="test_orchestrator",
-            max_parallel_agents=4
+            max_parallel_agents=4,
+            api_key=api_key
         )
 
         orchestrator = OrchestratorAgent(
@@ -179,7 +198,8 @@ class TestAgentInitialization:
 
         # Check initialization
         assert orchestrator.config.agent_id == "test_orchestrator"
-        assert orchestrator.api_key is not None  # Should get from environment
+        assert orchestrator.api_key is not None  # Should get from secure storage
+        assert orchestrator.api_key == api_key
         assert not orchestrator._session_active
         assert orchestrator._phase.value == "idle"
 
@@ -191,11 +211,12 @@ class TestAgentInitialization:
         assert orchestrator._has_circular_dependencies() is True
 
     @pytest.mark.asyncio
-    async def test_optimizer_initialization(self, coordinator, storage):
+    async def test_optimizer_initialization(self, coordinator, storage, api_key):
         """Test OptimizerAgent initializes with direct Anthropic API access."""
         config = OptimizerConfig(
             agent_id="test_optimizer",
-            max_skills_loaded=5
+            max_skills_loaded=5,
+            api_key=api_key
         )
 
         optimizer = OptimizerAgent(
@@ -206,16 +227,18 @@ class TestAgentInitialization:
 
         # Check initialization
         assert optimizer.config.agent_id == "test_optimizer"
-        assert optimizer.api_key is not None  # Should get from environment
+        assert optimizer.api_key is not None  # Should get from secure storage
+        assert optimizer.api_key == api_key
         assert not optimizer._session_active
         assert len(optimizer._loaded_skills) == 0
 
     @pytest.mark.asyncio
-    async def test_reviewer_initialization(self, coordinator, storage):
+    async def test_reviewer_initialization(self, coordinator, storage, api_key):
         """Test ReviewerAgent initializes with direct Anthropic API access."""
         config = ReviewerConfig(
             agent_id="test_reviewer",
-            strict_mode=True
+            strict_mode=True,
+            api_key=api_key
         )
 
         reviewer = ReviewerAgent(
@@ -226,7 +249,8 @@ class TestAgentInitialization:
 
         # Check initialization
         assert reviewer.config.agent_id == "test_reviewer"
-        assert reviewer.api_key is not None  # Should get from environment
+        assert reviewer.api_key is not None  # Should get from secure storage
+        assert reviewer.api_key == api_key
         assert not reviewer._session_active
         assert reviewer._review_count == 0
 
@@ -502,9 +526,13 @@ def test_bindings_available():
     assert mnemosyne_core is not None
 
 
-def test_claude_sdk_importable():
-    """Verify Claude Agent SDK can be imported."""
-    assert CLAUDE_SDK_AVAILABLE, "claude-agent-sdk not installed"
+def test_anthropic_sdk_importable():
+    """Verify Anthropic SDK can be imported."""
+    try:
+        import anthropic
+        assert True
+    except ImportError:
+        assert False, "anthropic SDK not installed"
 
 
 def test_api_key_info():
