@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Dashboard Crash and Terminal Corruption**: Fixed critical crash in mnemosyne-dash that occurred when rendering health metrics containing NaN values, which left the terminal in a corrupted state requiring restart
+  - **Root Cause**: Sparkline widget used unsafe `partial_cmp().unwrap()` on floating-point values. NaN comparisons return `None`, causing panic. Since terminal was in raw mode, panic messages went to corrupted display (src/bin/dash/widgets/sparkline.rs:61,67)
+  - **Fix 1 (Priority 1)**: Filter non-finite values (NaN/Infinity) before min/max calculations using `is_finite()` check. Gracefully render non-finite values as spaces. Added 5 comprehensive tests covering NaN, infinity, and mixed scenarios
+  - **Fix 2 (Priority 2)**: Added 1MB size limit to SSE string accumulation to prevent OOM from malformed streams (src/bin/dash/main.rs:571,591-600)
+  - **Fix 3 (Priority 3)**: Replaced unsafe check-then-access pattern with safe `if let Some()` in critical_events display (src/bin/dash/panels/system_overview.rs:284)
+  - **Fix 4 (Priority 4)**: Installed panic handler to restore terminal state (`disable_raw_mode()`, `LeaveAlternateScreen`) before panic, preventing terminal corruption and making error messages visible (src/bin/dash/main.rs:654-663)
+  - **Fix 5 (Priority 5)**: Added explicit error handling to SSE client with logging and graceful reconnection on stream errors (src/bin/dash/main.rs:574-614)
+  - **Impact**: Dashboard now handles invalid metrics gracefully, terminal corruption is prevented even if future panics occur, and error messages are always visible
 - **Event Broadcasting Race Condition**: Fixed race condition where orchestration actors received `Initialize` messages before `RegisterEventBroadcaster` messages, causing events to be stored but not broadcast to dashboard. Broadcaster registration now happens immediately after actor spawn and before initialization (src/orchestration/supervision.rs:221-372)
 - **Dashboard Event Flow**: Added comprehensive debug logging to trace event broadcaster availability and broadcast attempts throughout the orchestration event system
 

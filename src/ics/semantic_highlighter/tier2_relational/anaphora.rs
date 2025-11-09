@@ -94,9 +94,9 @@ impl AnaphoraResolver {
         }
     }
 
-    /// Set maximum lookback distance
+    /// Set maximum lookback distance (minimum 1 to prevent division by zero)
     pub fn with_max_lookback(mut self, distance: usize) -> Self {
-        self.max_lookback = distance;
+        self.max_lookback = distance.max(1); // Ensure at least 1 to prevent NaN
         self
     }
 
@@ -222,10 +222,14 @@ impl AnaphoraResolver {
             candidate.confidence = self.score_antecedent(anaphor, candidate, text);
         }
 
-        // Return best candidate
+        // Return best candidate (with NaN-safe comparison)
         Ok(candidates
             .into_iter()
-            .max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap()))
+            .max_by(|a, b| {
+                a.confidence
+                    .partial_cmp(&b.confidence)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            }))
     }
 
     /// Score antecedent candidate for an anaphor
