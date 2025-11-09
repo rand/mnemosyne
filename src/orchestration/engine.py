@@ -216,9 +216,10 @@ class OrchestrationEngine:
             # Step 3: Reviewer validates results
             if execution_result["status"] == "success":
                 print("\n[Reviewer] Validating artifacts...")
-                review_result = await self.reviewer.review(
-                    execution_result["artifacts"]
-                )
+                # Extract first artifact from list (executor returns list of artifacts)
+                artifacts = execution_result["artifacts"]
+                artifact_to_review = artifacts[0] if artifacts else {}
+                review_result = await self.reviewer.review(artifact_to_review)
 
                 if not review_result.passed:
                     print(f"[Reviewer] Validation failed: {len(review_result.issues)} issues")
