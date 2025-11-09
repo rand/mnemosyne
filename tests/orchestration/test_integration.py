@@ -1,10 +1,10 @@
 """
-Integration Tests for Multi-Agent Orchestration with Claude Agent SDK.
+Integration Tests for Multi-Agent Orchestration with Direct Anthropic API.
 
 Tests the complete multi-agent workflow:
 - Orchestrator coordinating work distribution
 - Optimizer discovering skills and allocating context
-- Executor executing work plans with Claude
+- Executor executing work plans using direct Anthropic API
 - Reviewer validating quality gates
 
 NOTE: These tests require ANTHROPIC_API_KEY to be set for full integration testing.
@@ -57,16 +57,8 @@ if BINDINGS_AVAILABLE:
         ParallelExecutor,
     )
 
-# Check if Claude Agent SDK and API key available
-CLAUDE_SDK_AVAILABLE = False
-API_KEY_AVAILABLE = False
-
-try:
-    from claude_agent_sdk import ClaudeSDKClient
-    CLAUDE_SDK_AVAILABLE = True
-    API_KEY_AVAILABLE = bool(os.environ.get("ANTHROPIC_API_KEY"))
-except ImportError:
-    pass
+# Check if API key available
+API_KEY_AVAILABLE = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
 # ============================================================================
@@ -147,10 +139,9 @@ class TestAgentInitialization:
 
     @pytest.mark.asyncio
     async def test_executor_initialization(self, coordinator, storage, parallel_executor):
-        """Test ExecutorAgent initializes with ClaudeSDKClient."""
+        """Test ExecutorAgent initializes with direct Anthropic API access."""
         config = ExecutorConfig(
-            agent_id="test_executor",
-            allowed_tools=["Read", "Write"]
+            agent_id="test_executor"
         )
 
         executor = ExecutorAgent(
@@ -162,7 +153,7 @@ class TestAgentInitialization:
 
         # Check initialization
         assert executor.config.agent_id == "test_executor"
-        assert executor.claude_client is not None
+        assert executor.api_key is not None  # Should get from environment
         assert not executor._session_active
         assert executor._current_phase.value == "idle"
 
@@ -173,7 +164,7 @@ class TestAgentInitialization:
 
     @pytest.mark.asyncio
     async def test_orchestrator_initialization(self, coordinator, storage, context_monitor):
-        """Test OrchestratorAgent initializes with ClaudeSDKClient."""
+        """Test OrchestratorAgent initializes with direct Anthropic API access."""
         config = OrchestratorConfig(
             agent_id="test_orchestrator",
             max_parallel_agents=4
@@ -188,7 +179,7 @@ class TestAgentInitialization:
 
         # Check initialization
         assert orchestrator.config.agent_id == "test_orchestrator"
-        assert orchestrator.claude_client is not None
+        assert orchestrator.api_key is not None  # Should get from environment
         assert not orchestrator._session_active
         assert orchestrator._phase.value == "idle"
 
@@ -201,7 +192,7 @@ class TestAgentInitialization:
 
     @pytest.mark.asyncio
     async def test_optimizer_initialization(self, coordinator, storage):
-        """Test OptimizerAgent initializes with ClaudeSDKClient."""
+        """Test OptimizerAgent initializes with direct Anthropic API access."""
         config = OptimizerConfig(
             agent_id="test_optimizer",
             max_skills_loaded=5
@@ -215,13 +206,13 @@ class TestAgentInitialization:
 
         # Check initialization
         assert optimizer.config.agent_id == "test_optimizer"
-        assert optimizer.claude_client is not None
+        assert optimizer.api_key is not None  # Should get from environment
         assert not optimizer._session_active
         assert len(optimizer._loaded_skills) == 0
 
     @pytest.mark.asyncio
     async def test_reviewer_initialization(self, coordinator, storage):
-        """Test ReviewerAgent initializes with ClaudeSDKClient."""
+        """Test ReviewerAgent initializes with direct Anthropic API access."""
         config = ReviewerConfig(
             agent_id="test_reviewer",
             strict_mode=True
@@ -235,7 +226,7 @@ class TestAgentInitialization:
 
         # Check initialization
         assert reviewer.config.agent_id == "test_reviewer"
-        assert reviewer.claude_client is not None
+        assert reviewer.api_key is not None  # Should get from environment
         assert not reviewer._session_active
         assert reviewer._review_count == 0
 
