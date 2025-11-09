@@ -113,12 +113,14 @@ impl OrchestratorState {
         namespace: Namespace,
         agent_id: String,
     ) {
+        tracing::info!("Orchestrator: Registering event broadcaster for agent_id: {}", agent_id);
         // Reconstruct EventPersistence with broadcaster
         self.events = EventPersistence::new_with_broadcaster(
             storage,
             namespace.clone(),
             Some(broadcaster.clone()),
         );
+        tracing::info!("Orchestrator: EventPersistence recreated with broadcaster");
 
         // Clone agent_id for the spawn task
         let agent_id_clone = agent_id.clone();

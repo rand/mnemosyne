@@ -422,6 +422,11 @@ impl EventPersistence {
         namespace: Namespace,
         event_broadcaster: Option<crate::api::EventBroadcaster>,
     ) -> Self {
+        if event_broadcaster.is_some() {
+            tracing::info!("Creating EventPersistence WITH broadcaster for namespace: {}", namespace);
+        } else {
+            tracing::warn!("Creating EventPersistence WITHOUT broadcaster for namespace: {}", namespace);
+        }
         Self {
             storage,
             namespace,
@@ -623,12 +628,20 @@ impl EventPersistence {
 
         // Broadcast to API if broadcaster is available
         if let Some(broadcaster) = &self.event_broadcaster {
+            tracing::debug!("EventPersistence has broadcaster, checking if event can be converted to API event");
             if let Some(api_event) = self.to_api_event(&event) {
+                tracing::info!("Broadcasting event to API: {:?}", api_event.event_type);
                 if let Err(e) = broadcaster.broadcast(api_event) {
                     tracing::debug!("Failed to broadcast event to API: {}", e);
                     // Don't fail persistence if broadcasting fails
+                } else {
+                    tracing::debug!("Successfully broadcast event to API");
                 }
+            } else {
+                tracing::debug!("Event type not mapped to API event: {}", event.summary());
             }
+        } else {
+            tracing::debug!("No broadcaster available for EventPersistence");
         }
 
         Ok(memory.id)
