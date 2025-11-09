@@ -44,8 +44,8 @@ This specification defines a multi-agent orchestration system for Claude Code th
 **Hybrid Specification + Implementation Architecture**:
 - Behavior defined in markdown/YAML specifications
 - Claude interprets specifications for high-level workflows
-- **Python implementations use Claude Agent SDK** for real intelligence
-- All 4 agents (Orchestrator, Optimizer, Reviewer, Executor) use `ClaudeSDKClient`
+- **Python implementations use direct Anthropic API** for real intelligence
+- All 4 agents (Orchestrator, Optimizer, Reviewer, Executor) use direct `anthropic.Anthropic` client
 - Enforcement hooks in JavaScript for deterministic validation
 
 **Modular Composition**:
@@ -68,28 +68,29 @@ This specification defines a multi-agent orchestration system for Claude Code th
 - Suggest alternatives constructively
 - Block on critical unknowns
 
-### 1.3 Implementation Architecture (Updated October 2025)
+### 1.3 Implementation Architecture (Updated January 2025)
 
-**Critical Change**: The system now uses **real Claude Agent SDK implementations** rather than stubs.
+**Critical Update**: The system uses **direct Anthropic API calls** rather than Claude Agent SDK.
 
 ✅ **Current Architecture**:
-- All 4 agents use `ClaudeSDKClient` from `claude-agent-sdk>=0.1.0`
-- Agents maintain real conversation context and make intelligent decisions
-- Tool access (Read, Write, Edit, Bash, Glob, Grep) for Executor
-- View-only tools (Read, Glob, Grep) for Orchestrator, Optimizer, Reviewer
-- Session lifecycle management with async context managers
-- Message storage in PyStorage for persistence
+- All 4 agents use direct `anthropic.Anthropic()` API client
+- Agents maintain conversation history and make intelligent LLM-powered decisions
+- Tool execution system for file operations (read_file, create_file, edit_file, run_command)
+- API calls with circuit breaker for resilience
+- Session lifecycle with API key validation
+- Memory storage in PyStorage for persistence
 
 ❌ **Non-Goals**:
 - Complex distributed systems infrastructure
 - Machine learning models for agent behavior
 - GUI or web interface (CLI and Claude Code integration only)
 
-**Rationale**: Real Claude agents provide:
+**Rationale**: Direct API integration provides:
 - Intelligent decision-making for orchestration, optimization, and review
-- Context-aware responses to complex scenarios
-- Tool usage for file inspection and validation
-- Adaptive behavior based on task requirements
+- Context-aware responses using Claude Sonnet 4.5
+- Tool execution for file creation and code editing
+- Standalone operation without requiring Claude Code session context
+- Full control over conversation history and context management
 
 ---
 

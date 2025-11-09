@@ -10,7 +10,7 @@ Mnemosyne's multi-agent orchestration system provides **10-20x faster** storage 
 
 **Architecture**:
 ```
-Claude Agent SDK (Python)
+Direct Anthropic API (Python)
     ↓
 mnemosyne_core (PyO3 bindings)
     ├─→ Storage (Rust) - Memory operations
@@ -394,34 +394,47 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 ---
 
-## Integration with Claude Agent SDK
+## Integration with Direct Anthropic API
 
 ### Basic Setup
 
 ```python
-from claude_agent_sdk import Agent
+from anthropic import Anthropic
 from mnemosyne_core import PyStorage
+import os
+
+# Initialize Anthropic client
+client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 # Initialize Mnemosyne storage
 storage = PyStorage("~/.local/share/mnemosyne/mnemosyne.db")
 
-# Create agent with memory access
-class MemoryAwareAgent(Agent):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.storage = storage
+# Example: Make API call and store memory
+async def execute_with_memory(task_description):
+    """Execute task using direct Anthropic API and store memories"""
 
-    async def remember(self, content, importance=7):
-        """Store a memory during execution"""
-        memory = {
-            "content": content,
-            "namespace": f"project:{self.project_name}",
-            "importance": importance,
-            "context": f"Agent execution: {self.current_task}",
-            "summary": content[:100],
-            "keywords": [],
-            "tags": ["agent-generated"],
-            "confidence": 0.8
+    # Make API call
+    response = client.messages.create(
+        model="claude-sonnet-4-5-20250929",
+        max_tokens=4096,
+        messages=[{"role": "user", "content": task_description}]
+    )
+
+    # Extract response
+    response_text = ""
+    for block in response.content:
+        if block.type == "text":
+            response_text += block.text
+
+    # Store memory
+    memory = {
+        "content": f"Executed: {task_description[:100]}",
+        "namespace": "project:myapp",
+        "importance": 7,
+        "summary": response_text[:100],
+        "keywords": [],
+        "tags": ["agent-generated"],
+        "confidence": 0.8
         }
         return self.storage.store(memory)
 

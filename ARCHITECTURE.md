@@ -1155,7 +1155,7 @@ mnemosyne-dash  # Automatically connects to localhost:3000
 ### PyO3 Architecture
 
 ```
-Claude Agent SDK (Python)
+Direct Anthropic API (Python)
     ↓
 mnemosyne_core (PyO3 bindings)
     ↓
