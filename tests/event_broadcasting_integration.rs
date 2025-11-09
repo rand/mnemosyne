@@ -55,19 +55,22 @@ fn create_test_namespace() -> Namespace {
 }
 
 /// Helper to start API server on fixed port for testing
-async fn start_test_api_server() -> (tokio::task::JoinHandle<()>, Arc<ApiServer>, u16) {
+async fn start_test_api_server() -> (tokio::task::JoinHandle<()>, std::sync::Arc<mnemosyne_core::api::EventBroadcaster>, u16) {
     let port = 13000 + (std::process::id() % 1000) as u16; // Semi-unique port per process
     let config = ApiServerConfig {
         addr: ([127, 0, 0, 1], port).into(),
         event_capacity: 100,
     };
 
-    let server = Arc::new(ApiServer::new(config));
-    let server_clone = server.clone();
+    let server = ApiServer::new(config);
 
-    // Start server in background task
+    // Get broadcaster before moving server into spawn
+    let broadcaster = std::sync::Arc::new(server.broadcaster().clone());
+    let broadcaster_ret = broadcaster.clone();
+
+    // Start server in background task (consumes server)
     let server_handle = tokio::spawn(async move {
-        if let Err(e) = server_clone.serve().await {
+        if let Err(e) = server.serve().await {
             tracing::error!("API server error: {}", e);
         }
     });
@@ -75,7 +78,7 @@ async fn start_test_api_server() -> (tokio::task::JoinHandle<()>, Arc<ApiServer>
     // Give server time to start
     tokio::time::sleep(Duration::from_millis(300)).await;
 
-    (server_handle, server, port)
+    (server_handle, broadcaster_ret, port)
 }
 
 // =============================================================================
@@ -85,8 +88,8 @@ async fn start_test_api_server() -> (tokio::task::JoinHandle<()>, Arc<ApiServer>
 #[tokio::test]
 async fn test_cli_event_emission_to_api_server() {
     // Start API server
-    let (_handle, server, port) = start_test_api_server().await;
-    let broadcaster = server.broadcaster();
+    let (_handle, broadcaster, port) = start_test_api_server().await;
+    // broadcaster already available from start_test_api_server();
 
     // Subscribe to events
     let mut rx = broadcaster.subscribe();
@@ -127,7 +130,7 @@ async fn test_event_persistence_via_api() {
     let namespace = create_test_namespace();
 
     // Start API server
-    let (_handle, server, port) = start_test_api_server().await;
+    let (_handle, broadcaster, port) = start_test_api_server().await;
 
     // Emit multiple events
     let client = reqwest::Client::new();
@@ -155,8 +158,8 @@ async fn test_event_persistence_via_api() {
 
 #[tokio::test]
 async fn test_event_broadcaster_forwards_to_sse_stream() {
-    let (_handle, server, _port) = start_test_api_server().await;
-    let broadcaster = server.broadcaster();
+    let (_handle, broadcaster, _port) = start_test_api_server().await;
+    // broadcaster already available from start_test_api_server();
 
     // Subscribe multiple clients
     let mut rx1 = broadcaster.subscribe();
@@ -243,8 +246,8 @@ async fn test_sse_subscriber_receives_events() {
     let orchestrator = engine.orchestrator();
 
     // Start API server
-    let (_handle, server, port) = start_test_api_server().await;
-    let broadcaster = server.broadcaster();
+    let (_handle, broadcaster, port) = start_test_api_server().await;
+    // broadcaster already available from start_test_api_server();
 
     // Create SSE subscriber
     let sse_config = SseSubscriberConfig {
@@ -317,8 +320,8 @@ async fn test_end_to_end_cli_event_flow() {
     let orchestrator = engine.orchestrator();
 
     // Start API server
-    let (_handle, server, port) = start_test_api_server().await;
-    let broadcaster = server.broadcaster();
+    let (_handle, broadcaster, port) = start_test_api_server().await;
+    // broadcaster already available from start_test_api_server();
 
     // Create SSE subscriber
     let sse_config = SseSubscriberConfig {
@@ -374,8 +377,8 @@ async fn test_memory_operation_event_flow() {
     engine.start().await.expect("Failed to start engine");
 
     // Start API server
-    let (_handle, server, port) = start_test_api_server().await;
-    let broadcaster = server.broadcaster();
+    let (_handle, broadcaster, port) = start_test_api_server().await;
+    // broadcaster already available from start_test_api_server();
 
     // Subscribe to events
     let mut rx = broadcaster.subscribe();
@@ -422,8 +425,8 @@ async fn test_session_lifecycle_event_flow() {
     engine.start().await.expect("Failed to start engine");
 
     // Start API server
-    let (_handle, server, _port) = start_test_api_server().await;
-    let broadcaster = server.broadcaster();
+    let (_handle, broadcaster, _port) = start_test_api_server().await;
+    // broadcaster already available from start_test_api_server();
 
     // Subscribe to events
     let mut rx = broadcaster.subscribe();
@@ -538,8 +541,8 @@ async fn test_sse_subscriber_handles_server_unavailable() {
 
 #[tokio::test]
 async fn test_event_ordering_preserved() {
-    let (_handle, server, _port) = start_test_api_server().await;
-    let broadcaster = server.broadcaster();
+    let (_handle, broadcaster, _port) = start_test_api_server().await;
+    // broadcaster already available from start_test_api_server();
 
     // Subscribe
     let mut rx = broadcaster.subscribe();
