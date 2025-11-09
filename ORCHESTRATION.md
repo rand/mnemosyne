@@ -385,11 +385,17 @@ pytest tests/orchestration/
 
 **Agent initialization failures**
 ```bash
-# Check API key availability
-python -c "import os; print('API key:', 'SET' if os.getenv('ANTHROPIC_API_KEY') else 'NOT SET')"
+# Check API key availability (secure storage)
+mnemosyne config show-key
 
-# Set API key if needed
+# Configure API key (if not set)
+# Option 1: Environment variable (temporary)
 export ANTHROPIC_API_KEY=sk-ant-...
+
+# Option 2: Secure storage (recommended, persistent)
+mnemosyne config set-key sk-ant-...
+# OR interactive setup
+mnemosyne secrets init
 ```
 
 ---
@@ -401,10 +407,26 @@ export ANTHROPIC_API_KEY=sk-ant-...
 ```python
 from anthropic import Anthropic
 from mnemosyne_core import PyStorage
-import os
+import subprocess
 
-# Initialize Anthropic client
-client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+# Get API key from secure storage
+def get_api_key():
+    """Retrieve API key from mnemosyne secure storage."""
+    result = subprocess.run(
+        ["mnemosyne", "config", "show-key"],
+        capture_output=True,
+        text=True,
+        timeout=5
+    )
+    if result.returncode == 0:
+        for line in result.stdout.split('\n'):
+            if 'API key configured:' in line:
+                return line.split(':', 1)[1].strip()
+    raise RuntimeError("API key not configured. Run: mnemosyne config set-key")
+
+# Initialize Anthropic client with secure API key
+api_key = get_api_key()
+client = Anthropic(api_key=api_key)
 
 # Initialize Mnemosyne storage
 storage = PyStorage("~/.local/share/mnemosyne/mnemosyne.db")
