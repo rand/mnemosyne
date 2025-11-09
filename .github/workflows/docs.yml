@@ -35,11 +35,14 @@ jobs:
 
       - name: Install Zensical
         run: |
-          uv init --no-workspace || true
-          uv add zensical
+          uv venv
+          . .venv/bin/activate
+          uv pip install zensical
 
       - name: Build site with Zensical
-        run: uv run zensical build --clean
+        run: |
+          . .venv/bin/activate
+          zensical build --clean
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
