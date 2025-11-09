@@ -53,15 +53,25 @@ impl<'a> Sparkline<'a> {
             ));
         }
 
-        // Find min/max for scaling
-        let min = self
+        // Find min/max for scaling, filtering out NaN and infinity
+        let finite_values: Vec<f32> = self
             .data
+            .iter()
+            .copied()
+            .filter(|x| x.is_finite())
+            .collect();
+
+        // If all values are non-finite, show placeholder
+        if finite_values.is_empty() {
+            return Line::from(Span::styled("─".repeat(self.width), self.style));
+        }
+
+        let min = finite_values
             .iter()
             .copied()
             .min_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap_or(0.0);
-        let max = self
-            .data
+        let max = finite_values
             .iter()
             .copied()
             .max_by(|a, b| a.partial_cmp(b).unwrap())
@@ -82,6 +92,10 @@ impl<'a> Sparkline<'a> {
         let chars: String = display_data
             .iter()
             .map(|&value| {
+                // Handle non-finite values gracefully
+                if !value.is_finite() {
+                    return ' '; // Use space for invalid values
+                }
                 let normalized = (value - min) / range;
                 let index = (normalized * 8.0).round() as usize;
                 BLOCKS[index.min(8)]
@@ -180,5 +194,45 @@ mod tests {
         let line = sparkline.render();
         // Should downsample to 7 characters
         assert_eq!(line.spans[0].content.chars().count(), 7);
+    }
+
+    #[test]
+    fn test_nan_values() {
+        // Should not panic with NaN values
+        let sparkline = Sparkline::new(&[1.0, f32::NAN, 3.0, 4.0, 5.0]);
+        let line = sparkline.render();
+        // Should render successfully (NaN replaced with space)
+        assert_eq!(line.spans[0].content.chars().count(), 7); // Default width
+    }
+
+    #[test]
+    fn test_all_nan_values() {
+        // Should not panic when all values are NaN
+        let sparkline = Sparkline::new(&[f32::NAN, f32::NAN, f32::NAN]);
+        let line = sparkline.render();
+        // Should show placeholder
+        assert_eq!(line.spans[0].content, "───────");
+    }
+
+    #[test]
+    fn test_infinity_values() {
+        // Should not panic with infinity values
+        let sparkline = Sparkline::new(&[1.0, f32::INFINITY, 3.0, f32::NEG_INFINITY, 5.0]);
+        let line = sparkline.render();
+        // Should render successfully (infinities replaced with space)
+        assert_eq!(line.spans[0].content.chars().count(), 7);
+    }
+
+    #[test]
+    fn test_mixed_finite_and_nan() {
+        // Should render finite values correctly, ignoring NaN
+        let sparkline = Sparkline::new(&[1.0, 2.0, f32::NAN, 4.0, 5.0]);
+        let line = sparkline.render();
+        // Should show increasing pattern for finite values
+        assert_eq!(line.spans[0].content.chars().count(), 7);
+        // Should not contain error indicators in finite value positions
+        let chars: Vec<char> = line.spans[0].content.chars().collect();
+        // The NaN should be rendered as space in its position
+        assert!(chars.contains(&' '));
     }
 }

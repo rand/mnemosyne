@@ -568,9 +568,11 @@ fn spawn_sse_client(api_url: String, event_tx: mpsc::UnboundedSender<Event>) {
             let mut lines = BufReader::new(reader).lines();
 
             let mut current_data = String::new();
+            const MAX_SSE_DATA_SIZE: usize = 1_000_000; // 1MB limit
 
-            // Read SSE format line by line
-            while let Ok(Some(line)) = lines.next_line().await {
+            // Read SSE format line by line with error recovery
+            let parse_result: Result<(), Box<dyn std::error::Error + Send + Sync>> = async {
+                while let Some(line) = lines.next_line().await? {
                 if line.is_empty() {
                     // Empty line marks end of event - process accumulated data
                     if !current_data.is_empty() {
@@ -586,13 +588,31 @@ fn spawn_sse_client(api_url: String, event_tx: mpsc::UnboundedSender<Event>) {
                         current_data.clear();
                     }
                 } else if let Some(data) = line.strip_prefix("data: ") {
-                    // Accumulate data lines
+                    // Accumulate data lines with size limit
+                    if current_data.len() + data.len() > MAX_SSE_DATA_SIZE {
+                        error!(
+                            "SSE data exceeds maximum size ({}), discarding event",
+                            MAX_SSE_DATA_SIZE
+                        );
+                        current_data.clear();
+                        continue;
+                    }
                     current_data.push_str(data);
                 }
                 // Ignore other SSE fields (id:, event:, retry:)
             }
+                Ok(())
+            }
+            .await;
 
-            debug!("SSE stream disconnected, reconnecting in 5s...");
+            // Handle any errors from SSE parsing
+            if let Err(e) = parse_result {
+                error!("SSE parsing error: {}", e);
+            } else {
+                debug!("SSE stream disconnected normally");
+            }
+
+            debug!("Reconnecting in 5s...");
             tokio::time::sleep(Duration::from_secs(5)).await;
         }
     });
@@ -641,6 +661,17 @@ async fn main() -> Result<()> {
     execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
+
+    // Install panic handler to restore terminal on crash
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        // Attempt to restore terminal state
+        let _ = disable_raw_mode();
+        let _ = execute!(io::stdout(), LeaveAlternateScreen);
+
+        // Call the default panic handler to print the panic message
+        default_panic(panic_info);
+    }));
 
     // Create app state
     let mut app = App::new(args.api.clone(), event_rx);

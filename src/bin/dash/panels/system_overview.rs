@@ -281,11 +281,11 @@ impl SystemOverviewPanel {
         }
 
         // Row 5: Recent critical events
-        if !self.critical_events.is_empty() {
+        if let Some(last_event) = self.critical_events.last() {
             let events_line = Line::from(vec![
                 Span::styled("Critical: ", Style::default().fg(DashboardColors::ERROR).add_modifier(Modifier::BOLD)),
                 Span::styled(
-                    self.critical_events.last().unwrap().description.clone(),
+                    last_event.description.clone(),
                     Style::default().fg(DashboardColors::ERROR),
                 ),
             ]);
