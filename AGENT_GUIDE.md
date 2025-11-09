@@ -520,6 +520,144 @@ open target/cargo-timings/cargo-timing-*.html
 sccache --show-stats
 ```
 
+### Process Management & Safe Shutdown
+
+#### Problem: PTY Corruption During Claude Code Exit
+
+When Claude Code exits abruptly (crashes, interrupts, session end), background processes attached to the terminal can cause **PTY corruption** leading to:
+- `Error: Device not configured (os error 6)` when restarting
+- Terminal state corruption preventing new processes from binding to ports
+- Orphaned file descriptors to `/dev/pts/*` or `/dev/tty*`
+- Processes in `SN` state (sleeping uninterruptible, detached from terminal)
+
+**Root Cause**: Background processes (`mnemosyne api-server`, `mnemosyne-dash`, test scripts) running in background with output redirection (`> /tmp/log &`) maintain open file descriptors to the terminal. When Claude Code exits, the PTY is destroyed while processes still hold references, causing I/O errors on subsequent terminal operations.
+
+#### Solution: Safe Shutdown Script
+
+**Always use the safe-shutdown script before stopping Claude Code or when terminating background processes:**
+
+```bash
+# Graceful shutdown with 5 second timeout (recommended)
+./scripts/safe-shutdown.sh
+
+# Custom timeout for slower processes
+./scripts/safe-shutdown.sh --wait 10
+
+# Preview actions without executing
+./scripts/safe-shutdown.sh --dry-run
+
+# Emergency force kill (use only when graceful fails)
+./scripts/safe-shutdown.sh --force
+```
+
+**What the script does**:
+1. Finds all `mnemosyne` and `test-server` processes
+2. Sends `TERM` signal for graceful shutdown
+3. Waits for configurable timeout (default: 5s)
+4. **Detaches from PTY** before force kill (prevents corruption)
+5. Cleans up PID files and checks port status
+6. Reports orphaned terminal file descriptors
+
+#### Manual Process Management
+
+If you need to manage processes manually:
+
+```bash
+# Find running processes
+ps aux | grep -E 'mnemosyne|test-server' | grep -v grep
+
+# Start processes detached from terminal (recommended)
+nohup mnemosyne api-server > /tmp/api-server.log 2>&1 &
+nohup mnemosyne-dash > /tmp/dashboard.log 2>&1 &
+
+# Check process status
+ps -p <PID> -o pid,stat,start,command
+
+# Graceful termination (send TERM, wait, then KILL if needed)
+kill -TERM <PID>
+sleep 3
+kill -0 <PID> 2>/dev/null && kill -9 <PID>
+
+# Check for orphaned terminal file descriptors
+lsof -c mnemosyne | grep -E '/dev/(pts|tty)'
+
+# Check port usage
+lsof -i :3000 -n -P
+```
+
+#### Best Practices
+
+**DO**:
+- Use `./scripts/safe-shutdown.sh` before ending sessions
+- Start background processes with `nohup` or detach from terminal
+- Redirect output to `/tmp/` or `/dev/null` for background processes
+- Check process status with `ps` before killing
+- Use graceful `TERM` signal before `KILL`
+
+**DON'T**:
+- Kill processes with `kill -9` immediately (skip graceful shutdown)
+- Leave background processes attached to terminal when exiting
+- Ignore "Device not configured" errors (indicates PTY corruption)
+- Use `Ctrl+C` on background processes (interrupts but doesn't clean up)
+
+#### Recovery from PTY Corruption
+
+If you encounter PTY corruption:
+
+```bash
+# 1. Clean up stale processes
+./scripts/safe-shutdown.sh
+
+# 2. Check for orphaned terminal FDs
+lsof | grep -E '/dev/(pts|tty)' | grep mnemosyne
+
+# 3. Kill any remaining processes
+pkill -9 mnemosyne
+
+# 4. Verify ports are free
+lsof -i :3000 -i :8000 -n -P
+
+# 5. Restart Claude Code session
+# (PTY will be recreated)
+```
+
+#### Common Scenarios
+
+**Starting API server for development**:
+```bash
+# Detached from terminal (survives Claude Code exit)
+nohup mnemosyne api-server > /tmp/api-server.log 2>&1 &
+echo $! > .claude/server.pid
+
+# Verify running
+curl -s http://localhost:3000/health
+```
+
+**Stopping API server gracefully**:
+```bash
+# Using safe-shutdown script (recommended)
+./scripts/safe-shutdown.sh
+
+# Manual (if script unavailable)
+if [ -f .claude/server.pid ]; then
+  kill -TERM $(cat .claude/server.pid)
+  sleep 2
+  rm -f .claude/server.pid
+fi
+```
+
+**Running tests without PTY issues**:
+```bash
+# Test in foreground (blocks terminal but safer)
+cargo test --lib -- --nocapture
+
+# Test in background (use nohup)
+nohup cargo test --lib > /tmp/test.log 2>&1 &
+
+# Always stop background tests before exit
+./scripts/safe-shutdown.sh
+```
+
 ### Code Organization Principles
 
 **Module Boundaries**:
