@@ -278,6 +278,30 @@ enum Commands {
         #[arg(long)]
         check: bool,
     },
+
+    /// Internal commands for automation and hooks (hidden)
+    #[command(hide = true)]
+    Internal {
+        #[command(subcommand)]
+        command: InternalCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum InternalCommands {
+    /// Emit SessionStarted event
+    SessionStarted {
+        /// Claude Code instance ID
+        #[arg(long)]
+        instance_id: String,
+    },
+
+    /// Emit SessionEnded event
+    SessionEnded {
+        /// Claude Code instance ID
+        #[arg(long)]
+        instance_id: String,
+    },
 }
 
 #[tokio::main]
@@ -413,6 +437,14 @@ async fn main() -> Result<()> {
         Some(Commands::Update { tools, install, check }) => {
             cli::update::handle(tools, install, check).await
         }
+        Some(Commands::Internal { command }) => match command {
+            InternalCommands::SessionStarted { instance_id } => {
+                cli::internal::handle_session_started(instance_id).await
+            }
+            InternalCommands::SessionEnded { instance_id } => {
+                cli::internal::handle_session_ended(instance_id).await
+            }
+        },
         None => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};
             use std::net::SocketAddr;

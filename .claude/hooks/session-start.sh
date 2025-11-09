@@ -128,3 +128,77 @@ Memory enforcement is active. Store memories to avoid blocking later."
             "suppressOutput": true
         }' < /dev/null
 fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Auto-Start API Server for Event Broadcasting
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Check if auto-start is disabled
+if [ -n "$MNEMOSYNE_DISABLE_AUTO_START_API" ]; then
+    [ -n "$CC_HOOK_DEBUG" ] && echo "[DEBUG] API auto-start disabled via MNEMOSYNE_DISABLE_AUTO_START_API" >&2
+    exit 0
+fi
+
+# Check if API server is already running
+if curl -s --max-time 1 http://localhost:3000/health > /dev/null 2>&1; then
+    API_STATUS=$(curl -s http://localhost:3000/health 2>/dev/null | jq -r '.status // "unknown"')
+    [ -n "$CC_HOOK_DEBUG" ] && echo "[DEBUG] API server already running (status: $API_STATUS)" >&2
+
+    # Emit SessionStarted event via existing API
+    if command -v "$MNEMOSYNE_BIN" &> /dev/null; then
+        "$MNEMOSYNE_BIN" internal session-started --instance-id "$SESSION_ID" < /dev/null 2>/dev/null || true
+    fi
+    exit 0
+fi
+
+# API server not running - start it
+[ -n "$CC_HOOK_DEBUG" ] && echo "[DEBUG] Starting API server..." >&2
+
+# Start API server in background with nohup
+PID_FILE=".claude/server.pid"
+LOG_FILE=".claude/server.log"
+
+# Clean up old PID file if process no longer exists
+if [ -f "$PID_FILE" ]; then
+    OLD_PID=$(cat "$PID_FILE")
+    if ! ps -p "$OLD_PID" > /dev/null 2>&1; then
+        rm -f "$PID_FILE"
+        [ -n "$CC_HOOK_DEBUG" ] && echo "[DEBUG] Cleaned up stale PID file (old PID: $OLD_PID)" >&2
+    fi
+fi
+
+# Start server
+nohup "$MNEMOSYNE_BIN" api-server > "$LOG_FILE" 2>&1 &
+SERVER_PID=$!
+echo "$SERVER_PID" > "$PID_FILE"
+
+[ -n "$CC_HOOK_DEBUG" ] && echo "[DEBUG] Started API server (PID: $SERVER_PID)" >&2
+
+# Wait for server to be ready (up to 10 seconds)
+MAX_WAIT=10
+WAITED=0
+while [ $WAITED -lt $MAX_WAIT ]; do
+    if curl -s --max-time 1 http://localhost:3000/health > /dev/null 2>&1; then
+        API_VERSION=$(curl -s http://localhost:3000/health 2>/dev/null | jq -r '.version // "unknown"')
+        echo "✓ API server ready (v$API_VERSION, PID: $SERVER_PID)" >&2
+
+        # Emit SessionStarted event
+        "$MNEMOSYNE_BIN" internal session-started --instance-id "$SESSION_ID" < /dev/null 2>/dev/null || true
+
+        exit 0
+    fi
+
+    # Check if process died
+    if ! ps -p "$SERVER_PID" > /dev/null 2>&1; then
+        echo "✗ API server failed to start (check $LOG_FILE)" >&2
+        rm -f "$PID_FILE"
+        exit 1
+    fi
+
+    sleep 1
+    WAITED=$((WAITED + 1))
+done
+
+# Timeout waiting for server
+echo "⚠ API server started but not responding (PID: $SERVER_PID, check $LOG_FILE)" >&2
+exit 0

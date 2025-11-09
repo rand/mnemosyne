@@ -186,6 +186,19 @@ pub enum AgentEvent {
         affected_rows: usize,
         duration_ms: u64,
     },
+
+    // Session Lifecycle Events
+    /// Claude Code session started
+    SessionStarted {
+        instance_id: String,
+        timestamp: chrono::DateTime<Utc>,
+    },
+
+    /// Claude Code session ended
+    SessionEnded {
+        instance_id: String,
+        timestamp: chrono::DateTime<Utc>,
+    },
 }
 
 impl AgentEvent {
@@ -230,6 +243,8 @@ impl AgentEvent {
             AgentEvent::MessageSent { .. } => 3,
             AgentEvent::CliCommandStarted { .. } => 3,
             AgentEvent::DatabaseOperation { .. } => 2,
+            AgentEvent::SessionStarted { .. } => 8,
+            AgentEvent::SessionEnded { .. } => 8,
         }
     }
 
@@ -397,6 +412,12 @@ impl AgentEvent {
                     "DB {}: {} row(s) in {} ({}ms)",
                     operation, affected_rows, table, duration_ms
                 )
+            }
+            AgentEvent::SessionStarted { instance_id, timestamp } => {
+                format!("Session started: {} at {}", instance_id, timestamp.format("%Y-%m-%d %H:%M:%S UTC"))
+            }
+            AgentEvent::SessionEnded { instance_id, timestamp } => {
+                format!("Session ended: {} at {}", instance_id, timestamp.format("%Y-%m-%d %H:%M:%S UTC"))
             }
         }
     }
