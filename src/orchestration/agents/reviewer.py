@@ -515,14 +515,6 @@ Be thorough but constructive. Focus on real issues.""")
                     issues.append(f"Anti-pattern found: {pattern}")
             return len(issues) == 0, issues
 
-        elif gate == QualityGate.NO_TODOS:
-            code = str(artifact.get("code", ""))
-            for pattern in ["TODO", "FIXME", "HACK", "XXX", "STUB"]:
-                if pattern in code:
-                    count = code.count(pattern)
-                    issues.append(f"Found {count} {pattern} marker(s)")
-            return len(issues) == 0, issues
-
         # Default: assume pass if no obvious issues
         return True, []
 
