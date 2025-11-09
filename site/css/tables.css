@@ -1,121 +1,59 @@
-/* Comprehensive Table Styling */
+/* Comprehensive Table Styling - Enhanced for Readability */
+
+/* Table wrapper for responsive horizontal scroll */
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    margin: 2rem 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
 
 table {
     width: 100%;
     border-collapse: collapse;
-    margin: 2rem 0;
-    font-size: 0.875rem;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    margin: 0;
+    font-size: 0.9375rem;
+    background: var(--background);
 }
 
 table th,
 table td {
     text-align: left;
-    padding: 0.875rem 1rem;
+    padding: 1rem 1.5rem;  /* Increased padding for better spacing */
     border: 1px solid var(--border);
+    line-height: 1.6;
 }
 
+/* Header styling - more prominent */
 table th {
     background: var(--background-subtle);
     font-weight: 600;
     color: var(--text-primary);
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     letter-spacing: -0.01em;
+    text-transform: uppercase;
+    font-size: 0.8125rem;
     border-bottom: 2px solid var(--border);
+    white-space: nowrap;
 }
 
-table tbody tr:hover {
-    background: var(--background-subtle);
-}
-
+/* Body cells */
 table td {
     vertical-align: top;
     color: var(--text-primary);
 }
 
-table strong {
-    font-weight: 600;
-}
-
-table code {
-    font-size: 0.8em;
-}
-
-/* Comparison tables */
-.comparison-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 2rem 0;
-    font-size: 0.875rem;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.comparison-table th,
-.comparison-table td {
-    text-align: left;
-    padding: 0.875rem 1rem;
-    border-bottom: 1px solid var(--border);
-}
-
-.comparison-table th {
-    background: var(--background-subtle);
+/* First column emphasis - feature names should stand out */
+table tbody td:first-child {
     font-weight: 600;
     color: var(--text-primary);
-    font-size: 0.8125rem;
-    letter-spacing: -0.01em;
 }
 
-.comparison-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-.comparison-table tbody tr:hover {
-    background: var(--background-subtle);
-}
-
-.comparison-table td {
-    vertical-align: top;
-    color: var(--text-primary);
-}
-
-.comparison-table strong {
-    font-weight: 600;
-}
-
-/* Responsive table handling */
-@media (max-width: 768px) {
-    table,
-    .comparison-table {
-        font-size: 0.75rem;
-        overflow-x: auto;
-        display: block;
-    }
-
-    table th,
-    table td,
-    .comparison-table th,
-    .comparison-table td {
-        padding: 0.625rem 0.75rem;
-        min-width: 120px;
-    }
-
-    /* First column sticky on mobile for better readability */
-    table th:first-child,
-    table td:first-child {
-        position: sticky;
-        left: 0;
-        background: var(--background);
-        z-index: 1;
-    }
-
-    table th:first-child {
-        background: var(--background-subtle);
-    }
+/* Row hover for better scanning */
+table tbody tr:hover {
+    background: rgba(var(--accent-rgb, 147, 51, 234), 0.05);
 }
 
 /* Zebra striping for large tables */
@@ -128,5 +66,159 @@ table.striped tbody tr:nth-child(odd) {
 }
 
 table.striped tbody tr:hover {
+    background: rgba(var(--accent-rgb, 147, 51, 234), 0.08);
+}
+
+/* Text elements inside tables */
+table strong {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+table code {
+    font-size: 0.875em;
+    font-family: 'JetBrains Mono', monospace;
     background: var(--code-bg);
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    border: 1px solid var(--code-border);
+}
+
+table em {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Comparison tables - specific styling */
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2rem 0;
+    font-size: 0.9375rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.comparison-table th,
+.comparison-table td {
+    text-align: left;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.comparison-table th {
+    background: var(--background-subtle);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.comparison-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.comparison-table tbody tr:hover {
+    background: rgba(var(--accent-rgb, 147, 51, 234), 0.05);
+}
+
+.comparison-table td {
+    vertical-align: top;
+    color: var(--text-primary);
+}
+
+.comparison-table tbody td:first-child {
+    font-weight: 600;
+}
+
+.comparison-table strong {
+    font-weight: 600;
+}
+
+/* Responsive table handling */
+@media (max-width: 768px) {
+    table,
+    .comparison-table {
+        font-size: 0.8125rem;
+    }
+
+    table th,
+    table td,
+    .comparison-table th,
+    .comparison-table td {
+        padding: 0.75rem 1rem;
+        min-width: 140px;
+    }
+
+    /* First column sticky on mobile for better readability */
+    table th:first-child,
+    table td:first-child {
+        position: sticky;
+        left: 0;
+        background: var(--background);
+        z-index: 10;
+        box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+    }
+
+    table th:first-child {
+        background: var(--background-subtle);
+        z-index: 11;
+    }
+
+    table.striped tbody tr:nth-child(even) td:first-child {
+        background: var(--background-subtle);
+    }
+
+    table.striped tbody tr:nth-child(odd) td:first-child {
+        background: var(--background);
+    }
+}
+
+/* Performance metrics tables */
+table.metrics-table td {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.875rem;
+}
+
+table.metrics-table td:first-child {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 600;
+}
+
+/* Feature comparison checkmarks and crosses */
+table td .checkmark {
+    color: #10b981;
+    font-weight: bold;
+}
+
+table td .cross {
+    color: #ef4444;
+    font-weight: bold;
+}
+
+/* Column alignment utilities */
+table th.align-center,
+table td.align-center {
+    text-align: center;
+}
+
+table th.align-right,
+table td.align-right {
+    text-align: right;
+}
+
+/* Compact table variant */
+table.compact th,
+table.compact td {
+    padding: 0.5rem 0.75rem;
+}
+
+/* Wide table variant - more breathing room */
+table.wide th,
+table.wide td {
+    padding: 1.25rem 2rem;
 }
