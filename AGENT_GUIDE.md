@@ -185,6 +185,164 @@ User Query → MCP Tool (recall)
 
 ---
 
+## Event Architecture & Broadcasting
+
+### Overview
+
+Mnemosyne features a **comprehensive event system** for observability and multi-agent coordination. All CLI operations emit structured events that flow through an HTTP API server to both the dashboard (for monitoring) and the orchestrator (for autonomous coordination).
+
+**Key Design Principles**:
+- **Autonomous**: API server auto-starts with Claude Code sessions via hooks
+- **Comprehensive**: All 22 CLI commands emit structured events
+- **Bidirectional**: Events flow from CLI to orchestrator for coordination
+- **Resilient**: CLI commands work even if API server unavailable
+
+### Event Flow Architecture
+
+```
+┌─────────────────┐
+│   CLI Command   │
+│  (22 commands)  │
+└────────┬────────┘
+         │ HTTP POST (event_bridge)
+         ↓
+┌─────────────────┐
+│   API Server    │
+│   (port 3000)   │
+└────┬───────┬────┘
+     │       │
+     │       └─────→ SSE Stream → Dashboard (mnemosyne-dash)
+     │
+     └─────→ SSE Stream → Orchestrator (SseSubscriber)
+                          │
+                          ↓
+                   ┌──────────────┐
+                   │  Event       │
+                   │  Persistence │
+                   └──────────────┘
+```
+
+### Event Categories (42 Event Types)
+
+**Memory Operations** (11 events):
+- `RememberExecuted`, `RecallExecuted`, `SearchExecuted`, `GraphTraversalExecuted`
+- `EvolutionCycleStarted`, `EvolutionCycleCompleted`, `ConsolidationCompleted`
+- `ArchivalCompleted`, `LinkDecayApplied`, `ImportanceRecalibrated`, `MemoryLinksUpdated`
+
+**System Operations** (8 events):
+- `StatusCheckExecuted`, `HealthCheckStarted`, `HealthCheckCompleted`
+- `ConfigurationChanged`, `DatabaseInitialized`, `DatabaseMigrated`
+- `BackupCreated`, `BackupRestored`
+
+**Session Lifecycle** (4 events):
+- `SessionStarted`, `SessionEnded`, `ServerStarted`, `ServerStopped`
+
+**CLI Operations** (8 events):
+- `CliCommandStarted`, `CliCommandCompleted`, `CliCommandFailed`
+- `InteractiveModeEntered`, `InteractiveModeExited`
+- `EditingSessionStarted`, `EditingSessionEnded`, `ArtifactSaved`
+
+**Orchestration Events** (11 events):
+- `WorkItemCreated`, `WorkItemStarted`, `WorkItemCompleted`, `WorkItemFailed`, `WorkItemBlocked`
+- `AgentSpawned`, `AgentCompleted`, `AgentFailed`
+- `ContextCompacted`, `DeadlockDetected`, `DeadlockResolved`
+
+### Key Components
+
+**1. Event Emission (CLI → API)**:
+```rust
+// src/cli/event_helpers.rs
+pub async fn emit_domain_event(event: AgentEvent) {
+    if let Err(e) = event_bridge::emit(event).await {
+        debug!("Failed to emit event (non-fatal): {}", e);
+    }
+}
+```
+
+**2. SSE Subscriber (API → Orchestrator)**:
+```rust
+// src/orchestration/sse_subscriber.rs
+pub struct SseSubscriber {
+    config: SseSubscriberConfig,
+    orchestrator: ActorRef<OrchestratorMessage>,
+    shutdown_rx: broadcast::Receiver<()>,
+}
+```
+
+**3. Event Processing (Orchestrator)**:
+```rust
+// src/orchestration/actors/orchestrator.rs
+async fn handle_cli_event(
+    state: &mut OrchestratorState,
+    event: AgentEvent,
+) -> Result<()> {
+    // Persist for audit trail
+    state.events.persist(event.clone()).await?;
+
+    // React to specific events
+    match &event {
+        AgentEvent::RememberExecuted { .. } => { /* ... */ }
+        AgentEvent::SessionStarted { .. } => { /* ... */ }
+        // ... 40 more event types
+    }
+    Ok(())
+}
+```
+
+### Usage
+
+**Start API Server** (automatic via hooks):
+```bash
+# .claude/hooks/session-start.sh auto-starts API server
+# No manual intervention needed in Claude Code sessions
+```
+
+**Monitor Events** (dashboard):
+```bash
+mnemosyne-dash --api http://localhost:3000
+```
+
+**Debug Event Flow** (raw SSE):
+```bash
+curl -N http://localhost:3000/events/stream
+```
+
+### Autonomous Coordination
+
+The orchestrator **automatically receives and reacts** to CLI events:
+
+1. **Session Start**: `SessionStarted` event triggers orchestrator initialization
+2. **Memory Operations**: High-importance memories (`importance >= 8`) can trigger proactive review
+3. **Health Checks**: Failed health checks create work items for investigation
+4. **Session End**: `SessionEnded` event triggers graceful shutdown
+
+**Example**: When you run `mnemosyne remember -i 9 -c "Critical bug found"`, the orchestrator:
+- Receives `RememberExecuted` event via SSE
+- Persists event for audit trail
+- Can create a work item for immediate investigation (importance >= 8)
+- Updates internal state for context-aware decision making
+
+### Testing
+
+**Integration Tests**:
+```bash
+cargo test --test event_broadcasting_integration
+```
+
+**E2E Tests**:
+```bash
+./tests/e2e/orchestration_new/test_autonomous_session.sh
+```
+
+### Documentation
+
+For complete details, see:
+- [docs/EVENTS.md](docs/EVENTS.md) - Complete event catalog and troubleshooting
+- [docs/EVENT_HELPERS_GUIDE.md](docs/EVENT_HELPERS_GUIDE.md) - CLI event emission patterns
+- [docs/DASHBOARD.md](docs/DASHBOARD.md) - Dashboard usage and event monitoring
+
+---
+
 ## Module Organization
 
 ### Source Code Structure
@@ -1412,6 +1570,118 @@ git push origin main
 # 5. Notify team (if applicable)
 # Post in team chat or create issue to track
 ```
+
+---
+
+## Documentation Management (Zensical)
+
+### Documentation Structure
+```
+docs/
+├── INDEX.md              # Project index/homepage
+├── whitepaper.md         # Technical architecture
+├── assets/               # Images, diagrams, favicons
+├── stylesheets/          # Shared + pink theme CSS
+├── javascripts/          # Theme preference persistence
+└── overrides/            # Ecosystem navigation bar
+```
+
+### Updating Documentation
+
+**Local workflow**:
+```bash
+# 1. Edit markdown files
+vim docs/INDEX.md
+
+# 2. Test locally (optional)
+/Users/rand/src/shared-docs-base/.venv/bin/zensical serve
+# Opens http://localhost:8000
+
+# 3. Commit changes
+git add docs/
+git commit -m "Update documentation: <description>"
+
+# 4. Push to trigger deployment
+git push origin main
+
+# 5. Verify deployment (1-2 minutes)
+# https://rand.github.io/mnemosyne/
+```
+
+### Shared Infrastructure
+
+- **Location**: `/Users/rand/src/shared-docs-base`
+- **Styles**:
+  - `stylesheets/shared.css` - Common typography, code blocks, tables
+  - `stylesheets/pink.css` - mnemosyne theme (#ff006e, ⊛)
+- **Build script**: `scripts/build-site.sh`
+- **Configuration**: `zensical.toml` in project root
+
+### Updating Shared Assets
+
+When modifying shared styles that affect all projects:
+
+```bash
+# Update shared CSS
+cd /Users/rand/src/shared-docs-base
+vim stylesheets/shared.css
+
+# Copy to all projects
+for project in RUNE mnemosyne maze pedantic_raven; do
+  cp stylesheets/*.css /Users/rand/src/${project}/docs/stylesheets/
+done
+
+# Commit in each project
+cd /Users/rand/src/mnemosyne
+git add docs/stylesheets/
+git commit -m "Update shared documentation styles"
+git push origin main
+```
+
+### Theme Customization
+
+mnemosyne uses:
+- **Primary color**: Pink (#ff006e)
+- **Accent color**: #ff4d94
+- **Glyph**: ⊛ (circled asterisk)
+- **Fonts**: Geist (text), JetBrains Mono (code)
+
+### GitHub Actions Workflow
+
+Documentation deploys automatically via `.github/workflows/docs.yml`:
+
+- **Trigger**: Push to `main` branch
+- **Build**: UV + Zensical → `site/` directory (37s)
+- **Deploy**: GitHub Pages (automatic)
+- **URL**: https://rand.github.io/mnemosyne/
+
+**Note**: Workflow uses `uv pip install zensical` to avoid building PyO3 extensions.
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Build fails | Run locally to see error, check workflow didn't try to build mnemosyne |
+| Theme not applied | Verify `stylesheets/pink.css` exists in `docs/stylesheets/` |
+| Navigation broken | Check `nav` array in `zensical.toml` |
+| Site not updating | Check GitHub Actions workflow status, wait 1-2min for cache |
+| Slow build | Ensure workflow uses `uv pip install` not `uv add` |
+
+### Ecosystem Navigation
+
+All documentation sites include cross-project navigation:
+- RUNE
+- mnemosyne (you are here)
+- MAZE
+- pedantic_raven
+
+Located in `docs/overrides/main.html` from shared-docs-base.
+
+### References
+
+- **shared-docs-base**: https://github.com/rand/shared-docs-base
+- **Zensical docs**: https://zensical.org/docs/
+- **Migration details**: `/Users/rand/src/MIGRATION_COMPLETE.md`
 
 ---
 
