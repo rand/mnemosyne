@@ -508,18 +508,19 @@ For more information, see: docs/specs/specification-artifacts.md
             }).await
         }
         ArtifactCommands::Validate { path } => {
-            println!("Validating artifact: {}", path);
+            event_helpers::with_event_lifecycle("artifact-validate", vec![], async {
+                println!("Validating artifact: {}", path);
 
-            let path_buf = PathBuf::from(&path);
-            if !path_buf.exists() {
-                eprintln!("✗ File not found: {}", path);
-                std::process::exit(1);
-            }
+                let path_buf = PathBuf::from(&path);
+                if !path_buf.exists() {
+                    eprintln!("✗ File not found: {}", path);
+                    std::process::exit(1);
+                }
 
-            let content = fs::read_to_string(&path_buf)?;
+                let content = fs::read_to_string(&path_buf)?;
 
-            // Parse frontmatter
-            match parse_frontmatter(&content) {
+                // Parse frontmatter
+                match parse_frontmatter(&content) {
                 Ok((frontmatter, markdown)) => {
                     println!("✓ Valid YAML frontmatter");
 
