@@ -1,0 +1,59 @@
+# mnemosyne Documentation Configuration
+# Zensical-based static site
+
+[project]
+site_name = "mnemosyne"
+site_url = "https://rand.github.io/mnemosyne/"
+site_description = "Semantic Memory and Multi-Agent Orchestration for LLM Systems"
+copyright = "Copyright © 2025"
+docs_dir = "docs"
+site_dir = "site"
+use_directory_urls = true
+
+nav = [
+  { "Home" = "index.md" },
+  { "Whitepaper" = "whitepaper.md" },
+  { "GitHub" = "https://github.com/rand/mnemosyne" },
+]
+
+extra_css = [
+  "stylesheets/shared.css",
+  "stylesheets/pink.css",
+]
+
+extra_javascript = [
+  "javascripts/theme.js",
+]
+
+[project.theme]
+variant = "modern"
+favicon = "assets/favicon.svg"
+features = [
+  "navigation.instant",
+  "navigation.tabs",
+  "navigation.tracking",
+  "navigation.top",
+  "search.suggest",
+  "search.highlight",
+  "search.share",
+]
+
+[project.theme.font]
+text = "Geist"
+code = "JetBrains Mono"
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "material/brightness-7"
+toggle.name = "Switch to dark mode"
+media = "(prefers-color-scheme: light)"
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "material/brightness-4"
+toggle.name = "Switch to light mode"
+media = "(prefers-color-scheme: dark)"

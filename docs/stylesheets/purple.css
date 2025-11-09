@@ -1,0 +1,36 @@
+/* RUNE Theme - Purple */
+/* Glyph: ∮ (contour integral) */
+
+:root {
+  --md-primary-fg-color: #7B1FA2;
+  --md-accent-fg-color: #9C27B0;
+
+  /* Gradient colors for h2 headings */
+  --gradient-1: #9C27B0;  /* deep purple */
+  --gradient-2: #BA68C8;  /* medium purple */
+  --gradient-3: #CE93D8;  /* light purple */
+  --gradient-4: #E1BEE7;  /* very light purple */
+  --gradient-5: #F3E5F5;  /* pale purple */
+  --gradient-6: #EDE7F6;  /* ultra pale purple */
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #9C27B0;
+  --md-accent-fg-color: #BA68C8;
+}
+
+/* Purple gradient for h2 headings */
+.md-typeset h2 {
+  background: linear-gradient(135deg, var(--gradient-1) 0%, var(--gradient-2) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Logo glyph */
+.md-header__button.md-logo::after {
+  content: "∮";
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--md-accent-fg-color);
+}
