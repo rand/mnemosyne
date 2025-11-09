@@ -1,1 +1,0 @@
-{"session_id":"137e4d4d-12ba-42eb-9cda-1edbb558d522","transcript_path":"/Users/rand/.claude/projects/-Users-rand-src-mnemosyne/137e4d4d-12ba-42eb-9cda-1edbb558d522.jsonl","cwd":"/Users/rand/src/mnemosyne","hook_event_name":"PreCompact","trigger":"auto","custom_instructions":null}

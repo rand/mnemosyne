@@ -3,7 +3,7 @@
 //! Transforms raw event streams into meaningful operation timelines by correlating
 //! start/complete events, calculating durations, and tracking outcomes.
 
-use crate::api::events::{Event, EventType};
+use mnemosyne_core::api::events::{Event, EventType};
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -133,7 +133,7 @@ impl CorrelationTracker {
     /// Process an event and return correlated event if this completes an operation
     pub fn process(&mut self, event: Event) -> Option<CorrelatedEvent> {
         // Try to extract correlation info
-        if let Some((key, started, timestamp)) = Self::extract_start(&event) {
+        if let Some((key, _started, timestamp)) = Self::extract_start(&event) {
             // This is a start event - track it
             let correlated = CorrelatedEvent::new(key.clone(), event, timestamp);
             self.pending.insert(key, correlated);
@@ -237,10 +237,6 @@ impl CorrelationTracker {
                 *timestamp,
                 true,
             )),
-
-            EventType::EvolveCompleted { timestamp, .. } => {
-                Some((CorrelationKey::MemoryEvolution, *timestamp, false))
-            }
 
             EventType::WorkItemCompleted {
                 item_id, timestamp, ..

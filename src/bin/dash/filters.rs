@@ -3,7 +3,7 @@
 //! Provides smart filtering to transform noisy event streams into actionable signals.
 //! Default behavior: hide heartbeats, show everything else.
 
-use crate::api::events::{Event, EventType};
+use mnemosyne_core::api::events::{Event, EventType};
 use regex::Regex;
 use std::time::Duration;
 
@@ -44,9 +44,7 @@ impl EventCategory {
             | EventType::MemoryConsolidated { .. }
             | EventType::MemoryDecayed { .. }
             | EventType::MemoryArchived { .. }
-            | EventType::SearchPerformed { .. }
-            | EventType::RecallExecuted { .. }
-            | EventType::EvolveCompleted { .. } => Self::Memory,
+            | EventType::SearchPerformed { .. } => Self::Memory,
 
             // Agent events
             EventType::AgentStarted { .. }
@@ -88,7 +86,8 @@ impl EventCategory {
             // System events
             EventType::HealthUpdate { .. }
             | EventType::SessionStarted { .. }
-            | EventType::Heartbeat { .. } => Self::System,
+            | EventType::Heartbeat { .. }
+            | EventType::DatabaseOperation { .. } => Self::System,
         }
     }
 
@@ -141,7 +140,7 @@ impl EventFilter {
             Self::Category(cat) => EventCategory::from_event(event) == *cat,
 
             Self::AgentId(agent_id) => Self::extract_agent_id(event)
-                .map(|id| id == agent_id)
+                .map(|id| &id == agent_id)
                 .unwrap_or(false),
 
             Self::Search(regex) => {
@@ -189,8 +188,8 @@ impl EventFilter {
             EventType::AgentHandoff { to_agent, .. } => Some(to_agent.clone()),
 
             EventType::SubAgentSpawned {
-                child_agent_id, ..
-            } => Some(child_agent_id.clone()),
+                sub_agent, ..
+            } => Some(sub_agent.clone()),
 
             _ => None,
         }
@@ -239,8 +238,7 @@ impl EventFilter {
             | CliCommandCompleted { timestamp, .. }
             | CliCommandFailed { timestamp, .. }
             | SearchPerformed { timestamp, .. }
-            | RecallExecuted { timestamp, .. }
-            | EvolveCompleted { timestamp, .. } => Some(*timestamp),
+            | DatabaseOperation { timestamp, .. } => Some(*timestamp),
         }
     }
 }
@@ -342,7 +340,7 @@ impl FilterStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::events::Event;
+    use mnemosyne_core::api::events::Event;
 
     #[test]
     fn test_hide_heartbeats() {

@@ -1,10 +1,26 @@
-//! Mnemosyne Dashboard - Real-time Monitoring
+//! Mnemosyne Dashboard - Real-time Event Monitoring
 //!
-//! Monitors Mnemosyne event stream and displays:
-//! - Agent activity
-//! - Memory operations
-//! - Context file changes
-//! - System health metrics
+//! Redesigned dashboard focused on live data and actionable signals.
+//!
+//! **4-Panel Layout**:
+//! - System Overview: Top panel (6-8 lines) - At-a-glance health
+//! - Activity Stream: Left panel (60%) - Intelligent event log
+//! - Agent Details: Right-top panel (40%) - Agent activity deep-dive
+//! - Operations: Right-bottom panel (40%) - CLI command history
+//!
+//! **Features**:
+//! - Smart event filtering (default: hide heartbeats)
+//! - Event correlation (link start→complete with durations)
+//! - Color-coded event categories
+//! - Real-time updates via Server-Sent Events (SSE)
+//!
+//! **Keyboard Shortcuts**:
+//! - `q` / `Esc`: Quit
+//! - `0`: Toggle all panels
+//! - `1`: Toggle Activity Stream
+//! - `2`: Toggle Agent Details
+//! - `3`: Toggle Operations
+//! - `h`: Toggle System Overview (header)
 //!
 //! Usage:
 //!   mnemosyne-dash [OPTIONS]
@@ -14,6 +30,8 @@
 //!   mnemosyne-dash --api http://localhost:3000
 //!   mnemosyne-dash --refresh 500     # Faster refresh (ms)
 
+mod correlation;
+mod filters;
 mod panel_manager;
 mod panels;
 mod time_series;
@@ -21,25 +39,25 @@ mod widgets;
 
 use anyhow::Result;
 use clap::Parser;
+use mnemosyne_core::api::events::Event;
 use crossterm::{
-    event::{self, Event, KeyCode},
+    event::{self, Event as CrosstermEvent, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use panel_manager::{PanelId, PanelManager};
 use panels::{
-    AgentInfo, AgentsPanel, ContextPanel, EventLogPanel, MemoryOpsMetrics, MemoryPanel,
-    OperationsPanel, SkillsMetrics, SkillsPanel, WorkMetrics, WorkPanel,
+    ActivityStreamPanel, AgentInfo, AgentsPanel, OperationsPanel,
+    SystemOverviewPanel,
 };
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     widgets::{Block, Borders, Paragraph},
-    Terminal,
+    Frame, Terminal,
 };
 use reqwest::Client;
-use serde::Deserialize;
 use std::{io, time::Duration};
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
@@ -54,7 +72,7 @@ use tracing_subscriber::EnvFilter;
 /// Dashboard CLI arguments
 #[derive(Parser)]
 #[command(name = "mnemosyne-dash")]
-#[command(about = "Real-time monitoring dashboard for Mnemosyne")]
+#[command(about = "Real-time monitoring dashboard for Mnemosyne (redesigned)")]
 #[command(version)]
 struct Args {
     /// API server URL
@@ -70,47 +88,13 @@ struct Args {
     log_level: String,
 }
 
-/// Minimal event structure for display (for future SSE integration)
-#[allow(dead_code)]
-#[derive(Debug, Clone, Deserialize)]
-struct EventDisplay {
-    #[serde(rename = "type")]
-    event_type: String,
-    #[serde(flatten)]
-    data: serde_json::Value,
-}
-
-/// Metrics snapshot from API
-#[derive(Debug, Clone, Deserialize, Default)]
-struct MetricsSnapshot {
-    #[allow(dead_code)]
-    pub agent_states: AgentStateCounts,
-    pub memory_ops: MemoryOpsMetrics,
-    pub skills: SkillsMetrics,
-    pub work: WorkMetrics,
-}
-
-/// Agent state counts from metrics
-#[derive(Debug, Clone, Deserialize, Default)]
-struct AgentStateCounts {
-    pub active: usize,
-    pub idle: usize,
-    pub waiting: usize,
-    pub completed: usize,
-    pub failed: usize,
-    pub total: usize,
-}
-
 /// Application state
 struct App {
-    /// Panel instances
+    /// Panel instances (new 4-panel layout)
+    system_overview: SystemOverviewPanel,
+    activity_stream: ActivityStreamPanel,
     agents_panel: AgentsPanel,
-    memory_panel: MemoryPanel,
-    skills_panel: SkillsPanel,
-    work_panel: WorkPanel,
-    context_panel: ContextPanel,
     operations_panel: OperationsPanel,
-    event_log_panel: EventLogPanel,
 
     /// Panel manager for visibility/layout
     panel_manager: PanelManager,
@@ -120,19 +104,16 @@ struct App {
     /// API base URL
     api_url: String,
     /// Event receiver from SSE stream
-    event_rx: mpsc::UnboundedReceiver<String>,
+    event_rx: mpsc::UnboundedReceiver<Event>,
 }
 
 impl App {
-    fn new(api_url: String, event_rx: mpsc::UnboundedReceiver<String>) -> Self {
+    fn new(api_url: String, event_rx: mpsc::UnboundedReceiver<Event>) -> Self {
         Self {
+            system_overview: SystemOverviewPanel::new(),
+            activity_stream: ActivityStreamPanel::new(),
             agents_panel: AgentsPanel::new(),
-            memory_panel: MemoryPanel::new(),
-            skills_panel: SkillsPanel::new(),
-            work_panel: WorkPanel::new(),
-            context_panel: ContextPanel::new(),
             operations_panel: OperationsPanel::new(),
-            event_log_panel: EventLogPanel::new().max_events(1000),
             panel_manager: PanelManager::new(),
             connected: false,
             api_url,
@@ -140,64 +121,43 @@ impl App {
         }
     }
 
+    /// Process incoming events from SSE stream
     fn process_events(&mut self) {
         // Drain all available events from channel
-        while let Ok(event_str) = self.event_rx.try_recv() {
-            // Add to event log
-            self.event_log_panel.add_event(event_str.clone());
+        while let Ok(event) = self.event_rx.try_recv() {
+            // Route event to all panels
+            self.system_overview.add_event(event.clone());
+            self.activity_stream.add_event(event.clone());
 
-            // Parse and handle CLI operation events
-            if let Some(event_data) = event_str.strip_prefix("[") {
-                if let Some(bracket_end) = event_data.find(']') {
-                    let event_type = &event_data[..bracket_end];
-                    let data_part = &event_data[bracket_end + 2..]; // Skip '] '
+            // Route specific event types to specialized panels
+            use mnemosyne_core::api::events::EventType::*;
+            match &event.event_type {
+                // Agent events → Agents panel
+                AgentStarted { .. } => {
+                    // Note: We'll enhance agent tracking in Phase 2.3
+                    // For now, agents are fetched from API endpoint
+                }
 
-                    match event_type {
-                        "cli_command_started" => {
-                            // Parse: {"command":"remember","args":["--content=..."],...}
-                            if let Ok(data) = serde_json::from_str::<serde_json::Value>(data_part) {
-                                if let (Some(command), Some(args)) = (
-                                    data.get("command").and_then(|v| v.as_str()),
-                                    data.get("args").and_then(|v| v.as_array())
-                                ) {
-                                    let args_vec: Vec<String> = args.iter()
-                                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                        .collect();
-                                    self.operations_panel.add_started(command.to_string(), args_vec);
-                                }
-                            }
-                        }
-                        "cli_command_completed" => {
-                            // Parse: {"command":"remember","duration_ms":123,"result_summary":"..."}
-                            if let Ok(data) = serde_json::from_str::<serde_json::Value>(data_part) {
-                                if let (Some(command), Some(duration), Some(summary)) = (
-                                    data.get("command").and_then(|v| v.as_str()),
-                                    data.get("duration_ms").and_then(|v| v.as_u64()),
-                                    data.get("result_summary").and_then(|v| v.as_str())
-                                ) {
-                                    self.operations_panel.update_completed(command, duration, summary.to_string());
-                                }
-                            }
-                        }
-                        "cli_command_failed" => {
-                            // Parse: {"command":"remember","error":"...","duration_ms":123}
-                            if let Ok(data) = serde_json::from_str::<serde_json::Value>(data_part) {
-                                if let (Some(command), Some(error), Some(duration)) = (
-                                    data.get("command").and_then(|v| v.as_str()),
-                                    data.get("error").and_then(|v| v.as_str()),
-                                    data.get("duration_ms").and_then(|v| v.as_u64())
-                                ) {
-                                    self.operations_panel.update_failed(command, error.to_string(), duration);
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
+                // CLI events → Operations panel
+                CliCommandStarted { command, args, .. } => {
+                    self.operations_panel.add_started(command.clone(), args.clone());
+                }
+                CliCommandCompleted { command, duration_ms, result_summary, .. } => {
+                    self.operations_panel.update_completed(command, *duration_ms, result_summary.clone());
+                }
+                CliCommandFailed { command, error, .. } => {
+                    // Calculate rough duration (we don't have it in the failed event currently)
+                    self.operations_panel.update_failed(command, error.clone(), 0);
+                }
+
+                _ => {
+                    // Other events are handled by System Overview and Activity Stream
                 }
             }
         }
     }
 
+    /// Update state from API (agents list, metrics snapshot)
     async fn update_state(&mut self, client: &Client) -> Result<()> {
         // Fetch agents
         match client
@@ -218,60 +178,161 @@ impl App {
             }
         }
 
-        // Fetch metrics snapshot
-        match client
-            .get(format!("{}/state/metrics", self.api_url))
-            .send()
-            .await
-        {
-            Ok(response) => {
-                if let Ok(metrics) = response.json::<MetricsSnapshot>().await {
-                    // Update panels with metrics
-                    self.memory_panel.update(metrics.memory_ops);
-                    self.skills_panel.update(metrics.skills);
-                    self.work_panel.update(metrics.work);
-                    self.connected = true;
-                }
-            }
-            Err(e) => {
-                debug!("Failed to fetch metrics: {}", e);
-            }
-        }
-
-        // TODO: Fetch context utilization (for now use mock data)
-        // In a real implementation, this would come from /state/stats or a dedicated endpoint
-        self.context_panel.update(45.0, 2); // Mock: 45% utilization, 2 checkpoints
+        // TODO: Fetch system metrics for SystemOverview
+        // For now, we'll rely on events to populate metrics
 
         Ok(())
     }
 
-    /// Handle keyboard input for panel toggles
+    /// Handle keyboard input
     fn handle_key(&mut self, key: KeyCode) -> bool {
         match key {
             KeyCode::Char('q') | KeyCode::Esc => return true, // Quit
+
+            // Toggle all panels
             KeyCode::Char('0') => {
-                // Toggle all panels
-                if self.panel_manager.visible_count() == 7 {
+                if self.panel_manager.visible_count() == 4 {
                     self.panel_manager.hide_all();
                 } else {
                     self.panel_manager.show_all();
                 }
             }
-            KeyCode::Char('1') => self.panel_manager.toggle_panel(PanelId::Agents),
-            KeyCode::Char('2') => self.panel_manager.toggle_panel(PanelId::Memory),
-            KeyCode::Char('3') => self.panel_manager.toggle_panel(PanelId::Skills),
-            KeyCode::Char('4') => self.panel_manager.toggle_panel(PanelId::Work),
-            KeyCode::Char('5') => self.panel_manager.toggle_panel(PanelId::Context),
-            KeyCode::Char('6') => self.panel_manager.toggle_panel(PanelId::Operations),
-            KeyCode::Char('7') => self.panel_manager.toggle_panel(PanelId::Events),
+
+            // Panel toggles (0-3 for 4-panel layout)
+            KeyCode::Char('h') => self.panel_manager.toggle_panel(PanelId::SystemOverview),
+            KeyCode::Char('1') => self.panel_manager.toggle_panel(PanelId::ActivityStream),
+            KeyCode::Char('2') => self.panel_manager.toggle_panel(PanelId::AgentDetails),
+            KeyCode::Char('3') => self.panel_manager.toggle_panel(PanelId::Operations),
+
             _ => {}
         }
         false // Don't quit
     }
+
+    /// Render the dashboard
+    fn render(&mut self, frame: &mut Frame) {
+        let size = frame.area();
+
+        // Create header with status
+        let status_text = if self.connected {
+            format!(" Connected to {} | Press 'q' to quit, '0' to toggle all, '1-3' for panels ", self.api_url)
+        } else {
+            format!(" Connecting to {}... ", self.api_url)
+        };
+
+        let header = Paragraph::new(status_text)
+            .style(if self.connected {
+                Style::default().fg(Color::Green)
+            } else {
+                Style::default().fg(Color::Yellow)
+            })
+            .block(Block::default().borders(Borders::BOTTOM));
+
+        // Layout: [Header (1 line), Body (rest)]
+        let main_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(1), Constraint::Min(0)])
+            .split(size);
+
+        frame.render_widget(header, main_chunks[0]);
+
+        // Body layout depends on visible panels
+        self.render_panels(frame, main_chunks[1]);
+    }
+
+    /// Render panels based on visibility
+    fn render_panels(&mut self, frame: &mut Frame, area: Rect) {
+        let visibility = self.panel_manager.visibility();
+
+        // Calculate layout based on visible panels
+        let mut vertical_constraints = Vec::new();
+
+        // System Overview (top, fixed height)
+        if visibility.is_visible(PanelId::SystemOverview) {
+            vertical_constraints.push(Constraint::Length(8));
+        }
+
+        // Remaining space for Activity Stream and right column
+        if visibility.is_visible(PanelId::ActivityStream)
+            || visibility.is_visible(PanelId::AgentDetails)
+            || visibility.is_visible(PanelId::Operations)
+        {
+            vertical_constraints.push(Constraint::Min(0));
+        }
+
+        // If no panels visible, show message
+        if vertical_constraints.is_empty() {
+            let msg = Paragraph::new(" All panels hidden. Press '0' to show all. ")
+                .style(Style::default().fg(Color::DarkGray))
+                .block(Block::default().borders(Borders::ALL));
+            frame.render_widget(msg, area);
+            return;
+        }
+
+        let vertical_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vertical_constraints)
+            .split(area);
+
+        let mut chunk_index = 0;
+
+        // Render System Overview (top panel)
+        if visibility.is_visible(PanelId::SystemOverview) {
+            self.system_overview.render(frame, vertical_chunks[chunk_index]);
+            chunk_index += 1;
+        }
+
+        // Render bottom row (Activity Stream + right column)
+        if chunk_index < vertical_chunks.len() {
+            let bottom_area = vertical_chunks[chunk_index];
+
+            // Horizontal split: Activity Stream (60%) | Right column (40%)
+            let horiz_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+                .split(bottom_area);
+
+            // Left: Activity Stream
+            if visibility.is_visible(PanelId::ActivityStream) {
+                self.activity_stream.render(frame, horiz_chunks[0]);
+            } else {
+                let placeholder = Paragraph::new(" Activity Stream hidden (press '1' to show) ")
+                    .style(Style::default().fg(Color::DarkGray))
+                    .block(Block::default().borders(Borders::ALL).title("Activity Stream"));
+                frame.render_widget(placeholder, horiz_chunks[0]);
+            }
+
+            // Right column: Agent Details + Operations
+            let right_vert_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(horiz_chunks[1]);
+
+            // Agent Details (right-top)
+            if visibility.is_visible(PanelId::AgentDetails) {
+                self.agents_panel.render(frame, right_vert_chunks[0]);
+            } else {
+                let placeholder = Paragraph::new(" Agent Details hidden (press '2' to show) ")
+                    .style(Style::default().fg(Color::DarkGray))
+                    .block(Block::default().borders(Borders::ALL).title("Agent Details"));
+                frame.render_widget(placeholder, right_vert_chunks[0]);
+            }
+
+            // Operations (right-bottom)
+            if visibility.is_visible(PanelId::Operations) {
+                self.operations_panel.render(frame, right_vert_chunks[1]);
+            } else {
+                let placeholder = Paragraph::new(" Operations hidden (press '3' to show) ")
+                    .style(Style::default().fg(Color::DarkGray))
+                    .block(Block::default().borders(Borders::ALL).title("Operations"));
+                frame.render_widget(placeholder, right_vert_chunks[1]);
+            }
+        }
+    }
 }
 
 /// Spawn SSE client to stream events from API server
-fn spawn_sse_client(api_url: String, event_tx: mpsc::UnboundedSender<String>) {
+fn spawn_sse_client(api_url: String, event_tx: mpsc::UnboundedSender<Event>) {
     tokio::spawn(async move {
         loop {
             debug!("Connecting to SSE endpoint: {}/events", api_url);
@@ -308,16 +369,14 @@ fn spawn_sse_client(api_url: String, event_tx: mpsc::UnboundedSender<String>) {
                 if line.is_empty() {
                     // Empty line marks end of event - process accumulated data
                     if !current_data.is_empty() {
-                        if let Ok(event) = serde_json::from_str::<EventDisplay>(&current_data) {
-                            let formatted = format!(
-                                "[{}] {}",
-                                event.event_type,
-                                serde_json::to_string(&event.data).unwrap_or_default()
-                            );
-                            if event_tx.send(formatted).is_err() {
+                        // Parse JSON event
+                        if let Ok(event) = serde_json::from_str::<Event>(&current_data) {
+                            if event_tx.send(event).is_err() {
                                 error!("Event channel closed, stopping SSE client");
                                 return;
                             }
+                        } else {
+                            debug!("Failed to parse event: {}", current_data);
                         }
                         current_data.clear();
                     }
@@ -338,7 +397,7 @@ fn spawn_sse_client(api_url: String, event_tx: mpsc::UnboundedSender<String>) {
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Initialize logging (to file, not stderr)
+    // Initialize logging (to file, not stderr to avoid TUI interference)
     let level = match args.log_level.as_str() {
         "trace" => Level::TRACE,
         "debug" => Level::DEBUG,
@@ -348,21 +407,28 @@ async fn main() -> Result<()> {
         _ => Level::INFO,
     };
 
-    let filter = EnvFilter::new(format!("mnemosyne_dash={}", level.as_str().to_lowercase()));
+    let log_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/mnemosyne-dash.log")?;
 
     tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_writer(|| {
-            std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/tmp/mnemosyne-dash.log")
-                .unwrap()
-        })
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_default_directive(level.into())
+                .from_env_lossy(),
+        )
+        .with_writer(log_file)
         .init();
 
-    debug!("Dashboard v{} starting...", env!("CARGO_PKG_VERSION"));
+    debug!("Starting Mnemosyne Dashboard (redesigned 4-panel layout)");
     debug!("API URL: {}", args.api);
+
+    // Create event channel for SSE → App communication
+    let (event_tx, event_rx) = mpsc::unbounded_channel();
+
+    // Spawn SSE client
+    spawn_sse_client(args.api.clone(), event_tx);
 
     // Setup terminal
     enable_raw_mode()?;
@@ -371,153 +437,45 @@ async fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Create event channel for SSE stream
-    let (event_tx, event_rx) = mpsc::unbounded_channel();
-
-    // Spawn SSE client
-    spawn_sse_client(args.api.clone(), event_tx);
-
     // Create app state
     let mut app = App::new(args.api.clone(), event_rx);
+
+    // HTTP client for API polling
     let client = Client::new();
 
     // Refresh interval
-    let mut tick = interval(Duration::from_millis(args.refresh));
+    let mut refresh_interval = interval(Duration::from_millis(args.refresh));
 
-    // Run app
-    let result = run_app(&mut terminal, &mut app, &client, &mut tick).await;
-
-    // Restore terminal
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-    terminal.show_cursor()?;
-
-    if let Err(err) = result {
-        error!("Error: {:?}", err);
-        return Err(err);
-    }
-
-    debug!("Dashboard exiting cleanly");
-    Ok(())
-}
-
-async fn run_app<B: ratatui::backend::Backend>(
-    terminal: &mut Terminal<B>,
-    app: &mut App,
-    client: &Client,
-    tick: &mut tokio::time::Interval,
-) -> Result<()> {
-    // Force initial state refresh immediately on connection
-    // This ensures agents are visible right away, even if they spawned before SSE connected
-    app.update_state(client).await?;
-    debug!("Initial state refresh complete");
-
+    // Event loop
     loop {
-        terminal.draw(|f| {
-            let total_height = f.area().height;
+        // Process SSE events
+        app.process_events();
 
-            // Calculate dynamic layout: Header (3) + Panels (dynamic) + Footer (1)
-            let header_height = 3;
-            let footer_height = 1;
-            let panels_height = total_height.saturating_sub(header_height + footer_height);
+        // Render
+        terminal.draw(|frame| app.render(frame))?;
 
-            let main_chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Length(header_height),
-                    Constraint::Length(panels_height),
-                    Constraint::Length(footer_height),
-                ])
-                .split(f.area());
-
-            // Header
-            let title = if app.connected {
-                format!(
-                    "{} Mnemosyne Dashboard [Connected]",
-                    mnemosyne_core::icons::system::palette()
-                )
-            } else {
-                format!(
-                    "{} Mnemosyne Dashboard [Disconnected]",
-                    mnemosyne_core::icons::system::palette()
-                )
-            };
-            let header = Paragraph::new(title.as_str())
-                .style(Style::default().fg(if app.connected {
-                    Color::Green
-                } else {
-                    Color::Red
-                }))
-                .block(Block::default().borders(Borders::ALL));
-            f.render_widget(header, main_chunks[0]);
-
-            // Dynamic panel layout
-            let panel_constraints = app.panel_manager.layout_constraints(panels_height);
-            let panel_chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints(panel_constraints)
-                .split(main_chunks[1]);
-
-            // Render visible panels in order
-            let mut chunk_index = 0;
-            if app.panel_manager.is_panel_visible(PanelId::Agents) {
-                app.agents_panel.render(f, panel_chunks[chunk_index]);
-                chunk_index += 1;
-            }
-            if app.panel_manager.is_panel_visible(PanelId::Memory) {
-                app.memory_panel.render(f, panel_chunks[chunk_index]);
-                chunk_index += 1;
-            }
-            if app.panel_manager.is_panel_visible(PanelId::Skills) {
-                app.skills_panel.render(f, panel_chunks[chunk_index]);
-                chunk_index += 1;
-            }
-            if app.panel_manager.is_panel_visible(PanelId::Work) {
-                app.work_panel.render(f, panel_chunks[chunk_index]);
-                chunk_index += 1;
-            }
-            if app.panel_manager.is_panel_visible(PanelId::Context) {
-                app.context_panel.render(f, panel_chunks[chunk_index]);
-                chunk_index += 1;
-            }
-            if app.panel_manager.is_panel_visible(PanelId::Operations) {
-                app.operations_panel.render(f, panel_chunks[chunk_index]);
-                chunk_index += 1;
-            }
-            if app.panel_manager.is_panel_visible(PanelId::Events) {
-                app.event_log_panel.render(f, panel_chunks[chunk_index]);
-            }
-
-            // Footer with keyboard shortcuts
-            let visible_count = app.panel_manager.visible_count();
-            let footer_text = if app.connected {
-                format!(
-                    "Press '0' to toggle all | '1-7' for panels | 'q' to quit | {} panels visible",
-                    visible_count
-                )
-            } else {
-                "Disconnected - check API server | Press 'q' to quit".to_string()
-            };
-            let footer = Paragraph::new(footer_text).style(Style::default().fg(Color::Gray));
-            f.render_widget(footer, main_chunks[2]);
-        })?;
-
-        // Handle input with keyboard shortcuts
-        if event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
+        // Handle input with timeout
+        if event::poll(Duration::from_millis(16))? {
+            if let CrosstermEvent::Key(key) = event::read()? {
                 if app.handle_key(key.code) {
-                    return Ok(());
+                    break; // Quit requested
                 }
             }
         }
 
-        // Process incoming events and update state on tick
-        app.process_events();
-
+        // Refresh state periodically
         tokio::select! {
-            _ = tick.tick() => {
-                app.update_state(client).await?;
+            _ = refresh_interval.tick() => {
+                app.update_state(&client).await?;
             }
+            else => {}
         }
     }
+
+    // Cleanup
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    terminal.show_cursor()?;
+
+    Ok(())
 }
