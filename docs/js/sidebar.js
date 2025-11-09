@@ -73,11 +73,11 @@
         // Index page comments
         window.SIDEBAR_COMMENTS = {
             'abstract': '// Because context windows are a leaky abstraction',
-            'challenge': '// The re-initialization tax: 3-9 hours per feature',
+            'the-challenge': '// The re-initialization tax: 3-9 hours per feature',
             'architecture': '// Hybrid search: FTS5 + graphs + vectors',
-            'comparison': '// MemGPT is dead. Long live semantic memory.',
-            'validation': '// 934 tests • 65% coverage • v2.2.0 tagged',
-            'conclusion': '// Persistent memory: solved ✓'
+            'comparison-with-existing-systems': '// MemGPT is dead. Long live semantic memory.',
+            'validation-evidence': '// 934 tests • 65% coverage • v2.2.0 tagged',
+            'summary': '// Persistent memory: solved ✓'
         };
 
         window.SIDEBAR_SUBSECTIONS = {

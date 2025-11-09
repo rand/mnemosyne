@@ -27,7 +27,7 @@
         const subsectionComments = getSubsectionComments();
 
         // Get all sections and headings
-        const sections = [...document.querySelectorAll('section[id]')];
+        const sections = [...document.querySelectorAll('section[id], h2[id]')];
         const headings = [...document.querySelectorAll('h2, h3')];
 
         // Account for navbar height
