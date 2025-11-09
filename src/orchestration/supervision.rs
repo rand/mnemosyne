@@ -201,7 +201,8 @@ impl SupervisionTree {
 
     /// Start all agents in the supervision tree
     pub async fn start(&mut self) -> Result<()> {
-        tracing::debug!("Starting supervision tree");
+        tracing::info!("Starting supervision tree");
+        tracing::info!("Event broadcaster available: {}", self.event_broadcaster.is_some());
 
         // Use unique names based on namespace to avoid registry conflicts in tests
         // In production, this creates names like "optimizer-session:project:session-123"
@@ -371,8 +372,9 @@ impl SupervisionTree {
         }
 
         // Register event broadcaster with all actors for real-time observability
+        tracing::info!("About to check event broadcaster for registration");
         if let Some(broadcaster) = &self.event_broadcaster {
-            tracing::debug!("Registering event broadcaster with all actors");
+            tracing::info!("Event broadcaster found! Registering with all actors");
 
             // Register with Orchestrator
             if let Some(ref orchestrator) = self.orchestrator {
@@ -424,7 +426,7 @@ impl SupervisionTree {
 
             tracing::info!("Event broadcaster registered with all 4 actors");
         } else {
-            tracing::debug!("No event broadcaster available, skipping registration");
+            tracing::warn!("No event broadcaster available, skipping registration - dashboard will not receive events!");
         }
 
         // Initialize and register Python Claude SDK agent bridges (if Python feature enabled)
