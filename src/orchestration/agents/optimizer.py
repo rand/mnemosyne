@@ -402,15 +402,12 @@ Available skills are in markdown files like:
 
 Provide structured analysis."""
 
-        await self.claude_client.query(discovery_prompt)
-
-        analysis_responses = []
-        async for message in self.claude_client.receive_response():
-            analysis_responses.append(message)
-            await self._store_message(message, "discovery")
+        # Call API for skill discovery analysis
+        analysis_response = await self._call_api(discovery_prompt)
+        await self._store_message(analysis_response, "discovery")
 
         # Extract keywords from Claude's analysis
-        keywords = self._extract_keywords_from_analysis(analysis_responses, task_description)
+        keywords = self._extract_keywords_from_analysis([analysis_response], task_description)
 
         # Scan skill files across all directories
         matches: List[SkillMatch] = []
@@ -528,11 +525,8 @@ Please provide:
 
 Keep your response concise and structured."""
 
-        await self.claude_client.query(metadata_prompt)
-
-        classification_responses = []
-        async for message in self.claude_client.receive_response():
-            classification_responses.append(message)
+        # Call API for task classification
+        classification_response = await self._call_api(metadata_prompt)
 
         # Parse Claude's response to extract metadata
         # For now, use simple heuristics (in production, parse Claude's structured response)
@@ -734,12 +728,9 @@ Should this allocation be adjusted based on:
 
 Recommend allocation percentages with reasoning."""
 
-        await self.claude_client.query(budget_prompt)
-
-        budget_responses = []
-        async for message in self.claude_client.receive_response():
-            budget_responses.append(message)
-            await self._store_message(message, "budget-allocation")
+        # Call API for budget allocation analysis
+        budget_response = await self._call_api(budget_prompt)
+        await self._store_message(budget_response, "budget-allocation")
 
         # Use default allocation (Claude's recommendation would be parsed in production)
         allocation = {

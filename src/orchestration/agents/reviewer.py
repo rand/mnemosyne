@@ -15,7 +15,6 @@ from enum import Enum
 import json
 
 try:
-    from .claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
     from .base_agent import AgentExecutionMixin, WorkItem, WorkResult
     from .logging_config import get_logger
     from .error_context import (
@@ -28,7 +27,6 @@ try:
 except ImportError:
     import sys, os
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
     from base_agent import AgentExecutionMixin, WorkItem, WorkResult
     from logging_config import get_logger
     from error_context import (
@@ -76,9 +74,8 @@ class ReviewerConfig:
     required_gates: Set[QualityGate] = None
     min_test_coverage: float = 0.70  # 70% minimum
     antipattern_patterns: List[str] = None
-    # Claude Agent SDK configuration
-    allowed_tools: Optional[List[str]] = None
-    permission_mode: str = "default"  # Reviewer reads to validate
+    # Anthropic API key (injected from Rust via environment)
+    api_key: Optional[str] = None
 
     def __post_init__(self):
         if self.required_gates is None:
@@ -99,7 +96,7 @@ class ReviewerConfig:
 
 class ReviewerAgent(AgentExecutionMixin):
     """
-    Quality assurance and validation specialist using Claude Agent SDK.
+    Quality assurance and validation specialist using direct Anthropic API.
 
     Enforces quality standards before work completion:
     - All tests passing
@@ -149,7 +146,7 @@ Be thorough but constructive. Identify real issues, not nitpicks. Suggest tests 
 
     def __init__(self, config: ReviewerConfig, coordinator, storage):
         """
-        Initialize Reviewer agent with Claude Agent SDK.
+        Initialize Reviewer agent with direct Anthropic API access.
 
         Args:
             config: Reviewer configuration
@@ -160,13 +157,9 @@ Be thorough but constructive. Identify real issues, not nitpicks. Suggest tests 
         self.coordinator = coordinator
         self.storage = storage
 
-        # Initialize Claude Agent SDK client
-        self.claude_client = ClaudeSDKClient(
-            options=ClaudeAgentOptions(
-                allowed_tools=config.allowed_tools or ["Read", "Glob", "Grep"],
-                permission_mode=config.permission_mode
-            )
-        )
+        # Store API key (injected from Rust environment)
+        import os
+        self.api_key = config.api_key or os.getenv("ANTHROPIC_API_KEY")
 
         # Register with coordinator
         self.coordinator.register_agent(config.agent_id)
@@ -176,24 +169,79 @@ Be thorough but constructive. Identify real issues, not nitpicks. Suggest tests 
         self._pass_count = 0
         self._fail_count = 0
         self._session_active = False
+        self._conversation_history: List[Dict[str, Any]] = []
+
+        logger.info(f"[Reviewer] Initialized with direct Anthropic API access")
 
     async def start_session(self):
-        """Start Claude agent session."""
+        """Start agent session (validates API key availability)."""
         if not self._session_active:
             logger.info(f"Starting session for agent {self.config.agent_id}")
-            await self.claude_client.connect()
-            # Initialize with system prompt
-            await self.claude_client.query(self.REVIEWER_SYSTEM_PROMPT)
+
+            # Validate API key is available
+            if not self.api_key:
+                raise ValueError(
+                    "ANTHROPIC_API_KEY not set. Cannot start session without API access. "
+                    "Get your key from: https://console.anthropic.com/settings/keys"
+                )
+
+            # Initialize conversation with system prompt
+            self._conversation_history = []
             self._session_active = True
             logger.info(f"Session started successfully for {self.config.agent_id}")
 
     async def stop_session(self):
-        """Stop Claude agent session."""
+        """Stop agent session."""
         if self._session_active:
             logger.info(f"Stopping session for agent {self.config.agent_id}")
-            await self.claude_client.disconnect()
             self._session_active = False
+            self._conversation_history = []
             logger.info(f"Session stopped for {self.config.agent_id}")
+
+    async def _call_api(self, prompt: str) -> str:
+        """
+        Helper method to make Anthropic API calls.
+
+        Args:
+            prompt: User prompt to send
+
+        Returns:
+            Text response from API
+        """
+        import anthropic
+
+        if not self.api_key:
+            raise ValueError("ANTHROPIC_API_KEY not set. Cannot make API calls.")
+
+        client = anthropic.Anthropic(api_key=self.api_key)
+
+        # Add to conversation history
+        self._conversation_history.append({
+            "role": "user",
+            "content": prompt
+        })
+
+        # Call API
+        response = client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=2048,
+            system=self.REVIEWER_SYSTEM_PROMPT,
+            messages=self._conversation_history
+        )
+
+        # Extract text
+        response_text = ""
+        for block in response.content:
+            if block.type == "text":
+                response_text += block.text
+
+        # Add to conversation history
+        self._conversation_history.append({
+            "role": "assistant",
+            "content": response_text
+        })
+
+        return response_text
 
     async def review(self, work_artifact: Dict[str, Any]) -> ReviewResult:
         """
@@ -216,18 +264,13 @@ Be thorough but constructive. Identify real issues, not nitpicks. Suggest tests 
             # Build comprehensive review prompt
             review_prompt = self._build_review_prompt(work_artifact)
 
-            # Ask Claude to review
-            await self.claude_client.query(review_prompt)
-
-            # Collect Claude's review
-            review_responses = []
-            async for message in self.claude_client.receive_response():
-                review_responses.append(message)
-                await self._store_message(message, "review")
+            # Call API for review
+            review_response = await self._call_api(review_prompt)
+            await self._store_message(review_response, "review")
 
             # Parse review results
             gate_results, issues, recommendations = self._parse_review_results(
-                review_responses,
+                [review_response],
                 work_artifact
             )
 
