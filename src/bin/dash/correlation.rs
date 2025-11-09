@@ -357,6 +357,7 @@ mod tests {
         Event::new(EventType::CliCommandFailed {
             command: cmd.to_string(),
             error: "Test error".to_string(),
+            duration_ms: 100,
             timestamp: Utc::now(),
         })
     }
