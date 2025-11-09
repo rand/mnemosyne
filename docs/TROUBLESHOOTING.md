@@ -625,4 +625,197 @@ RUST_LOG=debug cargo run
 
 ---
 
-**Last Updated**: Phase 5.7 E2E validation completion (2025-11-06)
+## Dashboard Issues
+
+### Dashboard Crashes or Terminal Corruption
+
+**Symptoms**:
+- `mnemosyne-dash` crashes without visible error message
+- Terminal becomes corrupted, requiring terminal restart
+- Random characters or garbled output
+- Terminal unresponsive to input
+
+**Root Causes**:
+1. **Panic in raw terminal mode** (Fixed in 2.3.1):
+   - When the dashboard panics, the terminal is in raw mode
+   - Error messages go to corrupted display instead of being visible
+   - Terminal state is not restored
+
+2. **NaN values in health metrics** (Fixed in 2.3.1):
+   - Invalid calculations produce NaN or Infinity
+   - Sparkline widget panics on `partial_cmp().unwrap()` with NaN
+   - Common sources: division by zero in metrics, invalid sensor data
+
+**Solutions**:
+
+**For Version 2.3.1+**:
+- Dashboard now has panic handler that restores terminal state
+- NaN values are filtered out gracefully
+- Error messages are always visible
+
+**For Older Versions**:
+```bash
+# If terminal is corrupted:
+1. Close the terminal window completely
+2. Open a new terminal
+3. Update mnemosyne to 2.3.1 or later:
+   ./scripts/rebuild-and-update-install.sh
+
+# To debug crashes:
+1. Check logs: tail -f /tmp/mnemosyne-dash.log
+2. Look for panic messages or NaN-related errors
+3. Check macOS crash reports: ~/Library/Logs/DiagnosticReports/mnemosyne-dash*
+```
+
+**Prevention**:
+- Always run latest version (2.3.1+)
+- Monitor health metrics for invalid values
+- Check dashboard logs regularly for warnings
+
+---
+
+### Dashboard Shows Some Events But Not Others
+
+**Symptom**:
+- Some agent activity appears in dashboard
+- Other activity is missing
+- Events stored in database but not visible
+
+**Root Cause** (Fixed in 2.3.1):
+- Race condition in event broadcaster registration
+- Agents initialized before broadcaster registered
+- Events stored but not broadcast to SSE stream
+
+**Solution**:
+```bash
+# Update to 2.3.1 or later
+./scripts/rebuild-and-update-install.sh
+
+# Verify event broadcasting:
+mnemosyne orchestrate  # Run orchestration
+# In another terminal:
+mnemosyne-dash         # Should show all events in real-time
+```
+
+---
+
+### Dashboard Connection Issues
+
+**Symptoms**:
+- Dashboard shows "Connecting to SSE endpoint" repeatedly
+- No events appearing despite activity
+- Connection timeout errors in logs
+
+**Diagnosis**:
+```bash
+# Check if API server is running:
+curl http://localhost:3000/health
+
+# Check SSE endpoint:
+curl -N http://localhost:3000/events
+
+# Check logs:
+tail -f /tmp/mnemosyne-dash.log | grep -i "connect\|error"
+```
+
+**Solutions**:
+
+**API server not running**:
+```bash
+# The API server is started by mnemosyne commands automatically
+# Try running any mnemosyne command:
+mnemosyne status
+
+# Or start orchestration:
+mnemosyne orchestrate
+```
+
+**Port conflict**:
+```bash
+# Check if port 3000 is in use:
+lsof -i :3000
+
+# If another process is using it, kill it:
+kill <PID>
+```
+
+**Firewall blocking localhost**:
+```bash
+# macOS: Allow incoming connections
+# System Preferences → Security & Privacy → Firewall → Firewall Options
+# Ensure localhost connections are allowed
+```
+
+---
+
+## Development Best Practices
+
+### Floating-Point Safety
+
+**Pattern to Avoid**:
+```rust
+// UNSAFE: Will panic if a or b is NaN
+values.max_by(|a, b| a.partial_cmp(b).unwrap())
+```
+
+**Safe Pattern**:
+```rust
+// Safe: Handle NaN gracefully
+values
+    .into_iter()
+    .filter(|x| x.is_finite())  // Remove NaN/Inf
+    .max_by(|a, b| a.partial_cmp(b).unwrap())
+
+// Or:
+values.max_by(|a, b| {
+    a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+})
+```
+
+**Division by Zero Prevention**:
+```rust
+// UNSAFE: Can produce NaN
+let score = value / count;
+
+// Safe: Check before dividing
+let score = if count == 0 {
+    0.0
+} else {
+    value / count
+};
+
+// Or use validation in setters:
+pub fn with_max_lookback(mut self, distance: usize) -> Self {
+    self.max_lookback = distance.max(1);  // Enforce minimum
+    self
+}
+```
+
+### Terminal/TUI Development
+
+**Always install panic handler**:
+```rust
+use crossterm::terminal::{disable_raw_mode, LeaveAlternateScreen};
+use crossterm::execute;
+
+// After enabling raw mode:
+enable_raw_mode()?;
+execute!(stdout, EnterAlternateScreen)?;
+
+// Install panic handler BEFORE event loop:
+let default_panic = std::panic::take_hook();
+std::panic::set_hook(Box::new(move |panic_info| {
+    let _ = disable_raw_mode();
+    let _ = execute!(io::stdout(), LeaveAlternateScreen);
+    default_panic(panic_info);
+}));
+```
+
+**Benefits**:
+- Terminal restored even if panic occurs
+- Error messages visible
+- No terminal corruption
+
+---
+
+**Last Updated**: Post-dashboard crash fix (2025-11-09)

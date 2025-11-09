@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Fix 4 (Priority 4)**: Installed panic handler to restore terminal state (`disable_raw_mode()`, `LeaveAlternateScreen`) before panic, preventing terminal corruption and making error messages visible (src/bin/dash/main.rs:654-663)
   - **Fix 5 (Priority 5)**: Added explicit error handling to SSE client with logging and graceful reconnection on stream errors (src/bin/dash/main.rs:574-614)
   - **Impact**: Dashboard now handles invalid metrics gracefully, terminal corruption is prevented even if future panics occur, and error messages are always visible
+- **Anaphora Resolver Floating-Point Safety**: Fixed unsafe `partial_cmp().unwrap()` pattern in ICS anaphora resolver that could panic on NaN confidence values (src/ics/semantic_highlighter/tier2_relational/anaphora.rs:228)
+  - Replaced `unwrap()` with `unwrap_or(Ordering::Equal)` for NaN-safe comparison when selecting best antecedent candidate
+  - Added validation to `with_max_lookback()` to enforce minimum value of 1, preventing division by zero in `score_antecedent`
+  - Found during codebase scan for similar patterns after dashboard crash investigation
+  - All 8 anaphora resolution tests pass
 - **Event Broadcasting Race Condition**: Fixed race condition where orchestration actors received `Initialize` messages before `RegisterEventBroadcaster` messages, causing events to be stored but not broadcast to dashboard. Broadcaster registration now happens immediately after actor spawn and before initialization (src/orchestration/supervision.rs:221-372)
 - **Dashboard Event Flow**: Added comprehensive debug logging to trace event broadcaster availability and broadcast attempts throughout the orchestration event system
 
