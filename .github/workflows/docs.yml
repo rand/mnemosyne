@@ -3,7 +3,7 @@ name: Build and Deploy Docs
 on:
   push:
     branches:
-      - docs-zensical-migration
+      - main
   workflow_dispatch:
 
 permissions:
@@ -19,10 +19,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout docs-zensical-migration branch
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: docs-zensical-migration
 
       - name: Setup Python 3.12
         uses: actions/setup-python@v5
