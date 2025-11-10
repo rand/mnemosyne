@@ -54,7 +54,4 @@ body.dark-theme {
     --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
-/* Logo Glyph - Psi (psychology/memory) */
-.logo-glyph::before {
-    content: "Ψ";
-}
+/* Logo Glyph - Already in HTML, no need for ::before */
