@@ -12,16 +12,16 @@
     --border: #eaeaea;
     --background: #fff;
     --background-subtle: #fafafa;
-    --accent: #0891B2;  /* Teal accent */
+    --accent: #ff006e;  /* Vibrant pink accent */
     --code-bg: #fafafa;
     --code-border: #eaeaea;
-    /* Teal gradient colors */
-    --gradient-1: #0891B2;  /* teal */
-    --gradient-2: #06b6d4;  /* cyan */
-    --gradient-3: #22d3ee;  /* light cyan */
-    --gradient-4: #0e7490;  /* dark teal */
-    --gradient-5: #0891B2;  /* teal accent */
-    --gradient-6: #06b6d4;  /* cyan */
+    /* Pink gradient colors only */
+    --gradient-1: #ff006e;  /* pink */
+    --gradient-2: #ff1a8c;  /* bright pink */
+    --gradient-3: #ff3399;  /* hot pink */
+    --gradient-4: #c71585;  /* medium violet red */
+    --gradient-5: #ff006e;  /* pink accent */
+    --gradient-6: #d946ef;  /* fuchsia */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,16 +31,16 @@
         --border: #333;
         --background: #000;
         --background-subtle: #111;
-        --accent: #22d3ee;  /* Light cyan for dark mode */
+        --accent: #ff1a8c;  /* Brighter pink for dark mode */
         --code-bg: #111;
         --code-border: #333;
-        /* Teal gradient colors for dark mode */
-        --gradient-1: #22d3ee;
-        --gradient-2: #06b6d4;
-        --gradient-3: #67e8f9;
-        --gradient-4: #0891B2;
-        --gradient-5: #22d3ee;
-        --gradient-6: #06b6d4;
+        /* Pink gradient colors for dark mode */
+        --gradient-1: #ff1a8c;
+        --gradient-2: #ff3399;
+        --gradient-3: #ff4db8;
+        --gradient-4: #d946ef;
+        --gradient-5: #ff1a8c;
+        --gradient-6: #e879f9;
     }
 }
 
@@ -51,15 +51,15 @@ body.light-theme {
     --border: #eaeaea;
     --background: #fff;
     --background-subtle: #fafafa;
-    --accent: #0891B2;
+    --accent: #ff006e;
     --code-bg: #fafafa;
     --code-border: #eaeaea;
-    --gradient-1: #0891B2;
-    --gradient-2: #06b6d4;
-    --gradient-3: #22d3ee;
-    --gradient-4: #0e7490;
-    --gradient-5: #0891B2;
-    --gradient-6: #06b6d4;
+    --gradient-1: #ff006e;
+    --gradient-2: #ff1a8c;
+    --gradient-3: #ff3399;
+    --gradient-4: #c71585;
+    --gradient-5: #ff006e;
+    --gradient-6: #d946ef;
 }
 
 body.dark-theme {
@@ -68,15 +68,15 @@ body.dark-theme {
     --border: #333;
     --background: #000;
     --background-subtle: #111;
-    --accent: #22d3ee;
+    --accent: #ff1a8c;
     --code-bg: #111;
     --code-border: #333;
-    --gradient-1: #22d3ee;
-    --gradient-2: #06b6d4;
-    --gradient-3: #67e8f9;
-    --gradient-4: #0891B2;
-    --gradient-5: #22d3ee;
-    --gradient-6: #06b6d4;
+    --gradient-1: #ff1a8c;
+    --gradient-2: #ff3399;
+    --gradient-3: #ff4db8;
+    --gradient-4: #d946ef;
+    --gradient-5: #ff1a8c;
+    --gradient-6: #e879f9;
 }
 
 body {
@@ -135,7 +135,7 @@ body {
 }
 
 .logo-glyph::before {
-    content: "Ψ";  /* Greek letter Psi */
+    content: "⊛";  /* Circled asterisk */
 }
 
 .theme-toggle {
@@ -248,50 +248,6 @@ body.dark-theme .theme-toggle-icon::before {
     line-height: 1.4;
 }
 
-/* TOC Styling */
-.sidebar-toc {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border);
-}
-
-.toc-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.toc-item {
-    margin: 0;
-    padding: 0;
-}
-
-.toc-link {
-    display: block;
-    padding: 0.375rem 0;
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 0.8125rem;
-    line-height: 1.4;
-    transition: color 0.2s ease;
-    border-left: 2px solid transparent;
-    padding-left: 0.75rem;
-}
-
-.toc-link:hover {
-    color: var(--text-primary);
-}
-
-.toc-link.active {
-    color: var(--accent);
-    border-left-color: var(--accent);
-    font-weight: 500;
-}
-
-.toc-h3 .toc-link {
-    padding-left: 1.5rem;
-    font-size: 0.75rem;
-}
 
 /* Paper Header */
 .paper-header {
@@ -306,7 +262,6 @@ body.dark-theme .theme-toggle-icon::before {
     line-height: 1.2;
     margin-bottom: 0.75rem;
     letter-spacing: -0.03em;
-    color: var(--text-primary);
 }
 
 .paper-meta {
@@ -339,7 +294,10 @@ body.dark-theme .theme-toggle-icon::before {
     font-weight: 600;
     margin-bottom: 1.5rem;
     letter-spacing: -0.02em;
-    color: var(--text-primary);
+    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-3), var(--gradient-5));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .section h3 {
@@ -389,7 +347,7 @@ body.dark-theme .theme-toggle-icon::before {
 
 /* Code */
 code {
-    font-family: 'JetBrains Mono', 'Geist Mono', 'SF Mono', Monaco, monospace;
+    font-family: 'Geist Mono', 'SF Mono', Monaco, 'Cascadia Code', monospace;
     font-size: 0.875em;
     background: var(--code-bg);
     padding: 0.125em 0.375em;
