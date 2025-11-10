@@ -13,12 +13,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-    <!-- Shared Styles -->
-    <link rel="stylesheet" href="css/theme.css">
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/tables.css">
+    <!-- Shared Foundation (structure without colors) -->
+    <link rel="stylesheet" href="css/foundation.css">
 
-    <!-- Project-specific styles -->
+    <!-- Project-specific styles (colors and identity) -->
     {{PROJECT_STYLES}}
 </head>
 <body>
@@ -47,16 +45,6 @@
     </aside>
 
     <main class="container">
-        <header class="paper-header">
-            <h1>{{PAGE_TITLE}}</h1>
-            <p class="paper-subtitle">{{PAGE_SUBTITLE}}</p>
-            <p class="paper-meta">
-                <span class="version-badge">{{VERSION}}</span>
-                <span>{{DATE}}</span>
-                <a href="{{GITHUB_URL}}">{{GITHUB_DISPLAY}}</a>
-            </p>
-        </header>
-
         {{CONTENT}}
     </main>
 
