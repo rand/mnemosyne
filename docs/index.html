@@ -27,7 +27,12 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist@1.0.0/dist/geist.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- Shared Foundation (structure without colors) -->
+    <link rel="stylesheet" href="css/foundation.css">
+
+    <!-- mnemosyne Theme (project-specific colors and identity) -->
+    <link rel="stylesheet" href="css/mnemosyne-theme.css">
 </head>
 <body>
     <nav class="navbar">
@@ -342,7 +347,9 @@
         </div>
     </footer>
 
-    <script src="js/main.js"></script>
-    <script src="js/sidebar.js"></script>
+    <!-- Shared Foundation Scripts -->
+    <script src="js/theme-core.js"></script>
+    <script src="js/sidebar-core.js"></script>
+    <script src="js/toc-core.js"></script>
 </body>
 </html>
