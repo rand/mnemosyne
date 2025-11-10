@@ -117,6 +117,31 @@ body {
     color: var(--text-primary);
 }
 
+.theme-toggle-icon {
+    width: 1em;
+    height: 1em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-toggle-icon::before {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 400;
+    line-height: 1;
+}
+
+/* Light mode shows moon icon (to switch to dark) */
+body.light-theme .theme-toggle-icon::before,
+body:not(.dark-theme):not(.light-theme) .theme-toggle-icon::before {
+    content: "\f186"; /* moon icon */
+}
+
+/* Dark mode shows sun icon (to switch to light) */
+body.dark-theme .theme-toggle-icon::before {
+    content: "\f185"; /* sun icon */
+}
+
 /* Headings */
 h1 {
     font-size: 3rem;
@@ -392,6 +417,68 @@ tbody tr:hover {
 .p-2 { padding: 1rem; }
 .p-3 { padding: 1.5rem; }
 .p-4 { padding: 2rem; }
+
+/* Diagram Containers */
+.diagram-container {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.diagram-container pre {
+    margin: 0;
+}
+
+.diagram-svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+/* Status Messages */
+.status-glyph {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    flex-shrink: 0;
+}
+
+.status-glyph::before {
+    content: "ℹ";
+    color: var(--accent);
+    font-size: 1rem;
+}
+
+.status-message {
+    font-size: 0.875rem;
+}
+
+.status-info .status-glyph::before {
+    content: "ℹ";
+    color: var(--accent);
+}
+
+.status-success .status-glyph::before {
+    content: "✓";
+    color: #10b981;
+}
+
+.status-warning .status-glyph::before {
+    content: "⚠";
+    color: #f59e0b;
+}
+
+.status-error .status-glyph::before {
+    content: "✗";
+    color: #ef4444;
+}
 
 /* Responsive Breakpoints */
 @media (max-width: 1280px) {
