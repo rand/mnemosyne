@@ -51,6 +51,7 @@ class MnemosyneClient:
             content,
             "--namespace", namespace,
             "--importance", str(importance),
+            "--format", "json",
         ]
 
         if context:
@@ -64,8 +65,11 @@ class MnemosyneClient:
         if result.returncode != 0:
             raise RuntimeError(f"mnemosyne remember failed: {result.stderr}")
 
-        # Parse output (assuming format: "Memory stored: <id>")
-        return {"output": result.stdout, "success": True}
+        try:
+            return json.loads(result.stdout)
+        except json.JSONDecodeError:
+            # Fallback if JSON parsing fails
+            return {"output": result.stdout, "success": True}
 
     async def recall(
         self,
@@ -86,12 +90,13 @@ class MnemosyneClient:
         Returns:
             List[dict]: Matching memories
         """
-        cmd = [self.binary_path, "search", query]
+        cmd = [self.binary_path, "recall", query]
 
         if namespace:
             cmd.extend(["--namespace", namespace])
 
         cmd.extend(["--limit", str(max_results)])
+        cmd.extend(["--format", "json"])
 
         if min_importance:
             cmd.extend(["--min-importance", str(min_importance)])
@@ -105,9 +110,17 @@ class MnemosyneClient:
             # Return empty list if search fails (e.g., no results)
             return []
 
-        # Parse output - for now, return raw output
-        # TODO: Add JSON output mode to Rust CLI
-        return [{"content": result.stdout}]
+        try:
+            output = json.loads(result.stdout)
+            # Handle both list and dict response formats
+            if isinstance(output, list):
+                return output
+            elif isinstance(output, dict) and "memories" in output:
+                return output["memories"]
+            # Fallback
+            return [{"content": result.stdout, "raw": output}]
+        except json.JSONDecodeError:
+            return [{"content": result.stdout}]
 
     async def list_memories(
         self,
@@ -179,18 +192,42 @@ class MnemosyneClient:
 
     async def graph(
         self,
-        seed_ids: List[str],
-        max_hops: int = 2
+        query: Optional[str] = None,
+        namespace: Optional[str] = None,
+        depth: int = 1,
     ) -> Dict[str, Any]:
         """
         Get memory graph.
 
         Args:
-            seed_ids: Starting memory IDs
-            max_hops: Maximum graph traversal depth
+            query: Optional search query to center graph
+            namespace: Optional namespace filter
+            depth: Graph traversal depth
 
         Returns:
-            dict: Graph structure
+            dict: Graph structure (nodes, edges)
         """
-        # TODO: Implement graph command in Rust CLI
-        return {"nodes": [], "edges": []}
+        cmd = [
+            self.binary_path, "graph",
+            "--format", "json",
+            "--depth", str(depth)
+        ]
+
+        if query:
+            cmd.extend(["--query", query])
+
+        if namespace:
+            cmd.extend(["--namespace", namespace])
+
+        if self.db_path:
+            cmd.extend(["--db", self.db_path])
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            raise RuntimeError(f"mnemosyne graph failed: {result.stderr}")
+
+        try:
+            return json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return {"error": "Failed to parse JSON output", "raw_output": result.stdout}
