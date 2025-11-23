@@ -102,6 +102,30 @@ impl NetworkLayer {
         let ep = self.endpoint.read().await;
         ep.as_ref().map(|e| e.node_id())
     }
+
+    /// Create an invite ticket for this node
+    pub async fn create_invite(&self) -> Result<String> {
+        let ep = self.endpoint.read().await;
+        if let Some(endpoint) = ep.as_ref() {
+            endpoint.create_ticket().await
+        } else {
+            Err(crate::error::MnemosyneError::NetworkError(
+                "Network layer not started".to_string(),
+            ))
+        }
+    }
+
+    /// Join a peer using an invite ticket
+    pub async fn join_peer(&self, ticket: &str) -> Result<String> {
+        let ep = self.endpoint.read().await;
+        if let Some(endpoint) = ep.as_ref() {
+            endpoint.add_peer(ticket).await
+        } else {
+            Err(crate::error::MnemosyneError::NetworkError(
+                "Network layer not started".to_string(),
+            ))
+        }
+    }
 }
 
 #[cfg(test)]

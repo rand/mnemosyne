@@ -13,8 +13,10 @@
 
 use crate::error::{MnemosyneError, Result};
 use iroh::base::node_addr::NodeAddr;
+use iroh::base::ticket::NodeTicket;
 use iroh::net::key::SecretKey;
 use iroh::net::{Endpoint as IrohEndpoint, NodeId};
+use std::str::FromStr;
 
 /// Agent keypair for identity
 pub struct AgentKeypair {
@@ -137,6 +139,23 @@ impl AgentEndpoint {
     pub fn inner(&self) -> &IrohEndpoint {
         &self.endpoint
     }
+
+    /// Create a ticket for others to join
+    pub async fn create_ticket(&self) -> Result<String> {
+        let addr = self.endpoint.node_addr().await.map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
+        let ticket = NodeTicket::new(addr);
+        Ok(ticket.to_string())
+    }
+
+    /// Add a peer from a ticket
+    pub async fn add_peer(&self, ticket_str: &str) -> Result<String> {
+        let ticket = NodeTicket::from_str(ticket_str)
+            .map_err(|e| MnemosyneError::NetworkError(format!("Invalid ticket: {}", e)))?;
+        let addr = ticket.node_addr().clone();
+        let node_id = addr.node_id.to_string();
+        self.endpoint.add_node_addr(addr).map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
+        Ok(node_id)
+    }
 }
 
 #[cfg(test)]
@@ -159,5 +178,21 @@ mod tests {
 
         // Different keypairs should have different node IDs
         assert_ne!(keypair1.node_id(), keypair2.node_id());
+    }
+
+    #[tokio::test]
+    async fn test_ticket_generation() {
+        let endpoint = AgentEndpoint::new().await.unwrap();
+        
+        // Generate ticket
+        let ticket_str = endpoint.create_ticket().await.unwrap();
+        assert!(!ticket_str.is_empty());
+        
+        // Parse ticket manually to verify it's valid
+        // We can't use add_peer on ourselves because iroh prevents adding our own address
+        let ticket = NodeTicket::from_str(&ticket_str).expect("Failed to parse ticket");
+        let addr = ticket.node_addr();
+        
+        assert_eq!(addr.node_id.to_string(), endpoint.node_id());
     }
 }

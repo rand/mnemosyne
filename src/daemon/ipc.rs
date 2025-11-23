@@ -12,6 +12,10 @@ use tracing::{error, info, warn};
 pub enum IpcMessage {
     /// Request for status
     GetStatus(oneshot::Sender<OrchestrationStatus>),
+    /// Request to create an invite
+    CreateInvite(oneshot::Sender<Result<String>>),
+    /// Request to join a peer
+    JoinPeer(String, oneshot::Sender<Result<String>>),
 }
 
 /// IPC Command sent over the wire
@@ -21,6 +25,12 @@ pub enum IpcCommand {
     /// Get status
     #[serde(rename = "status")]
     GetStatus,
+    /// Create invite
+    #[serde(rename = "invite")]
+    CreateInvite,
+    /// Join peer
+    #[serde(rename = "join")]
+    JoinPeer { ticket: String },
 }
 
 /// Start the IPC server
@@ -82,6 +92,58 @@ pub async fn start_ipc_server(
                                             Err(e) => error!("Failed to receive response from engine: {}", e),
                                         }
                                     }
+                                    Ok(IpcCommand::CreateInvite) => {
+                                        let (resp_tx, resp_rx) = oneshot::channel();
+                                        if let Err(e) = tx.send(IpcMessage::CreateInvite(resp_tx)).await {
+                                            error!("Failed to send IPC message to engine: {}", e);
+                                            return;
+                                        }
+
+                                        match resp_rx.await {
+                                            Ok(result) => {
+                                                // Convert error to string for serialization
+                                                let response: std::result::Result<String, String> = result.map_err(|e| e.to_string());
+                                                match serde_json::to_string(&response) {
+                                                    Ok(json) => {
+                                                        if let Err(e) = writer.write_all(json.as_bytes()).await {
+                                                            error!("Failed to write IPC response: {}", e);
+                                                        }
+                                                        if let Err(e) = writer.write_all(b"\n").await {
+                                                            error!("Failed to write newline: {}", e);
+                                                        }
+                                                    }
+                                                    Err(e) => error!("Failed to serialize result: {}", e),
+                                                }
+                                            }
+                                            Err(e) => error!("Failed to receive response from engine: {}", e),
+                                        }
+                                    }
+                                    Ok(IpcCommand::JoinPeer { ticket }) => {
+                                        let (resp_tx, resp_rx) = oneshot::channel();
+                                        if let Err(e) = tx.send(IpcMessage::JoinPeer(ticket, resp_tx)).await {
+                                            error!("Failed to send IPC message to engine: {}", e);
+                                            return;
+                                        }
+
+                                        match resp_rx.await {
+                                            Ok(result) => {
+                                                // Convert error to string for serialization
+                                                let response: std::result::Result<String, String> = result.map_err(|e| e.to_string());
+                                                match serde_json::to_string(&response) {
+                                                    Ok(json) => {
+                                                        if let Err(e) = writer.write_all(json.as_bytes()).await {
+                                                            error!("Failed to write IPC response: {}", e);
+                                                        }
+                                                        if let Err(e) = writer.write_all(b"\n").await {
+                                                            error!("Failed to write newline: {}", e);
+                                                        }
+                                                    }
+                                                    Err(e) => error!("Failed to serialize result: {}", e),
+                                                }
+                                            }
+                                            Err(e) => error!("Failed to receive response from engine: {}", e),
+                                        }
+                                    }
                                     Err(e) => {
                                         warn!("Invalid IPC command received: {}. Error: {}", line, e);
                                     }
@@ -138,3 +200,80 @@ pub async fn query_status(socket_path: &Path) -> Result<OrchestrationStatus> {
         ))
     }
 }
+
+/// Client to create an invite via IPC
+pub async fn create_invite(socket_path: &Path) -> Result<String> {
+    use tokio::io::AsyncWriteExt;
+    use tokio::net::UnixStream;
+
+    let mut stream = UnixStream::connect(socket_path).await.map_err(|e| {
+        crate::error::MnemosyneError::Other(format!("Failed to connect to IPC socket: {}", e))
+    })?;
+
+    let command = IpcCommand::CreateInvite;
+    let json = serde_json::to_string(&command).map_err(|e| {
+        crate::error::MnemosyneError::Other(format!("Failed to serialize command: {}", e))
+    })?;
+
+    stream.write_all(json.as_bytes()).await.map_err(|e| {
+        crate::error::MnemosyneError::Other(format!("Failed to write to IPC socket: {}", e))
+    })?;
+    stream.write_all(b"\n").await.map_err(|e| {
+        crate::error::MnemosyneError::Other(format!("Failed to write newline: {}", e))
+    })?;
+
+    let reader = BufReader::new(stream);
+    let mut lines = reader.lines();
+
+    if let Some(line) = lines.next_line().await.map_err(|e| {
+        crate::error::MnemosyneError::Other(format!("Failed to read from IPC socket: {}", e))
+    })? {
+        let result: std::result::Result<String, String> = serde_json::from_str(&line).map_err(|e| {
+            crate::error::MnemosyneError::Other(format!("Failed to deserialize result: {}", e))
+        })?;
+        result.map_err(crate::error::MnemosyneError::Other)
+    } else {
+        Err(crate::error::MnemosyneError::Other(
+            "IPC socket closed without response".to_string(),
+        ))
+    }
+}
+
+/// Client to join a peer via IPC
+pub async fn join_peer(socket_path: &Path, ticket: String) -> Result<String> {
+    use tokio::io::AsyncWriteExt;
+    use tokio::net::UnixStream;
+
+    let mut stream = UnixStream::connect(socket_path).await.map_err(|e| {
+        crate::error::MnemosyneError::Other(format!("Failed to connect to IPC socket: {}", e))
+    })?;
+
+    let command = IpcCommand::JoinPeer { ticket };
+    let json = serde_json::to_string(&command).map_err(|e| {
+        crate::error::MnemosyneError::Other(format!("Failed to serialize command: {}", e))
+    })?;
+
+    stream.write_all(json.as_bytes()).await.map_err(|e| {
+        crate::error::MnemosyneError::Other(format!("Failed to write to IPC socket: {}", e))
+    })?;
+    stream.write_all(b"\n").await.map_err(|e| {
+        crate::error::MnemosyneError::Other(format!("Failed to write newline: {}", e))
+    })?;
+
+    let reader = BufReader::new(stream);
+    let mut lines = reader.lines();
+
+    if let Some(line) = lines.next_line().await.map_err(|e| {
+        crate::error::MnemosyneError::Other(format!("Failed to read from IPC socket: {}", e))
+    })? {
+        let result: std::result::Result<String, String> = serde_json::from_str(&line).map_err(|e| {
+            crate::error::MnemosyneError::Other(format!("Failed to deserialize result: {}", e))
+        })?;
+        result.map_err(crate::error::MnemosyneError::Other)
+    } else {
+        Err(crate::error::MnemosyneError::Other(
+            "IPC socket closed without response".to_string(),
+        ))
+    }
+}
+

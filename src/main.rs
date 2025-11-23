@@ -308,6 +308,12 @@ enum Commands {
         #[command(subcommand)]
         command: InternalCommands,
     },
+
+    /// Manage P2P networking and peers
+    Peer {
+        #[command(subcommand)]
+        action: cli::peer::PeerAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -485,6 +491,9 @@ async fn main() -> Result<()> {
                 cli::internal::handle_session_ended(instance_id).await
             }
         },
+        Some(Commands::Peer { action }) => {
+            cli::peer::handle(action).await
+        }
         None => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};
             use std::net::SocketAddr;

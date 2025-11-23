@@ -27,3 +27,4 @@ pub mod interactive;
 pub mod event_bridge;
 pub mod event_helpers;
 pub mod internal;
+pub mod peer;

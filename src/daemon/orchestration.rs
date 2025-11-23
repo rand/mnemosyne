@@ -438,6 +438,18 @@ impl OrchestrationDaemon {
                                 warn!("Failed to send status reply: {:?}", e);
                             }
                         }
+                        IpcMessage::CreateInvite(reply_tx) => {
+                            let result = network.create_invite().await;
+                            if let Err(e) = reply_tx.send(result) {
+                                warn!("Failed to send create invite reply: {:?}", e);
+                            }
+                        }
+                        IpcMessage::JoinPeer(ticket, reply_tx) => {
+                            let result = network.join_peer(&ticket).await;
+                            if let Err(e) = reply_tx.send(result) {
+                                warn!("Failed to send join peer reply: {:?}", e);
+                            }
+                        }
                     }
                 }
             }
