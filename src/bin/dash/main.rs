@@ -48,7 +48,7 @@ use crossterm::{
 };
 use panel_manager::{PanelId, PanelManager};
 use panels::{
-    ActivityStreamPanel, AgentInfo, AgentsPanel, FocusMode, OperationsPanel,
+    ActivityStreamPanel, AgentInfo, AgentsPanel, FocusMode, NetworkPanel, OperationsPanel,
     SystemOverviewPanel,
 };
 use ratatui::{
@@ -96,6 +96,7 @@ struct App {
     system_overview: SystemOverviewPanel,
     activity_stream: ActivityStreamPanel,
     agents_panel: AgentsPanel,
+    network_panel: NetworkPanel,
     operations_panel: OperationsPanel,
 
     /// Panel manager for visibility/layout
@@ -117,6 +118,7 @@ impl App {
             system_overview: SystemOverviewPanel::new(),
             activity_stream: ActivityStreamPanel::new(),
             agents_panel: AgentsPanel::new(),
+            network_panel: NetworkPanel::new(),
             operations_panel: OperationsPanel::new(),
             panel_manager: PanelManager::new(),
             connected: false,
@@ -133,6 +135,7 @@ impl App {
             // Route event to all panels
             self.system_overview.add_event(event.clone());
             self.activity_stream.add_event(event.clone());
+            self.network_panel.update(event.clone());
 
             // Route specific event types to specialized panels
             use mnemosyne_core::api::events::EventType::*;
@@ -215,7 +218,7 @@ impl App {
             // Panel toggles
             KeyCode::Char('0') => {
                 // Toggle all panels
-                if self.panel_manager.visible_count() == 4 {
+                if self.panel_manager.visible_count() == 5 {
                     self.panel_manager.hide_all();
                 } else {
                     self.panel_manager.show_all();
@@ -225,6 +228,7 @@ impl App {
             KeyCode::Char('1') => self.panel_manager.toggle_panel(PanelId::ActivityStream),
             KeyCode::Char('2') => self.panel_manager.toggle_panel(PanelId::AgentDetails),
             KeyCode::Char('3') => self.panel_manager.toggle_panel(PanelId::Operations),
+            KeyCode::Char('4') => self.panel_manager.toggle_panel(PanelId::Network),
 
             // Activity Stream controls
             KeyCode::Char('c') => {
@@ -380,30 +384,46 @@ impl App {
                 frame.render_widget(placeholder, horiz_chunks[0]);
             }
 
-            // Right column: Agent Details + Operations
-            let right_vert_chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .split(horiz_chunks[1]);
+            // Right column: Agent Details + Network + Operations
+            let mut right_constraints = Vec::new();
+            let mut visible_right_panels = Vec::new();
 
-            // Agent Details (right-top)
             if visibility.is_visible(PanelId::AgentDetails) {
-                self.agents_panel.render(frame, right_vert_chunks[0]);
-            } else {
-                let placeholder = Paragraph::new(" Agent Details hidden (press '2' to show) ")
-                    .style(Style::default().fg(Color::DarkGray))
-                    .block(Block::default().borders(Borders::ALL).title("Agent Details"));
-                frame.render_widget(placeholder, right_vert_chunks[0]);
+                right_constraints.push(Constraint::Percentage(40));
+                visible_right_panels.push(PanelId::AgentDetails);
+            }
+            if visibility.is_visible(PanelId::Network) {
+                right_constraints.push(Constraint::Length(8));
+                visible_right_panels.push(PanelId::Network);
+            }
+            if visibility.is_visible(PanelId::Operations) {
+                right_constraints.push(Constraint::Min(10));
+                visible_right_panels.push(PanelId::Operations);
             }
 
-            // Operations (right-bottom)
-            if visibility.is_visible(PanelId::Operations) {
-                self.operations_panel.render(frame, right_vert_chunks[1]);
-            } else {
-                let placeholder = Paragraph::new(" Operations hidden (press '3' to show) ")
+            if right_constraints.is_empty() {
+                right_constraints.push(Constraint::Min(0));
+            }
+
+            let right_vert_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints(right_constraints)
+                .split(horiz_chunks[1]);
+
+            for (i, &panel_id) in visible_right_panels.iter().enumerate() {
+                match panel_id {
+                    PanelId::AgentDetails => self.agents_panel.render(frame, right_vert_chunks[i]),
+                    PanelId::Network => self.network_panel.render(frame, right_vert_chunks[i]),
+                    PanelId::Operations => self.operations_panel.render(frame, right_vert_chunks[i]),
+                    _ => {}
+                }
+            }
+
+            if visible_right_panels.is_empty() {
+                let placeholder = Paragraph::new(" Right panels hidden ")
                     .style(Style::default().fg(Color::DarkGray))
-                    .block(Block::default().borders(Borders::ALL).title("Operations"));
-                frame.render_widget(placeholder, right_vert_chunks[1]);
+                    .block(Block::default().borders(Borders::ALL));
+                frame.render_widget(placeholder, right_vert_chunks[0]);
             }
         }
     }

@@ -398,6 +398,46 @@ impl OrchestrationDaemon {
         let (ipc_tx, mut ipc_rx) = mpsc::channel(32);
         ipc::start_ipc_server(self.config.socket_path.clone(), ipc_tx).await?;
 
+        // Start network monitoring task
+        let network_monitor = network.clone();
+        // Initialize event persistence for network events
+        // We use Global namespace as network state is system-wide
+        let persistence = Arc::new(crate::orchestration::events::EventPersistence::new_with_broadcaster(
+            storage.clone(),
+            crate::types::Namespace::Global,
+            Some(event_broadcaster.clone()),
+        ));
+        let persistence_monitor = persistence.clone();
+
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(5));
+            loop {
+                interval.tick().await;
+
+                let agents = network_monitor.router().list_agents().await;
+
+                // Extract unique known nodes (remote)
+                let mut known_nodes = std::collections::HashSet::new();
+                for (_, loc) in &agents {
+                    if let crate::orchestration::network::router::AgentLocation::Remote(node_id) = loc {
+                        known_nodes.insert(node_id.clone());
+                    }
+                }
+
+                let known_nodes_vec: Vec<String> = known_nodes.into_iter().collect();
+                let connected_peers = known_nodes_vec.len();
+
+                let event = crate::orchestration::events::AgentEvent::NetworkStateUpdate {
+                    connected_peers,
+                    known_nodes: known_nodes_vec,
+                };
+
+                if let Err(e) = persistence_monitor.persist(event).await {
+                     tracing::warn!("Failed to persist network state update: {}", e);
+                }
+            }
+        });
+
         // Health check ticker
         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
 

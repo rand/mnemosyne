@@ -367,6 +367,12 @@ pub enum AgentEvent {
         instance_id: String,
         timestamp: chrono::DateTime<Utc>,
     },
+
+    /// Network state update (periodic)
+    NetworkStateUpdate {
+        connected_peers: usize,
+        known_nodes: Vec<String>,
+    },
 }
 
 impl AgentEvent {
@@ -444,6 +450,7 @@ impl AgentEvent {
             // Session Lifecycle
             AgentEvent::SessionStarted { .. } => 8,
             AgentEvent::SessionEnded { .. } => 8,
+            AgentEvent::NetworkStateUpdate { .. } => 3,
         }
     }
 
@@ -717,6 +724,9 @@ impl AgentEvent {
             AgentEvent::SessionEnded { instance_id, timestamp } => {
                 format!("Session ended: {} at {}", instance_id, timestamp.format("%Y-%m-%d %H:%M:%S UTC"))
             }
+            AgentEvent::NetworkStateUpdate { connected_peers, known_nodes } => {
+                format!("Network state: {} peers, {} known nodes", connected_peers, known_nodes.len())
+            }
         }
     }
 }
@@ -901,6 +911,13 @@ impl EventPersistence {
                 table.clone(),
                 *affected_rows,
                 *duration_ms,
+            )),
+            AgentEvent::NetworkStateUpdate {
+                connected_peers,
+                known_nodes,
+            } => Some(Event::network_state_update(
+                *connected_peers,
+                known_nodes.clone(),
             )),
             // Other events are persisted but not broadcast
             _ => None,

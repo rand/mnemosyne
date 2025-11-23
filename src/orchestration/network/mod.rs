@@ -32,6 +32,9 @@ pub struct NetworkLayer {
 
     /// Whether network layer is started
     started: Arc<RwLock<bool>>,
+
+    /// Shared secret for authentication
+    cluster_secret: Option<String>,
 }
 
 impl NetworkLayer {
@@ -42,10 +45,16 @@ impl NetworkLayer {
 
     /// Create a new network layer
     pub async fn new() -> Result<Self> {
+        let cluster_secret = std::env::var("MNEMOSYNE_CLUSTER_SECRET").ok();
+        if cluster_secret.is_some() {
+            tracing::info!("Cluster secret configured, authentication enabled");
+        }
+
         Ok(Self {
             endpoint: Arc::new(RwLock::new(None)),
             router: Arc::new(MessageRouter::new()),
             started: Arc::new(RwLock::new(false)),
+            cluster_secret,
         })
     }
 
@@ -70,14 +79,19 @@ impl NetworkLayer {
         }
 
         // Initialize and register transport
-        let transport = Arc::new(transport::IrohTransport::new(self.endpoint.clone()));
+        let transport = Arc::new(transport::IrohTransport::new(
+            self.endpoint.clone(),
+            self.cluster_secret.clone(),
+        ));
         self.router.set_transport(transport).await;
 
         // Start listener loop
         let listener_endpoint = endpoint.clone();
         let listener_router = self.router.clone();
+        let secret = self.cluster_secret.clone();
+        
         tokio::spawn(async move {
-            run_listener_loop(listener_endpoint, listener_router).await;
+            run_listener_loop(listener_endpoint, listener_router, secret).await;
         });
 
         *started = true;
@@ -143,7 +157,17 @@ impl NetworkLayer {
     pub async fn join_peer(&self, ticket: &str) -> Result<String> {
         let ep = self.endpoint.read().await;
         if let Some(endpoint) = ep.as_ref() {
-            endpoint.add_peer(ticket).await
+            let peer_node_id = endpoint.add_peer(ticket).await?;
+
+            // Get our node ID
+            let my_node_id = endpoint.node_id();
+
+            // Announce our roles to the peer
+            if let Err(e) = self.router.announce_self(&peer_node_id, &my_node_id).await {
+                tracing::warn!("Failed to announce roles to peer {}: {}", peer_node_id, e);
+            }
+
+            Ok(peer_node_id)
         } else {
             Err(crate::error::MnemosyneError::NetworkError(
                 "Network layer not started".to_string(),
@@ -153,14 +177,19 @@ impl NetworkLayer {
 }
 
 /// Run the network listener loop
-async fn run_listener_loop(endpoint: AgentEndpoint, router: Arc<MessageRouter>) {
+async fn run_listener_loop(
+    endpoint: AgentEndpoint,
+    router: Arc<MessageRouter>,
+    secret: Option<String>,
+) {
     tracing::info!("Network listener loop started");
     loop {
         match endpoint.accept().await {
             Some(incoming) => {
                 let router = router.clone();
+                let secret = secret.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = handle_connection(incoming, router).await {
+                    if let Err(e) = handle_connection(incoming, router, secret).await {
                         tracing::warn!("Connection error: {}", e);
                     }
                 });
@@ -174,7 +203,11 @@ async fn run_listener_loop(endpoint: AgentEndpoint, router: Arc<MessageRouter>) 
 }
 
 /// Handle an incoming connection
-async fn handle_connection(incoming: Incoming, router: Arc<MessageRouter>) -> Result<()> {
+async fn handle_connection(
+    incoming: Incoming,
+    router: Arc<MessageRouter>,
+    secret: Option<String>,
+) -> Result<()> {
     // Accept connection
     let conn = incoming
         .await
@@ -189,8 +222,9 @@ async fn handle_connection(incoming: Incoming, router: Arc<MessageRouter>) -> Re
         match conn.accept_bi().await {
             Ok((send, recv)) => {
                 let router = router.clone();
+                let secret = secret.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = handle_stream(send, recv, router).await {
+                    if let Err(e) = handle_stream(send, recv, router, secret).await {
                         tracing::warn!("Stream error: {}", e);
                     }
                 });
@@ -211,22 +245,37 @@ async fn handle_stream(
     mut send: SendStream,
     mut recv: RecvStream,
     router: Arc<MessageRouter>,
+    secret: Option<String>,
 ) -> Result<()> {
+    // Perform handshake
+    AgentProtocol::handshake_responder(&mut send, &mut recv, secret).await?;
+
     // Read message
     let msg = AgentProtocol::recv_message(&mut recv).await?;
 
-    // Determine destination role
-    let role = match &msg {
-        crate::orchestration::messages::AgentMessage::Orchestrator(_) => AgentRole::Orchestrator,
-        crate::orchestration::messages::AgentMessage::Optimizer(_) => AgentRole::Optimizer,
-        crate::orchestration::messages::AgentMessage::Reviewer(_) => AgentRole::Reviewer,
-        crate::orchestration::messages::AgentMessage::Executor(_) => AgentRole::Executor,
-    };
+    match msg {
+        crate::orchestration::messages::AgentMessage::AnnounceRoles { roles, node_id } => {
+            tracing::info!("Received role announcement from {}: {:?}", node_id, roles);
+            for role in roles {
+                router.register_remote(role, node_id.clone()).await;
+            }
+        }
+        msg => {
+            // Determine destination role
+            let role = match &msg {
+                crate::orchestration::messages::AgentMessage::Orchestrator(_) => AgentRole::Orchestrator,
+                crate::orchestration::messages::AgentMessage::Optimizer(_) => AgentRole::Optimizer,
+                crate::orchestration::messages::AgentMessage::Reviewer(_) => AgentRole::Reviewer,
+                crate::orchestration::messages::AgentMessage::Executor(_) => AgentRole::Executor,
+                crate::orchestration::messages::AgentMessage::AnnounceRoles { .. } => unreachable!(),
+            };
 
-    // Route message
-    if let Err(e) = router.route(role, msg).await {
-        tracing::warn!("Failed to route message to {:?}: {}", role, e);
-        // We could send an error back, but for now just log it
+            // Route message
+            if let Err(e) = router.route(role, msg).await {
+                tracing::warn!("Failed to route message to {:?}: {}", role, e);
+                // We could send an error back, but for now just log it
+            }
+        }
     }
 
     // Close stream

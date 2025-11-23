@@ -84,6 +84,21 @@ impl MessageRouter {
         tracing::debug!("Registered remote agent: {:?} at {}", role, node_id);
     }
 
+    /// Announce local roles to a target peer
+    pub async fn announce_self(&self, target_node: &str, my_node_id: &str) -> Result<(), String> {
+        let local_roles = self.get_local_roles().await;
+        if local_roles.is_empty() {
+            return Ok(()); // Nothing to announce
+        }
+
+        let msg = AgentMessage::AnnounceRoles {
+            roles: local_roles,
+            node_id: my_node_id.to_string(),
+        };
+
+        self.send_remote(target_node, &msg).await
+    }
+
     /// Route a message to the appropriate agent (Load Balanced)
     pub async fn route(&self, to: AgentRole, message: AgentMessage) -> Result<(), String> {
         let registry = self.registry.read().await;

@@ -15,6 +15,8 @@ pub enum PanelId {
     ActivityStream,
     /// Agent Details: Deep-dive into agent activity (right-top, 40%)
     AgentDetails,
+    /// Network: P2P Network State (right-middle, 20%)
+    Network,
     /// Operations: CLI command history and stats (right-bottom, 40%)
     Operations,
 }
@@ -26,17 +28,19 @@ impl PanelId {
             PanelId::SystemOverview,
             PanelId::ActivityStream,
             PanelId::AgentDetails,
+            PanelId::Network,
             PanelId::Operations,
         ]
     }
 
-    /// Get keyboard shortcut number (0-3)
+    /// Get keyboard shortcut number (0-4)
     pub fn shortcut_key(&self) -> char {
         match self {
             PanelId::SystemOverview => '0',
             PanelId::ActivityStream => '1',
             PanelId::AgentDetails => '2',
             PanelId::Operations => '3',
+            PanelId::Network => '4',
         }
     }
 
@@ -46,6 +50,7 @@ impl PanelId {
             PanelId::SystemOverview => "System Overview",
             PanelId::ActivityStream => "Activity Stream",
             PanelId::AgentDetails => "Agent Details",
+            PanelId::Network => "Network State",
             PanelId::Operations => "Operations",
         }
     }
@@ -55,7 +60,8 @@ impl PanelId {
         match self {
             PanelId::SystemOverview => Constraint::Length(8), // Fixed top panel
             PanelId::ActivityStream => Constraint::Percentage(60), // 60% of remaining
-            PanelId::AgentDetails => Constraint::Percentage(50), // 50% of right column
+            PanelId::AgentDetails => Constraint::Percentage(40), // 40% of right column
+            PanelId::Network => Constraint::Length(8), // Fixed height
             PanelId::Operations => Constraint::Min(10), // Remaining space
         }
     }
@@ -66,6 +72,7 @@ impl PanelId {
             PanelId::SystemOverview => 6,
             PanelId::ActivityStream => 10,
             PanelId::AgentDetails => 8,
+            PanelId::Network => 6,
             PanelId::Operations => 8,
         }
     }
@@ -77,6 +84,7 @@ pub struct PanelVisibility {
     pub system_overview: bool,
     pub activity_stream: bool,
     pub agent_details: bool,
+    pub network: bool,
     pub operations: bool,
 }
 
@@ -87,6 +95,7 @@ impl PanelVisibility {
             system_overview: true,
             activity_stream: true,
             agent_details: true,
+            network: true,
             operations: true,
         }
     }
@@ -97,6 +106,7 @@ impl PanelVisibility {
             system_overview: false,
             activity_stream: false,
             agent_details: false,
+            network: false,
             operations: false,
         }
     }
@@ -107,6 +117,7 @@ impl PanelVisibility {
             PanelId::SystemOverview => self.system_overview,
             PanelId::ActivityStream => self.activity_stream,
             PanelId::AgentDetails => self.agent_details,
+            PanelId::Network => self.network,
             PanelId::Operations => self.operations,
         }
     }
@@ -117,6 +128,7 @@ impl PanelVisibility {
             PanelId::SystemOverview => self.system_overview = visible,
             PanelId::ActivityStream => self.activity_stream = visible,
             PanelId::AgentDetails => self.agent_details = visible,
+            PanelId::Network => self.network = visible,
             PanelId::Operations => self.operations = visible,
         }
     }

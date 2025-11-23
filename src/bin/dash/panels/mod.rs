@@ -12,11 +12,13 @@
 pub mod activity_stream;
 pub mod agents;
 pub mod events;
+pub mod network;
 pub mod operations;
 pub mod system_overview;
 
 pub use activity_stream::{ActivityStreamPanel, FocusMode};
 pub use agents::{AgentInfo, AgentsPanel};
 pub use events::EventLogPanel;
+pub use network::NetworkPanel;
 pub use operations::{OperationEntry, OperationStatus, OperationsPanel};
 pub use system_overview::{SystemMetrics, SystemOverviewPanel};

@@ -268,6 +268,12 @@ pub enum EventType {
         duration_ms: u64,
         timestamp: DateTime<Utc>,
     },
+    /// Network state update
+    NetworkStateUpdate {
+        connected_peers: usize,
+        known_nodes: Vec<String>,
+        timestamp: DateTime<Utc>,
+    },
 }
 
 /// Event wrapper with metadata
@@ -695,6 +701,15 @@ impl Event {
             table,
             affected_rows,
             duration_ms,
+            timestamp: Utc::now(),
+        })
+    }
+
+    /// Create network state update event
+    pub fn network_state_update(connected_peers: usize, known_nodes: Vec<String>) -> Self {
+        Self::new(EventType::NetworkStateUpdate {
+            connected_peers,
+            known_nodes,
             timestamp: Utc::now(),
         })
     }

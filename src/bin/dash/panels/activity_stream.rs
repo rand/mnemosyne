@@ -271,7 +271,8 @@ impl ActivityStreamPanel {
             | CliCommandCompleted { timestamp, .. }
             | CliCommandFailed { timestamp, .. }
             | SearchPerformed { timestamp, .. }
-            | DatabaseOperation { timestamp, .. } => Some(*timestamp),
+            | DatabaseOperation { timestamp, .. } 
+            | NetworkStateUpdate { timestamp, .. } => Some(*timestamp),
         }
     }
 

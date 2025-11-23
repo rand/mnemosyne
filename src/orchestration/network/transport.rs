@@ -18,12 +18,14 @@ use tokio::sync::RwLock;
 pub struct IrohTransport {
     /// Reference to the shared agent endpoint
     endpoint: Arc<RwLock<Option<AgentEndpoint>>>,
+    /// Shared secret for authentication
+    cluster_secret: Option<String>,
 }
 
 impl IrohTransport {
     /// Create a new Iroh transport
-    pub fn new(endpoint: Arc<RwLock<Option<AgentEndpoint>>>) -> Self {
-        Self { endpoint }
+    pub fn new(endpoint: Arc<RwLock<Option<AgentEndpoint>>>, cluster_secret: Option<String>) -> Self {
+        Self { endpoint, cluster_secret }
     }
 }
 
@@ -56,10 +58,15 @@ impl RemoteTransport for IrohTransport {
             .map_err(|e| format!("Failed to connect to {:?}: {}", node_addr, e))?;
 
         // Open a bidirectional stream
-        let (mut send_stream, _recv_stream) = endpoint
+        let (mut send_stream, mut recv_stream) = endpoint
             .open_stream(&connection)
             .await
             .map_err(|e| format!("Failed to open stream: {}", e))?;
+
+        // Perform handshake
+        AgentProtocol::handshake_initiator(&mut send_stream, &mut recv_stream, self.cluster_secret.clone())
+            .await
+            .map_err(|e| format!("Handshake failed: {}", e))?;
 
         // Send the message using AgentProtocol
         AgentProtocol::send_message(&mut send_stream, message)
@@ -82,6 +89,6 @@ mod tests {
     #[tokio::test]
     async fn test_transport_creation() {
         let endpoint = Arc::new(RwLock::new(None));
-        let _transport = IrohTransport::new(endpoint);
+        let _transport = IrohTransport::new(endpoint, None);
     }
 }

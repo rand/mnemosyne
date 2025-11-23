@@ -258,6 +258,12 @@ pub enum AgentMessage {
     Optimizer(OptimizerMessage),
     Reviewer(ReviewerMessage),
     Executor(Box<ExecutorMessage>),
+
+    /// Announce roles to a peer
+    AnnounceRoles {
+        roles: Vec<crate::launcher::agents::AgentRole>,
+        node_id: String,
+    },
 }
 
 /// Result of work item execution
