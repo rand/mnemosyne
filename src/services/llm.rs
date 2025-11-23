@@ -14,6 +14,14 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::{debug, info, warn};
 
+/// Result of verifying implementation against requirements
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VerificationResult {
+    pub passed: bool,
+    pub issues: Vec<String>,
+    pub confidence: f32,
+}
+
 /// Structured JSON response for memory enrichment
 #[derive(Debug, Deserialize, Serialize)]
 struct EnrichmentResponse {
@@ -652,6 +660,82 @@ IMPORTANT: Return ONLY valid JSON, no additional text or markdown formatting.
         Ok(decision)
     }
 
+    /// Verify if an implementation satisfies a list of requirements
+    pub async fn verify_requirements(
+        &self,
+        requirements: &[String],
+        implementation: &str,
+    ) -> Result<VerificationResult> {
+        debug!("Verifying requirements for implementation");
+
+        let requirements_text = requirements
+            .iter()
+            .enumerate()
+            .map(|(i, req)| format!("{}. {}", i + 1, req))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let prompt = format!(
+            r#"You are a senior code reviewer verifying if an implementation satisfies a list of requirements.
+
+Requirements:
+{}
+
+Implementation:
+{}
+
+Task:
+1. Analyze the implementation against each requirement.
+2. Determine if all requirements are met.
+3. Identify any specific issues or missing requirements.
+4. Assign a confidence score (0.0-1.0) to your assessment.
+
+Provide your verification as a JSON object:
+{{
+  "passed": boolean,
+  "issues": ["list of issues found, if any"],
+  "confidence": number (0.0-1.0)
+}}
+
+IMPORTANT: Return ONLY valid JSON, no additional text.
+"#,
+            requirements_text, implementation
+        );
+
+        let response = self.call_api(&prompt).await?;
+
+        // Parse JSON response with fallback to finding JSON block
+        let result: VerificationResult = match serde_json::from_str(&response) {
+            Ok(data) => data,
+            Err(e) => {
+                warn!("JSON parsing failed: {}, attempting extract from markdown", e);
+                if let Some(start) = response.find("{") {
+                    if let Some(end) = response.rfind("}") {
+                        let json_str = &response[start..=end];
+                        serde_json::from_str(json_str).map_err(|parse_err| {
+                            MnemosyneError::LlmApi(format!(
+                                "Failed to parse verification result: {}. Raw: {}",
+                                parse_err, response
+                            ))
+                        })?
+                    } else {
+                        return Err(MnemosyneError::LlmApi(format!(
+                            "Invalid JSON response (no closing brace): {}",
+                            response
+                        )));
+                    }
+                } else {
+                    return Err(MnemosyneError::LlmApi(format!(
+                        "Invalid JSON response (no opening brace): {}",
+                        response
+                    )));
+                }
+            }
+        };
+
+        Ok(result)
+    }
+
     /// Make an API call to Claude with a custom prompt
     ///
     /// This is a low-level method for custom LLM interactions.
@@ -761,5 +845,35 @@ mod tests {
         assert!(!memory.keywords.is_empty());
         assert!(!memory.tags.is_empty());
         assert!(memory.importance >= 1 && memory.importance <= 10);
+    }
+
+    #[tokio::test]
+    #[ignore] // Requires ANTHROPIC_API_KEY
+    async fn test_verify_requirements() {
+        let service = LlmService::with_default().unwrap();
+
+        let requirements = vec![
+            "Must use a loop".to_string(),
+            "Must handle errors".to_string(),
+        ];
+
+        let implementation = "
+        fn process() -> Result<(), Error> {
+            for item in items {
+                // processing
+            }
+            Ok(())
+        }
+        ";
+
+        let result = service
+            .verify_requirements(&requirements, implementation)
+            .await
+            .unwrap();
+
+        // We expect this to be parsed correctly
+        // Actual passed/failed depends on LLM interpretation of the pseudo-code,
+        // but it should return a valid structure
+        assert!(result.confidence >= 0.0 && result.confidence <= 1.0);
     }
 }

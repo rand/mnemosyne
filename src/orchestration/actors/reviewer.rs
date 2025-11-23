@@ -237,10 +237,21 @@ pub struct ReviewerState {
     /// Python Claude SDK agent bridge (new unified approach)
     #[cfg(feature = "python")]
     python_bridge: Option<ClaudeAgentBridge>,
+
+    /// LLM client for fallback validation
+    llm_client: Option<Arc<crate::services::LlmService>>,
 }
 
 impl ReviewerState {
     pub fn new(storage: Arc<dyn StorageBackend>, namespace: Namespace) -> Self {
+        let llm_client = crate::services::LlmService::with_default().ok().map(Arc::new);
+        
+        if llm_client.is_some() {
+            tracing::info!("Reviewer initialized with direct LLM client support");
+        } else {
+            tracing::warn!("Reviewer initialized without LLM client - validation capabilities limited");
+        }
+
         Self {
             events: EventPersistence::new(storage.clone(), namespace),
             storage,
@@ -252,6 +263,7 @@ impl ReviewerState {
             config: ReviewerConfig::default(),
             #[cfg(feature = "python")]
             python_bridge: None,
+            llm_client,
         }
     }
 
@@ -1030,6 +1042,52 @@ impl ReviewerActor {
                         e
                     );
                     // Continue with pattern matching results
+                }
+            }
+        }
+
+        // Fallback to direct LLM client if DSPy is not available
+        // We determine if we should run fallback based on config (if available) and adapter presence
+        #[cfg(feature = "python")]
+        let should_run_fallback = state.config.enable_llm_validation && state.reviewer_adapter.is_none();
+        #[cfg(not(feature = "python"))]
+        let should_run_fallback = true;
+
+        if should_run_fallback {
+            if let Some(llm_client) = &state.llm_client {
+                tracing::debug!("Using direct LLM client for correctness validation fallback");
+                
+                let mut implementation = String::new();
+                for memory_id in &result.memory_ids {
+                    if let Ok(memory) = state.storage.get_memory(*memory_id).await {
+                        use std::fmt::Write;
+                        let _ = write!(implementation, "File/Context: {}\n{}\n\n", memory.summary, memory.content);
+                    }
+                }
+
+                if !implementation.trim().is_empty() {
+                    let requirements = vec![
+                        "The implementation must be logically correct.".to_string(),
+                        "The implementation must handle errors appropriately.".to_string(),
+                        "The implementation must be free of bugs and potential panics.".to_string(),
+                    ];
+
+                    match llm_client.verify_requirements(&requirements, &implementation).await {
+                        Ok(verification) => {
+                            if !verification.passed {
+                                tracing::warn!(
+                                    "LLM correctness fallback validation failed with {} issues", 
+                                    verification.issues.len()
+                                );
+                                issues.extend(verification.issues);
+                            } else {
+                                tracing::info!("LLM correctness fallback validation passed");
+                            }
+                        },
+                        Err(e) => {
+                             tracing::warn!("LLM fallback validation failed: {}", e);
+                        }
+                    }
                 }
             }
         }

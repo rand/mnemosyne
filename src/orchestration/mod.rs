@@ -63,6 +63,7 @@ pub mod sse_subscriber;
 pub mod state;
 pub mod status_line;
 pub mod supervision;
+pub mod test_parsing;
 pub mod work_plan_templates;
 pub mod worktree_manager;
 
