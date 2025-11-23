@@ -108,7 +108,7 @@ impl SseSubscriber {
             }
 
             // Build SSE client
-            let stream_url = format!("{}/events/stream", self.config.api_url);
+            let stream_url = format!("{}/events", self.config.api_url);
             debug!("SSE subscriber: connecting to {}", stream_url);
 
             let mut client = match es::ClientBuilder::for_url(&stream_url) {
