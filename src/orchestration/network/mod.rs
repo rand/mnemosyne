@@ -16,6 +16,8 @@ pub use protocol::AgentProtocol;
 pub use router::MessageRouter;
 
 use crate::error::Result;
+use crate::launcher::agents::AgentRole;
+use iroh::net::endpoint::{Incoming, RecvStream, SendStream};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -59,12 +61,19 @@ impl NetworkLayer {
         // Store endpoint
         {
             let mut ep = self.endpoint.write().await;
-            *ep = Some(endpoint);
+            *ep = Some(endpoint.clone());
         }
 
         // Initialize and register transport
         let transport = Arc::new(transport::IrohTransport::new(self.endpoint.clone()));
         self.router.set_transport(transport).await;
+
+        // Start listener loop
+        let listener_endpoint = endpoint.clone();
+        let listener_router = self.router.clone();
+        tokio::spawn(async move {
+            run_listener_loop(listener_endpoint, listener_router).await;
+        });
 
         *started = true;
 
@@ -126,6 +135,93 @@ impl NetworkLayer {
             ))
         }
     }
+}
+
+/// Run the network listener loop
+async fn run_listener_loop(endpoint: AgentEndpoint, router: Arc<MessageRouter>) {
+    tracing::info!("Network listener loop started");
+    loop {
+        match endpoint.accept().await {
+            Some(incoming) => {
+                let router = router.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = handle_connection(incoming, router).await {
+                        tracing::warn!("Connection error: {}", e);
+                    }
+                });
+            }
+            None => {
+                tracing::info!("Network listener loop stopped (endpoint closed)");
+                break;
+            }
+        }
+    }
+}
+
+/// Handle an incoming connection
+async fn handle_connection(incoming: Incoming, router: Arc<MessageRouter>) -> Result<()> {
+    // Accept connection
+    let conn = incoming
+        .await
+        .map_err(|e| crate::error::MnemosyneError::NetworkError(e.to_string()))?;
+
+    // Note: remote_node_id() seems unavailable or requires different access in this Iroh version
+    // For now, we just log that we accepted a connection
+    tracing::debug!("Accepted connection from remote peer");
+
+    // Accept bidirectional streams
+    loop {
+        match conn.accept_bi().await {
+            Ok((send, recv)) => {
+                let router = router.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = handle_stream(send, recv, router).await {
+                        tracing::warn!("Stream error: {}", e);
+                    }
+                });
+            }
+            Err(e) => {
+                // Connection closed or error
+                tracing::debug!("Connection closed: {}", e);
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Handle an incoming stream
+async fn handle_stream(
+    mut send: SendStream,
+    mut recv: RecvStream,
+    router: Arc<MessageRouter>,
+) -> Result<()> {
+    // Read message
+    let msg = AgentProtocol::recv_message(&mut recv).await?;
+
+    // Determine destination role
+    let role = match &msg {
+        crate::orchestration::messages::AgentMessage::Orchestrator(_) => AgentRole::Orchestrator,
+        crate::orchestration::messages::AgentMessage::Optimizer(_) => AgentRole::Optimizer,
+        crate::orchestration::messages::AgentMessage::Reviewer(_) => AgentRole::Reviewer,
+        crate::orchestration::messages::AgentMessage::Executor(_) => AgentRole::Executor,
+    };
+
+    // Route message
+    if let Err(e) = router.route(role, msg).await {
+        tracing::warn!("Failed to route message to {:?}: {}", role, e);
+        // We could send an error back, but for now just log it
+    }
+
+    // Close stream
+    // Note: finish() returns Result, not Future in some Iroh versions
+    // Check if we need await or not. The error said it's not a future.
+    if let Err(e) = send.finish() {
+        tracing::warn!("Failed to finish stream: {}", e);
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

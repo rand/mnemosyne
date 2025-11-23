@@ -19,6 +19,7 @@ use iroh::net::{Endpoint as IrohEndpoint, NodeId};
 use std::str::FromStr;
 
 /// Agent keypair for identity
+#[derive(Clone)]
 pub struct AgentKeypair {
     secret: SecretKey,
 }
@@ -43,6 +44,7 @@ impl AgentKeypair {
 }
 
 /// Agent endpoint wrapping Iroh QUIC networking
+#[derive(Clone)]
 pub struct AgentEndpoint {
     /// Iroh endpoint
     endpoint: IrohEndpoint,
