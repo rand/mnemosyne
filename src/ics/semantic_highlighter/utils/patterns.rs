@@ -30,7 +30,7 @@ impl CommonPatterns {
     /// RFC 2119 constraint keywords (MUST, SHALL, MAY, etc.)
     pub fn rfc2119_keywords() -> &'static Regex {
         static PATTERN: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"\b(MUST|SHALL|REQUIRED|SHOULD|RECOMMENDED|MAY|OPTIONAL|MUST NOT|SHALL NOT|SHOULD NOT|NOT RECOMMENDED)\b")
+            Regex::new(r"\b(MUST NOT|SHALL NOT|SHOULD NOT|NOT RECOMMENDED|MUST|SHALL|REQUIRED|SHOULD|RECOMMENDED|MAY|OPTIONAL)\b")
                 .expect("Valid RFC 2119 regex")
         });
         &PATTERN

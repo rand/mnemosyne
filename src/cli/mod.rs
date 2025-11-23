@@ -19,6 +19,7 @@ pub mod recall;
 pub mod embed;
 pub mod models;
 pub mod evolve;
+pub mod graph;
 pub mod artifact;
 pub mod doctor;
 pub mod update;

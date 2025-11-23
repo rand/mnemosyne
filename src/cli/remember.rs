@@ -240,7 +240,7 @@ pub async fn handle(
             })
         );
     } else {
-        println!("{} Memory saved", icons::status::success());
+        eprintln!("{} Memory saved", icons::status::success());
         println!("ID: {}", memory.id);
         println!("Summary: {}", memory.summary);
         println!("Importance: {}/10", memory.importance);

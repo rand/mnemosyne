@@ -10,10 +10,18 @@ use crate::launcher::agents::AgentRole;
 use crate::orchestration::messages::{
     AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage,
 };
+use async_trait::async_trait;
 use ractor::ActorRef;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+/// Trait for sending messages to remote nodes
+#[async_trait]
+pub trait RemoteTransport: Send + Sync {
+    /// Send a message to a remote node
+    async fn send(&self, node_id: &str, message: &AgentMessage) -> Result<(), String>;
+}
 
 /// Agent location (local or remote)
 #[derive(Debug, Clone)]
@@ -38,6 +46,9 @@ pub enum LocalAgent {
 pub struct MessageRouter {
     /// Agent registry mapping role to location
     registry: Arc<RwLock<HashMap<AgentRole, AgentLocation>>>,
+
+    /// Remote transport for sending messages
+    transport: Arc<RwLock<Option<Arc<dyn RemoteTransport>>>>,
 }
 
 impl MessageRouter {
@@ -45,7 +56,14 @@ impl MessageRouter {
     pub fn new() -> Self {
         Self {
             registry: Arc::new(RwLock::new(HashMap::new())),
+            transport: Arc::new(RwLock::new(None)),
         }
+    }
+
+    /// Set the remote transport
+    pub async fn set_transport(&self, transport: Arc<dyn RemoteTransport>) {
+        let mut t = self.transport.write().await;
+        *t = Some(transport);
     }
 
     /// Register a local agent
@@ -74,13 +92,22 @@ impl MessageRouter {
             Some(AgentLocation::Remote(node_id)) => {
                 // Route to remote agent via Iroh
                 tracing::debug!("Routing to remote agent {} at {}", to.as_str(), node_id);
-                // TODO: Implement remote routing via Iroh
-                Err("Remote routing not yet implemented".to_string())
+                self.send_remote(node_id, &message).await
             }
             None => {
                 tracing::warn!("No route found for agent: {:?}", to);
                 Err(format!("Agent not registered: {:?}", to))
             }
+        }
+    }
+
+    /// Send message to remote agent
+    async fn send_remote(&self, node_id: &str, message: &AgentMessage) -> Result<(), String> {
+        let transport_lock = self.transport.read().await;
+        if let Some(transport) = transport_lock.as_ref() {
+            transport.send(node_id, message).await
+        } else {
+            Err("Remote transport not initialized".to_string())
         }
     }
 
@@ -140,6 +167,20 @@ impl Default for MessageRouter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::orchestration::messages::OrchestratorMessage;
+
+    struct MockTransport {
+        sent_messages: Arc<RwLock<Vec<(String, AgentMessage)>>>,
+    }
+
+    #[async_trait]
+    impl RemoteTransport for MockTransport {
+        async fn send(&self, node_id: &str, message: &AgentMessage) -> Result<(), String> {
+            let mut sent = self.sent_messages.write().await;
+            sent.push((node_id.to_string(), message.clone()));
+            Ok(())
+        }
+    }
 
     #[tokio::test]
     async fn test_router_registration() {
@@ -155,5 +196,35 @@ mod tests {
 
         let agents = router.list_agents().await;
         assert_eq!(agents.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_remote_routing() {
+        let router = MessageRouter::new();
+        let sent_messages = Arc::new(RwLock::new(Vec::new()));
+        let transport = Arc::new(MockTransport {
+            sent_messages: sent_messages.clone(),
+        });
+
+        // Set transport
+        router.set_transport(transport).await;
+
+        // Register remote agent
+        router
+            .register_remote(AgentRole::Executor, "node-123".to_string())
+            .await;
+
+        // Route message
+        let msg = AgentMessage::Orchestrator(OrchestratorMessage::Initialize);
+        router.route(AgentRole::Executor, msg.clone()).await.unwrap();
+
+        // Verify message was sent
+        let sent = sent_messages.read().await;
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0].0, "node-123");
+        match &sent[0].1 {
+            AgentMessage::Orchestrator(OrchestratorMessage::Initialize) => {},
+            _ => panic!("Wrong message type"),
+        }
     }
 }

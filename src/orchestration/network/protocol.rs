@@ -8,7 +8,15 @@
 use crate::error::{MnemosyneError, Result};
 use crate::orchestration::messages::AgentMessage;
 use iroh::net::endpoint::{RecvStream, SendStream};
+use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
+
+/// Wire format for agent messages
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum WireMessage {
+    /// Version 1: Direct wrapper around AgentMessage
+    V1(AgentMessage),
+}
 
 /// Agent protocol for P2P communication
 pub struct AgentProtocol;
@@ -16,8 +24,11 @@ pub struct AgentProtocol;
 impl AgentProtocol {
     /// Send a message over a stream
     pub async fn send_message(send: &mut SendStream, message: &AgentMessage) -> Result<()> {
+        // Wrap in WireMessage
+        let wire_msg = WireMessage::V1(message.clone());
+
         // Serialize message with bincode
-        let data = bincode::serialize(message)
+        let data = bincode::serialize(&wire_msg)
             .map_err(|e| MnemosyneError::SerializationError(e.to_string()))?;
 
         // Write length prefix (4 bytes, big-endian)
@@ -64,10 +75,12 @@ impl AgentProtocol {
             .map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
 
         // Deserialize message
-        let message = bincode::deserialize(&data)
+        let wire_msg: WireMessage = bincode::deserialize(&data)
             .map_err(|e| MnemosyneError::SerializationError(e.to_string()))?;
 
-        Ok(message)
+        match wire_msg {
+            WireMessage::V1(msg) => Ok(msg),
+        }
     }
 
     /// Send and receive a request-response pair
@@ -103,5 +116,23 @@ mod tests {
             deserialized,
             AgentMessage::Orchestrator(OrchestratorMessage::Initialize)
         ));
+    }
+
+    #[test]
+    fn test_wire_message_serialization() {
+        let message = AgentMessage::Orchestrator(OrchestratorMessage::Initialize);
+        let wire_msg = WireMessage::V1(message);
+
+        let data = bincode::serialize(&wire_msg).unwrap();
+        let deserialized: WireMessage = bincode::deserialize(&data).unwrap();
+
+        match deserialized {
+            WireMessage::V1(msg) => {
+                assert!(matches!(
+                    msg,
+                    AgentMessage::Orchestrator(OrchestratorMessage::Initialize)
+                ));
+            }
+        }
     }
 }

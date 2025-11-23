@@ -249,6 +249,29 @@ enum Commands {
         command: cli::artifact::ArtifactCommands,
     },
 
+    /// Generate a knowledge graph visualization
+    Graph {
+        /// Output format (dot, mermaid, json)
+        #[arg(short, long, default_value = "mermaid")]
+        format: String,
+
+        /// Traversal depth (hops)
+        #[arg(short, long, default_value = "1")]
+        depth: usize,
+
+        /// Output file path (stdout if not specified)
+        #[arg(short, long)]
+        output: Option<String>,
+
+        /// Center graph on memories matching this query
+        #[arg(short, long)]
+        query: Option<String>,
+
+        /// Namespace filter
+        #[arg(short, long)]
+        namespace: Option<String>,
+    },
+
     /// Run health checks on the mnemosyne system
     Doctor {
         /// Show detailed diagnostics
@@ -428,6 +451,23 @@ async fn main() -> Result<()> {
             cli::models::handle(action).await
         }
         Some(Commands::Evolve { job }) => cli::evolve::handle(job, cli.db_path.clone()).await,
+        Some(Commands::Graph {
+            format,
+            depth,
+            output,
+            query,
+            namespace,
+        }) => {
+            cli::graph::handle(
+                format,
+                depth,
+                output,
+                query,
+                namespace,
+                cli.db_path.clone(),
+            )
+            .await
+        }
         Some(Commands::Artifact { command }) => {
             cli::artifact::handle(command, cli.db_path.clone()).await
         }

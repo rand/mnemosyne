@@ -160,9 +160,9 @@ pub async fn handle(
             })
         );
     } else if results.is_empty() {
-        println!("No memories found matching '{}'", query);
+        eprintln!("No memories found matching '{}'", query);
     } else {
-        println!("Found {} memories:\n", results.len());
+        eprintln!("Found {} memories:\n", results.len());
         for (i, (memory, score)) in results.iter().enumerate() {
             println!(
                 "{}. {} (score: {:.2}, importance: {}/10)",
