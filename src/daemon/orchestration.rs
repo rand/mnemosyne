@@ -29,10 +29,14 @@ use crate::error::{MnemosyneError, Result};
 use crate::orchestration::network;
 use crate::orchestration::supervision::{SupervisionConfig, SupervisionTree};
 use crate::storage::StorageBackend;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
+
+use super::ipc::{self, IpcMessage};
 
 /// Orchestration daemon configuration
 #[derive(Debug, Clone)]
@@ -75,7 +79,7 @@ impl Default for OrchestrationDaemonConfig {
 }
 
 /// Orchestration daemon status
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OrchestrationStatus {
     /// All 4 agents running
     Running {
@@ -129,7 +133,7 @@ impl OrchestrationDaemon {
         info!("Starting Mnemosyne orchestration daemon");
 
         // Check if already running
-        match self.status()? {
+        match self.status().await? {
             OrchestrationStatus::Running { pid, .. } => {
                 return Err(MnemosyneError::Other(format!(
                     "Orchestration daemon already running with PID {}",
@@ -142,7 +146,7 @@ impl OrchestrationDaemon {
             }
             OrchestrationStatus::Degraded { pid, .. } => {
                 warn!("Found degraded daemon with PID {}, stopping", pid);
-                self.stop()?;
+                self.stop().await?;
             }
             OrchestrationStatus::NotRunning => {
                 // Good to start
@@ -222,7 +226,7 @@ impl OrchestrationDaemon {
         info!("Socket: {}", self.config.socket_path.display());
 
         // Wait a moment to check if process is still running
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
 
         if !is_process_running(pid) {
             self.remove_pid_file()?;
@@ -237,10 +241,10 @@ impl OrchestrationDaemon {
     }
 
     /// Stop the orchestration daemon
-    pub fn stop(&self) -> Result<()> {
+    pub async fn stop(&self) -> Result<()> {
         info!("Stopping Mnemosyne orchestration daemon");
 
-        match self.status()? {
+        match self.status().await? {
             OrchestrationStatus::Running { pid, .. }
             | OrchestrationStatus::Degraded { pid, .. } => {
                 // Send SIGTERM (graceful shutdown)
@@ -264,10 +268,10 @@ impl OrchestrationDaemon {
                 }
 
                 // Wait for graceful shutdown
-                std::thread::sleep(std::time::Duration::from_secs(3));
+                tokio::time::sleep(std::time::Duration::from_secs(3)).await;
 
                 // Check if still running
-                match self.status()? {
+                match self.status().await? {
                     OrchestrationStatus::NotRunning => {
                         self.remove_pid_file()?;
                         self.remove_socket()?;
@@ -305,7 +309,19 @@ impl OrchestrationDaemon {
     }
 
     /// Get orchestration daemon status
-    pub fn status(&self) -> Result<OrchestrationStatus> {
+    pub async fn status(&self) -> Result<OrchestrationStatus> {
+        // Try connecting to the Unix socket first
+        if self.config.socket_path.exists() {
+            debug!("Querying status via IPC: {}", self.config.socket_path.display());
+            match ipc::query_status(&self.config.socket_path).await {
+                Ok(status) => return Ok(status),
+                Err(e) => {
+                    debug!("Failed to query status via IPC: {}", e);
+                    // Fallback to PID file check if IPC fails
+                }
+            }
+        }
+
         if !self.config.pid_file.exists() {
             return Ok(OrchestrationStatus::NotRunning);
         }
@@ -324,8 +340,8 @@ impl OrchestrationDaemon {
             return Ok(OrchestrationStatus::Stale { pid });
         }
 
-        // TODO: Query agent status via Unix socket
-        // For now, assume all agents running if process exists
+        // Process is running but IPC failed or socket missing
+        // We can't know detailed status, so assume running but maybe degraded IPC
         Ok(OrchestrationStatus::Running {
             pid,
             orchestrator: true,
@@ -336,8 +352,8 @@ impl OrchestrationDaemon {
     }
 
     /// Health check - verify daemon and all agents are running
-    pub fn health_check(&self) -> Result<bool> {
-        match self.status()? {
+    pub async fn health_check(&self) -> Result<bool> {
+        match self.status().await? {
             OrchestrationStatus::Running { .. } => Ok(true),
             OrchestrationStatus::Degraded { .. } => Ok(false),
             _ => Ok(false),
@@ -378,18 +394,52 @@ impl OrchestrationDaemon {
 
         info!("All agents started successfully");
 
-        // TODO: Start IPC server (Unix socket)
-        // TODO: Start health monitoring loop
-        // TODO: Handle shutdown signals
+        // Start IPC server
+        let (ipc_tx, mut ipc_rx) = mpsc::channel(32);
+        ipc::start_ipc_server(self.config.socket_path.clone(), ipc_tx).await?;
+
+        // Health check ticker
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
 
         // Keep daemon running
         loop {
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            tokio::select! {
+                _ = interval.tick() => {
+                    // Check agent health
+                    if !supervision_tree.is_healthy().await {
+                        warn!("Agent health check failed, restarting agents");
+                        supervision_tree.restart_failed_agents().await?;
+                    }
+                }
+                Some(msg) = ipc_rx.recv() => {
+                    match msg {
+                        IpcMessage::GetStatus(reply_tx) => {
+                            // Construct status based on supervision tree
+                            // For now, we use a simple check. 
+                            // TODO: Implement granular status in SupervisionTree
+                            let is_healthy = supervision_tree.is_healthy().await;
+                            
+                            let status = if is_healthy {
+                                OrchestrationStatus::Running {
+                                    pid: std::process::id(),
+                                    orchestrator: true,
+                                    optimizer: true,
+                                    reviewer: true,
+                                    executor: true,
+                                }
+                            } else {
+                                OrchestrationStatus::Degraded {
+                                    pid: std::process::id(),
+                                    failed_agents: vec!["unknown".to_string()],
+                                }
+                            };
 
-            // Check agent health
-            if !supervision_tree.is_healthy().await {
-                warn!("Agent health check failed, restarting agents");
-                supervision_tree.restart_failed_agents().await?;
+                            if let Err(e) = reply_tx.send(status) {
+                                warn!("Failed to send status reply: {:?}", e);
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -504,12 +554,12 @@ mod tests {
             .contains("mnemosyne-orchestration.sock"));
     }
 
-    #[test]
-    fn test_status_not_running() {
+    #[tokio::test]
+    async fn test_status_not_running() {
         let (config, _temp) = create_test_config();
         let daemon = OrchestrationDaemon::with_config(config);
 
-        let status = daemon.status().unwrap();
+        let status = daemon.status().await.unwrap();
         assert_eq!(status, OrchestrationStatus::NotRunning);
     }
 
@@ -540,18 +590,18 @@ mod tests {
         assert!(!daemon.config.pid_file.exists());
     }
 
-    #[test]
-    fn test_health_check_not_running() {
+    #[tokio::test]
+    async fn test_health_check_not_running() {
         let (config, _temp) = create_test_config();
         let daemon = OrchestrationDaemon::with_config(config);
 
         // No daemon running, health check should return false
-        let healthy = daemon.health_check().unwrap();
+        let healthy = daemon.health_check().await.unwrap();
         assert!(!healthy);
     }
 
-    #[test]
-    fn test_health_check_with_running_process() {
+    #[tokio::test]
+    async fn test_health_check_with_running_process() {
         let (config, _temp) = create_test_config();
         let daemon = OrchestrationDaemon::with_config(config);
 
@@ -562,7 +612,7 @@ mod tests {
         daemon.write_pid_file(current_pid).unwrap();
 
         // Health check should succeed since current process is running
-        let healthy = daemon.health_check().unwrap();
+        let healthy = daemon.health_check().await.unwrap();
         assert!(healthy);
     }
 }

@@ -423,16 +423,21 @@ mod tests {
             session_id: "test-session".to_string(),
         };
 
-        let (actor_ref, _handle) = Actor::spawn(
+        let (actor_ref, handle) = Actor::spawn(
             None,
             ExecutorActor::new(storage.clone(), namespace.clone()),
-            (storage, namespace),
+            (storage.clone(), namespace),
         )
         .await
         .unwrap();
 
         actor_ref.cast(ExecutorMessage::Initialize).unwrap();
+        
+        // Stop the actor and await its shutdown
         actor_ref.stop(None);
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        handle.await.expect("Actor failed to stop cleanly");
+        
+        // Explicitly drop storage before temp_dir to ensure file handles are closed
+        drop(storage);
     }
 }

@@ -137,6 +137,19 @@ pub async fn handle(
     } else {
         // Create basic memory without LLM enrichment
         debug!("Creating basic memory without LLM enrichment - no API key");
+
+        // Warn user if in interactive mode
+        if format != "json" {
+            eprintln!(
+                "{} {}",
+                icons::status::warning(),
+                "Warning: No API key configured. Memory will not be enriched with AI analysis."
+            );
+            eprintln!(
+                "   Run 'mnemosyne config set-key' to enable enrichment."
+            );
+        }
+
         use mnemosyne_core::types::MemoryId;
 
         let now = chrono::Utc::now();
