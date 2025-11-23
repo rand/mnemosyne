@@ -129,6 +129,16 @@ impl NetworkLayer {
         }
     }
 
+    /// Get local addresses
+    pub async fn local_addrs(&self) -> Result<Vec<String>> {
+        let ep = self.endpoint.read().await;
+        if let Some(endpoint) = ep.as_ref() {
+            endpoint.local_addrs()
+        } else {
+            Ok(vec![])
+        }
+    }
+
     /// Join a peer using an invite ticket
     pub async fn join_peer(&self, ticket: &str) -> Result<String> {
         let ep = self.endpoint.read().await;

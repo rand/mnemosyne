@@ -37,19 +37,23 @@ impl RemoteTransport for IrohTransport {
             .ok_or_else(|| "Agent endpoint not initialized".to_string())?;
 
         // Parse node ID
-        let node_id = NodeId::from_str(node_id)
+        let node_id_parsed = NodeId::from_str(node_id)
             .map_err(|e| format!("Invalid node ID: {}", e))?;
         
-        // Construct NodeAddr (direct connection by ID)
-        // In a real scenario, we might need relay URLs or direct addresses,
-        // but Iroh handles discovery via magical infrastructure.
-        let node_addr = NodeAddr::new(node_id);
+        // Try to get full address from endpoint cache (if available)
+        // This ensures we use direct addresses added via join_peer/add_peer
+        let node_addr = if let Some(addr) = endpoint.get_peer_addr(node_id).await {
+            addr
+        } else {
+            NodeAddr::new(node_id_parsed)
+        };
 
         // Connect to the remote agent
+        // println!("Connecting to: {:?}", node_addr); // Debug
         let connection = endpoint
             .connect(&node_addr)
             .await
-            .map_err(|e| format!("Failed to connect: {}", e))?;
+            .map_err(|e| format!("Failed to connect to {:?}: {}", node_addr, e))?;
 
         // Open a bidirectional stream
         let (mut send_stream, _recv_stream) = endpoint

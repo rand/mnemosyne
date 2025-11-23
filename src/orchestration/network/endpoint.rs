@@ -16,7 +16,10 @@ use iroh::base::node_addr::NodeAddr;
 use iroh::base::ticket::NodeTicket;
 use iroh::net::key::SecretKey;
 use iroh::net::{Endpoint as IrohEndpoint, NodeId};
+use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /// Agent keypair for identity
 #[derive(Clone)]
@@ -55,6 +58,9 @@ pub struct AgentEndpoint {
 
     /// Node ID (cached)
     node_id: NodeId,
+
+    /// Known peers (cache)
+    peers: Arc<RwLock<HashMap<String, NodeAddr>>>,
 }
 
 impl AgentEndpoint {
@@ -64,11 +70,16 @@ impl AgentEndpoint {
         let node_id = keypair.node_id();
 
         // Build Iroh endpoint
-        let endpoint = IrohEndpoint::builder()
-            .secret_key(keypair.secret_key().clone())
-            .bind()
-            .await
-            .map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
+        let builder = IrohEndpoint::builder()
+            .secret_key(keypair.secret_key().clone());
+            
+        let endpoint = if let Ok(addr_str) = std::env::var("MNEMOSYNE_TEST_BIND_ADDR") {
+            let addr: std::net::SocketAddrV4 = addr_str.parse().map_err(|e: std::net::AddrParseError| MnemosyneError::NetworkError(e.to_string()))?;
+            builder.bind_addr_v4(addr).bind().await
+        } else {
+            builder.bind().await
+        }
+        .map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
 
         tracing::debug!("Agent endpoint created with node ID: {}", node_id);
 
@@ -76,6 +87,7 @@ impl AgentEndpoint {
             endpoint,
             keypair,
             node_id,
+            peers: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
@@ -155,8 +167,21 @@ impl AgentEndpoint {
             .map_err(|e| MnemosyneError::NetworkError(format!("Invalid ticket: {}", e)))?;
         let addr = ticket.node_addr().clone();
         let node_id = addr.node_id.to_string();
-        self.endpoint.add_node_addr(addr).map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
+        
+        // Add to Iroh endpoint
+        self.endpoint.add_node_addr(addr.clone()).map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
+        
+        // Add to local cache
+        let mut peers = self.peers.write().await;
+        peers.insert(node_id.clone(), addr);
+        
         Ok(node_id)
+    }
+
+    /// Get peer address info
+    pub async fn get_peer_addr(&self, node_id: &str) -> Option<NodeAddr> {
+        let peers = self.peers.read().await;
+        peers.get(node_id).cloned()
     }
 }
 
