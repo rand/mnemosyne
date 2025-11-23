@@ -44,8 +44,11 @@ pub enum LocalAgent {
 
 /// Message router for hybrid local/remote routing
 pub struct MessageRouter {
-    /// Agent registry mapping role to location
-    registry: Arc<RwLock<HashMap<AgentRole, AgentLocation>>>,
+    /// Agent registry mapping role to list of locations
+    registry: Arc<RwLock<HashMap<AgentRole, Vec<AgentLocation>>>>,
+    
+    /// Round-robin indices for load balancing
+    rr_indices: Arc<RwLock<HashMap<AgentRole, usize>>>,
 
     /// Remote transport for sending messages
     transport: Arc<RwLock<Option<Arc<dyn RemoteTransport>>>>,
@@ -56,6 +59,7 @@ impl MessageRouter {
     pub fn new() -> Self {
         Self {
             registry: Arc::new(RwLock::new(HashMap::new())),
+            rr_indices: Arc::new(RwLock::new(HashMap::new())),
             transport: Arc::new(RwLock::new(None)),
         }
     }
@@ -69,35 +73,64 @@ impl MessageRouter {
     /// Register a local agent
     pub async fn register_local(&self, role: AgentRole, agent: LocalAgent) {
         let mut registry = self.registry.write().await;
-        registry.insert(role, AgentLocation::Local(agent));
+        registry.entry(role).or_default().push(AgentLocation::Local(agent));
         tracing::debug!("Registered local agent: {:?}", role);
     }
 
     /// Register a remote agent
     pub async fn register_remote(&self, role: AgentRole, node_id: String) {
         let mut registry = self.registry.write().await;
-        registry.insert(role, AgentLocation::Remote(node_id.clone()));
+        registry.entry(role).or_default().push(AgentLocation::Remote(node_id.clone()));
         tracing::debug!("Registered remote agent: {:?} at {}", role, node_id);
     }
 
-    /// Route a message to the appropriate agent
+    /// Route a message to the appropriate agent (Load Balanced)
     pub async fn route(&self, to: AgentRole, message: AgentMessage) -> Result<(), String> {
         let registry = self.registry.read().await;
+        
+        let locations = registry.get(&to).ok_or_else(|| {
+            tracing::warn!("No route found for agent: {:?}", to);
+            format!("Agent not registered: {:?}", to)
+        })?;
 
-        match registry.get(&to) {
-            Some(AgentLocation::Local(agent)) => {
-                // Route to local actor via Ractor
+        if locations.is_empty() {
+            return Err(format!("No agents registered for role: {:?}", to));
+        }
+
+        // Round-robin selection
+        let mut indices = self.rr_indices.write().await;
+        let idx = indices.entry(to).or_insert(0);
+        let location = &locations[*idx % locations.len()];
+        *idx = (*idx + 1) % locations.len();
+
+        match location {
+            AgentLocation::Local(agent) => {
                 self.route_local(agent, message).await
             }
-            Some(AgentLocation::Remote(node_id)) => {
-                // Route to remote agent via Iroh
+            AgentLocation::Remote(node_id) => {
                 tracing::debug!("Routing to remote agent {} at {}", to.as_str(), node_id);
                 self.send_remote(node_id, &message).await
             }
-            None => {
-                tracing::warn!("No route found for agent: {:?}", to);
-                Err(format!("Agent not registered: {:?}", to))
+        }
+    }
+
+    /// Route a message to a specific node ID (Direct Addressing)
+    pub async fn route_to(&self, to: AgentRole, node_id: &str, message: AgentMessage) -> Result<(), String> {
+        // Verify the agent exists at that location
+        let registry = self.registry.read().await;
+        let locations = registry.get(&to).ok_or_else(|| format!("Agent role not found: {:?}", to))?;
+        
+        let target_exists = locations.iter().any(|loc| {
+            match loc {
+                AgentLocation::Remote(id) => id == node_id,
+                _ => false
             }
+        });
+
+        if target_exists {
+            self.send_remote(node_id, &message).await
+        } else {
+            Err(format!("Agent {:?} not found at node {}", to, node_id))
         }
     }
 
@@ -145,16 +178,29 @@ impl MessageRouter {
     /// Get all registered agents
     pub async fn list_agents(&self) -> Vec<(AgentRole, AgentLocation)> {
         let registry = self.registry.read().await;
-        registry
-            .iter()
-            .map(|(role, location)| (*role, location.clone()))
-            .collect()
+        let mut result = Vec::new();
+        for (role, locations) in registry.iter() {
+            for loc in locations {
+                result.push((*role, loc.clone()));
+            }
+        }
+        result
     }
 
     /// Check if an agent is registered
     pub async fn is_registered(&self, role: &AgentRole) -> bool {
         let registry = self.registry.read().await;
         registry.contains_key(role)
+    }
+}
+
+impl std::fmt::Debug for MessageRouter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MessageRouter")
+            .field("registry", &self.registry)
+            .field("rr_indices", &self.rr_indices)
+            .field("transport", &"RemoteTransport")
+            .finish()
     }
 }
 

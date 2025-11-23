@@ -37,6 +37,10 @@ pub enum OrchestratorMessage {
         executor: ractor::ActorRef<ExecutorMessage>,
     },
 
+    /// Register message router for distributed communication
+    #[serde(skip)]
+    RegisterRouter(std::sync::Arc<crate::orchestration::network::MessageRouter>),
+
     /// Register event broadcaster for real-time observability
     #[serde(skip)]
     RegisterEventBroadcaster(crate::api::EventBroadcaster),

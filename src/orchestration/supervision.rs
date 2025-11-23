@@ -416,6 +416,11 @@ impl SupervisionTree {
                 })
                 .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
 
+            // Wire Orchestrator with Router (for distributed dispatch)
+            orchestrator_ref
+                .cast(OrchestratorMessage::RegisterRouter(self.network.router()))
+                .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
+
             // Wire Optimizer with Orchestrator
             optimizer
                 .cast(OptimizerMessage::RegisterOrchestrator(

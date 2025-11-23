@@ -11,8 +11,9 @@ use crate::error::Result;
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{
-    ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage, WorkResult,
+    AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage, WorkResult,
 };
+use crate::orchestration::network::MessageRouter;
 use crate::orchestration::state::{
     AgentState, Phase, SharedWorkQueue, WorkItem, WorkItemId, WorkQueue,
     DEFAULT_MAX_WORK_ITEMS,
@@ -43,6 +44,9 @@ pub struct OrchestratorState {
 
     /// Reference to Executor actor
     executor: Option<ActorRef<ExecutorMessage>>,
+
+    /// Message router for distributed communication
+    router: Option<Arc<MessageRouter>>,
 
     /// Context usage percentage
     context_usage_pct: f32,
@@ -76,6 +80,7 @@ impl OrchestratorState {
             optimizer: None,
             reviewer: None,
             executor: None,
+            router: None,
             context_usage_pct: 0.0,
             deadlock_check_interval: Duration::from_secs(10),
             #[cfg(feature = "python")]
@@ -96,6 +101,11 @@ impl OrchestratorState {
         self.optimizer = Some(optimizer);
         self.reviewer = Some(reviewer);
         self.executor = Some(executor);
+    }
+
+    /// Register message router
+    pub fn register_router(&mut self, router: Arc<MessageRouter>) {
+        self.router = Some(router);
     }
 
     /// Register Python Claude SDK agent bridge
@@ -293,7 +303,20 @@ impl OrchestratorActor {
             // Send to appropriate agent
             match item.agent {
                 AgentRole::Executor => {
-                    if let Some(ref executor) = state.executor {
+                    if let Some(ref router) = state.router {
+                        tracing::debug!("Dispatching Executor work via router");
+                        let msg = AgentMessage::Executor(Box::new(ExecutorMessage::ExecuteWork(item)));
+                        // We can't await here easily in this sync block context if we want to keep holding the lock?
+                        // Wait, dispatch_work is async. We CAN await.
+                        // But route returns Result<(), String>.
+                        // Note: route is async.
+                        let router = router.clone();
+                        tokio::spawn(async move {
+                            if let Err(e) = router.route(AgentRole::Executor, msg).await {
+                                tracing::warn!("Failed to route to executor via router: {}", e);
+                            }
+                        });
+                    } else if let Some(ref executor) = state.executor {
                         let _ = executor
                             .cast(ExecutorMessage::ExecuteWork(item))
                             .map_err(|e| tracing::warn!("Failed to cast to executor: {:?}", e));
@@ -1038,6 +1061,10 @@ impl Actor for OrchestratorActor {
                 tracing::debug!("Registering agent references with Orchestrator");
                 state.register_agents(optimizer, reviewer, executor);
                 tracing::debug!("Agents wired: Optimizer, Reviewer, Executor");
+            }
+            OrchestratorMessage::RegisterRouter(router) => {
+                tracing::debug!("Registering message router with Orchestrator");
+                state.register_router(router);
             }
             OrchestratorMessage::RegisterEventBroadcaster(broadcaster) => {
                 tracing::debug!("Registering event broadcaster with Orchestrator");

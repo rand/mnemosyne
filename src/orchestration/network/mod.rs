@@ -35,6 +35,11 @@ pub struct NetworkLayer {
 }
 
 impl NetworkLayer {
+    /// Get the message router
+    pub fn router(&self) -> Arc<MessageRouter> {
+        self.router.clone()
+    }
+
     /// Create a new network layer
     pub async fn new() -> Result<Self> {
         Ok(Self {
