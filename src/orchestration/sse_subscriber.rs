@@ -216,9 +216,24 @@ impl SseSubscriber {
 
     /// Handle a single SSE event
     async fn handle_sse_event(&self, event: es::Event) -> Result<(), String> {
-        // Parse event data as ApiEvent
-        let api_event: ApiEvent = serde_json::from_str(&event.data)
-            .map_err(|e| format!("Failed to parse event JSON: {}", e))?;
+        // Parse event data as serde_json::Value first for robustness/debugging
+        let mut value: serde_json::Value = serde_json::from_str(&event.data)
+            .map_err(|e| format!("Failed to parse event JSON string: {}", e))?;
+
+        // Ensure instance_id field exists (workaround for serde(flatten) edge cases)
+        if let Some(obj) = value.as_object_mut() {
+            if !obj.contains_key("instance_id") {
+                obj.insert("instance_id".to_string(), serde_json::Value::Null);
+            }
+        }
+
+        // Parse as ApiEvent
+        let api_event: ApiEvent = serde_json::from_value(value.clone())
+            .map_err(|e| {
+                // Log the problematic JSON for debugging
+                warn!("Failed JSON content: {}", value);
+                format!("Failed to deserialize ApiEvent: {}", e)
+            })?;
 
         // Convert to AgentEvent (if applicable)
         if let Some(agent_event) = convert_api_event_to_agent_event(&api_event) {
@@ -336,7 +351,7 @@ fn convert_api_event_to_agent_event(api_event: &ApiEvent) -> Option<AgentEvent> 
             instance_id,
             timestamp,
         } => Some(AgentEvent::SessionStarted {
-            instance_id: instance_id.clone(),
+            instance_id: instance_id.clone().unwrap_or_default(),
             timestamp: *timestamp,
         }),
 
@@ -344,7 +359,7 @@ fn convert_api_event_to_agent_event(api_event: &ApiEvent) -> Option<AgentEvent> 
             instance_id,
             timestamp,
         } => Some(AgentEvent::SessionEnded {
-            instance_id: instance_id.clone(),
+            instance_id: instance_id.clone().unwrap_or_default(),
             timestamp: *timestamp,
         }),
 
@@ -411,7 +426,7 @@ mod tests {
             id: "test-3".to_string(),
             instance_id: None,
             event_type: EventType::Heartbeat {
-                instance_id: "test".to_string(),
+                instance_id: Some("test".to_string()),
                 timestamp: chrono::Utc::now(),
             },
         };

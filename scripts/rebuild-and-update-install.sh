@@ -177,6 +177,18 @@ install_binary() {
     # Create bin directory if needed
     mkdir -p "$BIN_DIR"
 
+    # Check for ~/.cargo/bin and warn/install there too if it exists
+    local CARGO_BIN="${HOME}/.cargo/bin"
+    local INSTALL_TO_CARGO=false
+    
+    if [ -d "$CARGO_BIN" ]; then
+        if [[ ":$PATH:" == *":${CARGO_BIN}:"* ]]; then
+             # Only if cargo bin is in path, otherwise we don't care
+             echo -e "${YELLOW}Note:${NC} Detected ${CARGO_BIN} in PATH."
+             INSTALL_TO_CARGO=true
+        fi
+    fi
+
     # Install each binary
     for binary in "${BINARIES[@]}"; do
         local source_binary="${PROJECT_ROOT}/target/${profile}/${binary}"
@@ -199,6 +211,16 @@ install_binary() {
         chmod +x "$dest_binary"
 
         echo -e "${GREEN}✓${NC} ${binary} installed to: ${dest_binary}"
+        
+        # Also install to ~/.cargo/bin if appropriate to avoid version confusion
+        if [ "$INSTALL_TO_CARGO" = true ]; then
+             local cargo_dest="${CARGO_BIN}/${binary}"
+             if [ -w "$CARGO_BIN" ]; then
+                 cp "$source_binary" "$cargo_dest"
+                 chmod +x "$cargo_dest"
+                 echo -e "${GREEN}✓${NC} ${binary} also installed to: ${cargo_dest}"
+             fi
+        fi
     done
 }
 

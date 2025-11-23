@@ -59,19 +59,19 @@ pub enum EventType {
     /// Session started
     SessionStarted {
         #[serde(default)]
-        instance_id: String,
+        instance_id: Option<String>,
         timestamp: DateTime<Utc>,
     },
     /// Session ended
     SessionEnded {
         #[serde(default)]
-        instance_id: String,
+        instance_id: Option<String>,
         timestamp: DateTime<Utc>,
     },
     /// Heartbeat (published periodically when idle)
     Heartbeat {
         #[serde(default)]
-        instance_id: String,
+        instance_id: Option<String>,
         timestamp: DateTime<Utc>,
     },
     /// Phase transition (orchestration workflow)
@@ -433,7 +433,7 @@ impl Event {
     /// Create session started event
     pub fn session_started(instance_id: String) -> Self {
         Self::new(EventType::SessionStarted {
-            instance_id,
+            instance_id: Some(instance_id),
             timestamp: Utc::now(),
         })
     }
@@ -441,7 +441,7 @@ impl Event {
     /// Create heartbeat event
     pub fn heartbeat(instance_id: String) -> Self {
         Self::new(EventType::Heartbeat {
-            instance_id,
+            instance_id: Some(instance_id),
             timestamp: Utc::now(),
         })
     }

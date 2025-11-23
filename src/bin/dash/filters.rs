@@ -353,7 +353,7 @@ mod tests {
         let filter = EventFilter::HideHeartbeats;
 
         let heartbeat = Event::new(EventType::Heartbeat {
-            instance_id: "test".to_string(),
+            instance_id: Some("test".to_string()),
             timestamp: chrono::Utc::now(),
         });
 
@@ -441,7 +441,7 @@ mod tests {
         });
 
         let heartbeat = Event::new(EventType::Heartbeat {
-            instance_id: "test".to_string(),
+            instance_id: Some("test".to_string()),
             timestamp: chrono::Utc::now(),
         });
 
@@ -483,7 +483,7 @@ mod tests {
 
         // Should hide heartbeats
         let heartbeat = Event::new(EventType::Heartbeat {
-            instance_id: "test".to_string(),
+            instance_id: Some("test".to_string()),
             timestamp: chrono::Utc::now(),
         });
         assert!(!filter.matches(&heartbeat));
@@ -511,7 +511,7 @@ mod tests {
 
         // Should hide heartbeats even from the focused agent
         let heartbeat = Event::new(EventType::Heartbeat {
-            instance_id: "test".to_string(),
+            instance_id: Some("test".to_string()),
             timestamp: chrono::Utc::now(),
         });
         assert!(!filter.matches(&heartbeat));

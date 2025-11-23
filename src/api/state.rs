@@ -329,26 +329,28 @@ impl StateManager {
                 }
             }
             EventType::Heartbeat { instance_id, .. } => {
-                let mut agents_map = agents.write().await;
-                if let Some(agent) = agents_map.get_mut(&instance_id) {
-                    agent.updated_at = Utc::now();
-                    tracing::trace!("State updated: heartbeat from {}", instance_id);
-                } else {
-                    // Auto-create agent on first heartbeat (handles startup race conditions)
-                    agents_map.insert(
-                        instance_id.clone(),
-                        AgentInfo {
-                            id: instance_id.clone(),
-                            state: AgentState::Idle,
-                            updated_at: Utc::now(),
-                            metadata: HashMap::new(),
-                            health: Some(AgentHealth::default()), // Initialize healthy
-                        },
-                    );
-                    tracing::debug!(
-                        "State initialized: agent {} auto-created from heartbeat",
-                        instance_id
-                    );
+                if let Some(instance_id) = instance_id {
+                    let mut agents_map = agents.write().await;
+                    if let Some(agent) = agents_map.get_mut(&instance_id) {
+                        agent.updated_at = Utc::now();
+                        tracing::trace!("State updated: heartbeat from {}", instance_id);
+                    } else {
+                        // Auto-create agent on first heartbeat (handles startup race conditions)
+                        agents_map.insert(
+                            instance_id.clone(),
+                            AgentInfo {
+                                id: instance_id.clone(),
+                                state: AgentState::Idle,
+                                updated_at: Utc::now(),
+                                metadata: HashMap::new(),
+                                health: Some(AgentHealth::default()), // Initialize healthy
+                            },
+                        );
+                        tracing::debug!(
+                            "State initialized: agent {} auto-created from heartbeat",
+                            instance_id
+                        );
+                    }
                 }
             }
             EventType::MemoryStored { .. } => {

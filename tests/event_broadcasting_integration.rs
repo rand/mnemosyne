@@ -445,7 +445,7 @@ async fn test_session_lifecycle_event_flow() {
 
     match received.event_type {
         EventType::SessionStarted { instance_id, .. } => {
-            assert_eq!(instance_id, "test-instance");
+            assert_eq!(instance_id, Some("test-instance".to_string()));
         }
         _ => panic!("Wrong event type"),
     }

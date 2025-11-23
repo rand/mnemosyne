@@ -590,7 +590,10 @@ impl ActivityStreamPanel {
 
             // System events
             SessionStarted { instance_id, .. } => {
-                format!("Session started: {}", Self::truncate(instance_id, 10))
+                format!(
+                    "Session started: {}",
+                    Self::truncate(instance_id.as_deref().unwrap_or("unknown"), 10)
+                )
             }
             HealthUpdate { .. } => "Health update".to_string(),
             Heartbeat { .. } => "Heartbeat".to_string(),
@@ -648,7 +651,7 @@ mod tests {
 
     fn create_heartbeat() -> Event {
         Event::new(EventType::Heartbeat {
-            instance_id: "test".to_string(),
+            instance_id: Some("test".to_string()),
             timestamp: Utc::now(),
         })
     }

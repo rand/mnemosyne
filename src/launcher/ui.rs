@@ -112,7 +112,7 @@ impl LaunchProgress {
     /// Display the main launch header (legacy - now shows banner)
     pub fn show_header(&self, version: &str) {
         self.show_banner();
-        println!("   v{}\n", version);
+        println!("   v{} (patched-2)\n", version);
     }
 
     /// Show a playful loading message (now with random selection)
