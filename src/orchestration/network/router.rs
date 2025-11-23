@@ -192,6 +192,18 @@ impl MessageRouter {
         let registry = self.registry.read().await;
         registry.contains_key(role)
     }
+
+    /// Get list of local roles
+    pub async fn get_local_roles(&self) -> Vec<AgentRole> {
+        let registry = self.registry.read().await;
+        let mut roles = Vec::new();
+        for (role, locations) in registry.iter() {
+            if locations.iter().any(|loc| matches!(loc, AgentLocation::Local(_))) {
+                roles.push(role.clone());
+            }
+        }
+        roles
+    }
 }
 
 impl std::fmt::Debug for MessageRouter {
