@@ -2,15 +2,15 @@
 
 use mnemosyne_core::{
     error::{MnemosyneError, Result},
+    orchestration::events::AgentEvent,
     storage::MemorySortOrder,
     ConnectionMode, LibsqlStorage, Namespace, StorageBackend,
-    orchestration::events::AgentEvent,
 };
 use std::{io::Write, path::PathBuf};
 use tracing::debug;
 
-use super::helpers::get_db_path;
 use super::event_helpers;
+use super::helpers::get_db_path;
 
 /// Handle memory export command
 pub async fn handle(
@@ -30,12 +30,12 @@ pub async fn handle(
     event_helpers::emit_domain_event(AgentEvent::ExportStarted {
         output_path: output.clone(),
         namespace_filter: namespace.clone(),
-    }).await;
+    })
+    .await;
 
     // Initialize storage (read-only)
     let db_path = get_db_path(global_db_path);
-    let storage =
-        LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), false).await?;
+    let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), false).await?;
 
     // Parse namespace if provided
     let ns = namespace.map(|ns_str| {
@@ -108,7 +108,7 @@ pub async fn handle(
             }
             "markdown" => {
                 // Human-readable Markdown
-                let line = format!("# Memory Export\n");
+                let line = "# Memory Export\n".to_string();
                 bytes_written += line.len();
                 writer.write_all(line.as_bytes())?;
 
@@ -197,7 +197,8 @@ pub async fn handle(
         memories_exported: memories.len(),
         output_size_bytes,
         duration_ms,
-    }).await;
+    })
+    .await;
 
     Ok(())
 }

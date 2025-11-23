@@ -82,6 +82,8 @@ pub use branch_registry::{
     AgentAssignment, BranchRegistry, ConflictReport, CoordinationMode, SharedBranchRegistry,
     WorkIntent,
 };
+#[cfg(feature = "python")]
+pub use claude_agent_bridge::ClaudeAgentBridge;
 pub use cli::{parse_args, CliCommand, CliHandler, CliResult};
 pub use config::{
     BranchIsolationConfig, BranchIsolationSettings, ConflictDetectionSettings,
@@ -100,8 +102,6 @@ pub use cross_process::{
 pub use dspy_ab_testing::{
     ABTestConfig, ABTestMetrics, ABTestRouter, RollbackEvent, RollbackPolicy, VersionMetrics,
 };
-#[cfg(feature = "python")]
-pub use claude_agent_bridge::ClaudeAgentBridge;
 #[cfg(feature = "python")]
 pub use dspy_bridge::DSpyBridge;
 #[cfg(feature = "python")]

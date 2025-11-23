@@ -222,7 +222,10 @@ mod python_bridge_tests {
             .expect("Failed to start supervision tree (should degrade gracefully)");
 
         // Verify Rust actors are still running
-        assert!(tree.is_healthy().await, "Rust actors should still be healthy");
+        assert!(
+            tree.is_healthy().await,
+            "Rust actors should still be healthy"
+        );
 
         // Verify state manager shows Rust agents (heartbeats from actors)
         tokio::time::sleep(Duration::from_millis(500)).await;

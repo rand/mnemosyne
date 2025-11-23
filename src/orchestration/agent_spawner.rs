@@ -141,13 +141,21 @@ impl AgentSpawner {
                         debug!("Agent {} confirmed running", handle.role.as_str());
                     }
                     Err(e) => {
-                        warn!("Failed to check agent {} status: {}", handle.role.as_str(), e);
+                        warn!(
+                            "Failed to check agent {} status: {}",
+                            handle.role.as_str(),
+                            e
+                        );
                     }
                 }
             }
         }
 
-        info!("Successfully spawned {} out of {} agents", spawned.len(), roles.len());
+        info!(
+            "Successfully spawned {} out of {} agents",
+            spawned.len(),
+            roles.len()
+        );
         Ok(spawned)
     }
 
@@ -188,8 +196,7 @@ impl AgentSpawner {
                 ))
             })?;
 
-        let pid = child
-            .id();
+        let pid = child.id();
 
         debug!("Agent {} spawned with PID: {}", agent_id, pid);
 
@@ -227,7 +234,10 @@ impl AgentSpawner {
             state_manager.update_agent(agent_info).await;
         }
 
-        info!("Agent {} (PID {}) registered with API server", agent_id, pid);
+        info!(
+            "Agent {} (PID {}) registered with API server",
+            agent_id, pid
+        );
 
         Ok(())
     }
@@ -284,7 +294,11 @@ impl AgentSpawner {
                     }
                     Err(nix::Error::ESRCH) => {
                         // Process already dead - this is fine
-                        debug!("Agent {} (PID {}) already exited", role.as_str(), handle.pid);
+                        debug!(
+                            "Agent {} (PID {}) already exited",
+                            role.as_str(),
+                            handle.pid
+                        );
                         handle.status = AgentStatus::Stopped;
                         continue; // Skip waiting, move to next agent
                     }
@@ -304,7 +318,10 @@ impl AgentSpawner {
                     handle.status = AgentStatus::Stopped;
                 }
                 Ok(None) => {
-                    warn!("Agent {} did not stop gracefully, force killing", role.as_str());
+                    warn!(
+                        "Agent {} did not stop gracefully, force killing",
+                        role.as_str()
+                    );
                     if let Err(e) = handle.child.kill() {
                         error!("Failed to kill {}: {}", role.as_str(), e);
                     } else {
@@ -319,7 +336,8 @@ impl AgentSpawner {
 
             // Broadcast agent stopped event
             if let Some(broadcaster) = &self.event_broadcaster {
-                let event = Event::agent_completed(role.as_str().to_string(), "Shutdown".to_string());
+                let event =
+                    Event::agent_completed(role.as_str().to_string(), "Shutdown".to_string());
                 let _ = broadcaster.broadcast(event);
             }
         }
@@ -361,7 +379,11 @@ impl Drop for AgentSpawner {
             if !agents.is_empty() {
                 warn!("AgentSpawner dropped without calling shutdown_all()");
                 for (role, handle) in agents.iter_mut() {
-                    warn!("Emergency cleanup: killing {} (PID {})", role.as_str(), handle.pid);
+                    warn!(
+                        "Emergency cleanup: killing {} (PID {})",
+                        role.as_str(),
+                        handle.pid
+                    );
                     let _ = handle.child.kill();
                     let _ = handle.child.wait();
                 }

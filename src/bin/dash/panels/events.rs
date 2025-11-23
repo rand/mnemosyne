@@ -63,7 +63,11 @@ impl EventLogPanel {
     }
 
     /// Add event with timestamp
-    pub fn add_event_with_timestamp(&mut self, text: impl Into<String>, timestamp: impl Into<String>) {
+    pub fn add_event_with_timestamp(
+        &mut self,
+        text: impl Into<String>,
+        timestamp: impl Into<String>,
+    ) {
         self.events.push(EventEntry {
             text: text.into(),
             timestamp: Some(timestamp.into()),
@@ -116,7 +120,8 @@ impl EventLogPanel {
             Color::Red // Critical
         } else if text.contains("review_failed") {
             Color::LightRed // Warning
-        } else if text.contains("error") || text.contains("failed") || text.contains("agent_failed") {
+        } else if text.contains("error") || text.contains("failed") || text.contains("agent_failed")
+        {
             Color::Red
         } else if text.contains("phase_changed") {
             Color::Magenta // Important

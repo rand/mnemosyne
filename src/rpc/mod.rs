@@ -6,9 +6,9 @@
 #![cfg(feature = "rpc")]
 
 pub mod conversions;
+pub mod errors;
 pub mod generated;
 pub mod server;
 pub mod services;
-pub mod errors;
 
 pub use server::RpcServer;

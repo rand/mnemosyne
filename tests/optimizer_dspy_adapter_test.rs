@@ -429,7 +429,11 @@ mod optimizer_adapter_tests {
             SkillMetadata {
                 name: "database-postgres".to_string(),
                 description: "PostgreSQL database design and optimization".to_string(),
-                keywords: vec!["database".to_string(), "postgres".to_string(), "sql".to_string()],
+                keywords: vec![
+                    "database".to_string(),
+                    "postgres".to_string(),
+                    "sql".to_string(),
+                ],
                 domains: vec!["database".to_string()],
             },
             SkillMetadata {
@@ -457,8 +461,12 @@ mod optimizer_adapter_tests {
             if !discovery.selected_skills.is_empty() {
                 // Semantic understanding should rank Rust async highly for this task
                 assert!(
-                    discovery.selected_skills.contains(&"rust-async-tokio".to_string())
-                        || discovery.selected_skills.contains(&"database-postgres".to_string())
+                    discovery
+                        .selected_skills
+                        .contains(&"rust-async-tokio".to_string())
+                        || discovery
+                            .selected_skills
+                            .contains(&"database-postgres".to_string())
                         || discovery.selected_skills.is_empty(),
                     "Should select semantically relevant skills"
                 );
@@ -504,9 +512,7 @@ mod optimizer_adapter_tests {
             .await;
 
         // Low context usage can select more skills
-        let result_low_usage = adapter
-            .discover_skills("Test task", skills, 3, 0.3)
-            .await;
+        let result_low_usage = adapter.discover_skills("Test task", skills, 3, 0.3).await;
 
         assert!(result_high_usage.is_ok() || result_high_usage.is_err());
         assert!(result_low_usage.is_ok() || result_low_usage.is_err());

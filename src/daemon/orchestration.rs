@@ -278,8 +278,7 @@ impl OrchestrationDaemon {
                         info!("Orchestration daemon stopped successfully");
                         Ok(())
                     }
-                    OrchestrationStatus::Running { .. }
-                    | OrchestrationStatus::Degraded { .. } => {
+                    OrchestrationStatus::Running { .. } | OrchestrationStatus::Degraded { .. } => {
                         warn!("Daemon did not stop gracefully, may need SIGKILL");
                         Err(MnemosyneError::Other(
                             "Orchestration daemon did not stop within timeout".to_string(),
@@ -297,10 +296,7 @@ impl OrchestrationDaemon {
                 Ok(())
             }
             OrchestrationStatus::Stale { pid } => {
-                warn!(
-                    "Found stale PID file for process {}, removing",
-                    pid
-                );
+                warn!("Found stale PID file for process {}, removing", pid);
                 self.remove_pid_file()?;
                 self.remove_socket()?;
                 Ok(())
@@ -312,7 +308,10 @@ impl OrchestrationDaemon {
     pub async fn status(&self) -> Result<OrchestrationStatus> {
         // Try connecting to the Unix socket first
         if self.config.socket_path.exists() {
-            debug!("Querying status via IPC: {}", self.config.socket_path.display());
+            debug!(
+                "Querying status via IPC: {}",
+                self.config.socket_path.display()
+            );
             match ipc::query_status(&self.config.socket_path).await {
                 Ok(status) => return Ok(status),
                 Err(e) => {
@@ -402,11 +401,13 @@ impl OrchestrationDaemon {
         let network_monitor = network.clone();
         // Initialize event persistence for network events
         // We use Global namespace as network state is system-wide
-        let persistence = Arc::new(crate::orchestration::events::EventPersistence::new_with_broadcaster(
-            storage.clone(),
-            crate::types::Namespace::Global,
-            Some(event_broadcaster.clone()),
-        ));
+        let persistence = Arc::new(
+            crate::orchestration::events::EventPersistence::new_with_broadcaster(
+                storage.clone(),
+                crate::types::Namespace::Global,
+                Some(event_broadcaster.clone()),
+            ),
+        );
         let persistence_monitor = persistence.clone();
 
         tokio::spawn(async move {
@@ -419,7 +420,9 @@ impl OrchestrationDaemon {
                 // Extract unique known nodes (remote)
                 let mut known_nodes = std::collections::HashSet::new();
                 for (_, loc) in &agents {
-                    if let crate::orchestration::network::router::AgentLocation::Remote(node_id) = loc {
+                    if let crate::orchestration::network::router::AgentLocation::Remote(node_id) =
+                        loc
+                    {
                         known_nodes.insert(node_id.clone());
                     }
                 }
@@ -433,7 +436,7 @@ impl OrchestrationDaemon {
                 };
 
                 if let Err(e) = persistence_monitor.persist(event).await {
-                     tracing::warn!("Failed to persist network state update: {}", e);
+                    tracing::warn!("Failed to persist network state update: {}", e);
                 }
             }
         });
@@ -455,10 +458,10 @@ impl OrchestrationDaemon {
                     match msg {
                         IpcMessage::GetStatus(reply_tx) => {
                             // Construct status based on supervision tree
-                            // For now, we use a simple check. 
+                            // For now, we use a simple check.
                             // TODO: Implement granular status in SupervisionTree
                             let is_healthy = supervision_tree.is_healthy().await;
-                            
+
                             let status = if is_healthy {
                                 OrchestrationStatus::Running {
                                     pid: std::process::id(),
@@ -519,9 +522,8 @@ impl OrchestrationDaemon {
     /// Remove Unix socket
     fn remove_socket(&self) -> Result<()> {
         if self.config.socket_path.exists() {
-            fs::remove_file(&self.config.socket_path).map_err(|e| {
-                MnemosyneError::Other(format!("Failed to remove socket: {}", e))
-            })?;
+            fs::remove_file(&self.config.socket_path)
+                .map_err(|e| MnemosyneError::Other(format!("Failed to remove socket: {}", e)))?;
 
             debug!("Removed socket: {}", self.config.socket_path.display());
         }

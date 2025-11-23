@@ -1,10 +1,9 @@
-///! Internal CLI commands for automation and hooks
-///!
-///! These commands are not intended for direct user interaction.
-///! They are called by Claude Code hooks and automation scripts.
-
-use mnemosyne_core::orchestration::events::AgentEvent;
+//! Internal CLI commands for automation and hooks
+//!
+//! These commands are not intended for direct user interaction.
+//! They are called by Claude Code hooks and automation scripts.
 use chrono::Utc;
+use mnemosyne_core::orchestration::events::AgentEvent;
 use tracing::debug;
 
 use super::event_bridge;
@@ -12,7 +11,10 @@ use super::event_bridge;
 /// Handle session-started event
 /// Called by session-start.sh hook when Claude Code session begins
 pub async fn handle_session_started(instance_id: String) -> mnemosyne_core::Result<()> {
-    debug!("Emitting SessionStarted event for instance: {}", instance_id);
+    debug!(
+        "Emitting SessionStarted event for instance: {}",
+        instance_id
+    );
 
     // Create SessionStarted event
     let event = AgentEvent::SessionStarted {

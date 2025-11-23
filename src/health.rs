@@ -696,26 +696,24 @@ async fn check_version_updates(_verbose: bool) -> Result<Vec<CheckResult>> {
 
     // Check all tools with 5-second timeout
     let check_future = checker.check_all_tools();
-    let tool_results = match tokio::time::timeout(
-        std::time::Duration::from_secs(5),
-        check_future
-    ).await {
-        Ok(Ok(r)) => r,
-        Ok(Err(e)) => {
-            results.push(CheckResult::warn(
-                "version_check_failed",
-                format!("Version check failed: {}", e),
-            ));
-            return Ok(results);
-        }
-        Err(_) => {
-            results.push(CheckResult::warn(
-                "version_check_timeout",
-                "Version check timed out (network may be unavailable)".to_string(),
-            ));
-            return Ok(results);
-        }
-    };
+    let tool_results =
+        match tokio::time::timeout(std::time::Duration::from_secs(5), check_future).await {
+            Ok(Ok(r)) => r,
+            Ok(Err(e)) => {
+                results.push(CheckResult::warn(
+                    "version_check_failed",
+                    format!("Version check failed: {}", e),
+                ));
+                return Ok(results);
+            }
+            Err(_) => {
+                results.push(CheckResult::warn(
+                    "version_check_timeout",
+                    "Version check timed out (network may be unavailable)".to_string(),
+                ));
+                return Ok(results);
+            }
+        };
 
     // Check each tool
     for info in tool_results {

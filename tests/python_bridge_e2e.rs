@@ -33,10 +33,10 @@ mod python_e2e_tests {
     /// 3. OS keychain (fallback)
     fn ensure_api_key() {
         if std::env::var("ANTHROPIC_API_KEY").is_err() {
-            let secrets = SecretsManager::new()
-                .expect("Failed to initialize secrets manager");
-            let api_key = secrets.get_secret("ANTHROPIC_API_KEY")
-                .expect("Failed to load ANTHROPIC_API_KEY from secrets. Run: mnemosyne secrets init");
+            let secrets = SecretsManager::new().expect("Failed to initialize secrets manager");
+            let api_key = secrets.get_secret("ANTHROPIC_API_KEY").expect(
+                "Failed to load ANTHROPIC_API_KEY from secrets. Run: mnemosyne secrets init",
+            );
             std::env::set_var("ANTHROPIC_API_KEY", api_key.expose_secret());
         }
     }
@@ -111,10 +111,10 @@ mod python_e2e_tests {
             // Should contain Python code or explanation
             let data_lower = data.to_lowercase();
             assert!(
-                data_lower.contains("hello") ||
-                data_lower.contains("world") ||
-                data_lower.contains("def") ||
-                data_lower.contains("print"),
+                data_lower.contains("hello")
+                    || data_lower.contains("world")
+                    || data_lower.contains("def")
+                    || data_lower.contains("print"),
                 "Response should contain relevant content about hello world function"
             );
         }
@@ -158,7 +158,10 @@ mod python_e2e_tests {
         println!("\n=== Result ===");
 
         // Should complete (not panic) but may fail validation
-        assert!(result.is_ok(), "Bridge should handle invalid work gracefully");
+        assert!(
+            result.is_ok(),
+            "Bridge should handle invalid work gracefully"
+        );
 
         let result = result.unwrap();
         println!("Success: {}", result.success);
@@ -167,9 +170,9 @@ mod python_e2e_tests {
             println!("Error (expected): {}", error);
             // Error message should mention validation or description
             assert!(
-                error.to_lowercase().contains("description") ||
-                error.to_lowercase().contains("validation") ||
-                error.to_lowercase().contains("short"),
+                error.to_lowercase().contains("description")
+                    || error.to_lowercase().contains("validation")
+                    || error.to_lowercase().contains("short"),
                 "Error should mention validation issue"
             );
         }
@@ -226,10 +229,7 @@ mod python_e2e_tests {
 
         // Process concurrently
         let start = std::time::Instant::now();
-        let (result1, result2) = tokio::join!(
-            bridge1.send_work(work1),
-            bridge2.send_work(work2)
-        );
+        let (result1, result2) = tokio::join!(bridge1.send_work(work1), bridge2.send_work(work2));
         let duration = start.elapsed();
 
         println!("Both completed in {:?}", duration);
@@ -246,14 +246,14 @@ mod python_e2e_tests {
         println!("Result 2 success: {}", result2.success);
 
         // At least one should succeed (API rate limits might affect both)
-        let success_count = [result1.success, result2.success].iter().filter(|&&s| s).count();
+        let success_count = [result1.success, result2.success]
+            .iter()
+            .filter(|&&s| s)
+            .count();
         assert!(success_count >= 1, "At least one work item should succeed");
 
         // Cleanup
-        tokio::join!(
-            bridge1.shutdown(),
-            bridge2.shutdown()
-        );
+        let _ = tokio::join!(bridge1.shutdown(), bridge2.shutdown());
 
         println!("\n✓ Concurrent processing test passed");
     }
@@ -287,7 +287,10 @@ def calculate_total(items):
 "#;
 
         let work_item = WorkItem::new(
-            format!("Review this Python code for quality and suggest improvements:\n{}", code_to_review),
+            format!(
+                "Review this Python code for quality and suggest improvements:\n{}",
+                code_to_review
+            ),
             AgentRole::Reviewer,
             Phase::PlanToArtifacts,
             5,
@@ -347,18 +350,21 @@ def calculate_total(items):
 
         // Use tokio timeout to ensure test doesn't hang
         let timeout_duration = Duration::from_secs(30); // 30 second timeout
-        let result = tokio::time::timeout(
-            timeout_duration,
-            bridge.send_work(work_item)
-        ).await;
+        let result = tokio::time::timeout(timeout_duration, bridge.send_work(work_item)).await;
 
         match result {
             Ok(work_result) => {
                 println!("Work completed within timeout");
-                assert!(work_result.is_ok(), "Work should complete or error gracefully");
-            },
+                assert!(
+                    work_result.is_ok(),
+                    "Work should complete or error gracefully"
+                );
+            }
             Err(_) => {
-                println!("Work timed out after {:?} (expected for very long operations)", timeout_duration);
+                println!(
+                    "Work timed out after {:?} (expected for very long operations)",
+                    timeout_duration
+                );
                 // Timeout is acceptable - we're testing that the system doesn't hang
             }
         }

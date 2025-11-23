@@ -60,7 +60,6 @@ impl EventCategory {
             | EventType::AgentErrorRecorded { .. }
             | EventType::AgentHealthDegraded { .. }
             | EventType::ReviewFailed { .. }
-            | EventType::CliCommandFailed { .. }
             | EventType::DeadlockDetected { .. } => Self::Error,
 
             // Skill events
@@ -87,7 +86,7 @@ impl EventCategory {
             EventType::HealthUpdate { .. }
             | EventType::SessionStarted { .. }
             | EventType::Heartbeat { .. }
-            | EventType::DatabaseOperation { .. } 
+            | EventType::DatabaseOperation { .. }
             | EventType::NetworkStateUpdate { .. } => Self::System,
         }
     }
@@ -188,9 +187,7 @@ impl EventFilter {
 
             EventType::AgentHandoff { to_agent, .. } => Some(to_agent.clone()),
 
-            EventType::SubAgentSpawned {
-                sub_agent, ..
-            } => Some(sub_agent.clone()),
+            EventType::SubAgentSpawned { sub_agent, .. } => Some(sub_agent.clone()),
 
             _ => None,
         }
@@ -239,7 +236,7 @@ impl EventFilter {
             | CliCommandCompleted { timestamp, .. }
             | CliCommandFailed { timestamp, .. }
             | SearchPerformed { timestamp, .. }
-            | DatabaseOperation { timestamp, .. } 
+            | DatabaseOperation { timestamp, .. }
             | NetworkStateUpdate { timestamp, .. } => Some(*timestamp),
         }
     }
@@ -303,10 +300,7 @@ impl FilterPresets {
 
     /// Error focus: show only Error category events + failures, hide heartbeats
     pub fn error_focus() -> EventFilter {
-        EventFilter::All(vec![
-            EventFilter::HideHeartbeats,
-            EventFilter::ErrorsOnly,
-        ])
+        EventFilter::All(vec![EventFilter::HideHeartbeats, EventFilter::ErrorsOnly])
     }
 }
 

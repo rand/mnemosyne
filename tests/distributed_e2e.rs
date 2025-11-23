@@ -1,13 +1,13 @@
-use mnemosyne_core::orchestration::messages::{ExecutorMessage, AgentMessage};
-use mnemosyne_core::orchestration::network::{NetworkLayer, MessageRouter};
-use mnemosyne_core::orchestration::network::router::LocalAgent;
-use mnemosyne_core::orchestration::state::{WorkItem, Phase};
-use mnemosyne_core::launcher::agents::AgentRole;
-use ractor::{Actor, ActorRef, ActorProcessingErr};
-use std::sync::Arc;
 use async_trait::async_trait;
-use tokio::sync::mpsc;
+use mnemosyne_core::launcher::agents::AgentRole;
+use mnemosyne_core::orchestration::messages::{AgentMessage, ExecutorMessage};
+use mnemosyne_core::orchestration::network::router::LocalAgent;
+use mnemosyne_core::orchestration::network::{MessageRouter, NetworkLayer};
+use mnemosyne_core::orchestration::state::{Phase, WorkItem};
+use ractor::{Actor, ActorProcessingErr, ActorRef};
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::mpsc;
 
 struct MockExecutorActor {
     tx: mpsc::Sender<WorkItem>,
@@ -33,11 +33,8 @@ impl Actor for MockExecutorActor {
         message: Self::Msg,
         _state: &mut Self::State,
     ) -> Result<(), ActorProcessingErr> {
-        match message {
-            ExecutorMessage::ExecuteWork(item) => {
-                 let _ = self.tx.send(item).await;
-            }
-            _ => {}
+        if let ExecutorMessage::ExecuteWork(item) = message {
+            let _ = self.tx.send(item).await;
         }
         Ok(())
     }
@@ -59,40 +56,44 @@ async fn test_distributed_execution_flow() -> anyhow::Result<()> {
     // 1. Spawn Node A (Orchestrator) and Node B (Executor)
     let (node_a, router_a) = spawn_test_node().await?;
     let (node_b, router_b) = spawn_test_node().await?;
-    
+
     // 2. Setup Node B with a Mock Executor
     let (tx, mut rx) = mpsc::channel(1);
     let mock_executor = MockExecutorActor { tx };
     let (executor_ref, _) = Actor::spawn(None, mock_executor, ()).await.unwrap();
-    
+
     // Register local executor on Node B
-    router_b.register_local(AgentRole::Executor, LocalAgent::Executor(executor_ref)).await;
-    
+    router_b
+        .register_local(AgentRole::Executor, LocalAgent::Executor(executor_ref))
+        .await;
+
     // 3. Connect Node A to Node B
     // Get Node B's invite ticket
     let ticket = node_b.create_invite().await?;
-    
+
     // Node A joins Node B
     node_a.join_peer(&ticket).await?;
     println!("Node A joined Node B with ticket: {}", ticket);
-    
+
     // Wait a bit for connection to be established
     tokio::time::sleep(Duration::from_secs(2)).await;
-    
+
     // 4. Register Node B as remote executor on Node A
     let node_b_id = node_b.node_id().await.unwrap();
-    router_a.register_remote(AgentRole::Executor, node_b_id).await;
-    
+    router_a
+        .register_remote(AgentRole::Executor, node_b_id)
+        .await;
+
     // 5. Send work from Node A
     let work_item = WorkItem::new(
         "Test distributed work".to_string(),
         AgentRole::Executor,
         Phase::PlanToArtifacts,
-        1
+        1,
     );
     let work_item_id = work_item.id.clone();
     let message = AgentMessage::Executor(Box::new(ExecutorMessage::ExecuteWork(work_item)));
-    
+
     // Route message with retry
     let mut attempts = 0;
     loop {
@@ -104,24 +105,27 @@ async fn test_distributed_execution_flow() -> anyhow::Result<()> {
             Err(e) => {
                 attempts += 1;
                 if attempts > 5 {
-                    return Err(anyhow::anyhow!("Failed to route message after 5 attempts: {}", e));
+                    return Err(anyhow::anyhow!(
+                        "Failed to route message after 5 attempts: {}",
+                        e
+                    ));
                 }
                 println!("Route failed (attempt {}): {}. Retrying...", attempts, e);
                 tokio::time::sleep(Duration::from_secs(1)).await;
             }
         }
     }
-    
+
     // 6. Verify Node B received the work
     let received = tokio::time::timeout(Duration::from_secs(5), rx.recv()).await;
-    
+
     assert!(received.is_ok(), "Timed out waiting for message");
     let received_item = received.unwrap().unwrap();
     assert_eq!(received_item.id, work_item_id);
-    
+
     // Cleanup
     node_a.stop().await?;
     node_b.stop().await?;
-    
+
     Ok(())
 }

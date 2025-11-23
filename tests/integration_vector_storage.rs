@@ -101,7 +101,10 @@ async fn test_knn_search_with_similar_vectors() {
     let id_similar = MemoryId::new();
     let id_different = MemoryId::new();
 
-    storage.store_vector(&id_base, &base_embedding).await.unwrap();
+    storage
+        .store_vector(&id_base, &base_embedding)
+        .await
+        .unwrap();
     storage
         .store_vector(&id_similar, &similar_embedding)
         .await
@@ -112,7 +115,10 @@ async fn test_knn_search_with_similar_vectors() {
         .unwrap();
 
     // Search with base embedding
-    let results = storage.search_similar(&base_embedding, 10, 0.5).await.unwrap();
+    let results = storage
+        .search_similar(&base_embedding, 10, 0.5)
+        .await
+        .unwrap();
 
     assert!(
         results.len() >= 2,

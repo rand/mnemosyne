@@ -2,17 +2,22 @@
 
 use mnemosyne_core::{
     error::Result,
-    health::{run_health_checks, print_health_summary, CheckStatus},
-    LibsqlStorage,
+    health::{print_health_summary, run_health_checks, CheckStatus},
     orchestration::events::AgentEvent,
+    LibsqlStorage,
 };
 use tracing::debug;
 
-use super::helpers::get_db_path;
 use super::event_helpers;
+use super::helpers::get_db_path;
 
 /// Handle doctor command
-pub async fn handle(verbose: bool, fix: bool, json: bool, global_db_path: Option<String>) -> Result<()> {
+pub async fn handle(
+    verbose: bool,
+    fix: bool,
+    json: bool,
+    global_db_path: Option<String>,
+) -> Result<()> {
     let start_time = std::time::Instant::now();
 
     debug!("Running health checks...");
@@ -20,7 +25,8 @@ pub async fn handle(verbose: bool, fix: bool, json: bool, global_db_path: Option
     // Emit HealthCheckStarted event
     event_helpers::emit_domain_event(AgentEvent::HealthCheckStarted {
         timestamp: chrono::Utc::now(),
-    }).await;
+    })
+    .await;
 
     // Get database path
     let db_path = get_db_path(global_db_path);
@@ -32,9 +38,21 @@ pub async fn handle(verbose: bool, fix: bool, json: bool, global_db_path: Option
     let summary = run_health_checks(&storage, verbose, fix).await?;
 
     // Extract check counts
-    let checks_passed = summary.checks.iter().filter(|r| matches!(r.status, CheckStatus::Pass)).count();
-    let checks_failed = summary.checks.iter().filter(|r| matches!(r.status, CheckStatus::Fail)).count();
-    let checks_warned = summary.checks.iter().filter(|r| matches!(r.status, CheckStatus::Warn)).count();
+    let checks_passed = summary
+        .checks
+        .iter()
+        .filter(|r| matches!(r.status, CheckStatus::Pass))
+        .count();
+    let checks_failed = summary
+        .checks
+        .iter()
+        .filter(|r| matches!(r.status, CheckStatus::Fail))
+        .count();
+    let checks_warned = summary
+        .checks
+        .iter()
+        .filter(|r| matches!(r.status, CheckStatus::Warn))
+        .count();
 
     // Output results
     if json {
@@ -50,7 +68,8 @@ pub async fn handle(verbose: bool, fix: bool, json: bool, global_db_path: Option
         checks_failed,
         checks_warned,
         duration_ms,
-    }).await;
+    })
+    .await;
 
     // Exit with appropriate code
     match summary.status {

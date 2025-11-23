@@ -11,12 +11,12 @@ use crate::error::Result;
 use crate::launcher::agents::AgentRole;
 use crate::orchestration::events::{AgentEvent, EventPersistence};
 use crate::orchestration::messages::{
-    AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage, WorkResult,
+    AgentMessage, ExecutorMessage, OptimizerMessage, OrchestratorMessage, ReviewerMessage,
+    WorkResult,
 };
 use crate::orchestration::network::MessageRouter;
 use crate::orchestration::state::{
-    AgentState, Phase, SharedWorkQueue, WorkItem, WorkItemId, WorkQueue,
-    DEFAULT_MAX_WORK_ITEMS,
+    AgentState, Phase, SharedWorkQueue, WorkItem, WorkItemId, WorkQueue, DEFAULT_MAX_WORK_ITEMS,
 };
 use crate::storage::StorageBackend;
 use crate::types::Namespace;
@@ -123,7 +123,10 @@ impl OrchestratorState {
         namespace: Namespace,
         agent_id: String,
     ) {
-        tracing::info!("Orchestrator: Registering event broadcaster for agent_id: {}", agent_id);
+        tracing::info!(
+            "Orchestrator: Registering event broadcaster for agent_id: {}",
+            agent_id
+        );
         // Reconstruct EventPersistence with broadcaster
         self.events = EventPersistence::new_with_broadcaster(
             storage,
@@ -172,7 +175,10 @@ impl OrchestratorState {
 
         // Store heartbeat handle for cleanup
         self.heartbeat_handle = Some(heartbeat_handle);
-        tracing::info!("Heartbeat task spawned for {} (immediate first beat + 30s interval)", agent_id);
+        tracing::info!(
+            "Heartbeat task spawned for {} (immediate first beat + 30s interval)",
+            agent_id
+        );
     }
 }
 
@@ -222,11 +228,9 @@ impl OrchestratorActor {
             let mut queue = state.work_queue.write().await;
             if let Err(e) = queue.add(item) {
                 tracing::warn!("Work queue at capacity: {}", e);
-                return Err(crate::error::MnemosyneError::Other(format!(
-                    "Work queue full: {}",
-                    e
-                ))
-                .into());
+                return Err(
+                    crate::error::MnemosyneError::Other(format!("Work queue full: {}", e)).into(),
+                );
             }
 
             // Log warning if nearing capacity
@@ -268,18 +272,13 @@ impl OrchestratorActor {
             // First, discover relevant skills for the work item (unless it's for Optimizer itself)
             if item.agent != AgentRole::Optimizer {
                 if let Some(ref optimizer) = state.optimizer {
-                    tracing::debug!(
-                        "Discovering skills for work item: {}",
-                        item.description
-                    );
+                    tracing::debug!("Discovering skills for work item: {}", item.description);
                     let _ = optimizer
                         .cast(OptimizerMessage::DiscoverSkills {
                             task_description: item.description.clone(),
                             max_skills: 7, // Load top 7 most relevant skills
                         })
-                        .map_err(|e| {
-                            tracing::warn!("Failed to discover skills: {:?}", e)
-                        });
+                        .map_err(|e| tracing::warn!("Failed to discover skills: {:?}", e));
                 }
             }
 
@@ -295,9 +294,7 @@ impl OrchestratorActor {
                         work_item_id: item.id.clone(),
                         query: item.description.clone(),
                     })
-                    .map_err(|e| {
-                        tracing::warn!("Failed to load context memories: {:?}", e)
-                    });
+                    .map_err(|e| tracing::warn!("Failed to load context memories: {:?}", e));
             }
 
             // Send to appropriate agent
@@ -305,7 +302,8 @@ impl OrchestratorActor {
                 AgentRole::Executor => {
                     if let Some(ref router) = state.router {
                         tracing::debug!("Dispatching Executor work via router");
-                        let msg = AgentMessage::Executor(Box::new(ExecutorMessage::ExecuteWork(item)));
+                        let msg =
+                            AgentMessage::Executor(Box::new(ExecutorMessage::ExecuteWork(item)));
                         // We can't await here easily in this sync block context if we want to keep holding the lock?
                         // Wait, dispatch_work is async. We CAN await.
                         // But route returns Result<(), String>.
@@ -948,10 +946,7 @@ impl OrchestratorActor {
     }
 
     /// Handle CLI event received from SSE subscriber
-    async fn handle_cli_event(
-        state: &mut OrchestratorState,
-        event: AgentEvent,
-    ) -> Result<()> {
+    async fn handle_cli_event(state: &mut OrchestratorState, event: AgentEvent) -> Result<()> {
         tracing::debug!("Orchestrator received CLI event: {}", event.summary());
 
         // Persist the event for audit trail and memory
@@ -981,13 +976,18 @@ impl OrchestratorActor {
             }
 
             // Database operations
-            AgentEvent::DatabaseOperation { operation, table, .. } => {
+            AgentEvent::DatabaseOperation {
+                operation, table, ..
+            } => {
                 tracing::debug!("Database operation: {} on {}", operation, table);
             }
 
             // Other events are logged but don't require action
             _ => {
-                tracing::debug!("CLI event received (no action required): {}", event.summary());
+                tracing::debug!(
+                    "CLI event received (no action required): {}",
+                    event.summary()
+                );
             }
         }
 

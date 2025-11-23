@@ -110,7 +110,8 @@ impl TrackedAgent {
     /// Get state duration in milliseconds
     fn state_duration_ms(&self) -> i64 {
         let now = Utc::now();
-        now.signed_duration_since(self.state_started_at).num_milliseconds()
+        now.signed_duration_since(self.state_started_at)
+            .num_milliseconds()
     }
 
     /// Update state
@@ -154,7 +155,8 @@ impl AgentsPanel {
     /// Update agents data from API (fallback)
     pub fn update(&mut self, agents: Vec<AgentInfo>) {
         // Count active agents
-        let active_count = agents.iter()
+        let active_count = agents
+            .iter()
             .filter(|agent| matches!(agent.state, AgentState::Active { .. }))
             .count() as f32;
 
@@ -166,7 +168,8 @@ impl AgentsPanel {
     pub fn add_event(&mut self, event: Event) {
         match &event.event_type {
             EventType::AgentStarted { agent_id, task, .. } => {
-                let agent = self.tracked_agents
+                let agent = self
+                    .tracked_agents
                     .entry(agent_id.clone())
                     .or_insert_with(|| TrackedAgent::new(agent_id.clone()));
 
@@ -174,7 +177,9 @@ impl AgentsPanel {
                 agent.current_task = task.as_ref().map(|t| Self::truncate(t, 40));
             }
 
-            EventType::AgentCompleted { agent_id, result, .. } => {
+            EventType::AgentCompleted {
+                agent_id, result, ..
+            } => {
                 if let Some(agent) = self.tracked_agents.get_mut(agent_id) {
                     let duration = agent.state_duration_ms();
 
@@ -187,8 +192,11 @@ impl AgentsPanel {
                 }
             }
 
-            EventType::AgentFailed { agent_id, error, .. } => {
-                let agent = self.tracked_agents
+            EventType::AgentFailed {
+                agent_id, error, ..
+            } => {
+                let agent = self
+                    .tracked_agents
                     .entry(agent_id.clone())
                     .or_insert_with(|| TrackedAgent::new(agent_id.clone()));
 
@@ -198,8 +206,11 @@ impl AgentsPanel {
                 agent.is_healthy = false;
             }
 
-            EventType::AgentBlocked { agent_id, reason, .. } => {
-                let agent = self.tracked_agents
+            EventType::AgentBlocked {
+                agent_id, reason, ..
+            } => {
+                let agent = self
+                    .tracked_agents
                     .entry(agent_id.clone())
                     .or_insert_with(|| TrackedAgent::new(agent_id.clone()));
 
@@ -214,7 +225,9 @@ impl AgentsPanel {
                 }
             }
 
-            EventType::AgentRestarted { agent_id, reason, .. } => {
+            EventType::AgentRestarted {
+                agent_id, reason, ..
+            } => {
                 if let Some(agent) = self.tracked_agents.get_mut(agent_id) {
                     agent.set_state(TrackedAgentState::Idle);
                     agent.current_task = Some(format!("Restarted: {}", Self::truncate(reason, 30)));
@@ -223,7 +236,12 @@ impl AgentsPanel {
                 }
             }
 
-            EventType::AgentHealthDegraded { agent_id, error_count, is_healthy, .. } => {
+            EventType::AgentHealthDegraded {
+                agent_id,
+                error_count,
+                is_healthy,
+                ..
+            } => {
                 if let Some(agent) = self.tracked_agents.get_mut(agent_id) {
                     agent.error_count = *error_count;
                     agent.is_healthy = *is_healthy;
@@ -231,7 +249,8 @@ impl AgentsPanel {
             }
 
             EventType::WorkItemAssigned { agent_id, task, .. } => {
-                let agent = self.tracked_agents
+                let agent = self
+                    .tracked_agents
                     .entry(agent_id.clone())
                     .or_insert_with(|| TrackedAgent::new(agent_id.clone()));
 
@@ -258,7 +277,9 @@ impl AgentsPanel {
         }
 
         // Update active count history
-        let active_count = self.tracked_agents.values()
+        let active_count = self
+            .tracked_agents
+            .values()
             .filter(|a| a.state == TrackedAgentState::Active)
             .count() as f32;
         self.active_count_history.push(active_count);
@@ -327,25 +348,34 @@ impl AgentsPanel {
                 }
             }
             AgentState::Waiting { reason } => {
-                format!("Waiting: {}", if reason.len() > 30 {
-                    format!("{}...", &reason[..27])
-                } else {
-                    reason.clone()
-                })
+                format!(
+                    "Waiting: {}",
+                    if reason.len() > 30 {
+                        format!("{}...", &reason[..27])
+                    } else {
+                        reason.clone()
+                    }
+                )
             }
             AgentState::Completed { result } => {
-                format!("Completed: {}", if result.len() > 30 {
-                    format!("{}...", &result[..27])
-                } else {
-                    result.clone()
-                })
+                format!(
+                    "Completed: {}",
+                    if result.len() > 30 {
+                        format!("{}...", &result[..27])
+                    } else {
+                        result.clone()
+                    }
+                )
             }
             AgentState::Failed { error } => {
-                format!("Failed: {}", if error.len() > 30 {
-                    format!("{}...", &error[..27])
-                } else {
-                    error.clone()
-                })
+                format!(
+                    "Failed: {}",
+                    if error.len() > 30 {
+                        format!("{}...", &error[..27])
+                    } else {
+                        error.clone()
+                    }
+                )
             }
         }
     }
@@ -364,9 +394,17 @@ impl AgentsPanel {
         if stats.total > 0 {
             // Row 1: Totals and state breakdown
             let stats_line = Line::from(vec![
-                Span::styled("Stats: ", Style::default().add_modifier(Modifier::BOLD).add_modifier(Modifier::DIM)),
+                Span::styled(
+                    "Stats: ",
+                    Style::default()
+                        .add_modifier(Modifier::BOLD)
+                        .add_modifier(Modifier::DIM),
+                ),
                 Span::raw("Total: "),
-                Span::styled(format!("{}", stats.total), Style::default().fg(DashboardColors::HIGHLIGHT)),
+                Span::styled(
+                    format!("{}", stats.total),
+                    Style::default().fg(DashboardColors::HIGHLIGHT),
+                ),
                 Span::raw(" | "),
                 StateIndicator::new(StateType::Active, format!("{}", stats.active)).render(),
                 Span::raw(" "),
@@ -381,7 +419,12 @@ impl AgentsPanel {
             // Row 2: Average operation duration
             if stats.avg_operation_duration_ms > 0 {
                 let avg_duration_line = Line::from(vec![
-                    Span::styled("Avg Duration: ", Style::default().add_modifier(Modifier::BOLD).add_modifier(Modifier::DIM)),
+                    Span::styled(
+                        "Avg Duration: ",
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .add_modifier(Modifier::DIM),
+                    ),
                     Span::styled(
                         Self::format_duration_ms(stats.avg_operation_duration_ms),
                         Style::default().fg(if stats.avg_operation_duration_ms > 10000 {
@@ -400,12 +443,10 @@ impl AgentsPanel {
                     .width(20)
                     .style(Style::default().fg(DashboardColors::SUCCESS));
 
-                let mut spans = vec![
-                    Span::styled(
-                        "Activity: ",
-                        Style::default().add_modifier(Modifier::BOLD),
-                    ),
-                ];
+                let mut spans = vec![Span::styled(
+                    "Activity: ",
+                    Style::default().add_modifier(Modifier::BOLD),
+                )];
                 spans.extend(sparkline.render().spans);
 
                 items.push(ListItem::new(Line::from(spans)));
@@ -437,7 +478,9 @@ impl AgentsPanel {
                     let state_text = Self::tracked_state_description(&agent.state);
 
                     // Duration if active
-                    let duration_str = if agent.state == TrackedAgentState::Active || agent.state == TrackedAgentState::Blocked {
+                    let duration_str = if agent.state == TrackedAgentState::Active
+                        || agent.state == TrackedAgentState::Blocked
+                    {
                         let duration = agent.state_duration_ms();
                         format!(" ({})", Self::format_duration_ms(duration))
                     } else {
@@ -458,10 +501,8 @@ impl AgentsPanel {
                         } else {
                             StateType::Failed
                         };
-                        let health_indicator = StateIndicator::new(
-                            health_type,
-                            format!("{}", agent.error_count),
-                        );
+                        let health_indicator =
+                            StateIndicator::new(health_type, format!("{}", agent.error_count));
                         Some(health_indicator.render_icon_only())
                     } else {
                         None
@@ -475,7 +516,10 @@ impl AgentsPanel {
                         ),
                         Span::raw(" "),
                         StateIndicator::new(state_type, state_text).render(),
-                        Span::styled(duration_str, Style::default().fg(DashboardColors::SECONDARY)),
+                        Span::styled(
+                            duration_str,
+                            Style::default().fg(DashboardColors::SECONDARY),
+                        ),
                         Span::styled(task_str, Style::default().fg(DashboardColors::IDLE)),
                     ];
 
@@ -838,12 +882,18 @@ mod tests {
     #[test]
     fn test_state_priority_ordering() {
         // Failed should be highest priority (lowest value)
-        assert!(AgentsPanel::state_priority(&TrackedAgentState::Failed)
-            < AgentsPanel::state_priority(&TrackedAgentState::Blocked));
-        assert!(AgentsPanel::state_priority(&TrackedAgentState::Blocked)
-            < AgentsPanel::state_priority(&TrackedAgentState::Active));
-        assert!(AgentsPanel::state_priority(&TrackedAgentState::Active)
-            < AgentsPanel::state_priority(&TrackedAgentState::Idle));
+        assert!(
+            AgentsPanel::state_priority(&TrackedAgentState::Failed)
+                < AgentsPanel::state_priority(&TrackedAgentState::Blocked)
+        );
+        assert!(
+            AgentsPanel::state_priority(&TrackedAgentState::Blocked)
+                < AgentsPanel::state_priority(&TrackedAgentState::Active)
+        );
+        assert!(
+            AgentsPanel::state_priority(&TrackedAgentState::Active)
+                < AgentsPanel::state_priority(&TrackedAgentState::Idle)
+        );
     }
 
     #[test]

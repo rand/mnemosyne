@@ -4,11 +4,8 @@
 //! including database path resolution, MCP server startup, and JSON parsing.
 
 use mnemosyne_core::{
-    error::Result,
-    mcp::EventSink,
-    services::embeddings::EmbeddingService,
-    ConfigManager, ConnectionMode, LibsqlStorage, LlmConfig, LlmService, McpServer,
-    ToolHandler,
+    error::Result, mcp::EventSink, services::embeddings::EmbeddingService, ConfigManager,
+    ConnectionMode, LibsqlStorage, LlmConfig, LlmService, McpServer, ToolHandler,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -209,8 +206,8 @@ pub async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
 
     // Try to start API server for dashboard connectivity
     use mnemosyne_core::api::{ApiServer, ApiServerConfig};
-    use std::net::SocketAddr;
     use mnemosyne_core::mcp::tools::EventSink;
+    use std::net::SocketAddr;
 
     let socket_addr: SocketAddr = "127.0.0.1:3000".parse().expect("Valid socket address");
     let api_config = ApiServerConfig {
@@ -241,7 +238,10 @@ pub async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
         Err(_) => {
             // Port taken, try to connect to existing API server (client mode)
             if let Some(api_url) = detect_api_server().await {
-                info!("Connecting to existing API server at {} (client mode)", api_url);
+                info!(
+                    "Connecting to existing API server at {} (client mode)",
+                    api_url
+                );
                 let client = reqwest::Client::new();
                 (EventSink::Remote { client, api_url }, None)
             } else {
@@ -253,7 +253,8 @@ pub async fn start_mcp_server(db_path_arg: Option<String>) -> Result<()> {
     };
 
     // Initialize tool handler with event sink
-    let tool_handler = ToolHandler::new_with_event_sink(Arc::new(storage), llm, embeddings, event_sink);
+    let tool_handler =
+        ToolHandler::new_with_event_sink(Arc::new(storage), llm, embeddings, event_sink);
 
     // Create and run MCP server
     let mcp_server = McpServer::new(tool_handler);
@@ -349,12 +350,8 @@ pub async fn start_mcp_server_with_api(
 
     // Initialize tool handler with event broadcasting
     let event_sink = EventSink::Local(event_broadcaster);
-    let tool_handler = ToolHandler::new_with_event_sink(
-        Arc::new(storage),
-        llm,
-        embeddings,
-        event_sink,
-    );
+    let tool_handler =
+        ToolHandler::new_with_event_sink(Arc::new(storage), llm, embeddings, event_sink);
 
     // Create MCP server
     let mcp_server = McpServer::new(tool_handler);
@@ -384,7 +381,9 @@ pub async fn start_mcp_server_with_api(
 pub fn parse_memory_type(type_str: &str) -> mnemosyne_core::MemoryType {
     match type_str.to_lowercase().as_str() {
         // Canonical names and aliases
-        "architecture_decision" | "architecture" | "decision" => mnemosyne_core::MemoryType::ArchitectureDecision,
+        "architecture_decision" | "architecture" | "decision" => {
+            mnemosyne_core::MemoryType::ArchitectureDecision
+        }
         "code_pattern" | "pattern" => mnemosyne_core::MemoryType::CodePattern,
         "bug_fix" | "bug" | "bugfix" => mnemosyne_core::MemoryType::BugFix,
         "configuration" | "config" => mnemosyne_core::MemoryType::Configuration,
@@ -398,7 +397,9 @@ pub fn parse_memory_type(type_str: &str) -> mnemosyne_core::MemoryType {
         // Specification workflow types
         "constitution" => mnemosyne_core::MemoryType::Constitution,
         "feature_spec" | "spec" | "feature" => mnemosyne_core::MemoryType::FeatureSpec,
-        "implementation_plan" | "plan" | "impl_plan" => mnemosyne_core::MemoryType::ImplementationPlan,
+        "implementation_plan" | "plan" | "impl_plan" => {
+            mnemosyne_core::MemoryType::ImplementationPlan
+        }
         "task_breakdown" | "tasks" | "breakdown" => mnemosyne_core::MemoryType::TaskBreakdown,
         "quality_checklist" | "checklist" | "qa" => mnemosyne_core::MemoryType::QualityChecklist,
         "clarification" | "clarify" => mnemosyne_core::MemoryType::Clarification,

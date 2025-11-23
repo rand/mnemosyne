@@ -47,9 +47,9 @@ The old dashboard suffered from several critical issues:
 - **No correlation** between related events
 - **Limited interactivity** - mostly read-only views
 
-### After: "Clean 4-Panel Real-Time System"
+### After: "Clean 5-Panel Real-Time System"
 The redesign addresses every pain point:
-- **4-panel layout** with logical information hierarchy
+- **5-panel layout** with logical information hierarchy
 - **Real-time updates** via SSE event streaming
 - **Smart filtering** (heartbeats hidden by default)
 - **Event correlation** (link start→complete with durations)
@@ -64,7 +64,7 @@ The redesign addresses every pain point:
 
 ### Panel Layout
 
-The dashboard uses a clean 4-panel layout optimized for information density and clarity:
+The dashboard uses a clean 5-panel layout optimized for information density and clarity:
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
@@ -73,16 +73,22 @@ The dashboard uses a clean 4-panel layout optimized for information density and 
 └───────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────┬────────────────────────────────┐
 │                              │                                │
-│ Activity Stream (60%)        │ Agent Details (40%, top)       │
+│ Activity Stream (40%)        │ Agent Details (30%, top)       │
 │ • Filtered event log         │ • Per-agent status             │
 │ • Color-coded categories     │ • Work queue                   │
 │ • Correlated durations       │ • Health metrics               │
 │                              ├────────────────────────────────┤
 │                              │                                │
-│                              │ Operations (40%, bottom)       │
+│                              │ Operations (30%, middle)       │
 │                              │ • CLI command history          │
 │                              │ • Outcomes & timings           │
 │                              │ • Error details                │
+│                              ├────────────────────────────────┤
+│                              │                                │
+│                              │ Network (30%, bottom)          │
+│                              │ • Peer connections             │
+│                              │ • Bandwidth & Latency          │
+│                              │ • Topology graph               │
 └──────────────────────────────┴────────────────────────────────┘
 ```
 
@@ -323,6 +329,28 @@ EventFilter::All(vec![
 ╰────────────────────────────────────────────────────────────╯
 ```
 
+### Panel 5: Network (Right-Bottom, 30%)
+
+**Purpose**: Monitor distributed coordination and peer connections.
+
+**Displays**:
+- **Peer Status**: Connected/Disconnected states
+- **Network Metrics**: Latency, bandwidth usage
+- **Topology**: Visual representation of the P2P graph
+- **Delegation**: Active delegated tasks
+
+**Data Source**: Periodic `/state/network` polling.
+
+**Example**:
+```
+╭─ Network ──────────────────────────────────────────────────╮
+│ Peer ID          Status     Latency   Roles                │
+│ node-alpha       CONNECTED  12ms      [Compute, Storage]   │
+│ node-beta        CONNECTED  45ms      [Storage]            │
+│ node-gamma       SYNCING    120ms     [Compute]            │
+╰────────────────────────────────────────────────────────────╯
+```
+
 ---
 
 ## Keyboard Shortcuts
@@ -338,6 +366,7 @@ EventFilter::All(vec![
 | `1` | Toggle Activity Stream | Activity Stream | Show/hide event log |
 | `2` | Toggle Agent Details | Agent Details | Show/hide agent panel |
 | `3` | Toggle Operations | Operations | Show/hide CLI operations |
+| `4` | Toggle Network | Network | Show/hide Network panel |
 | `c` | Clear Activity Stream | Activity Stream | Clear event history |
 
 ### Planned (Future Enhancements)

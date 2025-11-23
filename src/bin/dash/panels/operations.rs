@@ -79,12 +79,12 @@ impl OperationFilter {
     fn matches(&self, op: &OperationEntry) -> bool {
         // Status filter
         if let Some(ref status_filter) = self.status {
-            if !match (&op.status, status_filter) {
-                (OperationStatus::Running, OperationStatus::Running) => true,
-                (OperationStatus::Completed, OperationStatus::Completed) => true,
-                (OperationStatus::Failed(_), OperationStatus::Failed(_)) => true,
-                _ => false,
-            } {
+            if !matches!(
+                (&op.status, status_filter),
+                (OperationStatus::Running, OperationStatus::Running)
+                    | (OperationStatus::Completed, OperationStatus::Completed)
+                    | (OperationStatus::Failed(_), OperationStatus::Failed(_))
+            ) {
                 return false;
             }
         }
@@ -175,7 +175,8 @@ impl OperationsPanel {
 
         // Trim old operations
         if self.operations.len() > self.max_operations {
-            self.operations.drain(0..self.operations.len() - self.max_operations);
+            self.operations
+                .drain(0..self.operations.len() - self.max_operations);
         }
 
         self.scroll_offset = 0;
@@ -184,7 +185,12 @@ impl OperationsPanel {
     /// Update operation to completed
     pub fn update_completed(&mut self, command: &str, duration_ms: u64, result_summary: String) {
         // Find most recent matching command
-        if let Some(op) = self.operations.iter_mut().rev().find(|op| op.command == command && matches!(op.status, OperationStatus::Running)) {
+        if let Some(op) = self
+            .operations
+            .iter_mut()
+            .rev()
+            .find(|op| op.command == command && matches!(op.status, OperationStatus::Running))
+        {
             op.status = OperationStatus::Completed;
             op.duration_ms = Some(duration_ms);
             op.result_summary = Some(result_summary);
@@ -194,7 +200,12 @@ impl OperationsPanel {
     /// Update operation to failed
     pub fn update_failed(&mut self, command: &str, error: String, duration_ms: u64) {
         // Find most recent matching command
-        if let Some(op) = self.operations.iter_mut().rev().find(|op| op.command == command && matches!(op.status, OperationStatus::Running)) {
+        if let Some(op) = self
+            .operations
+            .iter_mut()
+            .rev()
+            .find(|op| op.command == command && matches!(op.status, OperationStatus::Running))
+        {
             op.status = OperationStatus::Failed(error);
             op.duration_ms = Some(duration_ms);
         }
@@ -252,12 +263,17 @@ impl OperationsPanel {
 
             let empty_text = Span::styled(
                 "No operations match current filter",
-                Style::default().fg(DashboardColors::MUTED).add_modifier(Modifier::ITALIC),
+                Style::default()
+                    .fg(DashboardColors::MUTED)
+                    .add_modifier(Modifier::ITALIC),
             );
             let x = area.x + 2;
             let y = area.y + 1;
             if y < area.bottom() {
-                frame.render_widget(Line::from(empty_text), Rect::new(x, y, area.width.saturating_sub(4), 1));
+                frame.render_widget(
+                    Line::from(empty_text),
+                    Rect::new(x, y, area.width.saturating_sub(4), 1),
+                );
             }
             return;
         }
@@ -280,19 +296,23 @@ impl OperationsPanel {
                 let cmd_display = Self::truncate(&cmd_display, 20);
 
                 // Duration with color coding
-                let duration_display = op.duration_ms
+                let duration_display = op
+                    .duration_ms
                     .map(Self::format_duration)
                     .unwrap_or_else(|| "-".to_string());
-                let duration_color = op.duration_ms.map(Self::duration_color).unwrap_or(Color::Gray);
+                let duration_color = op
+                    .duration_ms
+                    .map(Self::duration_color)
+                    .unwrap_or(Color::Gray);
 
                 // Result/Error
                 let result_display = match &op.status {
                     OperationStatus::Running => "...".to_string(),
-                    OperationStatus::Completed => {
-                        op.result_summary.as_ref()
-                            .map(|s| Self::truncate(s, 30))
-                            .unwrap_or_else(|| "OK".to_string())
-                    },
+                    OperationStatus::Completed => op
+                        .result_summary
+                        .as_ref()
+                        .map(|s| Self::truncate(s, 30))
+                        .unwrap_or_else(|| "OK".to_string()),
                     OperationStatus::Failed(err) => Self::truncate(err, 30),
                 };
 
@@ -300,13 +320,22 @@ impl OperationsPanel {
                 let time_display = Self::format_relative_time(op.timestamp);
 
                 // Highlight slow operations
-                let slow_indicator = if op.duration_ms.unwrap_or(0) > 1000 { "⚠" } else { "" };
+                let slow_indicator = if op.duration_ms.unwrap_or(0) > 1000 {
+                    "⚠"
+                } else {
+                    ""
+                };
 
                 Row::new(vec![
                     Cell::from(time_display).style(Style::default().fg(DashboardColors::SECONDARY)),
                     Cell::from(cmd_display),
-                    Cell::from(op.status.display()).style(Style::default().fg(status_color).add_modifier(Modifier::BOLD)),
-                    Cell::from(format!("{}{}", slow_indicator, duration_display)).style(Style::default().fg(duration_color)),
+                    Cell::from(op.status.display()).style(
+                        Style::default()
+                            .fg(status_color)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Cell::from(format!("{}{}", slow_indicator, duration_display))
+                        .style(Style::default().fg(duration_color)),
                     Cell::from(result_display).style(Style::default().fg(DashboardColors::TEXT)),
                 ])
             })
@@ -314,12 +343,20 @@ impl OperationsPanel {
 
         // Header
         let header = Row::new(vec!["Time", "Command", "Status", "Duration", "Result"])
-            .style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(DashboardColors::HEADER)
+                    .add_modifier(Modifier::BOLD),
+            )
             .bottom_margin(0);
 
         // Table
         let title = if self.scroll_offset > 0 {
-            format!("CLI Operations (↑ {} hidden, {} filtered)", self.scroll_offset, filtered.len())
+            format!(
+                "CLI Operations (↑ {} hidden, {} filtered)",
+                self.scroll_offset,
+                filtered.len()
+            )
         } else {
             format!("CLI Operations ({} filtered)", filtered.len())
         };
@@ -363,9 +400,11 @@ impl OperationsPanel {
 
                 // Group header row
                 let header_text = format!("{} {} ({} ops)", collapse_indicator, cmd, ops.len());
-                rows.push(Row::new(vec![
-                    Cell::from(header_text).style(Style::default().fg(DashboardColors::HIGHLIGHT).add_modifier(Modifier::BOLD)),
-                ]));
+                rows.push(Row::new(vec![Cell::from(header_text).style(
+                    Style::default()
+                        .fg(DashboardColors::HIGHLIGHT)
+                        .add_modifier(Modifier::BOLD),
+                )]));
                 visible_count += 1;
 
                 // Show operations if expanded
@@ -377,30 +416,43 @@ impl OperationsPanel {
 
                         let time = Self::format_relative_time(op.timestamp);
                         let status = op.status.display();
-                        let duration = op.duration_ms.map(Self::format_duration).unwrap_or_else(|| "-".to_string());
+                        let duration = op
+                            .duration_ms
+                            .map(Self::format_duration)
+                            .unwrap_or_else(|| "-".to_string());
 
-                        rows.push(Row::new(vec![
-                            Cell::from(format!("  {} | {} | {}", time, status, duration))
-                                .style(Style::default().fg(DashboardColors::TEXT)),
-                        ]));
+                        rows.push(Row::new(vec![Cell::from(format!(
+                            "  {} | {} | {}",
+                            time, status, duration
+                        ))
+                        .style(Style::default().fg(DashboardColors::TEXT))]));
                         visible_count += 1;
                     }
 
                     if ops.len() > 5 {
-                        rows.push(Row::new(vec![
-                            Cell::from(format!("  ... {} more", ops.len() - 5))
-                                .style(Style::default().fg(DashboardColors::MUTED).add_modifier(Modifier::ITALIC)),
-                        ]));
+                        rows.push(Row::new(vec![Cell::from(format!(
+                            "  ... {} more",
+                            ops.len() - 5
+                        ))
+                        .style(
+                            Style::default()
+                                .fg(DashboardColors::MUTED)
+                                .add_modifier(Modifier::ITALIC),
+                        )]));
                         visible_count += 1;
                     }
                 }
             }
         }
 
-        let table = Table::new(rows, [Constraint::Min(40)])
-            .block(Block::default()
-                .title(format!("CLI Operations - Grouped ({} groups)", groups.len()))
-                .borders(Borders::ALL));
+        let table = Table::new(rows, [Constraint::Min(40)]).block(
+            Block::default()
+                .title(format!(
+                    "CLI Operations - Grouped ({} groups)",
+                    groups.len()
+                ))
+                .borders(Borders::ALL),
+        );
 
         frame.render_widget(table, area);
     }
@@ -411,7 +463,11 @@ impl OperationsPanel {
 
         let mut rows = vec![
             Row::new(vec![
-                Cell::from("Total Operations:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
+                Cell::from("Total Operations:").style(
+                    Style::default()
+                        .fg(DashboardColors::HEADER)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Cell::from(format!("{}", stats.total_count)),
             ]),
             Row::new(vec![
@@ -427,38 +483,60 @@ impl OperationsPanel {
                 Cell::from(format!("{}", stats.running_count)),
             ]),
             Row::new(vec![
-                Cell::from("Success Rate:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
+                Cell::from("Success Rate:").style(
+                    Style::default()
+                        .fg(DashboardColors::HEADER)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Cell::from(format!("{:.1}%", stats.success_rate)),
             ]),
             Row::new(vec![
-                Cell::from("Average Duration:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
+                Cell::from("Average Duration:").style(
+                    Style::default()
+                        .fg(DashboardColors::HEADER)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Cell::from(Self::format_duration(stats.avg_duration_ms)),
             ]),
         ];
 
         if let Some((cmd, dur)) = &stats.slowest_command {
             rows.push(Row::new(vec![
-                Cell::from("Slowest Command:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
+                Cell::from("Slowest Command:").style(
+                    Style::default()
+                        .fg(DashboardColors::HEADER)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Cell::from(format!("{} ({})", cmd, Self::format_duration(*dur))),
             ]));
         }
 
         if let Some((cmd, count)) = &stats.most_frequent_command {
             rows.push(Row::new(vec![
-                Cell::from("Most Frequent:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
+                Cell::from("Most Frequent:").style(
+                    Style::default()
+                        .fg(DashboardColors::HEADER)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Cell::from(format!("{} ({} times)", cmd, count)),
             ]));
         }
 
         rows.push(Row::new(vec![
-            Cell::from("Ops/Minute:").style(Style::default().fg(DashboardColors::HEADER).add_modifier(Modifier::BOLD)),
+            Cell::from("Ops/Minute:").style(
+                Style::default()
+                    .fg(DashboardColors::HEADER)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Cell::from(format!("{:.2}", stats.operations_per_minute)),
         ]));
 
         let table = Table::new(rows, [Constraint::Length(20), Constraint::Min(30)])
-            .block(Block::default()
-                .title("CLI Operations - Statistics")
-                .borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("CLI Operations - Statistics")
+                    .borders(Borders::ALL),
+            )
             .column_spacing(2);
 
         frame.render_widget(table, area);
@@ -505,7 +583,8 @@ impl OperationsPanel {
     /// Toggle group collapsed state
     pub fn toggle_group(&mut self, command: &str) {
         let is_collapsed = self.collapsed_groups.get(command).copied().unwrap_or(false);
-        self.collapsed_groups.insert(command.to_string(), !is_collapsed);
+        self.collapsed_groups
+            .insert(command.to_string(), !is_collapsed);
     }
 
     /// Get filtered operations
@@ -559,7 +638,9 @@ impl OperationsPanel {
             let stats = command_stats.entry(op.command.clone()).or_default();
             stats.count += 1;
             if let Some(duration) = op.duration_ms {
-                stats.avg_duration_ms = ((stats.avg_duration_ms as u64 * (stats.count - 1) as u64) + duration) / stats.count as u64;
+                stats.avg_duration_ms = ((stats.avg_duration_ms * (stats.count - 1) as u64)
+                    + duration)
+                    / stats.count as u64;
             }
             match &op.status {
                 OperationStatus::Completed => stats.success_count += 1,
@@ -633,8 +714,14 @@ impl OperationsPanel {
 
         // Sort groups by most recent operation
         grouped.sort_by(|a, b| {
-            let a_recent = a.1.first().map(|op| op.timestamp).unwrap_or(DateTime::<Utc>::MIN_UTC);
-            let b_recent = b.1.first().map(|op| op.timestamp).unwrap_or(DateTime::<Utc>::MIN_UTC);
+            let a_recent =
+                a.1.first()
+                    .map(|op| op.timestamp)
+                    .unwrap_or(DateTime::<Utc>::MIN_UTC);
+            let b_recent =
+                b.1.first()
+                    .map(|op| op.timestamp)
+                    .unwrap_or(DateTime::<Utc>::MIN_UTC);
             b_recent.cmp(&a_recent)
         });
 
@@ -701,7 +788,10 @@ mod tests {
     #[test]
     fn test_add_started_operation() {
         let mut panel = OperationsPanel::new();
-        panel.add_started("remember".to_string(), vec!["--content".to_string(), "test".to_string()]);
+        panel.add_started(
+            "remember".to_string(),
+            vec!["--content".to_string(), "test".to_string()],
+        );
 
         assert_eq!(panel.operation_count(), 1);
     }
@@ -726,16 +816,25 @@ mod tests {
 
     #[test]
     fn test_operation_status_color() {
-        assert_eq!(OperationStatus::Running.color(), DashboardColors::IN_PROGRESS);
+        assert_eq!(
+            OperationStatus::Running.color(),
+            DashboardColors::IN_PROGRESS
+        );
         assert_eq!(OperationStatus::Completed.color(), DashboardColors::SUCCESS);
-        assert_eq!(OperationStatus::Failed("error".to_string()).color(), DashboardColors::ERROR);
+        assert_eq!(
+            OperationStatus::Failed("error".to_string()).color(),
+            DashboardColors::ERROR
+        );
     }
 
     #[test]
     fn test_operation_status_display() {
         assert_eq!(OperationStatus::Running.display(), "RUNNING");
         assert_eq!(OperationStatus::Completed.display(), "DONE");
-        assert_eq!(OperationStatus::Failed("error".to_string()).display(), "FAIL");
+        assert_eq!(
+            OperationStatus::Failed("error".to_string()).display(),
+            "FAIL"
+        );
     }
 
     #[test]
@@ -837,8 +936,10 @@ mod tests {
         panel.add_started("recall".to_string(), vec![]);
         panel.update_completed("remember", 1000, "OK".to_string());
 
-        let mut filter = OperationFilter::default();
-        filter.status = Some(OperationStatus::Completed);
+        let filter = OperationFilter {
+            status: Some(OperationStatus::Completed),
+            ..Default::default()
+        };
         panel.set_filter(filter);
 
         let filtered = panel.filtered_operations();
@@ -853,8 +954,10 @@ mod tests {
         panel.add_started("recall".to_string(), vec![]);
         panel.add_started("evolve".to_string(), vec![]);
 
-        let mut filter = OperationFilter::default();
-        filter.command = Some("re".to_string());
+        let filter = OperationFilter {
+            command: Some("re".to_string()),
+            ..Default::default()
+        };
         panel.set_filter(filter);
 
         let filtered = panel.filtered_operations();
@@ -872,8 +975,10 @@ mod tests {
         panel.update_completed("cmd2", 1500, "OK".to_string());
         panel.update_completed("cmd3", 2500, "OK".to_string());
 
-        let mut filter = OperationFilter::default();
-        filter.min_duration_ms = Some(1000);
+        let filter = OperationFilter {
+            min_duration_ms: Some(1000),
+            ..Default::default()
+        };
         panel.set_filter(filter);
 
         let filtered = panel.filtered_operations();
@@ -885,8 +990,10 @@ mod tests {
         let mut panel = OperationsPanel::new();
         panel.add_started("test".to_string(), vec![]);
 
-        let mut filter = OperationFilter::default();
-        filter.command = Some("nonexistent".to_string());
+        let filter = OperationFilter {
+            command: Some("nonexistent".to_string()),
+            ..Default::default()
+        };
         panel.set_filter(filter);
 
         assert_eq!(panel.filtered_operations().len(), 0);
@@ -907,10 +1014,12 @@ mod tests {
         panel.update_failed("recall", "Error".to_string(), 500);
         panel.update_completed("remember", 2500, "OK".to_string());
 
-        let mut filter = OperationFilter::default();
-        filter.command = Some("remember".to_string());
-        filter.status = Some(OperationStatus::Completed);
-        filter.min_duration_ms = Some(2000);
+        let filter = OperationFilter {
+            command: Some("remember".to_string()),
+            status: Some(OperationStatus::Completed),
+            min_duration_ms: Some(2000),
+            ..Default::default()
+        };
         panel.set_filter(filter);
 
         let filtered = panel.filtered_operations();
@@ -1005,7 +1114,11 @@ mod tests {
 
         for i in 0..5 {
             panel.add_started(format!("cmd{}", i), vec![]);
-            panel.update_completed(&format!("cmd{}", i), 1000 + (i as u64 * 100), "OK".to_string());
+            panel.update_completed(
+                &format!("cmd{}", i),
+                1000 + (i as u64 * 100),
+                "OK".to_string(),
+            );
         }
 
         let stats = panel.calculate_stats();
@@ -1071,7 +1184,10 @@ mod tests {
         panel.add_started("evolve".to_string(), vec![]);
 
         let stats = panel.calculate_stats();
-        assert_eq!(stats.most_frequent_command, Some(("remember".to_string(), 3)));
+        assert_eq!(
+            stats.most_frequent_command,
+            Some(("remember".to_string(), 3))
+        );
     }
 
     #[test]
@@ -1118,15 +1234,27 @@ mod tests {
 
     #[test]
     fn test_duration_color() {
-        assert_eq!(OperationsPanel::duration_color(300), DashboardColors::PERF_FAST);    // Fast
-        assert_eq!(OperationsPanel::duration_color(1000), DashboardColors::PERF_MEDIUM);  // Medium
-        assert_eq!(OperationsPanel::duration_color(3000), DashboardColors::PERF_SLOW);     // Slow
+        assert_eq!(
+            OperationsPanel::duration_color(300),
+            DashboardColors::PERF_FAST
+        ); // Fast
+        assert_eq!(
+            OperationsPanel::duration_color(1000),
+            DashboardColors::PERF_MEDIUM
+        ); // Medium
+        assert_eq!(
+            OperationsPanel::duration_color(3000),
+            DashboardColors::PERF_SLOW
+        ); // Slow
     }
 
     #[test]
     fn test_truncate() {
         assert_eq!(OperationsPanel::truncate("short", 10), "short");
-        assert_eq!(OperationsPanel::truncate("this is a very long string", 10), "this is...");
+        assert_eq!(
+            OperationsPanel::truncate("this is a very long string", 10),
+            "this is..."
+        );
         assert_eq!(OperationsPanel::truncate("exact", 5), "exact");
     }
 
@@ -1145,7 +1273,10 @@ mod tests {
 
         let stats = panel.calculate_stats();
         assert_eq!(stats.total_count, 10);
-        assert_eq!(stats.most_frequent_command, Some(("remember".to_string(), 10)));
+        assert_eq!(
+            stats.most_frequent_command,
+            Some(("remember".to_string(), 10))
+        );
     }
 
     #[test]
@@ -1163,8 +1294,10 @@ mod tests {
         let mut panel = OperationsPanel::new();
         panel.add_started("remember".to_string(), vec![]);
 
-        let mut filter = OperationFilter::default();
-        filter.command = Some("nonexistent".to_string());
+        let filter = OperationFilter {
+            command: Some("nonexistent".to_string()),
+            ..Default::default()
+        };
         panel.set_filter(filter);
 
         let filtered = panel.filtered_operations();
@@ -1191,7 +1324,10 @@ mod tests {
         let grouping_time = start.elapsed();
 
         assert_eq!(groups.len(), 10);
-        assert!(grouping_time.as_millis() < 100, "Grouping should be fast even with 100 ops");
+        assert!(
+            grouping_time.as_millis() < 100,
+            "Grouping should be fast even with 100 ops"
+        );
 
         // Test statistics performance
         let start = std::time::Instant::now();
@@ -1199,6 +1335,9 @@ mod tests {
         let stats_time = start.elapsed();
 
         assert_eq!(stats.total_count, 100);
-        assert!(stats_time.as_millis() < 100, "Stats calculation should be fast even with 100 ops");
+        assert!(
+            stats_time.as_millis() < 100,
+            "Stats calculation should be fast even with 100 ops"
+        );
     }
 }

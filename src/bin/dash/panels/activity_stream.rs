@@ -14,8 +14,8 @@
 use crate::colors::DashboardColors;
 use crate::correlation::{CorrelatedEvent, CorrelationTracker, OperationStatus};
 use crate::filters::{EventCategory, EventFilter, FilterPresets, FilterStats};
-use mnemosyne_core::api::events::Event;
 use chrono::{DateTime, Utc};
+use mnemosyne_core::api::events::Event;
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -43,9 +43,12 @@ pub enum FocusMode {
 #[derive(Debug, Clone)]
 enum ActivityEntry {
     /// Raw event (not part of a correlation)
-    RawEvent { event: Event, timestamp: DateTime<Utc> },
+    RawEvent {
+        event: Event,
+        timestamp: DateTime<Utc>,
+    },
     /// Correlated operation (start→complete)
-    CorrelatedOperation(CorrelatedEvent),
+    CorrelatedOperation(Box<CorrelatedEvent>),
 }
 
 impl ActivityEntry {
@@ -158,7 +161,9 @@ impl ActivityStreamPanel {
                 if let Some(pos) = available_agents.iter().position(|id| id == current_agent) {
                     if pos + 1 < available_agents.len() {
                         // Move to next agent
-                        self.set_focus_mode(FocusMode::AgentFocus(available_agents[pos + 1].clone()));
+                        self.set_focus_mode(FocusMode::AgentFocus(
+                            available_agents[pos + 1].clone(),
+                        ));
                     } else {
                         // At end of list, disable agent focus
                         self.set_focus_mode(FocusMode::Normal);
@@ -182,7 +187,8 @@ impl ActivityStreamPanel {
         // Try to correlate event
         if let Some(correlated) = self.correlation_tracker.process(event.clone()) {
             // Successfully correlated - add as operation
-            self.entries.push_back(ActivityEntry::CorrelatedOperation(correlated));
+            self.entries
+                .push_back(ActivityEntry::CorrelatedOperation(Box::new(correlated)));
         } else if !Self::is_start_event(&event) {
             // Not a start event and not correlated - add as raw event
             // (start events are tracked internally by correlation tracker, don't display until complete)
@@ -193,7 +199,8 @@ impl ActivityStreamPanel {
             self.filter_stats.record(passes);
 
             if passes {
-                self.entries.push_back(ActivityEntry::RawEvent { event, timestamp });
+                self.entries
+                    .push_back(ActivityEntry::RawEvent { event, timestamp });
             }
         }
         // If it's a start event, it's now tracked by correlation tracker, don't display yet
@@ -271,7 +278,7 @@ impl ActivityStreamPanel {
             | CliCommandCompleted { timestamp, .. }
             | CliCommandFailed { timestamp, .. }
             | SearchPerformed { timestamp, .. }
-            | DatabaseOperation { timestamp, .. } 
+            | DatabaseOperation { timestamp, .. }
             | NetworkStateUpdate { timestamp, .. } => Some(*timestamp),
         }
     }
@@ -281,12 +288,14 @@ impl ActivityStreamPanel {
         let items: Vec<ListItem> = if self.entries.is_empty() {
             // Empty state
             vec![
-                ListItem::new(Line::from(vec![
-                    Span::styled("No events yet", Style::default().fg(DashboardColors::MUTED)),
-                ])),
-                ListItem::new(Line::from(vec![
-                    Span::styled("Waiting for activity...", Style::default().fg(DashboardColors::MUTED)),
-                ])),
+                ListItem::new(Line::from(vec![Span::styled(
+                    "No events yet",
+                    Style::default().fg(DashboardColors::MUTED),
+                )])),
+                ListItem::new(Line::from(vec![Span::styled(
+                    "Waiting for activity...",
+                    Style::default().fg(DashboardColors::MUTED),
+                )])),
             ]
         } else {
             // Render entries (most recent at bottom for auto-scroll)
@@ -336,7 +345,9 @@ impl ActivityStreamPanel {
     /// Render a single activity entry
     fn render_entry(&self, entry: &ActivityEntry) -> ListItem {
         match entry {
-            ActivityEntry::RawEvent { event, timestamp } => self.render_raw_event(event, *timestamp),
+            ActivityEntry::RawEvent { event, timestamp } => {
+                self.render_raw_event(event, *timestamp)
+            }
             ActivityEntry::CorrelatedOperation(corr) => self.render_correlated_operation(corr),
         }
     }
@@ -459,7 +470,11 @@ impl ActivityStreamPanel {
         match &event.event_type {
             // CLI events
             CliCommandStarted { command, .. } => format!("CLI started: {}", command),
-            CliCommandCompleted { command, duration_ms, .. } => {
+            CliCommandCompleted {
+                command,
+                duration_ms,
+                ..
+            } => {
                 format!("CLI completed: {} ({}ms)", command, duration_ms)
             }
             CliCommandFailed { command, error, .. } => {
@@ -467,11 +482,21 @@ impl ActivityStreamPanel {
             }
 
             // Memory events
-            MemoryStored { memory_id, summary, .. } => {
-                format!("Memory stored: {} - {}", Self::truncate(memory_id, 10), Self::truncate(summary, 40))
+            MemoryStored {
+                memory_id, summary, ..
+            } => {
+                format!(
+                    "Memory stored: {} - {}",
+                    Self::truncate(memory_id, 10),
+                    Self::truncate(summary, 40)
+                )
             }
             MemoryRecalled { query, count, .. } => {
-                format!("Memory recalled: {} ({} results)", Self::truncate(query, 30), count)
+                format!(
+                    "Memory recalled: {} ({} results)",
+                    Self::truncate(query, 30),
+                    count
+                )
             }
             MemoryEvolutionStarted { reason, .. } => {
                 format!("Evolution started: {}", Self::truncate(reason, 40))
@@ -480,27 +505,53 @@ impl ActivityStreamPanel {
             // Agent events
             AgentStarted { agent_id, task, .. } => {
                 if let Some(task) = task {
-                    format!("Agent started: {} - {}", Self::truncate(agent_id, 10), Self::truncate(task, 40))
+                    format!(
+                        "Agent started: {} - {}",
+                        Self::truncate(agent_id, 10),
+                        Self::truncate(task, 40)
+                    )
                 } else {
                     format!("Agent started: {}", Self::truncate(agent_id, 10))
                 }
             }
-            AgentCompleted { agent_id, result, .. } => {
-                format!("Agent completed: {} - {}", Self::truncate(agent_id, 10), Self::truncate(result, 40))
+            AgentCompleted {
+                agent_id, result, ..
+            } => {
+                format!(
+                    "Agent completed: {} - {}",
+                    Self::truncate(agent_id, 10),
+                    Self::truncate(result, 40)
+                )
             }
-            AgentFailed { agent_id, error, .. } => {
-                format!("Agent failed: {} - {}", Self::truncate(agent_id, 10), Self::truncate(error, 40))
+            AgentFailed {
+                agent_id, error, ..
+            } => {
+                format!(
+                    "Agent failed: {} - {}",
+                    Self::truncate(agent_id, 10),
+                    Self::truncate(error, 40)
+                )
             }
 
             // Work events
-            WorkItemAssigned { item_id, agent_id, .. } => {
-                format!("Work assigned: {} → {}", Self::truncate(item_id, 10), Self::truncate(agent_id, 10))
+            WorkItemAssigned {
+                item_id, agent_id, ..
+            } => {
+                format!(
+                    "Work assigned: {} → {}",
+                    Self::truncate(item_id, 10),
+                    Self::truncate(agent_id, 10)
+                )
             }
             WorkItemCompleted { item_id, .. } => {
                 format!("Work completed: {}", Self::truncate(item_id, 10))
             }
             PhaseChanged { from, to, .. } => {
-                format!("Phase: {} → {}", Self::truncate(from, 15), Self::truncate(to, 15))
+                format!(
+                    "Phase: {} → {}",
+                    Self::truncate(from, 15),
+                    Self::truncate(to, 15)
+                )
             }
 
             // Skill events
@@ -515,11 +566,25 @@ impl ActivityStreamPanel {
             DeadlockDetected { blocked_items, .. } => {
                 format!("Deadlock: {} items blocked", blocked_items.len())
             }
-            AgentHealthDegraded { agent_id, error_count, .. } => {
-                format!("Health degraded: {} ({} errors)", Self::truncate(agent_id, 10), error_count)
+            AgentHealthDegraded {
+                agent_id,
+                error_count,
+                ..
+            } => {
+                format!(
+                    "Health degraded: {} ({} errors)",
+                    Self::truncate(agent_id, 10),
+                    error_count
+                )
             }
-            ReviewFailed { item_id, issues, .. } => {
-                format!("Review failed: {} ({} issues)", Self::truncate(item_id, 10), issues.len())
+            ReviewFailed {
+                item_id, issues, ..
+            } => {
+                format!(
+                    "Review failed: {} ({} issues)",
+                    Self::truncate(item_id, 10),
+                    issues.len()
+                )
             }
 
             // System events
@@ -718,11 +783,23 @@ mod tests {
 
     #[test]
     fn test_category_colors_and_prefixes() {
-        assert_eq!(ActivityStreamPanel::category_color(&EventCategory::Cli), DashboardColors::CLI);
-        assert_eq!(ActivityStreamPanel::category_color(&EventCategory::Error), DashboardColors::ERROR);
+        assert_eq!(
+            ActivityStreamPanel::category_color(&EventCategory::Cli),
+            DashboardColors::CLI
+        );
+        assert_eq!(
+            ActivityStreamPanel::category_color(&EventCategory::Error),
+            DashboardColors::ERROR
+        );
 
-        assert_eq!(ActivityStreamPanel::category_prefix(&EventCategory::Cli), "CLI");
-        assert_eq!(ActivityStreamPanel::category_prefix(&EventCategory::Error), "ERR");
+        assert_eq!(
+            ActivityStreamPanel::category_prefix(&EventCategory::Cli),
+            "CLI"
+        );
+        assert_eq!(
+            ActivityStreamPanel::category_prefix(&EventCategory::Error),
+            "ERR"
+        );
     }
 
     #[test]
@@ -794,7 +871,10 @@ mod tests {
 
         // Toggle to agent focus
         panel.toggle_agent_focus(vec!["executor".to_string()]);
-        assert_eq!(*panel.get_focus_mode(), FocusMode::AgentFocus("executor".to_string()));
+        assert_eq!(
+            *panel.get_focus_mode(),
+            FocusMode::AgentFocus("executor".to_string())
+        );
 
         // Toggle again should disable (end of list)
         panel.toggle_agent_focus(vec!["executor".to_string()]);
@@ -805,19 +885,32 @@ mod tests {
     fn test_toggle_agent_focus_multiple_agents() {
         let mut panel = ActivityStreamPanel::new();
 
-        let agents = vec!["executor".to_string(), "optimizer".to_string(), "reviewer".to_string()];
+        let agents = vec![
+            "executor".to_string(),
+            "optimizer".to_string(),
+            "reviewer".to_string(),
+        ];
 
         // First toggle: focus on first agent
         panel.toggle_agent_focus(agents.clone());
-        assert_eq!(*panel.get_focus_mode(), FocusMode::AgentFocus("executor".to_string()));
+        assert_eq!(
+            *panel.get_focus_mode(),
+            FocusMode::AgentFocus("executor".to_string())
+        );
 
         // Second toggle: focus on second agent
         panel.toggle_agent_focus(agents.clone());
-        assert_eq!(*panel.get_focus_mode(), FocusMode::AgentFocus("optimizer".to_string()));
+        assert_eq!(
+            *panel.get_focus_mode(),
+            FocusMode::AgentFocus("optimizer".to_string())
+        );
 
         // Third toggle: focus on third agent
         panel.toggle_agent_focus(agents.clone());
-        assert_eq!(*panel.get_focus_mode(), FocusMode::AgentFocus("reviewer".to_string()));
+        assert_eq!(
+            *panel.get_focus_mode(),
+            FocusMode::AgentFocus("reviewer".to_string())
+        );
 
         // Fourth toggle: back to normal (end of list)
         panel.toggle_agent_focus(agents);
@@ -849,7 +942,10 @@ mod tests {
 
         // Set to agent focus
         panel.set_focus_mode(FocusMode::AgentFocus("executor".to_string()));
-        assert_eq!(*panel.get_focus_mode(), FocusMode::AgentFocus("executor".to_string()));
+        assert_eq!(
+            *panel.get_focus_mode(),
+            FocusMode::AgentFocus("executor".to_string())
+        );
 
         // Toggle error focus should enable it (not disable, since we're in agent mode)
         panel.toggle_error_focus();

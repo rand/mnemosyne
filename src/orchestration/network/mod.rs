@@ -89,7 +89,7 @@ impl NetworkLayer {
         let listener_endpoint = endpoint.clone();
         let listener_router = self.router.clone();
         let secret = self.cluster_secret.clone();
-        
+
         tokio::spawn(async move {
             run_listener_loop(listener_endpoint, listener_router, secret).await;
         });
@@ -263,11 +263,15 @@ async fn handle_stream(
         msg => {
             // Determine destination role
             let role = match &msg {
-                crate::orchestration::messages::AgentMessage::Orchestrator(_) => AgentRole::Orchestrator,
+                crate::orchestration::messages::AgentMessage::Orchestrator(_) => {
+                    AgentRole::Orchestrator
+                }
                 crate::orchestration::messages::AgentMessage::Optimizer(_) => AgentRole::Optimizer,
                 crate::orchestration::messages::AgentMessage::Reviewer(_) => AgentRole::Reviewer,
                 crate::orchestration::messages::AgentMessage::Executor(_) => AgentRole::Executor,
-                crate::orchestration::messages::AgentMessage::AnnounceRoles { .. } => unreachable!(),
+                crate::orchestration::messages::AgentMessage::AnnounceRoles { .. } => {
+                    unreachable!()
+                }
             };
 
             // Route message

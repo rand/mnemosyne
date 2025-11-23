@@ -20,9 +20,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[cfg(feature = "python")]
-use crate::orchestration::ClaudeAgentBridge;
-#[cfg(feature = "python")]
 use crate::orchestration::actors::optimizer_dspy_adapter::OptimizerDSpyAdapter;
+#[cfg(feature = "python")]
+use crate::orchestration::ClaudeAgentBridge;
 
 /// Context budget allocation percentages (WIP)
 #[allow(dead_code)]
@@ -167,7 +167,10 @@ impl OptimizerState {
                 }
             }
         });
-        tracing::info!("Heartbeat task spawned for {} (immediate first beat + 30s interval)", agent_id);
+        tracing::info!(
+            "Heartbeat task spawned for {} (immediate first beat + 30s interval)",
+            agent_id
+        );
     }
 
     /// Register DSPy adapter for intelligent optimization
@@ -205,7 +208,10 @@ impl OptimizerActor {
             .discover_skills(&task_description, max_skills * 2) // Get 2x for DSPy refinement
             .await?;
 
-        tracing::debug!("Keyword discovery found {} initial matches", initial_matches.len());
+        tracing::debug!(
+            "Keyword discovery found {} initial matches",
+            initial_matches.len()
+        );
 
         // Stage 2: Semantic refinement using DSPy OptimizerModule (if available)
         #[cfg(feature = "python")]
@@ -227,7 +233,12 @@ impl OptimizerActor {
 
             // Use DSPy for semantic analysis and re-ranking
             match adapter
-                .discover_skills(&task_description, dspy_skills, max_skills, state.context_usage)
+                .discover_skills(
+                    &task_description,
+                    dspy_skills,
+                    max_skills,
+                    state.context_usage,
+                )
                 .await
             {
                 Ok(discovery_result) => {
@@ -248,14 +259,18 @@ impl OptimizerActor {
                         }
                     }
 
-                    tracing::debug!("DSPy-refined skills: {:?}",
+                    tracing::debug!(
+                        "DSPy-refined skills: {:?}",
                         refined.iter().map(|m| &m.metadata.name).collect::<Vec<_>>()
                     );
 
                     refined
                 }
                 Err(e) => {
-                    tracing::warn!("DSPy skill discovery failed, falling back to keyword-based: {}", e);
+                    tracing::warn!(
+                        "DSPy skill discovery failed, falling back to keyword-based: {}",
+                        e
+                    );
                     initial_matches
                 }
             }

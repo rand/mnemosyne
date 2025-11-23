@@ -1,7 +1,7 @@
 //! Configuration management command
 
 use clap::Subcommand;
-use mnemosyne_core::{error::Result, ConfigManager, orchestration::events::AgentEvent};
+use mnemosyne_core::{error::Result, orchestration::events::AgentEvent, ConfigManager};
 
 use super::event_helpers;
 
@@ -109,76 +109,73 @@ pub async fn handle(action: ConfigAction) -> Result<()> {
             ).await
         }
         ConfigAction::ShowKey => {
-            event_helpers::with_event_lifecycle(
-                "config show-key",
-                vec![],
-                async move {
-                    if config_manager.has_api_key() {
-                        match config_manager.get_api_key() {
-                            Ok(key) => {
-                                // Show only first and last 4 characters
-                                let masked = mask_api_key(&key);
-                                println!(" API key configured: {}", masked);
+            event_helpers::with_event_lifecycle("config show-key", vec![], async move {
+                if config_manager.has_api_key() {
+                    match config_manager.get_api_key() {
+                        Ok(key) => {
+                            // Show only first and last 4 characters
+                            let masked = mask_api_key(&key);
+                            println!(" API key configured: {}", masked);
 
-                                // Show source
-                                if std::env::var("ANTHROPIC_API_KEY").is_ok() {
-                                    println!("  Source: ANTHROPIC_API_KEY environment variable");
-                                } else {
-                                    println!("  Source: OS keychain");
-                                }
-                            }
-                            Err(e) => {
-                                eprintln!(" Error retrieving API key: {}", e);
+                            // Show source
+                            if std::env::var("ANTHROPIC_API_KEY").is_ok() {
+                                println!("  Source: ANTHROPIC_API_KEY environment variable");
+                            } else {
+                                println!("  Source: OS keychain");
                             }
                         }
-                    } else {
-                        println!(" No API key configured");
-                        println!("\nTo set your API key:");
-                        println!("  mnemosyne config set-key");
-                        println!("or");
-                        println!("  export ANTHROPIC_API_KEY=sk-ant-...");
+                        Err(e) => {
+                            eprintln!(" Error retrieving API key: {}", e);
+                        }
                     }
-                    Ok(())
+                } else {
+                    println!(" No API key configured");
+                    println!("\nTo set your API key:");
+                    println!("  mnemosyne config set-key");
+                    println!("or");
+                    println!("  export ANTHROPIC_API_KEY=sk-ant-...");
                 }
-            ).await
+                Ok(())
+            })
+            .await
         }
         ConfigAction::DeleteKey => {
-            event_helpers::with_event_lifecycle(
-                "config delete-key",
-                vec![],
-                async move {
-                    #[cfg(feature = "keyring-fallback")]
-                    {
-                        let old_value = if config_manager.has_api_key() {
-                            Some("***REDACTED***".to_string())
-                        } else {
-                            None
-                        };
+            event_helpers::with_event_lifecycle("config delete-key", vec![], async move {
+                #[cfg(feature = "keyring-fallback")]
+                {
+                    let old_value = if config_manager.has_api_key() {
+                        Some("***REDACTED***".to_string())
+                    } else {
+                        None
+                    };
 
-                        config_manager.delete_api_key()?;
-                        println!(" API key deleted from OS keychain");
-                        println!("\nNote: If ANTHROPIC_API_KEY environment variable is set,");
-                        println!("      it will still be used. Unset it with:");
-                        println!("      unset ANTHROPIC_API_KEY");
+                    config_manager.delete_api_key()?;
+                    println!(" API key deleted from OS keychain");
+                    println!("\nNote: If ANTHROPIC_API_KEY environment variable is set,");
+                    println!("      it will still be used. Unset it with:");
+                    println!("      unset ANTHROPIC_API_KEY");
 
-                        // Emit config changed event
-                        event_helpers::emit_domain_event(AgentEvent::ConfigChanged {
-                            setting: "anthropic_api_key".to_string(),
-                            old_value,
-                            new_value: None,
-                        }).await;
-                    }
-                    #[cfg(not(feature = "keyring-fallback"))]
-                    {
-                        eprintln!("Config delete-key is deprecated. Secrets are managed in encrypted config.");
-                        eprintln!(
-                            "To reset, delete: {}",
-                            config_manager.secrets().secrets_file().display()
-                        );
-                    }
-                    Ok(())
+                    // Emit config changed event
+                    event_helpers::emit_domain_event(AgentEvent::ConfigChanged {
+                        setting: "anthropic_api_key".to_string(),
+                        old_value,
+                        new_value: None,
+                    })
+                    .await;
                 }
-            ).await
+                #[cfg(not(feature = "keyring-fallback"))]
+                {
+                    eprintln!(
+                        "Config delete-key is deprecated. Secrets are managed in encrypted config."
+                    );
+                    eprintln!(
+                        "To reset, delete: {}",
+                        config_manager.secrets().secrets_file().display()
+                    );
+                }
+                Ok(())
+            })
+            .await
         }
     }
 }

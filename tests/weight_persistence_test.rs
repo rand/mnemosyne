@@ -41,7 +41,9 @@ async fn test_store_and_retrieve_session_weights() {
     weights.update_confidence();
 
     // Store weights
-    scorer.store_weights(&weights).await
+    scorer
+        .store_weights(&weights)
+        .await
         .expect("Failed to store weights");
 
     // Retrieve with exact match
@@ -83,7 +85,9 @@ async fn test_store_and_retrieve_project_weights() {
     weights.update_confidence();
 
     // Store weights
-    scorer.store_weights(&weights).await
+    scorer
+        .store_weights(&weights)
+        .await
         .expect("Failed to store weights");
 
     // Retrieve with exact match
@@ -121,7 +125,9 @@ async fn test_store_and_retrieve_global_weights() {
     weights.update_confidence();
 
     // Store weights
-    scorer.store_weights(&weights).await
+    scorer
+        .store_weights(&weights)
+        .await
         .expect("Failed to store weights");
 
     // Retrieve
@@ -157,7 +163,9 @@ async fn test_update_existing_weights() {
     weights.sample_count = 5;
     weights.weights.insert("keyword_match".to_string(), 0.3);
 
-    scorer.store_weights(&weights).await
+    scorer
+        .store_weights(&weights)
+        .await
         .expect("Failed to store initial weights");
 
     // Update weights
@@ -165,7 +173,9 @@ async fn test_update_existing_weights() {
     weights.weights.insert("keyword_match".to_string(), 0.5);
     weights.update_confidence();
 
-    scorer.store_weights(&weights).await
+    scorer
+        .store_weights(&weights)
+        .await
         .expect("Failed to update weights");
 
     // Retrieve and verify update
@@ -199,7 +209,9 @@ async fn test_hierarchical_fallback() {
     );
     global_weights.sample_count = 50;
 
-    scorer.store_weights(&global_weights).await
+    scorer
+        .store_weights(&global_weights)
+        .await
         .expect("Failed to store global weights");
 
     // Try to retrieve session weights (should fall back to global)
@@ -239,7 +251,9 @@ async fn test_weights_with_optional_context() {
     weights.task_type = Some("documentation".to_string());
     weights.sample_count = 15;
 
-    scorer.store_weights(&weights).await
+    scorer
+        .store_weights(&weights)
+        .await
         .expect("Failed to store weights with context");
 
     // Retrieve with matching context
@@ -319,19 +333,43 @@ async fn test_multiple_scopes_independent() {
 
     // Verify each scope maintains independent values
     let session = scorer
-        .get_weights_with_fallback(Scope::Session, "session-1", "memory", "optimizer", None, None, None)
+        .get_weights_with_fallback(
+            Scope::Session,
+            "session-1",
+            "memory",
+            "optimizer",
+            None,
+            None,
+            None,
+        )
         .await
         .unwrap();
     assert_eq!(session.sample_count, 5);
 
     let project = scorer
-        .get_weights_with_fallback(Scope::Project, "project-1", "memory", "optimizer", None, None, None)
+        .get_weights_with_fallback(
+            Scope::Project,
+            "project-1",
+            "memory",
+            "optimizer",
+            None,
+            None,
+            None,
+        )
         .await
         .unwrap();
     assert_eq!(project.sample_count, 15);
 
     let global = scorer
-        .get_weights_with_fallback(Scope::Global, "global", "memory", "optimizer", None, None, None)
+        .get_weights_with_fallback(
+            Scope::Global,
+            "global",
+            "memory",
+            "optimizer",
+            None,
+            None,
+            None,
+        )
         .await
         .unwrap();
     assert_eq!(global.sample_count, 100);

@@ -2,9 +2,8 @@
 
 use crate::rpc::generated;
 use crate::types::{
-    LinkType as InternalLinkType,
-    MemoryNote as InternalMemoryNote, MemoryType as InternalMemoryType,
-    Namespace as InternalNamespace,
+    LinkType as InternalLinkType, MemoryNote as InternalMemoryNote,
+    MemoryType as InternalMemoryType, Namespace as InternalNamespace,
 };
 use tonic::Status;
 
@@ -26,18 +25,21 @@ pub fn namespace_from_proto(ns: generated::Namespace) -> Result<InternalNamespac
 /// Convert internal Namespace to Protobuf Namespace
 pub fn namespace_to_proto(ns: InternalNamespace) -> generated::Namespace {
     let namespace = match ns {
-        InternalNamespace::Global => {
-            Some(generated::namespace::Namespace::Global(generated::GlobalNamespace {}))
-        }
+        InternalNamespace::Global => Some(generated::namespace::Namespace::Global(
+            generated::GlobalNamespace {},
+        )),
         InternalNamespace::Project { name } => Some(generated::namespace::Namespace::Project(
             generated::ProjectNamespace { name },
         )),
-        InternalNamespace::Session { project, session_id } => {
-            Some(generated::namespace::Namespace::Session(generated::SessionNamespace {
+        InternalNamespace::Session {
+            project,
+            session_id,
+        } => Some(generated::namespace::Namespace::Session(
+            generated::SessionNamespace {
                 project,
                 session_id,
-            }))
-        }
+            },
+        )),
     };
     generated::Namespace { namespace }
 }

@@ -212,9 +212,9 @@ impl LibsqlStorage {
     ///
     /// For fresh databases (memories table doesn't exist), defaults to LibSQL schema.
     async fn detect_schema_type(db: &Database) -> Result<SchemaType> {
-        let conn = db
-            .connect()
-            .map_err(|e| MnemosyneError::Database(format!("Failed to connect for schema detection: {}", e)))?;
+        let conn = db.connect().map_err(|e| {
+            MnemosyneError::Database(format!("Failed to connect for schema detection: {}", e))
+        })?;
 
         // First, check if memories table exists
         let mut table_exists = false;
@@ -226,9 +226,12 @@ impl LibsqlStorage {
             .await
             .map_err(|e| MnemosyneError::Database(format!("Failed to query tables: {}", e)))?;
 
-        if tables.next().await.map_err(|e| {
-            MnemosyneError::Database(format!("Failed to read table list: {}", e))
-        })?.is_some() {
+        if tables
+            .next()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to read table list: {}", e)))?
+            .is_some()
+        {
             table_exists = true;
         }
 
@@ -243,12 +246,16 @@ impl LibsqlStorage {
         let mut rows = conn
             .query("PRAGMA table_info(memories)", params![])
             .await
-            .map_err(|e| MnemosyneError::Database(format!("Failed to query table schema: {}", e)))?;
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query table schema: {}", e))
+            })?;
 
         // Check if 'embedding' column exists
-        while let Some(row) = rows.next().await.map_err(|e| {
-            MnemosyneError::Database(format!("Failed to read schema row: {}", e))
-        })? {
+        while let Some(row) = rows
+            .next()
+            .await
+            .map_err(|e| MnemosyneError::Database(format!("Failed to read schema row: {}", e)))?
+        {
             let column_name: String = row.get(1).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to read column name: {}", e))
             })?;
@@ -3757,8 +3764,7 @@ impl LibsqlStorage {
         cache: &crate::version_check::VersionCheckCache,
     ) -> Result<()> {
         let conn = self.get_conn()?;
-        let tool_str = serde_json::to_string(&cache.tool)
-            ?;
+        let tool_str = serde_json::to_string(&cache.tool)?;
 
         conn.execute(
             "INSERT OR REPLACE INTO version_check_cache (tool, latest_version, release_url, checked_at, last_notified_version)
@@ -3777,8 +3783,7 @@ impl LibsqlStorage {
         tool: crate::version_check::Tool,
     ) -> Result<Option<crate::version_check::VersionCheckCache>> {
         let conn = self.get_conn()?;
-        let tool_str = serde_json::to_string(&tool)
-            ?;
+        let tool_str = serde_json::to_string(&tool)?;
 
         let mut rows = conn
             .query(
@@ -3794,8 +3799,7 @@ impl LibsqlStorage {
             let tool_json: String = row.get(0).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to get tool from cache: {}", e))
             })?;
-            let tool: crate::version_check::Tool = serde_json::from_str(&tool_json)
-                ?;
+            let tool: crate::version_check::Tool = serde_json::from_str(&tool_json)?;
             let latest_version: String = row.get(1).map_err(|e| {
                 MnemosyneError::Database(format!("Failed to get latest_version from cache: {}", e))
             })?;

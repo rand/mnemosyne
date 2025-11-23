@@ -345,7 +345,11 @@ impl Event {
     }
 
     /// Create agent error recorded event
-    pub fn agent_error_recorded(agent_id: String, error_count: usize, error_message: String) -> Self {
+    pub fn agent_error_recorded(
+        agent_id: String,
+        error_count: usize,
+        error_message: String,
+    ) -> Self {
         Self::new(EventType::AgentErrorRecorded {
             agent_id,
             error_count,
@@ -501,7 +505,11 @@ impl Event {
 
     // Skill event constructors
     /// Create skill loaded event
-    pub fn skill_loaded(skill_name: String, agent_id: Option<String>, relevance_score: f32) -> Self {
+    pub fn skill_loaded(
+        skill_name: String,
+        agent_id: Option<String>,
+        relevance_score: f32,
+    ) -> Self {
         Self::new(EventType::SkillLoaded {
             skill_name,
             agent_id,
@@ -605,7 +613,11 @@ impl Event {
     }
 
     /// Create sub-agent spawned event
-    pub fn sub_agent_spawned(parent_agent: String, sub_agent: String, task_description: String) -> Self {
+    pub fn sub_agent_spawned(
+        parent_agent: String,
+        sub_agent: String,
+        task_description: String,
+    ) -> Self {
         Self::new(EventType::SubAgentSpawned {
             parent_agent,
             sub_agent,
@@ -654,7 +666,11 @@ impl Event {
     }
 
     /// Create CLI command completed event
-    pub fn cli_command_completed(command: String, duration_ms: u64, result_summary: String) -> Self {
+    pub fn cli_command_completed(
+        command: String,
+        duration_ms: u64,
+        result_summary: String,
+    ) -> Self {
         Self::new(EventType::CliCommandCompleted {
             command,
             duration_ms,
@@ -738,7 +754,10 @@ impl EventBroadcaster {
     }
 
     /// Broadcast event to all subscribers
-    pub fn broadcast(&self, event: Event) -> Result<usize, Box<broadcast::error::SendError<Event>>> {
+    pub fn broadcast(
+        &self,
+        event: Event,
+    ) -> Result<usize, Box<broadcast::error::SendError<Event>>> {
         self.tx.send(event).map_err(Box::new)
     }
 

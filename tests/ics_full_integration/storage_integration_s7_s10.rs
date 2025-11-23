@@ -139,11 +139,7 @@ async fn s9_memory_deletion() {
         .expect("Store memory");
 
     // Verify exists
-    let exists = storage
-        .storage()
-        .get_memory(memory.id)
-        .await
-        .is_ok();
+    let exists = storage.storage().get_memory(memory.id).await.is_ok();
     assert!(exists, "Memory should exist");
 
     // Delete from ICS (soft delete/archive)

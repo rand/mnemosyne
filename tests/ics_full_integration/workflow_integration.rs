@@ -167,11 +167,7 @@ async fn w3_memory_lifecycle() {
     }
 
     // Phase 3: Evolution - increase importance based on access
-    let accessed = storage
-        .storage()
-        .get_memory(memory.id)
-        .await
-        .expect("Get");
+    let accessed = storage.storage().get_memory(memory.id).await.expect("Get");
 
     memory.importance = 8; // Increased from 5
     memory.access_count = accessed.access_count;

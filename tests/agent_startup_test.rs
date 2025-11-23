@@ -19,7 +19,7 @@ async fn test_agents_start_without_python_import_error() {
     let storage = Arc::new(
         LibsqlStorage::new(ConnectionMode::InMemory)
             .await
-            .expect("Failed to create storage")
+            .expect("Failed to create storage"),
     );
 
     // Create orchestration engine with default config
@@ -30,7 +30,10 @@ async fn test_agents_start_without_python_import_error() {
 
     // Start engine - this spawns all 4 agents (Orchestrator, Optimizer, Reviewer, Executor)
     // If Python modules aren't installed correctly, agents will exit immediately
-    engine.start().await.expect("Failed to start agents - check Python imports!");
+    engine
+        .start()
+        .await
+        .expect("Failed to start agents - check Python imports!");
 
     // Wait to ensure agents don't crash immediately
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;

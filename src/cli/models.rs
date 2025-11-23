@@ -1,8 +1,8 @@
 //! Embedding model management command
 
-use mnemosyne_core::{error::Result, EmbeddingConfig};
-use mnemosyne_core::orchestration::events::AgentEvent;
 use clap::Subcommand;
+use mnemosyne_core::orchestration::events::AgentEvent;
+use mnemosyne_core::{error::Result, EmbeddingConfig};
 
 use super::event_helpers;
 
@@ -47,10 +47,12 @@ pub async fn handle(action: ModelsAction) -> Result<()> {
                     operation: "list".to_string(),
                     model_name: None,
                     result_summary: "7 models available".to_string(),
-                }).await;
+                })
+                .await;
 
                 Ok(())
-            }).await
+            })
+            .await
         }
         ModelsAction::Info => {
             event_helpers::with_event_lifecycle("models-info", vec![], async {
@@ -97,10 +99,12 @@ pub async fn handle(action: ModelsAction) -> Result<()> {
                     operation: "info".to_string(),
                     model_name: None,
                     result_summary,
-                }).await;
+                })
+                .await;
 
                 Ok(())
-            }).await
+            })
+            .await
         }
         ModelsAction::Clear { yes } => {
             event_helpers::with_event_lifecycle("models-clear", vec![], async {
@@ -112,7 +116,8 @@ pub async fn handle(action: ModelsAction) -> Result<()> {
                         operation: "clear".to_string(),
                         model_name: None,
                         result_summary: "Cache directory does not exist".to_string(),
-                    }).await;
+                    })
+                    .await;
 
                     return Ok(());
                 }
@@ -144,10 +149,12 @@ pub async fn handle(action: ModelsAction) -> Result<()> {
                     operation: "clear".to_string(),
                     model_name: None,
                     result_summary,
-                }).await;
+                })
+                .await;
 
                 Ok(())
-            }).await
+            })
+            .await
         }
     }
 }

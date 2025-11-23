@@ -57,9 +57,7 @@ pub async fn handle(
             return Ok(());
         }
         let seed_ids: Vec<_> = seeds.iter().map(|s| s.memory.id).collect();
-        storage
-            .graph_traverse(&seed_ids, depth, namespace)
-            .await?
+        storage.graph_traverse(&seed_ids, depth, namespace).await?
     } else {
         // No query, list top memories (limit 100 to avoid huge graphs)
         storage
@@ -98,7 +96,7 @@ fn generate_dot(memories: &[MemoryNote]) -> String {
     for memory in memories {
         let short_id: String = memory.id.to_string().chars().take(8).collect();
         let label = format!("{}|{:?}", short_id, memory.memory_type);
-        
+
         dot.push_str(&format!(
             "  \"{}\" [label=\"{}\" tooltip=\"{}\"];\n",
             memory.id,
@@ -122,7 +120,11 @@ fn generate_mermaid(memories: &[MemoryNote]) -> String {
 
     for memory in memories {
         let id_clean = memory.id.to_string().replace("-", "");
-        let label = format!("{:?}: {}", memory.memory_type, escape_mermaid_string(&memory.summary));
+        let label = format!(
+            "{:?}: {}",
+            memory.memory_type,
+            escape_mermaid_string(&memory.summary)
+        );
 
         mm.push_str(&format!("  {}[{:?}]\n", id_clean, label));
 

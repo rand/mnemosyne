@@ -1,5 +1,6 @@
 //! HTTP API server command
 
+use super::event_helpers;
 use mnemosyne_core::{
     api::{ApiServer, ApiServerConfig},
     error::Result,
@@ -7,7 +8,6 @@ use mnemosyne_core::{
 };
 use std::net::SocketAddr;
 use tracing::debug;
-use super::event_helpers;
 
 /// Handle API server startup command
 pub async fn handle(addr: String, capacity: usize) -> Result<()> {
@@ -30,7 +30,8 @@ pub async fn handle(addr: String, capacity: usize) -> Result<()> {
         server_type: "api".to_string(),
         listen_addr: listen_addr.clone(),
         instance_id: instance_id.clone(),
-    }).await;
+    })
+    .await;
 
     println!();
     println!("🌐 Mnemosyne API Server");
@@ -61,7 +62,8 @@ pub async fn handle(addr: String, capacity: usize) -> Result<()> {
         server_type: "api".to_string(),
         uptime_ms,
         requests_handled: 0, // TODO: Track request count if ApiServer provides metrics
-    }).await;
+    })
+    .await;
 
     result.map_err(Into::into)
 }

@@ -14,8 +14,8 @@ use mnemosyne_core::{
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::helpers::get_default_db_path;
 use super::event_bridge;
+use super::helpers::get_default_db_path;
 
 #[derive(Subcommand)]
 pub enum EvolveJob {
@@ -89,11 +89,7 @@ pub async fn handle(job: EvolveJob, global_db_path: Option<String>) -> Result<()
     };
 
     // Emit CLI command started event
-    event_bridge::emit_command_started(
-        "evolve",
-        vec![job_name.to_string()],
-    )
-    .await;
+    event_bridge::emit_command_started("evolve", vec![job_name.to_string()]).await;
 
     // Emit evolution started event
     let evolve_start_event = AgentEvent::EvolveStarted {

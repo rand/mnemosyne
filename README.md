@@ -24,6 +24,16 @@ Mnemosyne provides persistent semantic memory with sub-millisecond retrieval, bu
 - **Sub-Agent Spawning**: Parallel work execution across child actors
 - **Event Persistence**: Complete audit trail of orchestration events with SSE broadcasting
 
+### Distributed Coordination
+- **Peer Discovery**: Automatic peer discovery on local network via `mnemosyne peer invite/join`
+- **Work Delegation**: Seamless offloading of tasks to available peers
+- **Iroh Networking**: P2P encrypted communication layer for secure direct connections
+
+### Network Visualization
+- **Network Graph**: Visual representation of connected peers and topology via `mnemosyne graph`
+- **Real-time Status**: Connection latency, bandwidth, and peer health monitoring
+- **Topology Awareness**: Automatic detection of network partitions and routing paths
+
 ### Evolution System
 - **Consolidation**: Detect and merge duplicate/similar memories with LLM-assisted analysis
 - **Importance Scoring**: Graph-based importance recalibration
@@ -684,6 +694,12 @@ See LICENSE file for details.
 ## Status
 
 **Current Version**: 2.3.1
+
+**v2.4.0 Release (2025-11-23)** - Distributed Coordination:
+- ✅ **Peer Discovery**: Iroh-based P2P discovery and connection management
+- ✅ **Work Delegation**: Distributed task execution across connected peers
+- ✅ **Network Visualization**: TUI-based network graph and status monitoring
+- ✅ **Documentation**: Updated guides for distributed setup and usage
 
 **v2.3.1 Release (2025-11-09)** - Dashboard Crash Fix:
 - ✅ **Critical Bug Fix**: Fixed dashboard crash from NaN values in health metrics

@@ -1,9 +1,9 @@
 //! MCP server startup command
 
+use super::event_helpers;
+use super::helpers::start_mcp_server;
 use mnemosyne_core::error::Result;
 use mnemosyne_core::orchestration::events::AgentEvent;
-use super::helpers::start_mcp_server;
-use super::event_helpers;
 
 /// Handle MCP server startup command
 pub async fn handle(db_path: Option<String>) -> Result<()> {
@@ -15,7 +15,8 @@ pub async fn handle(db_path: Option<String>) -> Result<()> {
         server_type: "mcp".to_string(),
         listen_addr: "stdio".to_string(),
         instance_id: instance_id.clone(),
-    }).await;
+    })
+    .await;
 
     // Start MCP server (automatically handles API server startup)
     let result = start_mcp_server(db_path).await;
@@ -26,7 +27,8 @@ pub async fn handle(db_path: Option<String>) -> Result<()> {
         server_type: "mcp".to_string(),
         uptime_ms,
         requests_handled: 0, // MCP doesn't track request count in stdio mode
-    }).await;
+    })
+    .await;
 
     result
 }

@@ -6,19 +6,13 @@
 mod cli;
 
 use clap::{Parser, Subcommand};
-use mnemosyne_core::{
-    error::Result,
-    launcher,
-};
+use mnemosyne_core::{error::Result, launcher};
 use std::path::PathBuf;
 use tracing::{debug, error, info, warn, Level};
 use tracing_subscriber::{self, EnvFilter};
 
 // Import helper functions from cli module
-use cli::helpers::{
-    get_db_path,
-    start_mcp_server,
-};
+use cli::helpers::{get_db_path, start_mcp_server};
 
 /// Mnemosyne CLI arguments
 #[derive(Parser)]
@@ -371,21 +365,15 @@ async fn main() -> Result<()> {
     }
 
     match cli.command {
-        Some(Commands::Serve) => {
-            cli::serve::handle(cli.db_path).await
-        }
+        Some(Commands::Serve) => cli::serve::handle(cli.db_path).await,
         Some(Commands::ApiServer { addr, capacity }) => {
             cli::api_server::handle(addr, capacity).await
         }
-        Some(Commands::Init { database }) => {
-            cli::init::handle(database, cli.db_path.clone()).await
-        }
+        Some(Commands::Init { database }) => cli::init::handle(database, cli.db_path.clone()).await,
         Some(Commands::Export { output, namespace }) => {
             cli::export::handle(output, namespace, cli.db_path.clone()).await
         }
-        Some(Commands::Status) => {
-            cli::status::handle(cli.db_path.clone()).await
-        }
+        Some(Commands::Status) => cli::status::handle(cli.db_path.clone()).await,
         Some(Commands::Edit {
             file,
             readonly,
@@ -393,15 +381,21 @@ async fn main() -> Result<()> {
             panel,
             session_context,
         }) => {
-            cli::edit::handle(file, readonly, template, panel, session_context, cli.db_path.clone())
-                .await
+            cli::edit::handle(
+                file,
+                readonly,
+                template,
+                panel,
+                session_context,
+                cli.db_path.clone(),
+            )
+            .await
         }
-        Some(Commands::Tui { with_ics: _, no_dashboard: _ }) => {
-            cli::tui::handle().await
-        }
-        Some(Commands::Config { action }) => {
-            cli::config::handle(action).await
-        }
+        Some(Commands::Tui {
+            with_ics: _,
+            no_dashboard: _,
+        }) => cli::tui::handle().await,
+        Some(Commands::Config { action }) => cli::config::handle(action).await,
         Some(Commands::Secrets { command }) => cli::secrets::handle(command).await,
         Some(Commands::Orchestrate {
             plan,
@@ -409,9 +403,7 @@ async fn main() -> Result<()> {
             dashboard,
             polling_interval: _,
             max_concurrent,
-        }) => {
-            cli::orchestrate::handle(plan, database, dashboard, max_concurrent).await
-        }
+        }) => cli::orchestrate::handle(plan, database, dashboard, max_concurrent).await,
         Some(Commands::Remember {
             content,
             namespace,
@@ -440,8 +432,15 @@ async fn main() -> Result<()> {
             min_importance,
             format,
         }) => {
-            cli::recall::handle(query, namespace, limit, min_importance, format, cli.db_path.clone())
-                .await
+            cli::recall::handle(
+                query,
+                namespace,
+                limit,
+                min_importance,
+                format,
+                cli.db_path.clone(),
+            )
+            .await
         }
         Some(Commands::Embed {
             all,
@@ -450,12 +449,17 @@ async fn main() -> Result<()> {
             batch_size,
             progress,
         }) => {
-            cli::embed::handle(all, memory_id, namespace, batch_size, progress, cli.db_path.clone())
-                .await
+            cli::embed::handle(
+                all,
+                memory_id,
+                namespace,
+                batch_size,
+                progress,
+                cli.db_path.clone(),
+            )
+            .await
         }
-        Some(Commands::Models { action }) => {
-            cli::models::handle(action).await
-        }
+        Some(Commands::Models { action }) => cli::models::handle(action).await,
         Some(Commands::Evolve { job }) => cli::evolve::handle(job, cli.db_path.clone()).await,
         Some(Commands::Graph {
             format,
@@ -464,15 +468,7 @@ async fn main() -> Result<()> {
             query,
             namespace,
         }) => {
-            cli::graph::handle(
-                format,
-                depth,
-                output,
-                query,
-                namespace,
-                cli.db_path.clone(),
-            )
-            .await
+            cli::graph::handle(format, depth, output, query, namespace, cli.db_path.clone()).await
         }
         Some(Commands::Artifact { command }) => {
             cli::artifact::handle(command, cli.db_path.clone()).await
@@ -480,9 +476,11 @@ async fn main() -> Result<()> {
         Some(Commands::Doctor { verbose, fix, json }) => {
             cli::doctor::handle(verbose, fix, json, cli.db_path.clone()).await
         }
-        Some(Commands::Update { tools, install, check }) => {
-            cli::update::handle(tools, install, check).await
-        }
+        Some(Commands::Update {
+            tools,
+            install,
+            check,
+        }) => cli::update::handle(tools, install, check).await,
         Some(Commands::Internal { command }) => match command {
             InternalCommands::SessionStarted { instance_id } => {
                 cli::internal::handle_session_started(instance_id).await
@@ -491,9 +489,7 @@ async fn main() -> Result<()> {
                 cli::internal::handle_session_ended(instance_id).await
             }
         },
-        Some(Commands::Peer { action }) => {
-            cli::peer::handle(action).await
-        }
+        Some(Commands::Peer { action }) => cli::peer::handle(action).await,
         None => {
             use mnemosyne_core::api::{ApiServer, ApiServerConfig};
             use std::net::SocketAddr;
@@ -527,11 +523,7 @@ async fn main() -> Result<()> {
             });
 
             // Show clean launch UI with banner
-            launcher::ui::show_launch_header(
-                env!("CARGO_PKG_VERSION"),
-                &db_path,
-                &agent_names,
-            );
+            launcher::ui::show_launch_header(env!("CARGO_PKG_VERSION"), &db_path, &agent_names);
 
             // Check for updates (non-blocking, 3s timeout)
             launcher::ui::check_and_show_updates().await;

@@ -61,8 +61,8 @@ impl PanelId {
             PanelId::SystemOverview => Constraint::Length(8), // Fixed top panel
             PanelId::ActivityStream => Constraint::Percentage(60), // 60% of remaining
             PanelId::AgentDetails => Constraint::Percentage(40), // 40% of right column
-            PanelId::Network => Constraint::Length(8), // Fixed height
-            PanelId::Operations => Constraint::Min(10), // Remaining space
+            PanelId::Network => Constraint::Length(8),        // Fixed height
+            PanelId::Operations => Constraint::Min(10),       // Remaining space
         }
     }
 

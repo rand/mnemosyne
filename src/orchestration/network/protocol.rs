@@ -62,7 +62,7 @@ impl AgentProtocol {
     ) -> Result<()> {
         // Recv Hello
         let msg = Self::recv_wire_message(recv).await?;
-        
+
         match msg {
             WireMessage::Handshake(HandshakeMessage::Hello { secret }) => {
                 // Check secret
@@ -137,8 +137,7 @@ impl AgentProtocol {
             .map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
 
         // Deserialize message
-        bincode::deserialize(&data)
-            .map_err(|e| MnemosyneError::SerializationError(e.to_string()))
+        bincode::deserialize(&data).map_err(|e| MnemosyneError::SerializationError(e.to_string()))
     }
 
     /// Send a message over a stream

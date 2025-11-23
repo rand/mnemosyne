@@ -3,6 +3,7 @@
 //! Provides a REPL-style interface for submitting work to the orchestration engine
 //! and interacting with the memory system.
 
+use super::event_helpers;
 use mnemosyne_core::{
     api::StateManager,
     error::Result,
@@ -15,9 +16,11 @@ use mnemosyne_core::{
     },
 };
 use std::io::{self, Write};
-use std::sync::{Arc, atomic::{AtomicU64, Ordering}};
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
 use tracing::{debug, error, info};
-use super::event_helpers;
 
 /// Run interactive mode with orchestration engine
 pub async fn run(
@@ -31,7 +34,8 @@ pub async fn run(
     event_helpers::emit_domain_event(AgentEvent::InteractiveModeStarted {
         mode: "orchestration".to_string(),
         timestamp: chrono::Utc::now(),
-    }).await;
+    })
+    .await;
 
     println!();
     println!("📋 Mnemosyne Multi-Agent System");
@@ -110,7 +114,8 @@ pub async fn run(
     event_helpers::emit_domain_event(AgentEvent::InteractiveModeEnded {
         commands_executed: total_commands,
         duration_ms,
-    }).await;
+    })
+    .await;
 
     Ok(())
 }
@@ -125,17 +130,15 @@ async fn submit_work(
     // Create work item using constructor
     let item = WorkItem::new(
         description.to_string(),
-        AgentRole::Executor,       // Default to executor
-        Phase::PromptToSpec,       // Default phase
-        5,                          // Default priority
+        AgentRole::Executor, // Default to executor
+        Phase::PromptToSpec, // Default phase
+        5,                   // Default priority
     );
 
     let item_id = item.id.clone();
 
     // Send to orchestrator
-    match orchestrator
-        .send_message(OrchestratorMessage::SubmitWork(Box::new(item)))
-    {
+    match orchestrator.send_message(OrchestratorMessage::SubmitWork(Box::new(item))) {
         Ok(()) => {
             println!("✓ Work submitted: {}", item_id);
             println!("  View progress at: http://127.0.0.1:3000");
@@ -164,16 +167,15 @@ async fn show_status(state_manager: &Option<Arc<StateManager>>) -> Result<()> {
         println!("─────────────────────────────────────────────────────");
         for agent in agents {
             println!(
-                "  • {} - {} (updated: {})",
+                "  • {} - {:?} (updated: {})",
                 agent.id,
-                format!("{:?}", agent.state),
+                agent.state,
                 agent.updated_at.format("%H:%M:%S")
             );
 
             if let Some(health) = agent.health {
                 let status = if health.is_healthy { "✓" } else { "✗" };
-                println!("    Health: {} {} errors",
-                    status, health.error_count);
+                println!("    Health: {} {} errors", status, health.error_count);
             }
         }
         println!("─────────────────────────────────────────────────────");

@@ -17,12 +17,18 @@ impl From<MnemosyneError> for Status {
                 Code::Unavailable,
                 format!("LLM retry exhausted after {} attempts: {}", attempts, msg),
             ),
-            MnemosyneError::PythonInterop(msg) => (Code::Internal, format!("Python interop error: {}", msg)),
+            MnemosyneError::PythonInterop(msg) => {
+                (Code::Internal, format!("Python interop error: {}", msg))
+            }
             MnemosyneError::Embedding(msg) => (Code::Internal, format!("Embedding error: {}", msg)),
-            MnemosyneError::EmbeddingError(msg) => (Code::Internal, format!("Embedding error: {}", msg)),
+            MnemosyneError::EmbeddingError(msg) => {
+                (Code::Internal, format!("Embedding error: {}", msg))
+            }
             MnemosyneError::AuthenticationError(msg) => (Code::Unauthenticated, msg.clone()),
             MnemosyneError::RateLimitExceeded(msg) => (Code::ResourceExhausted, msg.clone()),
-            MnemosyneError::NetworkError(msg) => (Code::Unavailable, format!("Network error: {}", msg)),
+            MnemosyneError::NetworkError(msg) => {
+                (Code::Unavailable, format!("Network error: {}", msg))
+            }
             MnemosyneError::SerializationError(msg) => (
                 Code::InvalidArgument,
                 format!("Serialization error: {}", msg),
@@ -30,21 +36,41 @@ impl From<MnemosyneError> for Status {
             MnemosyneError::ValidationError(msg) => (Code::InvalidArgument, msg.clone()),
             MnemosyneError::InvalidMemoryId(_) => (Code::InvalidArgument, err.to_string()),
             MnemosyneError::InvalidId(id) => (Code::InvalidArgument, format!("Invalid ID: {}", id)),
-            MnemosyneError::MemoryNotFound(id) => (Code::NotFound, format!("Memory not found: {}", id)),
-            MnemosyneError::InvalidNamespace(ns) => (Code::InvalidArgument, format!("Invalid namespace: {}", ns)),
-            MnemosyneError::InvalidAgentRole(role) => (Code::InvalidArgument, format!("Invalid agent role: {}", role)),
-            MnemosyneError::McpProtocol(msg) => (Code::InvalidArgument, format!("Protocol error: {}", msg)),
+            MnemosyneError::MemoryNotFound(id) => {
+                (Code::NotFound, format!("Memory not found: {}", id))
+            }
+            MnemosyneError::InvalidNamespace(ns) => {
+                (Code::InvalidArgument, format!("Invalid namespace: {}", ns))
+            }
+            MnemosyneError::InvalidAgentRole(role) => (
+                Code::InvalidArgument,
+                format!("Invalid agent role: {}", role),
+            ),
+            MnemosyneError::McpProtocol(msg) => {
+                (Code::InvalidArgument, format!("Protocol error: {}", msg))
+            }
             MnemosyneError::InvalidOperation(msg) => (Code::FailedPrecondition, msg.clone()),
             MnemosyneError::AlreadyExists(msg) => (Code::AlreadyExists, msg.clone()),
             MnemosyneError::PermissionDenied(msg) => (Code::PermissionDenied, msg.clone()),
             MnemosyneError::ActorError(msg) => (Code::Internal, format!("Actor error: {}", msg)),
-            MnemosyneError::BranchConflict(msg) => (Code::Aborted, format!("Branch conflict: {}", msg)),
+            MnemosyneError::BranchConflict(msg) => {
+                (Code::Aborted, format!("Branch conflict: {}", msg))
+            }
             MnemosyneError::NotFound(msg) => (Code::NotFound, msg.clone()),
-            MnemosyneError::Config(err) => (Code::FailedPrecondition, format!("Configuration error: {}", err)),
+            MnemosyneError::Config(err) => (
+                Code::FailedPrecondition,
+                format!("Configuration error: {}", err),
+            ),
             MnemosyneError::Io(err) => (Code::Internal, format!("I/O error: {}", err)),
-            MnemosyneError::Serialization(err) => (Code::InvalidArgument, format!("Serialization error: {}", err)),
+            MnemosyneError::Serialization(err) => (
+                Code::InvalidArgument,
+                format!("Serialization error: {}", err),
+            ),
             MnemosyneError::Http(err) => (Code::Unavailable, format!("HTTP error: {}", err)),
-            MnemosyneError::AccessControl(msg) => (Code::PermissionDenied, format!("Access control error: {}", msg)),
+            MnemosyneError::AccessControl(msg) => (
+                Code::PermissionDenied,
+                format!("Access control error: {}", msg),
+            ),
             MnemosyneError::AuditLog(msg) => (Code::Internal, format!("Audit log error: {}", msg)),
             MnemosyneError::Other(msg) => (Code::Unknown, msg.clone()),
         };

@@ -82,7 +82,10 @@ impl<'a> Sparkline<'a> {
         // If all values are the same, show flat line at middle height
         if range < f32::EPSILON {
             let block = BLOCKS[4];
-            return Line::from(Span::styled(block.to_string().repeat(self.width), self.style));
+            return Line::from(Span::styled(
+                block.to_string().repeat(self.width),
+                self.style,
+            ));
         }
 
         // Sample or interpolate data to fit width

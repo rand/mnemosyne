@@ -9,10 +9,10 @@
 
 use crate::colors::DashboardColors;
 use crate::filters::EventCategory;
-use mnemosyne_core::api::events::{Event, EventType};
 use crate::time_series::TimeSeriesBuffer;
 use crate::widgets::{Sparkline, StateIndicator, StateType};
 use chrono::{DateTime, Utc};
+use mnemosyne_core::api::events::{Event, EventType};
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -135,8 +135,14 @@ impl SystemOverviewPanel {
     /// Extract human-readable event description
     fn event_description(event: &Event) -> String {
         match &event.event_type {
-            EventType::AgentFailed { agent_id, error, .. } => {
-                format!("Agent {} failed: {}", Self::truncate(agent_id, 10), Self::truncate(error, 40))
+            EventType::AgentFailed {
+                agent_id, error, ..
+            } => {
+                format!(
+                    "Agent {} failed: {}",
+                    Self::truncate(agent_id, 10),
+                    Self::truncate(error, 40)
+                )
             }
             EventType::CliCommandFailed { command, error, .. } => {
                 format!("CLI {} failed: {}", command, Self::truncate(error, 35))
@@ -144,17 +150,47 @@ impl SystemOverviewPanel {
             EventType::DeadlockDetected { blocked_items, .. } => {
                 format!("Deadlock: {} items blocked", blocked_items.len())
             }
-            EventType::AgentHealthDegraded { agent_id, error_count, .. } => {
-                format!("Agent {} degraded ({} errors)", Self::truncate(agent_id, 10), error_count)
+            EventType::AgentHealthDegraded {
+                agent_id,
+                error_count,
+                ..
+            } => {
+                format!(
+                    "Agent {} degraded ({} errors)",
+                    Self::truncate(agent_id, 10),
+                    error_count
+                )
             }
-            EventType::ReviewFailed { item_id, issues, attempt, .. } => {
-                format!("Review failed: {} (attempt {}, {} issues)", Self::truncate(item_id, 10), attempt, issues.len())
+            EventType::ReviewFailed {
+                item_id,
+                issues,
+                attempt,
+                ..
+            } => {
+                format!(
+                    "Review failed: {} (attempt {}, {} issues)",
+                    Self::truncate(item_id, 10),
+                    attempt,
+                    issues.len()
+                )
             }
             EventType::PhaseChanged { from, to, .. } => {
-                format!("Phase: {} → {}", Self::truncate(from, 15), Self::truncate(to, 15))
+                format!(
+                    "Phase: {} → {}",
+                    Self::truncate(from, 15),
+                    Self::truncate(to, 15)
+                )
             }
-            EventType::AgentErrorRecorded { agent_id, error_message, .. } => {
-                format!("Error in {}: {}", Self::truncate(agent_id, 10), Self::truncate(error_message, 35))
+            EventType::AgentErrorRecorded {
+                agent_id,
+                error_message,
+                ..
+            } => {
+                format!(
+                    "Error in {}: {}",
+                    Self::truncate(agent_id, 10),
+                    Self::truncate(error_message, 35)
+                )
             }
             _ => "Critical event".to_string(),
         }
@@ -202,7 +238,9 @@ impl SystemOverviewPanel {
             Span::styled("[", Style::default().fg(DashboardColors::SECONDARY)),
             Span::styled(
                 &instance_id[..instance_id.len().min(8)],
-                Style::default().fg(DashboardColors::HIGHLIGHT).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(DashboardColors::HIGHLIGHT)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::styled("]", Style::default().fg(DashboardColors::SECONDARY)),
             Span::raw(" Uptime: "),
@@ -210,7 +248,9 @@ impl SystemOverviewPanel {
             Span::raw(" | Agents: "),
             Span::styled(
                 format!("{}", self.metrics.agents_total),
-                Style::default().fg(DashboardColors::AGENT).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(DashboardColors::AGENT)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" | Graph: "),
             Span::styled(
@@ -225,8 +265,10 @@ impl SystemOverviewPanel {
         ])));
 
         // Row 2: Agent state breakdown
-        let active_indicator = StateIndicator::new(StateType::Active, format!("{}", self.metrics.agents_active));
-        let idle_indicator = StateIndicator::new(StateType::Idle, format!("{}", self.metrics.agents_idle));
+        let active_indicator =
+            StateIndicator::new(StateType::Active, format!("{}", self.metrics.agents_active));
+        let idle_indicator =
+            StateIndicator::new(StateType::Idle, format!("{}", self.metrics.agents_idle));
         let failed_indicator = if self.metrics.agents_failed > 0 {
             StateIndicator::new(StateType::Failed, format!("{}", self.metrics.agents_failed))
         } else {
@@ -251,9 +293,10 @@ impl SystemOverviewPanel {
                 .width(20)
                 .style(Style::default().fg(DashboardColors::SUCCESS));
 
-            let mut stores_spans = vec![
-                Span::styled("Memory Stores: ", Style::default().add_modifier(Modifier::DIM)),
-            ];
+            let mut stores_spans = vec![Span::styled(
+                "Memory Stores: ",
+                Style::default().add_modifier(Modifier::DIM),
+            )];
             stores_spans.extend(stores_sparkline.render().spans);
             stores_spans.push(Span::styled(
                 format!(" ({:.1}/min)", self.metrics.stores_per_min),
@@ -268,9 +311,10 @@ impl SystemOverviewPanel {
                 .width(20)
                 .style(Style::default().fg(DashboardColors::SKILL));
 
-            let mut recalls_spans = vec![
-                Span::styled("Memory Recalls: ", Style::default().add_modifier(Modifier::DIM)),
-            ];
+            let mut recalls_spans = vec![Span::styled(
+                "Memory Recalls: ",
+                Style::default().add_modifier(Modifier::DIM),
+            )];
             recalls_spans.extend(recalls_sparkline.render().spans);
             recalls_spans.push(Span::styled(
                 format!(" ({:.1}/min)", self.metrics.recalls_per_min),
@@ -283,7 +327,12 @@ impl SystemOverviewPanel {
         // Row 5: Recent critical events
         if let Some(last_event) = self.critical_events.last() {
             let events_line = Line::from(vec![
-                Span::styled("Critical: ", Style::default().fg(DashboardColors::ERROR).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "Critical: ",
+                    Style::default()
+                        .fg(DashboardColors::ERROR)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled(
                     last_event.description.clone(),
                     Style::default().fg(DashboardColors::ERROR),
@@ -326,13 +375,25 @@ impl SystemOverviewPanel {
         items.push(ListItem::new(Line::from(vec![
             Span::styled("Health: ", Style::default().add_modifier(Modifier::DIM)),
             Span::raw("CPU: "),
-            Span::styled(format!("{:.0}%", self.metrics.cpu_percent), Style::default().fg(cpu_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{:.0}%", self.metrics.cpu_percent),
+                Style::default().fg(cpu_color).add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" | RAM: "),
-            Span::styled(format!("{:.0}MB", self.metrics.memory_mb), Style::default().fg(mem_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{:.0}MB", self.metrics.memory_mb),
+                Style::default().fg(mem_color).add_modifier(Modifier::BOLD),
+            ),
             Span::raw(" | API: "),
-            Span::styled(format!("{} sub", self.metrics.subscribers), Style::default().fg(DashboardColors::IN_PROGRESS)),
+            Span::styled(
+                format!("{} sub", self.metrics.subscribers),
+                Style::default().fg(DashboardColors::IN_PROGRESS),
+            ),
             Span::raw(" | Last event: "),
-            Span::styled(last_event_str, Style::default().fg(DashboardColors::SECONDARY)),
+            Span::styled(
+                last_event_str,
+                Style::default().fg(DashboardColors::SECONDARY),
+            ),
         ])));
 
         // Render with border

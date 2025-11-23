@@ -109,11 +109,11 @@ use ractor::{Actor, ActorProcessingErr, ActorRef};
 use std::sync::Arc;
 
 #[cfg(feature = "python")]
-use crate::orchestration::ClaudeAgentBridge;
-#[cfg(feature = "python")]
 use crate::orchestration::actors::reviewer_dspy_adapter::ReviewerDSpyAdapter;
 #[cfg(feature = "python")]
 use crate::orchestration::dspy_instrumentation::DSpyInstrumentation;
+#[cfg(feature = "python")]
+use crate::orchestration::ClaudeAgentBridge;
 #[cfg(feature = "python")]
 use crate::python_bindings::{
     collect_implementation_from_memories, execution_memories_to_python_format,
@@ -244,12 +244,16 @@ pub struct ReviewerState {
 
 impl ReviewerState {
     pub fn new(storage: Arc<dyn StorageBackend>, namespace: Namespace) -> Self {
-        let llm_client = crate::services::LlmService::with_default().ok().map(Arc::new);
-        
+        let llm_client = crate::services::LlmService::with_default()
+            .ok()
+            .map(Arc::new);
+
         if llm_client.is_some() {
             tracing::info!("Reviewer initialized with direct LLM client support");
         } else {
-            tracing::warn!("Reviewer initialized without LLM client - validation capabilities limited");
+            tracing::warn!(
+                "Reviewer initialized without LLM client - validation capabilities limited"
+            );
         }
 
         Self {
@@ -314,7 +318,10 @@ impl ReviewerState {
                 }
             }
         });
-        tracing::info!("Heartbeat task spawned for {} (immediate first beat + 30s interval)", agent_id);
+        tracing::info!(
+            "Heartbeat task spawned for {} (immediate first beat + 30s interval)",
+            agent_id
+        );
     }
 
     /// Register DSPy instrumentation layer for LLM-based validation with telemetry
@@ -1049,19 +1056,24 @@ impl ReviewerActor {
         // Fallback to direct LLM client if DSPy is not available
         // We determine if we should run fallback based on config (if available) and adapter presence
         #[cfg(feature = "python")]
-        let should_run_fallback = state.config.enable_llm_validation && state.reviewer_adapter.is_none();
+        let should_run_fallback =
+            state.config.enable_llm_validation && state.reviewer_adapter.is_none();
         #[cfg(not(feature = "python"))]
         let should_run_fallback = true;
 
         if should_run_fallback {
             if let Some(llm_client) = &state.llm_client {
                 tracing::debug!("Using direct LLM client for correctness validation fallback");
-                
+
                 let mut implementation = String::new();
                 for memory_id in &result.memory_ids {
                     if let Ok(memory) = state.storage.get_memory(*memory_id).await {
                         use std::fmt::Write;
-                        let _ = write!(implementation, "File/Context: {}\n{}\n\n", memory.summary, memory.content);
+                        let _ = write!(
+                            implementation,
+                            "File/Context: {}\n{}\n\n",
+                            memory.summary, memory.content
+                        );
                     }
                 }
 
@@ -1072,20 +1084,23 @@ impl ReviewerActor {
                         "The implementation must be free of bugs and potential panics.".to_string(),
                     ];
 
-                    match llm_client.verify_requirements(&requirements, &implementation).await {
+                    match llm_client
+                        .verify_requirements(&requirements, &implementation)
+                        .await
+                    {
                         Ok(verification) => {
                             if !verification.passed {
                                 tracing::warn!(
-                                    "LLM correctness fallback validation failed with {} issues", 
+                                    "LLM correctness fallback validation failed with {} issues",
                                     verification.issues.len()
                                 );
                                 issues.extend(verification.issues);
                             } else {
                                 tracing::info!("LLM correctness fallback validation passed");
                             }
-                        },
+                        }
                         Err(e) => {
-                             tracing::warn!("LLM fallback validation failed: {}", e);
+                            tracing::warn!("LLM fallback validation failed: {}", e);
                         }
                     }
                 }
@@ -1435,10 +1450,14 @@ impl Actor for ReviewerActor {
                 #[cfg(not(feature = "python"))]
                 let work_item_with_reqs = work_item.clone();
 
-                let feedback =
-                    Self::review_work(state, item_id.clone(), result, (*work_item_with_reqs).clone())
-                        .await
-                        .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
+                let feedback = Self::review_work(
+                    state,
+                    item_id.clone(),
+                    result,
+                    (*work_item_with_reqs).clone(),
+                )
+                .await
+                .map_err(|e| ActorProcessingErr::from(e.to_string()))?;
 
                 let passed = feedback.gates.all_passed();
 
@@ -1516,7 +1535,7 @@ impl Actor for ReviewerActor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     use crate::LibsqlStorage;
     use std::time::Duration;
     use tempfile::TempDir;

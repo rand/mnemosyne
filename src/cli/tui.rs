@@ -1,7 +1,7 @@
 //! TUI wrapper command (deprecated)
 
-use mnemosyne_core::{error::Result, icons, orchestration::events::AgentEvent};
 use super::event_helpers;
+use mnemosyne_core::{error::Result, icons, orchestration::events::AgentEvent};
 
 /// Handle TUI wrapper command (deprecated)
 pub async fn handle() -> Result<()> {
@@ -11,7 +11,8 @@ pub async fn handle() -> Result<()> {
     event_helpers::emit_domain_event(AgentEvent::DashboardStarted {
         dashboard_type: "tui".to_string(),
         timestamp: chrono::Utc::now(),
-    }).await;
+    })
+    .await;
 
     // TUI wrapper mode is deprecated due to TUI-in-TUI conflicts
     eprintln!();
@@ -23,7 +24,10 @@ pub async fn handle() -> Result<()> {
     eprintln!("   The PTY wrapper mode has been removed due to terminal conflicts");
     eprintln!("   when wrapping Claude Code's TUI interface.");
     eprintln!();
-    eprintln!("   {} New Architecture: Composable Tools", icons::data::folder());
+    eprintln!(
+        "   {} New Architecture: Composable Tools",
+        icons::data::folder()
+    );
     eprintln!();
     eprintln!("   Instead of wrapping Claude Code, Mnemosyne now provides");
     eprintln!("   standalone tools that work alongside it:");
@@ -57,7 +61,8 @@ pub async fn handle() -> Result<()> {
     event_helpers::emit_domain_event(AgentEvent::DashboardStopped {
         dashboard_type: "tui".to_string(),
         duration_ms,
-    }).await;
+    })
+    .await;
 
     std::process::exit(1);
 }

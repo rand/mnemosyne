@@ -111,24 +111,18 @@ impl UpdateManager {
     /// Get installation instructions for a tool
     pub fn get_install_instructions(&self, tool: Tool) -> String {
         match tool {
-            Tool::Mnemosyne => {
-                "To install mnemosyne:\n\
+            Tool::Mnemosyne => "To install mnemosyne:\n\
                  1. Clone the repository: git clone https://github.com/rand/mnemosyne.git\n\
                  2. cd mnemosyne\n\
                  3. ./scripts/build-and-install.sh"
-                    .to_string()
-            }
-            Tool::ClaudeCode => {
-                "To install Claude Code:\n\
+                .to_string(),
+            Tool::ClaudeCode => "To install Claude Code:\n\
                  npm install -g @anthropic-ai/claude-code"
-                    .to_string()
-            }
-            Tool::Beads => {
-                "To install Beads:\n\
+                .to_string(),
+            Tool::Beads => "To install Beads:\n\
                  Option 1 (npm): npm install -g @beads/bd\n\
                  Option 2 (homebrew): brew tap steveyegge/beads && brew install bd"
-                    .to_string()
-            }
+                .to_string(),
         }
     }
 
@@ -145,7 +139,9 @@ impl UpdateManager {
             .current_dir(&repo_path)
             .args(["pull", "origin", "main"])
             .output()
-            .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run git pull: {}", e)))?;
+            .map_err(|e| {
+                MnemosyneError::InvalidOperation(format!("Failed to run git pull: {}", e))
+            })?;
 
         if !pull_output.status.success() {
             return Err(MnemosyneError::InvalidOperation(format!(
@@ -158,7 +154,11 @@ impl UpdateManager {
         let binary_path = self.version_checker.detect_tool_path(Tool::Mnemosyne);
         if let Some(bin_path) = &binary_path {
             let backup_path = bin_path.with_extension("backup");
-            debug!("Backing up binary: {} -> {}", bin_path.display(), backup_path.display());
+            debug!(
+                "Backing up binary: {} -> {}",
+                bin_path.display(),
+                backup_path.display()
+            );
             std::fs::copy(bin_path, &backup_path)?;
         }
 
@@ -175,7 +175,10 @@ impl UpdateManager {
             .current_dir(&repo_path)
             .output()
             .map_err(|e| {
-                MnemosyneError::InvalidOperation(format!("Failed to run build-and-install.sh: {}", e))
+                MnemosyneError::InvalidOperation(format!(
+                    "Failed to run build-and-install.sh: {}",
+                    e
+                ))
             })?;
 
         if !build_output.status.success() {
@@ -198,7 +201,9 @@ impl UpdateManager {
         let verify = Command::new("mnemosyne")
             .arg("--version")
             .output()
-            .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to verify new binary: {}", e)))?;
+            .map_err(|e| {
+                MnemosyneError::InvalidOperation(format!("Failed to verify new binary: {}", e))
+            })?;
 
         if !verify.status.success() {
             return Err(MnemosyneError::InvalidOperation(
@@ -240,7 +245,9 @@ impl UpdateManager {
         let output = Command::new("npm")
             .args(["update", "-g", "@anthropic-ai/claude-code"])
             .output()
-            .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run npm update: {}", e)))?;
+            .map_err(|e| {
+                MnemosyneError::InvalidOperation(format!("Failed to run npm update: {}", e))
+            })?;
 
         if !output.status.success() {
             return Err(MnemosyneError::InvalidOperation(format!(
@@ -259,7 +266,9 @@ impl UpdateManager {
         let output = Command::new("npm")
             .args(["install", "-g", "@anthropic-ai/claude-code"])
             .output()
-            .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run npm install: {}", e)))?;
+            .map_err(|e| {
+                MnemosyneError::InvalidOperation(format!("Failed to run npm install: {}", e))
+            })?;
 
         if !output.status.success() {
             return Err(MnemosyneError::InvalidOperation(format!(
@@ -300,7 +309,9 @@ impl UpdateManager {
         let output = Command::new("npm")
             .args(["install", "-g", "@beads/bd"])
             .output()
-            .map_err(|e| MnemosyneError::InvalidOperation(format!("Failed to run npm install: {}", e)))?;
+            .map_err(|e| {
+                MnemosyneError::InvalidOperation(format!("Failed to run npm install: {}", e))
+            })?;
 
         if !output.status.success() {
             return Err(MnemosyneError::InvalidOperation(format!(
@@ -316,8 +327,9 @@ impl UpdateManager {
     /// Find the mnemosyne repository on the system
     fn find_mnemosyne_repo(&self) -> Result<PathBuf> {
         // Try common locations
-        let home = std::env::var("HOME")
-            .map_err(|_| MnemosyneError::InvalidOperation("HOME environment variable not set".to_string()))?;
+        let home = std::env::var("HOME").map_err(|_| {
+            MnemosyneError::InvalidOperation("HOME environment variable not set".to_string())
+        })?;
 
         let search_paths = vec![
             PathBuf::from(format!("{}/src/mnemosyne", home)),

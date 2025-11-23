@@ -1,15 +1,14 @@
 //! Memory recall/query command
 
 use mnemosyne_core::{
-    utils::string::truncate_at_char_boundary, ConnectionMode, EmbeddingService, LibsqlStorage,
-    LlmConfig, Namespace, RemoteEmbeddingService, StorageBackend,
-    orchestration::events::AgentEvent,
+    orchestration::events::AgentEvent, utils::string::truncate_at_char_boundary, ConnectionMode,
+    EmbeddingService, LibsqlStorage, LlmConfig, Namespace, RemoteEmbeddingService, StorageBackend,
 };
 use std::collections::HashMap;
 use tracing::debug;
 
-use super::helpers::get_db_path;
 use super::event_bridge;
+use super::helpers::get_db_path;
 
 /// Handle memory recall command
 pub async fn handle(
@@ -25,10 +24,7 @@ pub async fn handle(
     // Emit CLI command started event
     event_bridge::emit_command_started(
         "recall",
-        vec![
-            format!("--query={}", query),
-            format!("--limit={}", limit),
-        ],
+        vec![format!("--query={}", query), format!("--limit={}", limit)],
     )
     .await;
 
@@ -78,15 +74,13 @@ pub async fn handle(
             None, // Use default model
             None, // Use default base URL
         ) {
-            Ok(embedding_service) => {
-                match embedding_service.embed(&query).await {
-                    Ok(query_embedding) => storage
-                        .vector_search(&query_embedding, limit * 2, ns.clone())
-                        .await
-                        .unwrap_or_default(),
-                    Err(_) => Vec::new(),
-                }
-            }
+            Ok(embedding_service) => match embedding_service.embed(&query).await {
+                Ok(query_embedding) => storage
+                    .vector_search(&query_embedding, limit * 2, ns.clone())
+                    .await
+                    .unwrap_or_default(),
+                Err(_) => Vec::new(),
+            },
             Err(_) => Vec::new(),
         }
     } else {

@@ -173,16 +173,16 @@ impl VersionChecker {
 
     /// Fetch latest version from GitHub releases
     async fn fetch_github_latest(&self, owner: &str, repo: &str) -> Result<(String, String)> {
-        let url = format!("https://api.github.com/repos/{}/{}/releases/latest", owner, repo);
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/releases/latest",
+            owner, repo
+        );
 
         debug!("Fetching latest release from: {}", url);
 
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| MnemosyneError::NetworkError(format!("GitHub API request failed: {}", e)))?;
+        let response = self.client.get(&url).send().await.map_err(|e| {
+            MnemosyneError::NetworkError(format!("GitHub API request failed: {}", e))
+        })?;
 
         if !response.status().is_success() {
             return Err(MnemosyneError::NetworkError(format!(
@@ -191,13 +191,16 @@ impl VersionChecker {
             )));
         }
 
-        let release: GitHubRelease = response
-            .json()
-            .await
-            .map_err(|e| MnemosyneError::NetworkError(format!("Failed to parse GitHub response: {}", e)))?;
+        let release: GitHubRelease = response.json().await.map_err(|e| {
+            MnemosyneError::NetworkError(format!("Failed to parse GitHub response: {}", e))
+        })?;
 
         // Strip 'v' prefix if present
-        let version = release.tag_name.strip_prefix('v').unwrap_or(&release.tag_name).to_string();
+        let version = release
+            .tag_name
+            .strip_prefix('v')
+            .unwrap_or(&release.tag_name)
+            .to_string();
 
         Ok((version, release.html_url))
     }
@@ -208,12 +211,9 @@ impl VersionChecker {
 
         debug!("Fetching npm package info from: {}", url);
 
-        let response = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| MnemosyneError::NetworkError(format!("npm registry request failed: {}", e)))?;
+        let response = self.client.get(&url).send().await.map_err(|e| {
+            MnemosyneError::NetworkError(format!("npm registry request failed: {}", e))
+        })?;
 
         if !response.status().is_success() {
             return Err(MnemosyneError::NetworkError(format!(
@@ -222,10 +222,9 @@ impl VersionChecker {
             )));
         }
 
-        let package_info: NpmPackage = response
-            .json()
-            .await
-            .map_err(|e| MnemosyneError::NetworkError(format!("Failed to parse npm response: {}", e)))?;
+        let package_info: NpmPackage = response.json().await.map_err(|e| {
+            MnemosyneError::NetworkError(format!("Failed to parse npm response: {}", e))
+        })?;
 
         let version = package_info.dist_tags.latest;
         let release_url = format!("https://www.npmjs.com/package/{}", package);
@@ -243,10 +242,7 @@ impl VersionChecker {
         let binary_name = tool.name();
 
         // Try executing with --version
-        let output = Command::new(binary_name)
-            .arg("--version")
-            .output()
-            .ok()?;
+        let output = Command::new(binary_name).arg("--version").output().ok()?;
 
         if !output.status.success() {
             return None;
@@ -262,9 +258,21 @@ impl VersionChecker {
 
         // Common installation locations
         let search_paths = vec![
-            PathBuf::from(format!("{}/bin/{}", std::env::var("HOME").ok()?, binary_name)),
-            PathBuf::from(format!("{}/.cargo/bin/{}", std::env::var("HOME").ok()?, binary_name)),
-            PathBuf::from(format!("{}/.local/bin/{}", std::env::var("HOME").ok()?, binary_name)),
+            PathBuf::from(format!(
+                "{}/bin/{}",
+                std::env::var("HOME").ok()?,
+                binary_name
+            )),
+            PathBuf::from(format!(
+                "{}/.cargo/bin/{}",
+                std::env::var("HOME").ok()?,
+                binary_name
+            )),
+            PathBuf::from(format!(
+                "{}/.local/bin/{}",
+                std::env::var("HOME").ok()?,
+                binary_name
+            )),
             PathBuf::from(format!("/usr/local/bin/{}", binary_name)),
             PathBuf::from(format!("/opt/homebrew/bin/{}", binary_name)),
         ];
@@ -276,10 +284,7 @@ impl VersionChecker {
         }
 
         // Try using 'which'
-        let which_output = Command::new("which")
-            .arg(binary_name)
-            .output()
-            .ok()?;
+        let which_output = Command::new("which").arg(binary_name).output().ok()?;
 
         if which_output.status.success() {
             let path_str = String::from_utf8_lossy(&which_output.stdout);
@@ -349,9 +354,7 @@ impl VersionChecker {
             .split('.')
             .filter_map(|part| {
                 // Handle versions like "1.2.3-beta"
-                part.split('-')
-                    .next()
-                    .and_then(|p| p.parse::<u32>().ok())
+                part.split('-').next().and_then(|p| p.parse::<u32>().ok())
             })
             .collect()
     }

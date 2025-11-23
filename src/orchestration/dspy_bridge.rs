@@ -514,13 +514,11 @@ mod tests {
                 py_list_bound.get_item(1).unwrap().extract::<i64>().unwrap(),
                 2
             );
-            assert!(
-                py_list_bound
-                    .get_item(2)
-                    .unwrap()
-                    .extract::<bool>()
-                    .unwrap()
-            );
+            assert!(py_list_bound
+                .get_item(2)
+                .unwrap()
+                .extract::<bool>()
+                .unwrap());
         });
     }
 

@@ -381,22 +381,19 @@ async fn test_consolidation_accuracy() {
                     mnemosyne_core::types::ConsolidationDecision::KeepBoth => "KEEP_BOTH",
                 };
 
-                let matches = match (&expected, &decision) {
+                let matches = matches!(
+                    (&expected, &decision),
                     (
                         ConsolidationExpectation::Merge,
                         mnemosyne_core::types::ConsolidationDecision::Merge { .. },
-                    ) => true,
-                    (
+                    ) | (
                         ConsolidationExpectation::Supersede,
                         mnemosyne_core::types::ConsolidationDecision::Supersede { .. },
-                    ) => true,
-                    (
+                    ) | (
                         ConsolidationExpectation::KeepBoth,
                         mnemosyne_core::types::ConsolidationDecision::KeepBoth,
-                    ) => true,
-                    (ConsolidationExpectation::Any, _) => true,
-                    _ => false,
-                };
+                    ) | (ConsolidationExpectation::Any, _,)
+                );
 
                 if matches {
                     correct += 1;

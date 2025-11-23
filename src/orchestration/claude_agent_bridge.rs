@@ -159,10 +159,12 @@ impl ClaudeAgentBridge {
                 // Create config dict with API key if available
                 let config_dict = pyo3::types::PyDict::new_bound(py);
                 if let Some(ref key) = api_key {
-                    config_dict.set_item("anthropic_api_key", key).map_err(|e| {
-                        error!("Failed to set API key in config dict: {}", e);
-                        MnemosyneError::Other(format!("Config dict creation failed: {}", e))
-                    })?;
+                    config_dict
+                        .set_item("anthropic_api_key", key)
+                        .map_err(|e| {
+                            error!("Failed to set API key in config dict: {}", e);
+                            MnemosyneError::Other(format!("Config dict creation failed: {}", e))
+                        })?;
                 }
 
                 // Create agent instance with config
@@ -304,10 +306,12 @@ impl ClaudeAgentBridge {
                 })?;
 
                 // Call execute_work to get coroutine
-                let coro = agent_ref.call_method1("execute_work", (py_work,)).map_err(|e| {
-                    error!("Failed to call execute_work: {}", e);
-                    MnemosyneError::Other(format!("execute_work call failed: {}", e))
-                })?;
+                let coro = agent_ref
+                    .call_method1("execute_work", (py_work,))
+                    .map_err(|e| {
+                        error!("Failed to call execute_work: {}", e);
+                        MnemosyneError::Other(format!("execute_work call failed: {}", e))
+                    })?;
 
                 // Run coroutine with asyncio.run()
                 let py_result = asyncio.call_method1("run", (coro,)).map_err(|e| {
@@ -489,7 +493,11 @@ fn work_item_to_python(py: Python, item: &WorkItem) -> Result<PyObject> {
 
 /// Extract WorkResult from Python result dict
 #[cfg(feature = "python")]
-fn extract_work_result(_py: Python, result: &Bound<PyAny>, item_id: crate::orchestration::state::WorkItemId) -> Result<WorkResult> {
+fn extract_work_result(
+    _py: Python,
+    result: &Bound<PyAny>,
+    item_id: crate::orchestration::state::WorkItemId,
+) -> Result<WorkResult> {
     // Result is a Python dict, so we need to use dict item access
     let result_dict = result
         .downcast::<PyDict>()
@@ -504,17 +512,13 @@ fn extract_work_result(_py: Python, result: &Bound<PyAny>, item_id: crate::orche
         .map_err(|e| MnemosyneError::Other(format!("Failed to extract success: {}", e)))?;
 
     // Extract data (optional serialized result)
-    let data = result_dict
-        .get_item("data")
-        .ok()
-        .flatten()
-        .and_then(|d| {
-            if d.is_none() {
-                None
-            } else {
-                d.extract::<String>().ok()
-            }
-        });
+    let data = result_dict.get_item("data").ok().flatten().and_then(|d| {
+        if d.is_none() {
+            None
+        } else {
+            d.extract::<String>().ok()
+        }
+    });
 
     // Extract memory IDs (optional list)
     let memory_ids = if let Ok(Some(memory_ids_item)) = result_dict.get_item("memory_ids") {
@@ -536,17 +540,13 @@ fn extract_work_result(_py: Python, result: &Bound<PyAny>, item_id: crate::orche
     };
 
     // Extract error if present (optional)
-    let error = result_dict
-        .get_item("error")
-        .ok()
-        .flatten()
-        .and_then(|e| {
-            if e.is_none() {
-                None
-            } else {
-                e.extract::<String>().ok()
-            }
-        });
+    let error = result_dict.get_item("error").ok().flatten().and_then(|e| {
+        if e.is_none() {
+            None
+        } else {
+            e.extract::<String>().ok()
+        }
+    });
 
     Ok(WorkResult {
         item_id,
@@ -577,11 +577,7 @@ impl ClaudeAgentBridge {
 
         let count = *error_count;
 
-        warn!(
-            "Python agent {} error count: {}",
-            self.agent_id,
-            count
-        );
+        warn!("Python agent {} error count: {}", self.agent_id, count);
 
         // Broadcast error recorded event
         let event = Event::agent_error_recorded(
@@ -594,11 +590,12 @@ impl ClaudeAgentBridge {
         }
 
         // Check if health has degraded
-        if count >= 3 {  // Warning threshold at 3 errors
+        if count >= 3 {
+            // Warning threshold at 3 errors
             let event = Event::agent_health_degraded(
                 self.agent_id.clone(),
                 count,
-                count < 5,  // Unhealthy at 5+ errors
+                count < 5, // Unhealthy at 5+ errors
             );
             if let Err(e) = self.event_tx.send(event) {
                 warn!("Failed to broadcast health degraded event: {}", e);
@@ -795,9 +792,7 @@ mod tests {
             // Create mock Python result dict
             let py_dict = PyDict::new_bound(py);
             py_dict.set_item("success", true).unwrap();
-            py_dict
-                .set_item("data", "some result data")
-                .unwrap();
+            py_dict.set_item("data", "some result data").unwrap();
             py_dict
                 .set_item("memory_ids", PyList::new_bound(py, ["mem-1", "mem-2"]))
                 .unwrap();

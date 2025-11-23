@@ -242,7 +242,11 @@ async fn events_handler(
     let agents = state.state.list_agents().await;
     let context_files = state.state.list_context_files().await;
 
-    debug!("Snapshot: {} agents, {} context files", agents.len(), context_files.len());
+    debug!(
+        "Snapshot: {} agents, {} context files",
+        agents.len(),
+        context_files.len()
+    );
 
     // Create synthetic snapshot events for current state
     let mut snapshot_events = Vec::new();
@@ -263,7 +267,10 @@ async fn events_handler(
         }
     }
 
-    debug!("Sending {} snapshot events to new client", snapshot_events.len());
+    debug!(
+        "Sending {} snapshot events to new client",
+        snapshot_events.len()
+    );
 
     // Subscribe to live event stream
     let rx = state.events.subscribe();

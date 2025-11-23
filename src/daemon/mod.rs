@@ -33,8 +33,8 @@
 //! }
 //! ```
 
-pub mod orchestration;
 pub mod ipc;
+pub mod orchestration;
 
 use crate::error::{MnemosyneError, Result};
 use std::fs;

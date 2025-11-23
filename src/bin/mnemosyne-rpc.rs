@@ -60,14 +60,10 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     // Initialize logging
-    let log_level = args.log_level.parse::<Level>()
-        .unwrap_or(Level::INFO);
+    let log_level = args.log_level.parse::<Level>().unwrap_or(Level::INFO);
 
     tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::from_default_env()
-                .add_directive(log_level.into())
-        )
+        .with_env_filter(EnvFilter::from_default_env().add_directive(log_level.into()))
         .init();
 
     info!("Starting mnemosyne RPC server");
@@ -84,8 +80,7 @@ async fn main() -> Result<()> {
 
     // Ensure parent directory exists
     if let Some(parent) = db_path.parent() {
-        std::fs::create_dir_all(parent)
-            .context("Failed to create database directory")?;
+        std::fs::create_dir_all(parent).context("Failed to create database directory")?;
     }
 
     // Convert PathBuf to &str for LibsqlStorage
@@ -110,8 +105,7 @@ async fn main() -> Result<()> {
                 temperature: 0.7,
             };
             Some(Arc::new(
-                LlmService::new(llm_config)
-                    .context("Failed to initialize LLM service")?,
+                LlmService::new(llm_config).context("Failed to initialize LLM service")?,
             ))
         } else {
             info!("LLM enrichment requested but no API key provided");
@@ -127,8 +121,7 @@ async fn main() -> Result<()> {
 
     info!("RPC server listening on {}", addr);
 
-    server.serve(addr).await
-        .context("RPC server failed")?;
+    server.serve(addr).await.context("RPC server failed")?;
 
     Ok(())
 }

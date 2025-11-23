@@ -179,24 +179,19 @@ impl MemoryTracker {
         if usage_pct > 80.0 {
             warn!(
                 usage_pct = format!("{:.1}%", usage_pct),
-                current_mb,
-                system_total_mb,
-                "Memory usage critical"
+                current_mb, system_total_mb, "Memory usage critical"
             );
             MemoryStatus::Critical
         } else if usage_pct > 60.0 {
             warn!(
                 usage_pct = format!("{:.1}%", usage_pct),
-                current_mb,
-                system_total_mb,
-                "Memory usage high"
+                current_mb, system_total_mb, "Memory usage high"
             );
             MemoryStatus::High
         } else if usage_pct > 40.0 {
             debug!(
                 usage_pct = format!("{:.1}%", usage_pct),
-                current_mb,
-                "Memory usage moderate"
+                current_mb, "Memory usage moderate"
             );
             MemoryStatus::Moderate
         } else {
@@ -249,10 +244,10 @@ impl MemorySnapshot {
 /// Memory usage status
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MemoryStatus {
-    Normal,    // < 40%
-    Moderate,  // 40-60%
-    High,      // 60-80%
-    Critical,  // > 80%
+    Normal,   // < 40%
+    Moderate, // 40-60%
+    High,     // 60-80%
+    Critical, // > 80%
 }
 
 /// Global memory tracker instance

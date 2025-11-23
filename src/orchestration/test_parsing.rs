@@ -48,20 +48,28 @@ fn parse_cargo_output(output: &str) -> Option<TestExecution> {
     });
 
     // Look for failed tests: "test tests::test_name ... FAILED"
-    let failed_re = CARGO_FAILED_RE.get_or_init(|| {
-        Regex::new(r"test ([a-zA-Z0-9_:]+) \.\.\. FAILED").unwrap()
-    });
+    let failed_re =
+        CARGO_FAILED_RE.get_or_init(|| Regex::new(r"test ([a-zA-Z0-9_:]+) \.\.\. FAILED").unwrap());
 
     // Scan specifically for the final result line
     for line in output.lines().rev() {
         if let Some(caps) = result_re.captures(line) {
             let status = caps.get(1).map_or("", |m| m.as_str());
-            let passed_count = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let failed_count = caps.get(3).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-            let ignored_count = caps.get(4).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+            let passed_count = caps
+                .get(2)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let failed_count = caps
+                .get(3)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
+            let ignored_count = caps
+                .get(4)
+                .and_then(|m| m.as_str().parse().ok())
+                .unwrap_or(0);
 
             let passed = status == "ok";
-            
+
             // Extract failed test names if failed
             let mut failed_tests = Vec::new();
             if !passed {
@@ -97,25 +105,33 @@ fn parse_pytest_output(output: &str) -> Option<TestExecution> {
     let summary_re = PYTEST_SUMMARY_RE.get_or_init(|| {
         Regex::new(r"=+ (?:(\d+) failed, )?(?:(\d+) passed)?(?:, )?(?:(\d+) skipped)?").unwrap()
     });
-    
-    let failed_re = PYTEST_FAILED_RE.get_or_init(|| {
-        Regex::new(r"FAILED .+::(.+) -").unwrap()
-    });
+
+    let failed_re = PYTEST_FAILED_RE.get_or_init(|| Regex::new(r"FAILED .+::(.+) -").unwrap());
 
     for line in output.lines().rev() {
-        if line.contains("===") { // Optimization: check for boundary markers
+        if line.contains("===") {
+            // Optimization: check for boundary markers
             if let Some(caps) = summary_re.captures(line) {
-                let failed_count = caps.get(1).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-                let passed_count = caps.get(2).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
-                let ignored_count = caps.get(3).and_then(|m| m.as_str().parse().ok()).unwrap_or(0);
+                let failed_count = caps
+                    .get(1)
+                    .and_then(|m| m.as_str().parse().ok())
+                    .unwrap_or(0);
+                let passed_count = caps
+                    .get(2)
+                    .and_then(|m| m.as_str().parse().ok())
+                    .unwrap_or(0);
+                let ignored_count = caps
+                    .get(3)
+                    .and_then(|m| m.as_str().parse().ok())
+                    .unwrap_or(0);
 
                 // If we matched *something* numeric, it's likely a summary line
                 if failed_count + passed_count + ignored_count > 0 {
                     let passed = failed_count == 0;
-                    
+
                     let mut failed_tests = Vec::new();
                     if !passed {
-                         for line in output.lines() {
+                        for line in output.lines() {
                             if let Some(caps) = failed_re.captures(line) {
                                 if let Some(name) = caps.get(1) {
                                     failed_tests.push(name.as_str().to_string());

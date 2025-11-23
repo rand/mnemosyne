@@ -3,8 +3,8 @@
 //! Transforms raw event streams into meaningful operation timelines by correlating
 //! start/complete events, calculating durations, and tracking outcomes.
 
-use mnemosyne_core::api::events::{Event, EventType};
 use chrono::{DateTime, Utc};
+use mnemosyne_core::api::events::{Event, EventType};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -177,11 +177,7 @@ impl CorrelationTracker {
                 agent_id,
                 timestamp,
                 ..
-            } => Some((
-                CorrelationKey::Agent(agent_id.clone()),
-                true,
-                *timestamp,
-            )),
+            } => Some((CorrelationKey::Agent(agent_id.clone()), true, *timestamp)),
 
             EventType::MemoryEvolutionStarted { timestamp, .. } => {
                 Some((CorrelationKey::MemoryEvolution, true, *timestamp))
@@ -189,11 +185,7 @@ impl CorrelationTracker {
 
             EventType::WorkItemAssigned {
                 item_id, timestamp, ..
-            } => Some((
-                CorrelationKey::WorkItem(item_id.clone()),
-                true,
-                *timestamp,
-            )),
+            } => Some((CorrelationKey::WorkItem(item_id.clone()), true, *timestamp)),
 
             _ => None,
         }
@@ -222,29 +214,17 @@ impl CorrelationTracker {
                 agent_id,
                 timestamp,
                 ..
-            } => Some((
-                CorrelationKey::Agent(agent_id.clone()),
-                *timestamp,
-                false,
-            )),
+            } => Some((CorrelationKey::Agent(agent_id.clone()), *timestamp, false)),
 
             EventType::AgentFailed {
                 agent_id,
                 timestamp,
                 ..
-            } => Some((
-                CorrelationKey::Agent(agent_id.clone()),
-                *timestamp,
-                true,
-            )),
+            } => Some((CorrelationKey::Agent(agent_id.clone()), *timestamp, true)),
 
             EventType::WorkItemCompleted {
                 item_id, timestamp, ..
-            } => Some((
-                CorrelationKey::WorkItem(item_id.clone()),
-                *timestamp,
-                false,
-            )),
+            } => Some((CorrelationKey::WorkItem(item_id.clone()), *timestamp, false)),
 
             _ => None,
         }
@@ -273,10 +253,11 @@ impl CorrelationTracker {
 
     /// Get statistics
     pub fn stats(&self) -> CorrelationStats {
-        let mut stats = CorrelationStats::default();
-
-        stats.pending_count = self.pending.len();
-        stats.completed_count = self.completed.len();
+        let mut stats = CorrelationStats {
+            pending_count: self.pending.len(),
+            completed_count: self.completed.len(),
+            ..Default::default()
+        };
 
         for correlated in &self.completed {
             if correlated.status == OperationStatus::Failed {

@@ -214,7 +214,9 @@ impl StateManager {
             tracing::info!("StateManager subscribed to event stream");
 
             while let Ok(event) = event_rx.recv().await {
-                if let Err(e) = Self::apply_event_static(event, &agents, &context_files, &metrics).await {
+                if let Err(e) =
+                    Self::apply_event_static(event, &agents, &context_files, &metrics).await
+                {
                     tracing::warn!("Failed to apply event to state: {}", e);
                 }
             }
@@ -246,7 +248,7 @@ impl StateManager {
                         },
                         updated_at: Utc::now(),
                         metadata: HashMap::new(),
-                        health: Some(AgentHealth::default()),  // Initialize healthy
+                        health: Some(AgentHealth::default()), // Initialize healthy
                     },
                 );
                 tracing::debug!("State updated: agent {} started", agent_id);
@@ -285,7 +287,10 @@ impl StateManager {
                     health.is_healthy = error_count < 5;
                     agent.health = Some(health);
                     agent.updated_at = Utc::now();
-                    tracing::debug!("State updated: agent error recorded (count: {})", error_count);
+                    tracing::debug!(
+                        "State updated: agent error recorded (count: {})",
+                        error_count
+                    );
                 }
             }
             EventType::AgentHealthDegraded {
@@ -337,7 +342,7 @@ impl StateManager {
                             state: AgentState::Idle,
                             updated_at: Utc::now(),
                             metadata: HashMap::new(),
-                            health: Some(AgentHealth::default()),  // Initialize healthy
+                            health: Some(AgentHealth::default()), // Initialize healthy
                         },
                     );
                     tracing::debug!(
@@ -390,7 +395,11 @@ impl StateManager {
             EventType::PhaseChanged { from, to, .. } => {
                 tracing::info!("Phase transition: {} → {}", from, to);
                 let mut metrics_guard = metrics.write().await;
-                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                let mut current_work = metrics_guard
+                    .work_series()
+                    .latest()
+                    .cloned()
+                    .unwrap_or_default();
                 current_work.current_phase = to.clone();
                 metrics_guard.update_work(current_work);
             }
@@ -473,42 +482,80 @@ impl StateManager {
                 }
                 // Update work progress metrics
                 let mut metrics_guard = metrics.write().await;
-                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                let mut current_work = metrics_guard
+                    .work_series()
+                    .latest()
+                    .cloned()
+                    .unwrap_or_default();
                 current_work.completed_tasks += 1;
                 metrics_guard.update_work(current_work);
             }
             // Skill events
-            EventType::SkillLoaded { skill_name, agent_id, .. } => {
+            EventType::SkillLoaded {
+                skill_name,
+                agent_id,
+                ..
+            } => {
                 tracing::debug!("Skill loaded: {} by {:?}", skill_name, agent_id);
                 let mut metrics_guard = metrics.write().await;
-                let mut current_skills = metrics_guard.skills_series().latest().cloned().unwrap_or_default();
+                let mut current_skills = metrics_guard
+                    .skills_series()
+                    .latest()
+                    .cloned()
+                    .unwrap_or_default();
                 if !current_skills.loaded_skills.contains(&skill_name) {
                     current_skills.loaded_skills.push(skill_name.clone());
                     current_skills.loaded_skills.sort();
                 }
-                *current_skills.usage_counts.entry(skill_name.clone()).or_insert(0) += 1;
+                *current_skills
+                    .usage_counts
+                    .entry(skill_name.clone())
+                    .or_insert(0) += 1;
                 metrics_guard.update_skills(current_skills);
             }
-            EventType::SkillUnloaded { skill_name, reason, .. } => {
+            EventType::SkillUnloaded {
+                skill_name, reason, ..
+            } => {
                 tracing::debug!("Skill unloaded: {} ({})", skill_name, reason);
                 let mut metrics_guard = metrics.write().await;
-                let mut current_skills = metrics_guard.skills_series().latest().cloned().unwrap_or_default();
+                let mut current_skills = metrics_guard
+                    .skills_series()
+                    .latest()
+                    .cloned()
+                    .unwrap_or_default();
                 current_skills.loaded_skills.retain(|s| s != &skill_name);
                 metrics_guard.update_skills(current_skills);
             }
-            EventType::SkillUsed { skill_name, agent_id, .. } => {
+            EventType::SkillUsed {
+                skill_name,
+                agent_id,
+                ..
+            } => {
                 tracing::trace!("Skill used: {} by {}", skill_name, agent_id);
                 let mut metrics_guard = metrics.write().await;
-                let mut current_skills = metrics_guard.skills_series().latest().cloned().unwrap_or_default();
-                *current_skills.usage_counts.entry(skill_name.clone()).or_insert(0) += 1;
-                current_skills.recently_used.push((skill_name.clone(), Utc::now()));
+                let mut current_skills = metrics_guard
+                    .skills_series()
+                    .latest()
+                    .cloned()
+                    .unwrap_or_default();
+                *current_skills
+                    .usage_counts
+                    .entry(skill_name.clone())
+                    .or_insert(0) += 1;
+                current_skills
+                    .recently_used
+                    .push((skill_name.clone(), Utc::now()));
                 // Keep only last 20 recent uses
                 if current_skills.recently_used.len() > 20 {
                     current_skills.recently_used.remove(0);
                 }
                 metrics_guard.update_skills(current_skills);
             }
-            EventType::SkillCompositionDetected { skills, task_description, .. } => {
+            EventType::SkillCompositionDetected {
+                skills,
+                task_description,
+                ..
+            } => {
                 tracing::info!("Skill composition: {:?} for '{}'", skills, task_description);
             }
 
@@ -516,7 +563,11 @@ impl StateManager {
             EventType::MemoryEvolutionStarted { reason, .. } => {
                 tracing::info!("Memory evolution started: {}", reason);
                 let mut metrics_guard = metrics.write().await;
-                let mut current_memory = metrics_guard.memory_ops_series().latest().cloned().unwrap_or_default();
+                let mut current_memory = metrics_guard
+                    .memory_ops_series()
+                    .latest()
+                    .cloned()
+                    .unwrap_or_default();
                 current_memory.evolutions_total += 1;
                 metrics_guard.update_memory_rates(
                     current_memory.evolutions_total,
@@ -524,10 +575,18 @@ impl StateManager {
                     current_memory.graph_nodes,
                 );
             }
-            EventType::MemoryConsolidated { source_ids, target_id, .. } => {
+            EventType::MemoryConsolidated {
+                source_ids,
+                target_id,
+                ..
+            } => {
                 tracing::debug!("Memory consolidated: {:?} → {}", source_ids, target_id);
                 let mut metrics_guard = metrics.write().await;
-                let mut current_memory = metrics_guard.memory_ops_series().latest().cloned().unwrap_or_default();
+                let mut current_memory = metrics_guard
+                    .memory_ops_series()
+                    .latest()
+                    .cloned()
+                    .unwrap_or_default();
                 current_memory.consolidations_total += 1;
                 metrics_guard.update_memory_rates(
                     current_memory.evolutions_total,
@@ -535,7 +594,12 @@ impl StateManager {
                     current_memory.graph_nodes,
                 );
             }
-            EventType::MemoryDecayed { memory_id, old_importance, new_importance, .. } => {
+            EventType::MemoryDecayed {
+                memory_id,
+                old_importance,
+                new_importance,
+                ..
+            } => {
                 tracing::trace!(
                     "Memory decayed: {} ({} → {})",
                     memory_id,
@@ -543,13 +607,25 @@ impl StateManager {
                     new_importance
                 );
             }
-            EventType::MemoryArchived { memory_id, reason, .. } => {
+            EventType::MemoryArchived {
+                memory_id, reason, ..
+            } => {
                 tracing::debug!("Memory archived: {} ({})", memory_id, reason);
             }
 
             // Agent interaction events
-            EventType::AgentHandoff { from_agent, to_agent, task_description, .. } => {
-                tracing::info!("Agent handoff: {} → {} ({})", from_agent, to_agent, task_description);
+            EventType::AgentHandoff {
+                from_agent,
+                to_agent,
+                task_description,
+                ..
+            } => {
+                tracing::info!(
+                    "Agent handoff: {} → {} ({})",
+                    from_agent,
+                    to_agent,
+                    task_description
+                );
                 // Update both agents' states
                 let mut agents_map = agents.write().await;
                 if let Some(from) = agents_map.get_mut(&from_agent) {
@@ -557,19 +633,32 @@ impl StateManager {
                     from.updated_at = Utc::now();
                 }
                 if let Some(to) = agents_map.get_mut(&to_agent) {
-                    to.state = AgentState::Active { task: task_description };
+                    to.state = AgentState::Active {
+                        task: task_description,
+                    };
                     to.updated_at = Utc::now();
                 }
             }
-            EventType::AgentBlocked { agent_id, blocked_on, reason, .. } => {
+            EventType::AgentBlocked {
+                agent_id,
+                blocked_on,
+                reason,
+                ..
+            } => {
                 let mut agents_map = agents.write().await;
                 if let Some(agent) = agents_map.get_mut(&agent_id) {
-                    agent.state = AgentState::Waiting { reason: format!("Blocked on {}: {}", blocked_on, reason) };
+                    agent.state = AgentState::Waiting {
+                        reason: format!("Blocked on {}: {}", blocked_on, reason),
+                    };
                     agent.updated_at = Utc::now();
                     tracing::debug!("Agent {} blocked on {}", agent_id, blocked_on);
                 }
             }
-            EventType::AgentUnblocked { agent_id, unblocked_by, .. } => {
+            EventType::AgentUnblocked {
+                agent_id,
+                unblocked_by,
+                ..
+            } => {
                 let mut agents_map = agents.write().await;
                 if let Some(agent) = agents_map.get_mut(&agent_id) {
                     agent.state = AgentState::Idle;
@@ -577,39 +666,73 @@ impl StateManager {
                     tracing::debug!("Agent {} unblocked by {}", agent_id, unblocked_by);
                 }
             }
-            EventType::SubAgentSpawned { parent_agent, sub_agent, task_description, .. } => {
+            EventType::SubAgentSpawned {
+                parent_agent,
+                sub_agent,
+                task_description,
+                ..
+            } => {
                 let mut agents_map = agents.write().await;
                 // Create sub-agent
                 agents_map.insert(
                     sub_agent.clone(),
                     AgentInfo {
                         id: sub_agent.clone(),
-                        state: AgentState::Active { task: task_description.clone() },
+                        state: AgentState::Active {
+                            task: task_description.clone(),
+                        },
                         updated_at: Utc::now(),
                         metadata: HashMap::from([("parent".to_string(), parent_agent.clone())]),
                         health: Some(AgentHealth::default()),
                     },
                 );
-                tracing::info!("Sub-agent {} spawned by {} for '{}'", sub_agent, parent_agent, task_description);
+                tracing::info!(
+                    "Sub-agent {} spawned by {} for '{}'",
+                    sub_agent,
+                    parent_agent,
+                    task_description
+                );
             }
 
             // Work orchestration events
-            EventType::ParallelStreamStarted { stream_id, task_count, .. } => {
-                tracing::info!("Parallel stream {} started with {} tasks", stream_id, task_count);
+            EventType::ParallelStreamStarted {
+                stream_id,
+                task_count,
+                ..
+            } => {
+                tracing::info!(
+                    "Parallel stream {} started with {} tasks",
+                    stream_id,
+                    task_count
+                );
                 let mut metrics_guard = metrics.write().await;
-                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
-                current_work.parallel_streams.push(format!("{} ({} tasks)", stream_id, task_count));
+                let mut current_work = metrics_guard
+                    .work_series()
+                    .latest()
+                    .cloned()
+                    .unwrap_or_default();
+                current_work
+                    .parallel_streams
+                    .push(format!("{} ({} tasks)", stream_id, task_count));
                 current_work.total_tasks += task_count;
                 metrics_guard.update_work(current_work);
             }
-            EventType::CriticalPathUpdated { path_items, estimated_completion, .. } => {
+            EventType::CriticalPathUpdated {
+                path_items,
+                estimated_completion,
+                ..
+            } => {
                 tracing::info!(
                     "Critical path updated: {} items, ETA: {}",
                     path_items.len(),
                     estimated_completion
                 );
                 let mut metrics_guard = metrics.write().await;
-                let mut current_work = metrics_guard.work_series().latest().cloned().unwrap_or_default();
+                let mut current_work = metrics_guard
+                    .work_series()
+                    .latest()
+                    .cloned()
+                    .unwrap_or_default();
                 // Calculate progress based on path items completion
                 let completed = path_items.iter().filter(|item| item.contains("✓")).count();
                 current_work.critical_path_progress = if !path_items.is_empty() {
@@ -619,7 +742,12 @@ impl StateManager {
                 };
                 metrics_guard.update_work(current_work);
             }
-            EventType::TypedHoleFilled { hole_name, component_a, component_b, .. } => {
+            EventType::TypedHoleFilled {
+                hole_name,
+                component_a,
+                component_b,
+                ..
+            } => {
                 tracing::info!(
                     "Typed hole filled: {} ({} ↔ {})",
                     hole_name,
@@ -634,7 +762,7 @@ impl StateManager {
             | EventType::CliCommandCompleted { .. }
             | EventType::CliCommandFailed { .. }
             | EventType::SearchPerformed { .. }
-            | EventType::DatabaseOperation { .. } 
+            | EventType::DatabaseOperation { .. }
             | EventType::NetworkStateUpdate { .. } => {
                 // System-level and CLI operation events, no state update needed
                 // These are displayed in the Operations panel, not in agent state

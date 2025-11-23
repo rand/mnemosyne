@@ -1,18 +1,14 @@
 //! Artifact management commands (constitution, specs, plans)
 
+use chrono::Utc;
 use clap::Subcommand;
-use mnemosyne_core::{
-    error::Result,
-    icons,
-    ConnectionMode, LibsqlStorage,
-};
 use mnemosyne_core::orchestration::events::AgentEvent;
+use mnemosyne_core::{error::Result, icons, ConnectionMode, LibsqlStorage};
 use std::path::PathBuf;
 use std::sync::Arc;
-use chrono::Utc;
 
-use super::helpers::get_db_path;
 use super::event_helpers;
+use super::helpers::get_db_path;
 
 #[derive(Debug, Subcommand)]
 pub enum ArtifactCommands {
@@ -96,8 +92,7 @@ pub enum ArtifactCommands {
 /// Handle artifact command
 pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -> Result<()> {
     use mnemosyne_core::artifacts::{
-        Constitution, FeatureSpec, Artifact as ArtifactTrait,
-        ArtifactWorkflow, parse_frontmatter,
+        parse_frontmatter, Artifact as ArtifactTrait, ArtifactWorkflow, Constitution, FeatureSpec,
     };
     use mnemosyne_core::types::Namespace;
     use std::fs;
@@ -116,7 +111,9 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
                 // Ensure artifact directory exists
                 let artifacts_dir = PathBuf::from(".mnemosyne/artifacts");
                 if !artifacts_dir.exists() {
-                    eprintln!("✗ Artifact directory not found. Run 'mnemosyne artifact init' first.");
+                    eprintln!(
+                        "✗ Artifact directory not found. Run 'mnemosyne artifact init' first."
+                    );
                     std::process::exit(1);
                 }
 
@@ -129,7 +126,8 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
                 // Initialize storage and workflow
                 let db_path = get_db_path(global_db_path.clone());
                 let storage = Arc::new(
-                    LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?
+                    LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true)
+                        .await?,
                 );
                 let workflow = ArtifactWorkflow::new(artifacts_dir.clone(), storage)?;
 
@@ -160,7 +158,9 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
                     }
                 } else {
                     // Default to project namespace
-                    Namespace::Project { name: project.clone() }
+                    Namespace::Project {
+                        name: project.clone(),
+                    }
                 };
 
                 // Save constitution
@@ -177,7 +177,8 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
                     artifact_type: "constitution".to_string(),
                     artifact_id: memory_id.0.to_string(),
                     size_bytes,
-                }).await;
+                })
+                .await;
 
                 println!("{} Constitution saved!", icons::status::success());
                 println!("   Memory ID: {}", memory_id);
@@ -185,11 +186,15 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
                 println!();
                 println!("Next steps:");
                 println!("  - View: mnemosyne artifact show constitution");
-                println!("  - Edit: $EDITOR .mnemosyne/artifacts/{}", file_path.display());
+                println!(
+                    "  - Edit: $EDITOR .mnemosyne/artifacts/{}",
+                    file_path.display()
+                );
                 println!("  - Create feature spec: mnemosyne artifact create-feature-spec ...");
 
                 Ok(())
-            }).await
+            })
+            .await
         }
         ArtifactCommands::CreateFeatureSpec {
             id,
@@ -206,14 +211,17 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
                 // Ensure artifact directory exists
                 let artifacts_dir = PathBuf::from(".mnemosyne/artifacts");
                 if !artifacts_dir.exists() {
-                    eprintln!("✗ Artifact directory not found. Run 'mnemosyne artifact init' first.");
+                    eprintln!(
+                        "✗ Artifact directory not found. Run 'mnemosyne artifact init' first."
+                    );
                     std::process::exit(1);
                 }
 
                 // Initialize storage and workflow
                 let db_path = get_db_path(global_db_path.clone());
                 let storage = Arc::new(
-                    LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?
+                    LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true)
+                        .await?,
                 );
                 let workflow = ArtifactWorkflow::new(artifacts_dir.clone(), storage)?;
 
@@ -252,7 +260,9 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
                 };
 
                 // Save feature spec
-                let memory_id = workflow.save_feature_spec(&mut spec, ns, constitution_id).await?;
+                let memory_id = workflow
+                    .save_feature_spec(&mut spec, ns, constitution_id)
+                    .await?;
 
                 // Get file size for event
                 let file_path = spec.file_path();
@@ -265,7 +275,8 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
                     artifact_type: "spec".to_string(),
                     artifact_id: id.clone(),
                     size_bytes,
-                }).await;
+                })
+                .await;
 
                 println!("{} Feature spec saved!", icons::status::success());
                 println!("   Memory ID: {}", memory_id);
@@ -276,11 +287,15 @@ pub async fn handle(command: ArtifactCommands, global_db_path: Option<String>) -
                 println!();
                 println!("Next steps:");
                 println!("  - View: mnemosyne artifact show {}", id);
-                println!("  - Edit: $EDITOR .mnemosyne/artifacts/{}", file_path.display());
+                println!(
+                    "  - Edit: $EDITOR .mnemosyne/artifacts/{}",
+                    file_path.display()
+                );
                 println!("  - List all specs: mnemosyne artifact list --artifact-type spec");
 
                 Ok(())
-            }).await
+            })
+            .await
         }
         ArtifactCommands::Init => {
             event_helpers::with_event_lifecycle("artifact-init", vec![], async {
@@ -493,8 +508,9 @@ For more information, see: docs/specs/specification-artifacts.md
 
                 // Get metadata
                 let metadata = fs::metadata(&path)?;
-                let last_modified = metadata.modified()
-                    .map(|t| chrono::DateTime::<Utc>::from(t))
+                let last_modified = metadata
+                    .modified()
+                    .map(chrono::DateTime::<Utc>::from)
                     .unwrap_or_else(|_| Utc::now());
 
                 // Emit domain event
@@ -502,10 +518,12 @@ For more information, see: docs/specs/specification-artifacts.md
                     artifact_type,
                     artifact_id: artifact.clone(),
                     last_modified,
-                }).await;
+                })
+                .await;
 
                 Ok(())
-            }).await
+            })
+            .await
         }
         ArtifactCommands::Validate { path } => {
             event_helpers::with_event_lifecycle("artifact-validate", vec![], async {
@@ -521,55 +539,56 @@ For more information, see: docs/specs/specification-artifacts.md
 
                 // Parse frontmatter
                 match parse_frontmatter(&content) {
-                Ok((frontmatter, markdown)) => {
-                    println!("✓ Valid YAML frontmatter");
+                    Ok((frontmatter, markdown)) => {
+                        println!("✓ Valid YAML frontmatter");
 
-                    // Check required fields
-                    let required_fields = ["type", "id", "name", "version"];
-                    let mut missing_fields = Vec::new();
+                        // Check required fields
+                        let required_fields = ["type", "id", "name", "version"];
+                        let mut missing_fields = Vec::new();
 
-                    for field in &required_fields {
-                        if frontmatter.get(*field).is_none() {
-                            missing_fields.push(*field);
+                        for field in &required_fields {
+                            if frontmatter.get(*field).is_none() {
+                                missing_fields.push(*field);
+                            }
                         }
-                    }
 
-                    if !missing_fields.is_empty() {
-                        eprintln!("✗ Missing required fields: {}", missing_fields.join(", "));
-                        std::process::exit(1);
-                    }
-
-                    println!("✓ All required fields present");
-
-                    // Validate version format
-                    if let Some(version) = frontmatter.get("version").and_then(|v| v.as_str()) {
-                        if version.split('.').count() == 3 {
-                            println!("✓ Valid semantic version: {}", version);
-                        } else {
-                            eprintln!("✗ Invalid version format: {} (expected X.Y.Z)", version);
+                        if !missing_fields.is_empty() {
+                            eprintln!("✗ Missing required fields: {}", missing_fields.join(", "));
                             std::process::exit(1);
                         }
-                    }
 
-                    // Check markdown content
-                    if markdown.trim().is_empty() {
-                        eprintln!("✗ Empty content (no markdown after frontmatter)");
+                        println!("✓ All required fields present");
+
+                        // Validate version format
+                        if let Some(version) = frontmatter.get("version").and_then(|v| v.as_str()) {
+                            if version.split('.').count() == 3 {
+                                println!("✓ Valid semantic version: {}", version);
+                            } else {
+                                eprintln!("✗ Invalid version format: {} (expected X.Y.Z)", version);
+                                std::process::exit(1);
+                            }
+                        }
+
+                        // Check markdown content
+                        if markdown.trim().is_empty() {
+                            eprintln!("✗ Empty content (no markdown after frontmatter)");
+                            std::process::exit(1);
+                        }
+
+                        println!("✓ Non-empty content ({} chars)", markdown.len());
+
+                        println!();
+                        println!("✓ Artifact is valid!");
+                    }
+                    Err(e) => {
+                        eprintln!("✗ Invalid artifact: {}", e);
                         std::process::exit(1);
                     }
-
-                    println!("✓ Non-empty content ({} chars)", markdown.len());
-
-                    println!();
-                    println!("✓ Artifact is valid!");
-                }
-                Err(e) => {
-                    eprintln!("✗ Invalid artifact: {}", e);
-                    std::process::exit(1);
-                }
                 }
 
                 Ok(())
-            }).await
+            })
+            .await
         }
     }
 }

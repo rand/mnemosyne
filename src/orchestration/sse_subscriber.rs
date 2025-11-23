@@ -93,7 +93,10 @@ impl SseSubscriber {
     /// Runs in a loop with reconnection on failure.
     /// Returns when shutdown signal is received.
     pub async fn run(mut self) {
-        info!("SSE subscriber starting: {}/events/stream", self.config.api_url);
+        info!(
+            "SSE subscriber starting: {}/events/stream",
+            self.config.api_url
+        );
 
         let mut reconnect_delay = self.config.reconnect_delay_secs;
 
@@ -120,7 +123,8 @@ impl SseSubscriber {
                     error!("SSE subscriber: failed to build client: {}", e);
                     // Wait before retry
                     tokio::time::sleep(Duration::from_secs(reconnect_delay)).await;
-                    reconnect_delay = (reconnect_delay * 2).min(self.config.max_reconnect_delay_secs);
+                    reconnect_delay =
+                        (reconnect_delay * 2).min(self.config.max_reconnect_delay_secs);
                     continue;
                 }
             };
@@ -135,8 +139,12 @@ impl SseSubscriber {
                 Err(e) => {
                     warn!("SSE subscriber: stream error: {}", e);
                     // Exponential backoff
-                    reconnect_delay = (reconnect_delay * 2).min(self.config.max_reconnect_delay_secs);
-                    debug!("SSE subscriber: reconnecting in {} seconds", reconnect_delay);
+                    reconnect_delay =
+                        (reconnect_delay * 2).min(self.config.max_reconnect_delay_secs);
+                    debug!(
+                        "SSE subscriber: reconnecting in {} seconds",
+                        reconnect_delay
+                    );
                     tokio::time::sleep(Duration::from_secs(reconnect_delay)).await;
                 }
             }
@@ -179,7 +187,10 @@ impl SseSubscriber {
                     debug!("SSE subscriber: connected to event stream");
                 }
                 Ok(Some(Ok(es::SSE::Event(event)))) => {
-                    debug!("SSE subscriber: received event (type: {})", event.event_type);
+                    debug!(
+                        "SSE subscriber: received event (type: {})",
+                        event.event_type
+                    );
                     if let Err(e) = self.handle_sse_event(event).await {
                         warn!("SSE subscriber: failed to handle event: {}", e);
                     }
@@ -217,9 +228,7 @@ impl SseSubscriber {
                 agent_event.summary()
             );
 
-            let message = OrchestratorMessage::CliEventReceived {
-                event: agent_event,
-            };
+            let message = OrchestratorMessage::CliEventReceived { event: agent_event };
 
             if let Err(e) = self.orchestrator.cast(message) {
                 warn!(
@@ -282,20 +291,14 @@ fn convert_api_event_to_agent_event(api_event: &ApiEvent) -> Option<AgentEvent> 
 
         // Memory operations
         EventType::MemoryStored {
-            memory_id,
-            summary,
-            ..
+            memory_id, summary, ..
         } => Some(AgentEvent::RememberExecuted {
             content_preview: summary.clone(),
             importance: 5, // Default
             memory_id: crate::types::MemoryId::from_string(memory_id).unwrap_or_default(),
         }),
 
-        EventType::MemoryRecalled {
-            query,
-            count,
-            ..
-        } => Some(AgentEvent::RecallExecuted {
+        EventType::MemoryRecalled { query, count, .. } => Some(AgentEvent::RecallExecuted {
             query: query.clone(),
             result_count: *count,
             duration_ms: 0, // Not available in API event
@@ -384,7 +387,10 @@ mod tests {
         let agent_event = convert_api_event_to_agent_event(&api_event);
         assert!(agent_event.is_some());
 
-        if let Some(AgentEvent::RememberExecuted { content_preview, .. }) = agent_event {
+        if let Some(AgentEvent::RememberExecuted {
+            content_preview, ..
+        }) = agent_event
+        {
             assert_eq!(content_preview, "Test memory");
         } else {
             panic!("Expected RememberExecuted");

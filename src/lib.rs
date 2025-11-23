@@ -81,7 +81,9 @@ pub mod rpc;
 // Re-export commonly used types
 pub use agents::{AgentMemoryView, AgentRole, CustomImportanceScorer, MemoryAccessControl};
 pub use config::{ConfigManager, EmbeddingConfig, SearchConfig};
-pub use diagnostics::{global_memory_tracker, start_memory_monitoring, MemorySnapshot, MemoryStatus};
+pub use diagnostics::{
+    global_memory_tracker, start_memory_monitoring, MemorySnapshot, MemoryStatus,
+};
 pub use embeddings::{
     cosine_similarity, EmbeddingService, LocalEmbeddingService, RemoteEmbeddingService,
     VOYAGE_EMBEDDING_DIM,

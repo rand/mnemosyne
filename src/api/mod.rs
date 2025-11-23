@@ -14,8 +14,8 @@ pub mod state;
 
 pub use events::{Event, EventBroadcaster, EventType};
 pub use metrics::{
-    AgentStateCounts, CircularBuffer, MemoryOpRates, MetricsCollector, MetricsSnapshot,
-    SkillUsage, WorkProgress,
+    AgentStateCounts, CircularBuffer, MemoryOpRates, MetricsCollector, MetricsSnapshot, SkillUsage,
+    WorkProgress,
 };
 pub use server::{ApiServer, ApiServerConfig};
 pub use state::{AgentState, StateManager};

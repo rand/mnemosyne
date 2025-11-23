@@ -134,9 +134,7 @@ impl StateIndicator {
 
         Span::styled(
             content,
-            Style::default()
-                .fg(color)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(color).add_modifier(Modifier::BOLD),
         )
     }
 
@@ -149,10 +147,7 @@ impl StateIndicator {
             self.text.clone()
         };
 
-        Span::styled(
-            content,
-            Style::default().fg(color).add_modifier(modifier),
-        )
+        Span::styled(content, Style::default().fg(color).add_modifier(modifier))
     }
 
     /// Render just the icon (no text)

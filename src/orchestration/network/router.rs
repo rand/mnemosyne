@@ -46,7 +46,7 @@ pub enum LocalAgent {
 pub struct MessageRouter {
     /// Agent registry mapping role to list of locations
     registry: Arc<RwLock<HashMap<AgentRole, Vec<AgentLocation>>>>,
-    
+
     /// Round-robin indices for load balancing
     rr_indices: Arc<RwLock<HashMap<AgentRole, usize>>>,
 
@@ -73,14 +73,20 @@ impl MessageRouter {
     /// Register a local agent
     pub async fn register_local(&self, role: AgentRole, agent: LocalAgent) {
         let mut registry = self.registry.write().await;
-        registry.entry(role).or_default().push(AgentLocation::Local(agent));
+        registry
+            .entry(role)
+            .or_default()
+            .push(AgentLocation::Local(agent));
         tracing::debug!("Registered local agent: {:?}", role);
     }
 
     /// Register a remote agent
     pub async fn register_remote(&self, role: AgentRole, node_id: String) {
         let mut registry = self.registry.write().await;
-        registry.entry(role).or_default().push(AgentLocation::Remote(node_id.clone()));
+        registry
+            .entry(role)
+            .or_default()
+            .push(AgentLocation::Remote(node_id.clone()));
         tracing::debug!("Registered remote agent: {:?} at {}", role, node_id);
     }
 
@@ -102,7 +108,7 @@ impl MessageRouter {
     /// Route a message to the appropriate agent (Load Balanced)
     pub async fn route(&self, to: AgentRole, message: AgentMessage) -> Result<(), String> {
         let registry = self.registry.read().await;
-        
+
         let locations = registry.get(&to).ok_or_else(|| {
             tracing::warn!("No route found for agent: {:?}", to);
             format!("Agent not registered: {:?}", to)
@@ -119,9 +125,7 @@ impl MessageRouter {
         *idx = (*idx + 1) % locations.len();
 
         match location {
-            AgentLocation::Local(agent) => {
-                self.route_local(agent, message).await
-            }
+            AgentLocation::Local(agent) => self.route_local(agent, message).await,
             AgentLocation::Remote(node_id) => {
                 tracing::debug!("Routing to remote agent {} at {}", to.as_str(), node_id);
                 self.send_remote(node_id, &message).await
@@ -130,16 +134,21 @@ impl MessageRouter {
     }
 
     /// Route a message to a specific node ID (Direct Addressing)
-    pub async fn route_to(&self, to: AgentRole, node_id: &str, message: AgentMessage) -> Result<(), String> {
+    pub async fn route_to(
+        &self,
+        to: AgentRole,
+        node_id: &str,
+        message: AgentMessage,
+    ) -> Result<(), String> {
         // Verify the agent exists at that location
         let registry = self.registry.read().await;
-        let locations = registry.get(&to).ok_or_else(|| format!("Agent role not found: {:?}", to))?;
-        
-        let target_exists = locations.iter().any(|loc| {
-            match loc {
-                AgentLocation::Remote(id) => id == node_id,
-                _ => false
-            }
+        let locations = registry
+            .get(&to)
+            .ok_or_else(|| format!("Agent role not found: {:?}", to))?;
+
+        let target_exists = locations.iter().any(|loc| match loc {
+            AgentLocation::Remote(id) => id == node_id,
+            _ => false,
         });
 
         if target_exists {
@@ -213,7 +222,10 @@ impl MessageRouter {
         let registry = self.registry.read().await;
         let mut roles = Vec::new();
         for (role, locations) in registry.iter() {
-            if locations.iter().any(|loc| matches!(loc, AgentLocation::Local(_))) {
+            if locations
+                .iter()
+                .any(|loc| matches!(loc, AgentLocation::Local(_)))
+            {
                 roles.push(role.clone());
             }
         }
@@ -289,14 +301,17 @@ mod tests {
 
         // Route message
         let msg = AgentMessage::Orchestrator(OrchestratorMessage::Initialize);
-        router.route(AgentRole::Executor, msg.clone()).await.unwrap();
+        router
+            .route(AgentRole::Executor, msg.clone())
+            .await
+            .unwrap();
 
         // Verify message was sent
         let sent = sent_messages.read().await;
         assert_eq!(sent.len(), 1);
         assert_eq!(sent[0].0, "node-123");
         match &sent[0].1 {
-            AgentMessage::Orchestrator(OrchestratorMessage::Initialize) => {},
+            AgentMessage::Orchestrator(OrchestratorMessage::Initialize) => {}
             _ => panic!("Wrong message type"),
         }
     }

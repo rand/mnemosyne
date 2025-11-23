@@ -212,7 +212,10 @@ impl SupervisionTree {
     /// Start all agents in the supervision tree
     pub async fn start(&mut self) -> Result<()> {
         tracing::info!("Starting supervision tree");
-        tracing::info!("Event broadcaster available: {}", self.event_broadcaster.is_some());
+        tracing::info!(
+            "Event broadcaster available: {}",
+            self.event_broadcaster.is_some()
+        );
 
         // Use unique names based on namespace to avoid registry conflicts in tests
         // In production, this creates names like "optimizer-session:project:session-123"
@@ -457,37 +460,55 @@ impl SupervisionTree {
 
                 // Initialize and register bridge for Orchestrator
                 if let Some(ref orchestrator) = self.orchestrator {
-                    match Self::initialize_python_bridge(AgentRole::Orchestrator, event_tx.clone()).await {
+                    match Self::initialize_python_bridge(AgentRole::Orchestrator, event_tx.clone())
+                        .await
+                    {
                         Ok(bridge) => {
                             orchestrator
                                 .cast(OrchestratorMessage::RegisterPythonBridge(bridge))
                                 .map_err(|e| {
-                                    tracing::warn!("Failed to register Python bridge with Orchestrator: {:?}", e);
+                                    tracing::warn!(
+                                        "Failed to register Python bridge with Orchestrator: {:?}",
+                                        e
+                                    );
                                     crate::error::MnemosyneError::ActorError(e.to_string())
                                 })?;
                             tracing::info!("Python bridge registered with Orchestrator");
                         }
                         Err(e) => {
-                            tracing::warn!("Failed to initialize Python bridge for Orchestrator: {}", e);
-                            tracing::warn!("Orchestrator will use basic coordination without LLM intelligence");
+                            tracing::warn!(
+                                "Failed to initialize Python bridge for Orchestrator: {}",
+                                e
+                            );
+                            tracing::warn!(
+                                "Orchestrator will use basic coordination without LLM intelligence"
+                            );
                         }
                     }
                 }
 
                 // Initialize and register bridge for Optimizer
                 if let Some(ref optimizer) = self.optimizer {
-                    match Self::initialize_python_bridge(AgentRole::Optimizer, event_tx.clone()).await {
+                    match Self::initialize_python_bridge(AgentRole::Optimizer, event_tx.clone())
+                        .await
+                    {
                         Ok(bridge) => {
                             optimizer
                                 .cast(OptimizerMessage::RegisterPythonBridge(bridge))
                                 .map_err(|e| {
-                                    tracing::warn!("Failed to register Python bridge with Optimizer: {:?}", e);
+                                    tracing::warn!(
+                                        "Failed to register Python bridge with Optimizer: {:?}",
+                                        e
+                                    );
                                     crate::error::MnemosyneError::ActorError(e.to_string())
                                 })?;
                             tracing::info!("Python bridge registered with Optimizer");
                         }
                         Err(e) => {
-                            tracing::warn!("Failed to initialize Python bridge for Optimizer: {}", e);
+                            tracing::warn!(
+                                "Failed to initialize Python bridge for Optimizer: {}",
+                                e
+                            );
                             tracing::warn!("Optimizer will use basic context management without LLM intelligence");
                         }
                     }
@@ -496,45 +517,69 @@ impl SupervisionTree {
                 // Initialize and register bridge for Reviewer
                 // Note: Reviewer has both DSPy adapter (above) and Claude SDK bridge
                 if let Some(ref reviewer) = self.reviewer {
-                    match Self::initialize_python_bridge(AgentRole::Reviewer, event_tx.clone()).await {
+                    match Self::initialize_python_bridge(AgentRole::Reviewer, event_tx.clone())
+                        .await
+                    {
                         Ok(bridge) => {
                             reviewer
                                 .cast(ReviewerMessage::RegisterPythonBridge(bridge))
                                 .map_err(|e| {
-                                    tracing::warn!("Failed to register Python bridge with Reviewer: {:?}", e);
+                                    tracing::warn!(
+                                        "Failed to register Python bridge with Reviewer: {:?}",
+                                        e
+                                    );
                                     crate::error::MnemosyneError::ActorError(e.to_string())
                                 })?;
                             tracing::info!("Python bridge registered with Reviewer");
                         }
                         Err(e) => {
-                            tracing::warn!("Failed to initialize Python bridge for Reviewer: {}", e);
-                            tracing::warn!("Reviewer will use DSPy adapter or pattern-matching validation");
+                            tracing::warn!(
+                                "Failed to initialize Python bridge for Reviewer: {}",
+                                e
+                            );
+                            tracing::warn!(
+                                "Reviewer will use DSPy adapter or pattern-matching validation"
+                            );
                         }
                     }
                 }
 
                 // Initialize and register bridge for Executor
                 if let Some(ref executor) = self.executor {
-                    match Self::initialize_python_bridge(AgentRole::Executor, event_tx.clone()).await {
+                    match Self::initialize_python_bridge(AgentRole::Executor, event_tx.clone())
+                        .await
+                    {
                         Ok(bridge) => {
                             executor
                                 .cast(ExecutorMessage::RegisterPythonBridge(bridge))
                                 .map_err(|e| {
-                                    tracing::warn!("Failed to register Python bridge with Executor: {:?}", e);
+                                    tracing::warn!(
+                                        "Failed to register Python bridge with Executor: {:?}",
+                                        e
+                                    );
                                     crate::error::MnemosyneError::ActorError(e.to_string())
                                 })?;
                             tracing::info!("Python bridge registered with Executor");
                         }
                         Err(e) => {
-                            tracing::warn!("Failed to initialize Python bridge for Executor: {}", e);
-                            tracing::warn!("Executor will use basic execution without LLM intelligence");
+                            tracing::warn!(
+                                "Failed to initialize Python bridge for Executor: {}",
+                                e
+                            );
+                            tracing::warn!(
+                                "Executor will use basic execution without LLM intelligence"
+                            );
                         }
                     }
                 }
 
-                tracing::info!("Python Claude SDK agent bridges initialized and registered with all 4 actors");
+                tracing::info!(
+                    "Python Claude SDK agent bridges initialized and registered with all 4 actors"
+                );
             } else {
-                tracing::info!("No event broadcaster available, skipping Python bridge initialization");
+                tracing::info!(
+                    "No event broadcaster available, skipping Python bridge initialization"
+                );
             }
         }
 
@@ -618,8 +663,13 @@ impl SupervisionTree {
             if let Some(ref orchestrator) = self.orchestrator {
                 for item in existing_items {
                     tracing::debug!("Resuming work item: {}", item.description);
-                    if let Err(e) = orchestrator.cast(OrchestratorMessage::SubmitWork(Box::new(item))) {
-                        tracing::warn!("Failed to resume work item: {}. Continuing with remaining items.", e);
+                    if let Err(e) =
+                        orchestrator.cast(OrchestratorMessage::SubmitWork(Box::new(item)))
+                    {
+                        tracing::warn!(
+                            "Failed to resume work item: {}. Continuing with remaining items.",
+                            e
+                        );
                     }
                 }
             } else {
@@ -636,8 +686,13 @@ impl SupervisionTree {
             if let Some(ref orchestrator) = self.orchestrator {
                 for item in init_items {
                     tracing::debug!("Submitting init work: {}", item.description);
-                    if let Err(e) = orchestrator.cast(OrchestratorMessage::SubmitWork(Box::new(item))) {
-                        tracing::warn!("Failed to submit init work item: {}. Continuing with remaining items.", e);
+                    if let Err(e) =
+                        orchestrator.cast(OrchestratorMessage::SubmitWork(Box::new(item)))
+                    {
+                        tracing::warn!(
+                            "Failed to submit init work item: {}. Continuing with remaining items.",
+                            e
+                        );
                     }
                 }
 
@@ -722,7 +777,8 @@ impl SupervisionTree {
 
     /// Stop all agents gracefully with timeout
     pub async fn stop(&mut self) -> Result<()> {
-        self.stop_with_timeout(std::time::Duration::from_secs(30)).await
+        self.stop_with_timeout(std::time::Duration::from_secs(30))
+            .await
     }
 
     /// Stop all agents gracefully with custom timeout (P1-2: Actor shutdown coordination)
@@ -894,8 +950,11 @@ impl SupervisionTree {
         // - Broadcast restart events
 
         // Check if agents are still alive
-        if self.orchestrator.is_none() || self.optimizer.is_none()
-            || self.reviewer.is_none() || self.executor.is_none() {
+        if self.orchestrator.is_none()
+            || self.optimizer.is_none()
+            || self.reviewer.is_none()
+            || self.executor.is_none()
+        {
             tracing::warn!("Some agents missing, restarting supervision tree");
             // Stop any remaining agents
             self.stop().await?;

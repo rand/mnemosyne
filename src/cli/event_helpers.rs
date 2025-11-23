@@ -69,11 +69,7 @@ use super::event_bridge;
 ///     }).await
 /// }
 /// ```
-pub async fn with_event_lifecycle<F, T>(
-    command: &str,
-    args: Vec<String>,
-    handler: F,
-) -> Result<T>
+pub async fn with_event_lifecycle<F, T>(command: &str, args: Vec<String>, handler: F) -> Result<T>
 where
     F: Future<Output = Result<T>>,
 {
@@ -90,12 +86,7 @@ where
     // Emit completed or failed event
     match &result {
         Ok(_) => {
-            event_bridge::emit_command_completed(
-                command,
-                duration_ms,
-                "Success".to_string(),
-            )
-            .await;
+            event_bridge::emit_command_completed(command, duration_ms, "Success".to_string()).await;
         }
         Err(e) => {
             event_bridge::emit_command_failed(command, e.to_string(), duration_ms).await;
@@ -222,13 +213,11 @@ mod tests {
     #[tokio::test]
     async fn test_with_event_lifecycle_and_summary() {
         // Should use custom summary
-        let result = with_event_lifecycle_and_summary(
-            "test",
-            vec![],
-            async { Ok(vec![1, 2, 3]) },
-            |v| format!("Got {} items", v.len()),
-        )
-        .await;
+        let result =
+            with_event_lifecycle_and_summary("test", vec![], async { Ok(vec![1, 2, 3]) }, |v| {
+                format!("Got {} items", v.len())
+            })
+            .await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), vec![1, 2, 3]);

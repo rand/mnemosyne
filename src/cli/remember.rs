@@ -1,14 +1,14 @@
 //! Memory creation command
 
 use mnemosyne_core::{
-    error::Result, icons, ConnectionMode, EmbeddingService, LibsqlStorage, LlmConfig, LlmService,
-    MemoryNote, Namespace, RemoteEmbeddingService, StorageBackend,
-    orchestration::events::AgentEvent,
+    error::Result, icons, orchestration::events::AgentEvent, ConnectionMode, EmbeddingService,
+    LibsqlStorage, LlmConfig, LlmService, MemoryNote, Namespace, RemoteEmbeddingService,
+    StorageBackend,
 };
 use tracing::{debug, warn};
 
-use super::helpers::{get_db_path, parse_memory_type};
 use super::event_bridge;
+use super::helpers::{get_db_path, parse_memory_type};
 
 /// Handle memory creation command
 #[allow(clippy::too_many_arguments)]
@@ -145,9 +145,7 @@ pub async fn handle(
                 icons::status::warning(),
                 "Warning: No API key configured. Memory will not be enriched with AI analysis."
             );
-            eprintln!(
-                "   Run 'mnemosyne config set-key' to enable enrichment."
-            );
+            eprintln!("   Run 'mnemosyne config set-key' to enable enrichment.");
         }
 
         use mnemosyne_core::types::MemoryId;
@@ -252,7 +250,10 @@ pub async fn handle(
     event_bridge::emit_command_completed(
         "remember",
         duration_ms,
-        format!("Stored memory {} (importance {})", memory.id, memory.importance),
+        format!(
+            "Stored memory {} (importance {})",
+            memory.id, memory.importance
+        ),
     )
     .await;
 

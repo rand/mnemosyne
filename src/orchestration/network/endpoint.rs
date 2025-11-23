@@ -70,11 +70,13 @@ impl AgentEndpoint {
         let node_id = keypair.node_id();
 
         // Build Iroh endpoint
-        let builder = IrohEndpoint::builder()
-            .secret_key(keypair.secret_key().clone());
-            
+        let builder = IrohEndpoint::builder().secret_key(keypair.secret_key().clone());
+
         let endpoint = if let Ok(addr_str) = std::env::var("MNEMOSYNE_TEST_BIND_ADDR") {
-            let addr: std::net::SocketAddrV4 = addr_str.parse().map_err(|e: std::net::AddrParseError| MnemosyneError::NetworkError(e.to_string()))?;
+            let addr: std::net::SocketAddrV4 =
+                addr_str.parse().map_err(|e: std::net::AddrParseError| {
+                    MnemosyneError::NetworkError(e.to_string())
+                })?;
             builder.bind_addr_v4(addr).bind().await
         } else {
             builder.bind().await
@@ -156,7 +158,11 @@ impl AgentEndpoint {
 
     /// Create a ticket for others to join
     pub async fn create_ticket(&self) -> Result<String> {
-        let addr = self.endpoint.node_addr().await.map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
+        let addr = self
+            .endpoint
+            .node_addr()
+            .await
+            .map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
         let ticket = NodeTicket::new(addr);
         Ok(ticket.to_string())
     }
@@ -167,14 +173,16 @@ impl AgentEndpoint {
             .map_err(|e| MnemosyneError::NetworkError(format!("Invalid ticket: {}", e)))?;
         let addr = ticket.node_addr().clone();
         let node_id = addr.node_id.to_string();
-        
+
         // Add to Iroh endpoint
-        self.endpoint.add_node_addr(addr.clone()).map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
-        
+        self.endpoint
+            .add_node_addr(addr.clone())
+            .map_err(|e| MnemosyneError::NetworkError(e.to_string()))?;
+
         // Add to local cache
         let mut peers = self.peers.write().await;
         peers.insert(node_id.clone(), addr);
-        
+
         Ok(node_id)
     }
 
@@ -210,16 +218,16 @@ mod tests {
     #[tokio::test]
     async fn test_ticket_generation() {
         let endpoint = AgentEndpoint::new().await.unwrap();
-        
+
         // Generate ticket
         let ticket_str = endpoint.create_ticket().await.unwrap();
         assert!(!ticket_str.is_empty());
-        
+
         // Parse ticket manually to verify it's valid
         // We can't use add_peer on ourselves because iroh prevents adding our own address
         let ticket = NodeTicket::from_str(&ticket_str).expect("Failed to parse ticket");
         let addr = ticket.node_addr();
-        
+
         assert_eq!(addr.node_id.to_string(), endpoint.node_id());
     }
 }

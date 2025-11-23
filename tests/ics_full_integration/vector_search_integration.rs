@@ -232,11 +232,7 @@ async fn v4_semantic_relevance_ranking() {
     if results.len() >= 4 {
         let mut memories = Vec::new();
         for (id, _score) in &results {
-            let mem = storage
-                .storage()
-                .get_memory(*id)
-                .await
-                .expect("Get memory");
+            let mem = storage.storage().get_memory(*id).await.expect("Get memory");
             memories.push(mem);
         }
 
@@ -411,7 +407,10 @@ async fn v7_namespace_filtering() {
 
     // Verify namespace isolation
     assert!(!global_results.is_empty(), "Should find global memory");
-    assert!(!project_a_results.is_empty(), "Should find project-a memory");
+    assert!(
+        !project_a_results.is_empty(),
+        "Should find project-a memory"
+    );
 
     // Fetch and verify global results
     for (id, _score) in &global_results {
@@ -462,11 +461,7 @@ async fn v8_incremental_embedding_updates() {
         .expect("Store without embedding");
 
     // Verify no embedding
-    let retrieved = storage
-        .storage()
-        .get_memory(memory.id)
-        .await
-        .expect("Get");
+    let retrieved = storage.storage().get_memory(memory.id).await.expect("Get");
     assert_no_embedding(&retrieved);
 
     // Update content and add embedding

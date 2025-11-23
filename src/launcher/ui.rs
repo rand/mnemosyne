@@ -321,16 +321,15 @@ pub async fn check_and_show_updates() {
 
     // Check all tools with 3-second timeout
     let check_future = checker.check_all_tools();
-    let results = match tokio::time::timeout(
-        std::time::Duration::from_secs(3),
-        check_future
-    ).await {
+    let results = match tokio::time::timeout(std::time::Duration::from_secs(3), check_future).await
+    {
         Ok(Ok(results)) => results,
         _ => return, // Silently fail on timeout or error
     };
 
     // Filter to only tools with updates available
-    let updates: Vec<_> = results.iter()
+    let updates: Vec<_> = results
+        .iter()
         .filter(|info| info.update_available)
         .collect();
 
@@ -353,14 +352,16 @@ pub async fn check_and_show_updates() {
     }
 
     // Check for missing tools
-    let missing: Vec<_> = results.iter()
-        .filter(|info| !info.is_installed)
-        .collect();
+    let missing: Vec<_> = results.iter().filter(|info| !info.is_installed).collect();
 
     if !missing.is_empty() {
         println!("   {} Optional tools not installed:", icons::status::info());
         for info in &missing {
-            println!("   {} {}", icons::status::warning(), info.tool.display_name());
+            println!(
+                "   {} {}",
+                icons::status::warning(),
+                info.tool.display_name()
+            );
         }
         println!("   Run 'mnemosyne update --install' for installation instructions");
         println!();

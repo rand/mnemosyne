@@ -74,7 +74,10 @@ async fn handle_install_instructions(tools: Vec<String>) -> Result<()> {
 
     if tools.is_empty() {
         // Show instructions for all tools
-        println!("{}  Installation Instructions\n", icons::system::lightbulb());
+        println!(
+            "{}  Installation Instructions\n",
+            icons::system::lightbulb()
+        );
         for tool in Tool::all() {
             println!("{}  {}:", icons::system::gear(), tool.display_name());
             for line in manager.get_install_instructions(tool).lines() {
@@ -159,7 +162,11 @@ async fn handle_updates(tools: Vec<String>) -> Result<()> {
     let mut fail_count = 0;
 
     for tool in tools_to_update {
-        println!("\n{}  Updating {}...", icons::system::gear(), tool.display_name());
+        println!(
+            "\n{}  Updating {}...",
+            icons::system::gear(),
+            tool.display_name()
+        );
 
         match manager.update_tool(tool).await {
             Ok(result) => {

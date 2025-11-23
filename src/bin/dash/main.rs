@@ -40,12 +40,12 @@ mod widgets;
 
 use anyhow::Result;
 use clap::Parser;
-use mnemosyne_core::api::events::Event;
 use crossterm::{
     event::{self, Event as CrosstermEvent, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use mnemosyne_core::api::events::Event;
 use panel_manager::{PanelId, PanelManager};
 use panels::{
     ActivityStreamPanel, AgentInfo, AgentsPanel, FocusMode, NetworkPanel, OperationsPanel,
@@ -155,13 +155,29 @@ impl App {
 
                 // CLI events → Operations panel
                 CliCommandStarted { command, args, .. } => {
-                    self.operations_panel.add_started(command.clone(), args.clone());
+                    self.operations_panel
+                        .add_started(command.clone(), args.clone());
                 }
-                CliCommandCompleted { command, duration_ms, result_summary, .. } => {
-                    self.operations_panel.update_completed(command, *duration_ms, result_summary.clone());
+                CliCommandCompleted {
+                    command,
+                    duration_ms,
+                    result_summary,
+                    ..
+                } => {
+                    self.operations_panel.update_completed(
+                        command,
+                        *duration_ms,
+                        result_summary.clone(),
+                    );
                 }
-                CliCommandFailed { command, error, duration_ms, .. } => {
-                    self.operations_panel.update_failed(command, error.clone(), *duration_ms);
+                CliCommandFailed {
+                    command,
+                    error,
+                    duration_ms,
+                    ..
+                } => {
+                    self.operations_panel
+                        .update_failed(command, error.clone(), *duration_ms);
                 }
 
                 _ => {
@@ -292,7 +308,10 @@ impl App {
 
         // Create header with status
         let status_text = if self.connected {
-            format!(" Connected to {}{} | Press '?' for help, 'q' to quit ", self.api_url, focus_text)
+            format!(
+                " Connected to {}{} | Press '?' for help, 'q' to quit ",
+                self.api_url, focus_text
+            )
         } else {
             format!(" Connecting to {}... ", self.api_url)
         };
@@ -360,7 +379,8 @@ impl App {
 
         // Render System Overview (top panel)
         if visibility.is_visible(PanelId::SystemOverview) {
-            self.system_overview.render(frame, vertical_chunks[chunk_index]);
+            self.system_overview
+                .render(frame, vertical_chunks[chunk_index]);
             chunk_index += 1;
         }
 
@@ -380,7 +400,11 @@ impl App {
             } else {
                 let placeholder = Paragraph::new(" Activity Stream hidden (press '1' to show) ")
                     .style(Style::default().fg(Color::DarkGray))
-                    .block(Block::default().borders(Borders::ALL).title("Activity Stream"));
+                    .block(
+                        Block::default()
+                            .borders(Borders::ALL)
+                            .title("Activity Stream"),
+                    );
                 frame.render_widget(placeholder, horiz_chunks[0]);
             }
 
@@ -414,7 +438,9 @@ impl App {
                 match panel_id {
                     PanelId::AgentDetails => self.agents_panel.render(frame, right_vert_chunks[i]),
                     PanelId::Network => self.network_panel.render(frame, right_vert_chunks[i]),
-                    PanelId::Operations => self.operations_panel.render(frame, right_vert_chunks[i]),
+                    PanelId::Operations => {
+                        self.operations_panel.render(frame, right_vert_chunks[i])
+                    }
                     _ => {}
                 }
             }
@@ -445,18 +471,19 @@ impl App {
 
         // Build help text with formatting
         let help_lines = vec![
-            Line::from(vec![
-                Span::styled(
-                    "MNEMOSYNE DASHBOARD - KEYBOARD SHORTCUTS",
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                ),
-            ]),
+            Line::from(vec![Span::styled(
+                "MNEMOSYNE DASHBOARD - KEYBOARD SHORTCUTS",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("General", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "General",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(vec![
                 Span::styled("  q, Esc  ", Style::default().fg(Color::Green)),
                 Span::raw("Quit dashboard"),
@@ -466,9 +493,12 @@ impl App {
                 Span::raw("Toggle this help screen"),
             ]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("Panel Visibility", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "Panel Visibility",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(vec![
                 Span::styled("  0       ", Style::default().fg(Color::Green)),
                 Span::raw("Toggle all panels"),
@@ -490,9 +520,12 @@ impl App {
                 Span::raw("Toggle Operations"),
             ]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("Activity Stream", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "Activity Stream",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(vec![
                 Span::styled("  c       ", Style::default().fg(Color::Green)),
                 Span::raw("Clear activity stream"),
@@ -506,18 +539,24 @@ impl App {
                 Span::raw("Toggle agent focus mode (cycle through agents)"),
             ]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("Operations Panel", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "Operations Panel",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(vec![
                 Span::styled("  v       ", Style::default().fg(Color::Green)),
                 Span::raw("Cycle view mode (List → Grouped → Statistics)"),
                 Span::styled(" [Coming Soon]", Style::default().fg(Color::DarkGray)),
             ]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("Navigation", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "Navigation",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )]),
             Line::from(vec![
                 Span::styled("  ↑/↓     ", Style::default().fg(Color::Green)),
                 Span::raw("Scroll up/down in focused panel"),
@@ -529,14 +568,12 @@ impl App {
                 Span::styled(" [Coming Soon]", Style::default().fg(Color::DarkGray)),
             ]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled(
-                    "Press any key to dismiss this help",
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::ITALIC),
-                ),
-            ]),
+            Line::from(vec![Span::styled(
+                "Press any key to dismiss this help",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::ITALIC),
+            )]),
         ];
 
         let help_text = Paragraph::new(help_lines)

@@ -83,7 +83,10 @@ impl ExecutorState {
         namespace: Namespace,
         agent_id: String,
     ) {
-        tracing::info!("Executor: Registering event broadcaster for agent_id: {}", agent_id);
+        tracing::info!(
+            "Executor: Registering event broadcaster for agent_id: {}",
+            agent_id
+        );
         // Reconstruct EventPersistence with broadcaster
         self.events = EventPersistence::new_with_broadcaster(
             self.storage.clone(),
@@ -121,7 +124,10 @@ impl ExecutorState {
                 }
             }
         });
-        tracing::info!("Heartbeat task spawned for {} (immediate first beat + 30s interval)", agent_id);
+        tracing::info!(
+            "Heartbeat task spawned for {} (immediate first beat + 30s interval)",
+            agent_id
+        );
     }
 }
 
@@ -432,11 +438,11 @@ mod tests {
         .unwrap();
 
         actor_ref.cast(ExecutorMessage::Initialize).unwrap();
-        
+
         // Stop the actor and await its shutdown
         actor_ref.stop(None);
         handle.await.expect("Actor failed to stop cleanly");
-        
+
         // Explicitly drop storage before temp_dir to ensure file handles are closed
         drop(storage);
     }

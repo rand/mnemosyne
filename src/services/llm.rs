@@ -708,7 +708,10 @@ IMPORTANT: Return ONLY valid JSON, no additional text.
         let result: VerificationResult = match serde_json::from_str(&response) {
             Ok(data) => data,
             Err(e) => {
-                warn!("JSON parsing failed: {}, attempting extract from markdown", e);
+                warn!(
+                    "JSON parsing failed: {}, attempting extract from markdown",
+                    e
+                );
                 if let Some(start) = response.find("{") {
                     if let Some(end) = response.rfind("}") {
                         let json_str = &response[start..=end];

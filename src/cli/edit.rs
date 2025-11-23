@@ -2,14 +2,17 @@
 
 use clap::ValueEnum;
 use mnemosyne_core::{
-    error::Result, icons, ics::{IcsApp, IcsConfig, PanelType}, ConnectionMode, LibsqlStorage,
-    StorageBackend, orchestration::events::AgentEvent,
+    error::Result,
+    icons,
+    ics::{IcsApp, IcsConfig, PanelType},
+    orchestration::events::AgentEvent,
+    ConnectionMode, LibsqlStorage, StorageBackend,
 };
 use std::{path::PathBuf, sync::Arc};
 use tracing::debug;
 
-use super::helpers::get_db_path;
 use super::event_helpers;
+use super::helpers::get_db_path;
 
 /// ICS template options
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -123,7 +126,8 @@ pub async fn handle(
         file_path: file.as_ref().map(|p| p.display().to_string()),
         template: template.map(|t| format!("{:?}", t)),
         timestamp: chrono::Utc::now(),
-    }).await;
+    })
+    .await;
 
     // Initialize storage backend
     let db_path = get_db_path(global_db_path);
@@ -134,8 +138,7 @@ pub async fn handle(
         std::fs::create_dir_all(parent)?;
     }
 
-    let storage =
-        LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?;
+    let storage = LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path), true).await?;
     let storage_backend: Arc<dyn StorageBackend> = Arc::new(storage);
 
     // Create ICS config with readonly setting
@@ -164,16 +167,13 @@ pub async fn handle(
             let content = tmpl.content().to_string();
 
             // Write template content to file
-            std::fs::write(&file_path, &content)?;
+            std::fs::write(file_path, &content)?;
 
             app.load_file(file_path.clone())?;
         } else {
             // Create empty file
             debug!("Creating new empty file: {}", file_path.display());
-            std::fs::write(
-                &file_path,
-                "# Context\n\nEdit your context here...\n",
-            )?;
+            std::fs::write(file_path, "# Context\n\nEdit your context here...\n")?;
 
             app.load_file(file_path.clone())?;
         }
@@ -204,7 +204,10 @@ pub async fn handle(
 
     // Show launch banner
     println!();
-    println!("{} ICS - Integrated Context Studio", icons::system::palette());
+    println!(
+        "{} ICS - Integrated Context Studio",
+        icons::system::palette()
+    );
     println!("   AI-assisted context engineering for Claude Code");
     println!();
     println!("   Shortcuts:");
@@ -237,7 +240,8 @@ pub async fn handle(
         file_path: file.as_ref().map(|p| p.display().to_string()),
         changes_saved: true, // ICS always saves changes on exit (Ctrl+S or auto-save)
         duration_ms,
-    }).await;
+    })
+    .await;
 
     // TODO: If session_context provided, write result
     // This will be done in Phase 2

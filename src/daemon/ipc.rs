@@ -34,10 +34,7 @@ pub enum IpcCommand {
 }
 
 /// Start the IPC server
-pub async fn start_ipc_server(
-    socket_path: PathBuf,
-    tx: mpsc::Sender<IpcMessage>,
-) -> Result<()> {
+pub async fn start_ipc_server(socket_path: PathBuf, tx: mpsc::Sender<IpcMessage>) -> Result<()> {
     // Remove existing socket if present
     if socket_path.exists() {
         tokio::fs::remove_file(&socket_path).await.map_err(|e| {
@@ -65,11 +62,14 @@ pub async fn start_ipc_server(
                             Ok(0) => return, // connection closed
                             Ok(_) => {
                                 // Parse command
-                                let command_result: std::result::Result<IpcCommand, _> = serde_json::from_str(&line);
+                                let command_result: std::result::Result<IpcCommand, _> =
+                                    serde_json::from_str(&line);
                                 match command_result {
                                     Ok(IpcCommand::GetStatus) => {
                                         let (resp_tx, resp_rx) = oneshot::channel();
-                                        if let Err(e) = tx.send(IpcMessage::GetStatus(resp_tx)).await {
+                                        if let Err(e) =
+                                            tx.send(IpcMessage::GetStatus(resp_tx)).await
+                                        {
                                             error!("Failed to send IPC message to engine: {}", e);
                                             return;
                                         }
@@ -78,23 +78,40 @@ pub async fn start_ipc_server(
                                             Ok(status) => {
                                                 match serde_json::to_string(&status) {
                                                     Ok(json) => {
-                                                        if let Err(e) = writer.write_all(json.as_bytes()).await {
-                                                            error!("Failed to write IPC response: {}", e);
+                                                        if let Err(e) =
+                                                            writer.write_all(json.as_bytes()).await
+                                                        {
+                                                            error!(
+                                                                "Failed to write IPC response: {}",
+                                                                e
+                                                            );
                                                         }
                                                         // Write newline delimiter
-                                                        if let Err(e) = writer.write_all(b"\n").await {
-                                                            error!("Failed to write newline: {}", e);
+                                                        if let Err(e) =
+                                                            writer.write_all(b"\n").await
+                                                        {
+                                                            error!(
+                                                                "Failed to write newline: {}",
+                                                                e
+                                                            );
                                                         }
                                                     }
-                                                    Err(e) => error!("Failed to serialize status: {}", e),
+                                                    Err(e) => {
+                                                        error!("Failed to serialize status: {}", e)
+                                                    }
                                                 }
                                             }
-                                            Err(e) => error!("Failed to receive response from engine: {}", e),
+                                            Err(e) => error!(
+                                                "Failed to receive response from engine: {}",
+                                                e
+                                            ),
                                         }
                                     }
                                     Ok(IpcCommand::CreateInvite) => {
                                         let (resp_tx, resp_rx) = oneshot::channel();
-                                        if let Err(e) = tx.send(IpcMessage::CreateInvite(resp_tx)).await {
+                                        if let Err(e) =
+                                            tx.send(IpcMessage::CreateInvite(resp_tx)).await
+                                        {
                                             error!("Failed to send IPC message to engine: {}", e);
                                             return;
                                         }
@@ -102,25 +119,43 @@ pub async fn start_ipc_server(
                                         match resp_rx.await {
                                             Ok(result) => {
                                                 // Convert error to string for serialization
-                                                let response: std::result::Result<String, String> = result.map_err(|e| e.to_string());
+                                                let response: std::result::Result<String, String> =
+                                                    result.map_err(|e| e.to_string());
                                                 match serde_json::to_string(&response) {
                                                     Ok(json) => {
-                                                        if let Err(e) = writer.write_all(json.as_bytes()).await {
-                                                            error!("Failed to write IPC response: {}", e);
+                                                        if let Err(e) =
+                                                            writer.write_all(json.as_bytes()).await
+                                                        {
+                                                            error!(
+                                                                "Failed to write IPC response: {}",
+                                                                e
+                                                            );
                                                         }
-                                                        if let Err(e) = writer.write_all(b"\n").await {
-                                                            error!("Failed to write newline: {}", e);
+                                                        if let Err(e) =
+                                                            writer.write_all(b"\n").await
+                                                        {
+                                                            error!(
+                                                                "Failed to write newline: {}",
+                                                                e
+                                                            );
                                                         }
                                                     }
-                                                    Err(e) => error!("Failed to serialize result: {}", e),
+                                                    Err(e) => {
+                                                        error!("Failed to serialize result: {}", e)
+                                                    }
                                                 }
                                             }
-                                            Err(e) => error!("Failed to receive response from engine: {}", e),
+                                            Err(e) => error!(
+                                                "Failed to receive response from engine: {}",
+                                                e
+                                            ),
                                         }
                                     }
                                     Ok(IpcCommand::JoinPeer { ticket }) => {
                                         let (resp_tx, resp_rx) = oneshot::channel();
-                                        if let Err(e) = tx.send(IpcMessage::JoinPeer(ticket, resp_tx)).await {
+                                        if let Err(e) =
+                                            tx.send(IpcMessage::JoinPeer(ticket, resp_tx)).await
+                                        {
                                             error!("Failed to send IPC message to engine: {}", e);
                                             return;
                                         }
@@ -128,24 +163,43 @@ pub async fn start_ipc_server(
                                         match resp_rx.await {
                                             Ok(result) => {
                                                 // Convert error to string for serialization
-                                                let response: std::result::Result<String, String> = result.map_err(|e| e.to_string());
+                                                let response: std::result::Result<String, String> =
+                                                    result.map_err(|e| e.to_string());
                                                 match serde_json::to_string(&response) {
                                                     Ok(json) => {
-                                                        if let Err(e) = writer.write_all(json.as_bytes()).await {
-                                                            error!("Failed to write IPC response: {}", e);
+                                                        if let Err(e) =
+                                                            writer.write_all(json.as_bytes()).await
+                                                        {
+                                                            error!(
+                                                                "Failed to write IPC response: {}",
+                                                                e
+                                                            );
                                                         }
-                                                        if let Err(e) = writer.write_all(b"\n").await {
-                                                            error!("Failed to write newline: {}", e);
+                                                        if let Err(e) =
+                                                            writer.write_all(b"\n").await
+                                                        {
+                                                            error!(
+                                                                "Failed to write newline: {}",
+                                                                e
+                                                            );
                                                         }
                                                     }
-                                                    Err(e) => error!("Failed to serialize result: {}", e),
+                                                    Err(e) => {
+                                                        error!("Failed to serialize result: {}", e)
+                                                    }
                                                 }
                                             }
-                                            Err(e) => error!("Failed to receive response from engine: {}", e),
+                                            Err(e) => error!(
+                                                "Failed to receive response from engine: {}",
+                                                e
+                                            ),
                                         }
                                     }
                                     Err(e) => {
-                                        warn!("Invalid IPC command received: {}. Error: {}", line, e);
+                                        warn!(
+                                            "Invalid IPC command received: {}. Error: {}",
+                                            line, e
+                                        );
                                     }
                                 }
                             }
@@ -228,9 +282,10 @@ pub async fn create_invite(socket_path: &Path) -> Result<String> {
     if let Some(line) = lines.next_line().await.map_err(|e| {
         crate::error::MnemosyneError::Other(format!("Failed to read from IPC socket: {}", e))
     })? {
-        let result: std::result::Result<String, String> = serde_json::from_str(&line).map_err(|e| {
-            crate::error::MnemosyneError::Other(format!("Failed to deserialize result: {}", e))
-        })?;
+        let result: std::result::Result<String, String> =
+            serde_json::from_str(&line).map_err(|e| {
+                crate::error::MnemosyneError::Other(format!("Failed to deserialize result: {}", e))
+            })?;
         result.map_err(crate::error::MnemosyneError::Other)
     } else {
         Err(crate::error::MnemosyneError::Other(
@@ -266,9 +321,10 @@ pub async fn join_peer(socket_path: &Path, ticket: String) -> Result<String> {
     if let Some(line) = lines.next_line().await.map_err(|e| {
         crate::error::MnemosyneError::Other(format!("Failed to read from IPC socket: {}", e))
     })? {
-        let result: std::result::Result<String, String> = serde_json::from_str(&line).map_err(|e| {
-            crate::error::MnemosyneError::Other(format!("Failed to deserialize result: {}", e))
-        })?;
+        let result: std::result::Result<String, String> =
+            serde_json::from_str(&line).map_err(|e| {
+                crate::error::MnemosyneError::Other(format!("Failed to deserialize result: {}", e))
+            })?;
         result.map_err(crate::error::MnemosyneError::Other)
     } else {
         Err(crate::error::MnemosyneError::Other(
@@ -276,4 +332,3 @@ pub async fn join_peer(socket_path: &Path, ticket: String) -> Result<String> {
         ))
     }
 }
-

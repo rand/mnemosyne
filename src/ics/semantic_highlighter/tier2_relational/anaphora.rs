@@ -223,13 +223,11 @@ impl AnaphoraResolver {
         }
 
         // Return best candidate (with NaN-safe comparison)
-        Ok(candidates
-            .into_iter()
-            .max_by(|a, b| {
-                a.confidence
-                    .partial_cmp(&b.confidence)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            }))
+        Ok(candidates.into_iter().max_by(|a, b| {
+            a.confidence
+                .partial_cmp(&b.confidence)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        }))
     }
 
     /// Score antecedent candidate for an anaphor

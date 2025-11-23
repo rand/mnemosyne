@@ -63,18 +63,8 @@ async fn test_orchestration_event_flow() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Drain any startup events (heartbeats, agent initialization) before testing
-    loop {
-        match timeout(Duration::from_millis(50), subscriber1.recv()).await {
-            Ok(_) => continue, // Drain event
-            Err(_) => break,   // Timeout means no more events, we can proceed
-        }
-    }
-    loop {
-        match timeout(Duration::from_millis(50), subscriber2.recv()).await {
-            Ok(_) => continue, // Drain event
-            Err(_) => break,   // Timeout means no more events, we can proceed
-        }
-    }
+    while let Ok(_) = timeout(Duration::from_millis(50), subscriber1.recv()).await {}
+    while let Ok(_) = timeout(Duration::from_millis(50), subscriber2.recv()).await {}
 
     // Create event persistence and emit test events
     let namespace = Namespace::Session {

@@ -225,12 +225,7 @@ pub fn extract_tasks_from_plan(plan: &str) -> Vec<String> {
     // TODO: Enhance with structured plan parsing
     plan.lines()
         .filter(|line| line.trim().starts_with("- [ ]"))
-        .map(|line| {
-            line.trim()
-                .trim_start_matches("- [ ]")
-                .trim()
-                .to_string()
-        })
+        .map(|line| line.trim().trim_start_matches("- [ ]").trim().to_string())
         .collect()
 }
 
@@ -243,7 +238,9 @@ mod tests {
         let items = create_session_init_work_items();
         assert_eq!(items.len(), 3);
         assert!(items.iter().all(|i| i.phase == Phase::PromptToSpec));
-        assert!(items.iter().all(|i| i.state == crate::orchestration::state::AgentState::Ready));
+        assert!(items
+            .iter()
+            .all(|i| i.state == crate::orchestration::state::AgentState::Ready));
     }
 
     #[test]

@@ -61,9 +61,7 @@ async fn test_store_and_get_memory() {
         importance: Some(8),
         context: Some("Test context".to_string()),
         tags: vec!["test".to_string(), "rpc".to_string()],
-        memory_type: Some(
-            mnemosyne_core::rpc::generated::MemoryType::Insight as i32,
-        ),
+        memory_type: Some(mnemosyne_core::rpc::generated::MemoryType::Insight as i32),
         skip_llm_enrichment: true,
     });
 
@@ -182,7 +180,10 @@ async fn test_list_memories() {
         .expect("Failed to list memories");
 
     let response = list_response.into_inner();
-    assert!(response.memories.len() >= 5, "Should have at least 5 memories");
+    assert!(
+        response.memories.len() >= 5,
+        "Should have at least 5 memories"
+    );
     assert_eq!(response.total_count as usize, response.memories.len());
 }
 

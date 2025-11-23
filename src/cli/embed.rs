@@ -1,15 +1,15 @@
 //! Embedding generation command
 
-use mnemosyne_core::{
-    error::Result, ConnectionMode, EmbeddingConfig, LibsqlStorage, LocalEmbeddingService,
-    MemoryId, Namespace, StorageBackend,
-};
 use mnemosyne_core::orchestration::events::AgentEvent;
+use mnemosyne_core::{
+    error::Result, ConnectionMode, EmbeddingConfig, LibsqlStorage, LocalEmbeddingService, MemoryId,
+    Namespace, StorageBackend,
+};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use super::helpers::get_db_path;
 use super::event_helpers;
+use super::helpers::get_db_path;
 
 /// Handle embedding generation command
 pub async fn handle(
@@ -36,52 +36,52 @@ pub async fn handle(
 
         // Determine which memories to embed
         let memories = if let Some(id_str) = memory_id {
-        // Single memory
-        let uuid =
-            Uuid::parse_str(&id_str).map_err(|e| anyhow::anyhow!("Invalid memory ID: {}", e))?;
-        let id = MemoryId(uuid);
-        vec![storage.get_memory(id).await?]
-    } else {
-        // Fetch all memories using search with empty query
-        let ns = if let Some(ns_str) = namespace {
-            println!("Fetching memories in namespace '{}'...", ns_str);
-            Some(if ns_str.starts_with("project:") {
-                let project = ns_str.strip_prefix("project:").unwrap();
-                Namespace::Project {
-                    name: project.to_string(),
-                }
-            } else if ns_str.starts_with("session:") {
-                let parts: Vec<&str> = ns_str
-                    .strip_prefix("session:")
-                    .unwrap()
-                    .split(':')
-                    .collect();
-                if parts.len() == 2 {
-                    Namespace::Session {
-                        project: parts[0].to_string(),
-                        session_id: parts[1].to_string(),
+            // Single memory
+            let uuid = Uuid::parse_str(&id_str)
+                .map_err(|e| anyhow::anyhow!("Invalid memory ID: {}", e))?;
+            let id = MemoryId(uuid);
+            vec![storage.get_memory(id).await?]
+        } else {
+            // Fetch all memories using search with empty query
+            let ns = if let Some(ns_str) = namespace {
+                println!("Fetching memories in namespace '{}'...", ns_str);
+                Some(if ns_str.starts_with("project:") {
+                    let project = ns_str.strip_prefix("project:").unwrap();
+                    Namespace::Project {
+                        name: project.to_string(),
+                    }
+                } else if ns_str.starts_with("session:") {
+                    let parts: Vec<&str> = ns_str
+                        .strip_prefix("session:")
+                        .unwrap()
+                        .split(':')
+                        .collect();
+                    if parts.len() == 2 {
+                        Namespace::Session {
+                            project: parts[0].to_string(),
+                            session_id: parts[1].to_string(),
+                        }
+                    } else {
+                        Namespace::Global
                     }
                 } else {
                     Namespace::Global
-                }
+                })
+            } else if all {
+                println!("Fetching all memories...");
+                None
             } else {
-                Namespace::Global
-            })
-        } else if all {
-            println!("Fetching all memories...");
-            None
-        } else {
-            eprintln!("Error: Must specify --all, --memory-id, or --namespace");
-            std::process::exit(1);
+                eprintln!("Error: Must specify --all, --memory-id, or --namespace");
+                std::process::exit(1);
+            };
+
+            // Use hybrid_search with empty query to get all memories
+            let results = storage.hybrid_search("", ns, 10000, false).await?;
+            results.into_iter().map(|r| r.memory).collect()
         };
 
-        // Use hybrid_search with empty query to get all memories
-        let results = storage.hybrid_search("", ns, 10000, false).await?;
-        results.into_iter().map(|r| r.memory).collect()
-    };
-
-    let total = memories.len();
-    println!("Generating embeddings for {} memories...", total);
+        let total = memories.len();
+        println!("Generating embeddings for {} memories...", total);
 
         // Process memories in batches
         let mut processed = 0;
@@ -115,7 +115,8 @@ pub async fn handle(
                                 model_name: model_name.clone(),
                                 dimension: 768, // Default dimension for nomic-embed-text-v1.5
                                 duration_ms,
-                            }).await;
+                            })
+                            .await;
                         }
                     }
                     Err(e) => {
@@ -141,7 +142,8 @@ pub async fn handle(
                 successful: succeeded,
                 failed,
                 total_duration_ms,
-            }).await;
+            })
+            .await;
         }
 
         println!("Embedding generation complete!");
@@ -150,5 +152,6 @@ pub async fn handle(
         println!("  Failed: {}", failed);
 
         Ok(())
-    }).await
+    })
+    .await
 }

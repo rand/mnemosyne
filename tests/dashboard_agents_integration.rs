@@ -174,11 +174,7 @@ async fn test_late_dashboard_connection_sees_agents() {
     );
 
     let agents = state_manager.list_agents().await;
-    assert_eq!(
-        agents.len(),
-        4,
-        "Late dashboard should see all 4 agents"
-    );
+    assert_eq!(agents.len(), 4, "Late dashboard should see all 4 agents");
 
     println!(
         "✅ Late dashboard saw all 4 agents in {:?} after connection",
@@ -202,10 +198,7 @@ async fn test_http_api_shows_agents_immediately() {
         .await
         .expect("Failed to connect to API");
 
-    assert!(
-        response.status().is_success(),
-        "API should return 200 OK"
-    );
+    assert!(response.status().is_success(), "API should return 200 OK");
 
     let agents: serde_json::Value = response.json().await.expect("Failed to parse JSON");
 
@@ -445,7 +438,7 @@ async fn test_performance_benchmarks() {
 /// Test heartbeat auto-creation mechanism
 #[tokio::test]
 async fn test_heartbeat_auto_creates_agent() {
-    let (storage, _temp) = create_test_storage().await;
+    let (_storage, _temp) = create_test_storage().await;
 
     let event_broadcaster = EventBroadcaster::default();
     let state_manager = Arc::new(StateManager::new());
@@ -467,11 +460,7 @@ async fn test_heartbeat_auto_creates_agent() {
 
     // Agent should be auto-created
     let agents = state_manager.list_agents().await;
-    assert_eq!(
-        agents.len(),
-        1,
-        "Heartbeat should auto-create agent"
-    );
+    assert_eq!(agents.len(), 1, "Heartbeat should auto-create agent");
 
     let agent = &agents[0];
     assert_eq!(agent.id, "test-agent-999");

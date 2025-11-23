@@ -56,9 +56,7 @@ impl HealthService for HealthServiceImpl {
             memories_by_type: HashMap::new(),
         };
 
-        Ok(Response::new(GetStatsResponse {
-            stats: Some(stats),
-        }))
+        Ok(Response::new(GetStatsResponse { stats: Some(stats) }))
     }
 
     async fn get_metrics(
@@ -94,7 +92,8 @@ impl HealthService for HealthServiceImpl {
         }))
     }
 
-    type StreamMetricsStream = tokio_stream::wrappers::ReceiverStream<Result<MetricsSnapshot, Status>>;
+    type StreamMetricsStream =
+        tokio_stream::wrappers::ReceiverStream<Result<MetricsSnapshot, Status>>;
 
     async fn stream_metrics(
         &self,
@@ -106,7 +105,8 @@ impl HealthService for HealthServiceImpl {
         let start_time = self.start_time;
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(interval_ms as u64));
+            let mut interval =
+                tokio::time::interval(tokio::time::Duration::from_millis(interval_ms as u64));
 
             loop {
                 interval.tick().await;
@@ -132,7 +132,9 @@ impl HealthService for HealthServiceImpl {
             }
         });
 
-        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(rx)))
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            rx,
+        )))
     }
 
     async fn get_version(

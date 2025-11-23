@@ -1,11 +1,13 @@
 //! Database initialization command
 
-use mnemosyne_core::{error::Result, ConnectionMode, LibsqlStorage, orchestration::events::AgentEvent};
+use mnemosyne_core::{
+    error::Result, orchestration::events::AgentEvent, ConnectionMode, LibsqlStorage,
+};
 use std::path::PathBuf;
 use tracing::debug;
 
-use super::helpers::get_default_db_path;
 use super::event_helpers;
+use super::helpers::get_default_db_path;
 
 /// Handle database initialization command
 pub async fn handle(database: Option<String>, global_db_path: Option<String>) -> Result<()> {
@@ -30,7 +32,8 @@ pub async fn handle(database: Option<String>, global_db_path: Option<String>) ->
             // Initialize storage (this will create the database and run migrations)
             // Init command explicitly creates database if missing
             let _storage =
-                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true).await?;
+                LibsqlStorage::new_with_validation(ConnectionMode::Local(db_path.clone()), true)
+                    .await?;
 
             // Count migrations that would be applied for a new database
             // Based on libsql.rs::run_migrations() - LibSQL has 6 migrations, StandardSQLite has 7
@@ -41,10 +44,12 @@ pub async fn handle(database: Option<String>, global_db_path: Option<String>) ->
             event_helpers::emit_domain_event(AgentEvent::DatabaseInitialized {
                 database_path: db_path.clone(),
                 migrations_applied,
-            }).await;
+            })
+            .await;
 
             println!(" Database initialized: {}", db_path);
             Ok(())
-        }
-    ).await
+        },
+    )
+    .await
 }

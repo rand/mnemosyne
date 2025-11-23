@@ -159,9 +159,7 @@ pub enum AgentEvent {
     },
 
     /// Evolution process started
-    EvolveStarted {
-        timestamp: chrono::DateTime<Utc>,
-    },
+    EvolveStarted { timestamp: chrono::DateTime<Utc> },
 
     /// Evolution process completed
     EvolveCompleted {
@@ -204,9 +202,7 @@ pub enum AgentEvent {
 
     // Health & Status Events
     /// Health check started
-    HealthCheckStarted {
-        timestamp: chrono::DateTime<Utc>,
-    },
+    HealthCheckStarted { timestamp: chrono::DateTime<Utc> },
 
     /// Health check completed
     HealthCheckCompleted {
@@ -268,7 +264,7 @@ pub enum AgentEvent {
     ConfigChanged {
         setting: String,
         old_value: Option<String>, // Obfuscated for secrets
-        new_value: Option<String>,  // Obfuscated for secrets
+        new_value: Option<String>, // Obfuscated for secrets
     },
 
     /// Secrets modified
@@ -462,7 +458,9 @@ impl AgentEvent {
             } => {
                 format!("{:?} assigned: {}", agent, description)
             }
-            AgentEvent::WorkItemStarted { agent, description, .. } => {
+            AgentEvent::WorkItemStarted {
+                agent, description, ..
+            } => {
                 format!("{:?} started: {}", agent, description)
             }
             AgentEvent::WorkItemCompleted {
@@ -583,9 +581,7 @@ impl AgentEvent {
                     importance, content_preview, memory_id
                 )
             }
-            AgentEvent::EvolveStarted { .. } => {
-                "Evolution process started".to_string()
-            }
+            AgentEvent::EvolveStarted { .. } => "Evolution process started".to_string(),
             AgentEvent::EvolveCompleted {
                 consolidations,
                 decayed,
@@ -619,113 +615,249 @@ impl AgentEvent {
                     operation, affected_rows, table, duration_ms
                 )
             }
-            AgentEvent::OrchestrationStarted { plan_description, max_concurrent, .. } => {
-                format!("Orchestration started: {} (max concurrent: {})", plan_description, max_concurrent)
+            AgentEvent::OrchestrationStarted {
+                plan_description,
+                max_concurrent,
+                ..
+            } => {
+                format!(
+                    "Orchestration started: {} (max concurrent: {})",
+                    plan_description, max_concurrent
+                )
             }
-            AgentEvent::OrchestrationCompleted { work_items_completed, work_items_failed, duration_ms } => {
-                format!("Orchestration completed in {}ms: {} succeeded, {} failed",
-                    duration_ms, work_items_completed, work_items_failed)
+            AgentEvent::OrchestrationCompleted {
+                work_items_completed,
+                work_items_failed,
+                duration_ms,
+            } => {
+                format!(
+                    "Orchestration completed in {}ms: {} succeeded, {} failed",
+                    duration_ms, work_items_completed, work_items_failed
+                )
             }
-            AgentEvent::HealthCheckStarted { .. } => {
-                "Health check started".to_string()
+            AgentEvent::HealthCheckStarted { .. } => "Health check started".to_string(),
+            AgentEvent::HealthCheckCompleted {
+                checks_passed,
+                checks_failed,
+                checks_warned,
+                duration_ms,
+            } => {
+                format!(
+                    "Health check completed in {}ms: {} passed, {} failed, {} warned",
+                    duration_ms, checks_passed, checks_failed, checks_warned
+                )
             }
-            AgentEvent::HealthCheckCompleted { checks_passed, checks_failed, checks_warned, duration_ms } => {
-                format!("Health check completed in {}ms: {} passed, {} failed, {} warned",
-                    duration_ms, checks_passed, checks_failed, checks_warned)
+            AgentEvent::StatusCheckExecuted {
+                status_summary,
+                memory_count,
+                database_size_mb,
+            } => {
+                format!(
+                    "Status check: {} ({} memories, {:.2} MB database)",
+                    status_summary, memory_count, database_size_mb
+                )
             }
-            AgentEvent::StatusCheckExecuted { status_summary, memory_count, database_size_mb } => {
-                format!("Status check: {} ({} memories, {:.2} MB database)",
-                    status_summary, memory_count, database_size_mb)
-            }
-            AgentEvent::IcsSessionStarted { file_path, template, .. } => {
-                match (file_path, template) {
-                    (Some(path), _) => format!("ICS editor started: {}", path),
-                    (None, Some(tmpl)) => format!("ICS editor started with template: {}", tmpl),
-                    (None, None) => "ICS editor started".to_string(),
-                }
-            }
-            AgentEvent::IcsSessionEnded { file_path, changes_saved, duration_ms } => {
+            AgentEvent::IcsSessionStarted {
+                file_path,
+                template,
+                ..
+            } => match (file_path, template) {
+                (Some(path), _) => format!("ICS editor started: {}", path),
+                (None, Some(tmpl)) => format!("ICS editor started with template: {}", tmpl),
+                (None, None) => "ICS editor started".to_string(),
+            },
+            AgentEvent::IcsSessionEnded {
+                file_path,
+                changes_saved,
+                duration_ms,
+            } => {
                 let saved_status = if *changes_saved { "saved" } else { "discarded" };
                 match file_path {
-                    Some(path) => format!("ICS editor ended: {} ({}, {}ms)", path, saved_status, duration_ms),
+                    Some(path) => format!(
+                        "ICS editor ended: {} ({}, {}ms)",
+                        path, saved_status, duration_ms
+                    ),
                     None => format!("ICS editor ended: {} ({}ms)", saved_status, duration_ms),
                 }
             }
-            AgentEvent::DatabaseInitialized { database_path, migrations_applied } => {
-                format!("Database initialized at {} ({} migrations applied)", database_path, migrations_applied)
+            AgentEvent::DatabaseInitialized {
+                database_path,
+                migrations_applied,
+            } => {
+                format!(
+                    "Database initialized at {} ({} migrations applied)",
+                    database_path, migrations_applied
+                )
             }
-            AgentEvent::ExportStarted { output_path, namespace_filter } => {
-                match (output_path, namespace_filter) {
-                    (Some(path), Some(ns)) => format!("Export started to {} (namespace: {})", path, ns),
-                    (Some(path), None) => format!("Export started to {}", path),
-                    (None, Some(ns)) => format!("Export started (namespace: {})", ns),
-                    (None, None) => "Export started".to_string(),
-                }
+            AgentEvent::ExportStarted {
+                output_path,
+                namespace_filter,
+            } => match (output_path, namespace_filter) {
+                (Some(path), Some(ns)) => format!("Export started to {} (namespace: {})", path, ns),
+                (Some(path), None) => format!("Export started to {}", path),
+                (None, Some(ns)) => format!("Export started (namespace: {})", ns),
+                (None, None) => "Export started".to_string(),
+            },
+            AgentEvent::ExportCompleted {
+                memories_exported,
+                output_size_bytes,
+                duration_ms,
+            } => {
+                format!(
+                    "Export completed in {}ms: {} memories ({} bytes)",
+                    duration_ms, memories_exported, output_size_bytes
+                )
             }
-            AgentEvent::ExportCompleted { memories_exported, output_size_bytes, duration_ms } => {
-                format!("Export completed in {}ms: {} memories ({} bytes)",
-                    duration_ms, memories_exported, output_size_bytes)
+            AgentEvent::MemoryUpdated {
+                memory_id,
+                fields_changed,
+            } => {
+                format!(
+                    "Memory {} updated: {} fields changed",
+                    memory_id,
+                    fields_changed.len()
+                )
             }
-            AgentEvent::MemoryUpdated { memory_id, fields_changed } => {
-                format!("Memory {} updated: {} fields changed", memory_id, fields_changed.len())
-            }
-            AgentEvent::ConfigChanged { setting, new_value, .. } => {
-                match new_value {
-                    Some(val) => format!("Config changed: {} = {}", setting, val),
-                    None => format!("Config changed: {} (cleared)", setting),
-                }
-            }
-            AgentEvent::SecretsModified { operation, secret_name } => {
+            AgentEvent::ConfigChanged {
+                setting, new_value, ..
+            } => match new_value {
+                Some(val) => format!("Config changed: {} = {}", setting, val),
+                None => format!("Config changed: {} (cleared)", setting),
+            },
+            AgentEvent::SecretsModified {
+                operation,
+                secret_name,
+            } => {
                 format!("Secret {} operation: {}", operation, secret_name)
             }
-            AgentEvent::EmbeddingGenerated { memory_id, model_name, dimension, duration_ms } => {
-                format!("Embedding generated for {} using {} (dimension: {}, {}ms)",
-                    memory_id, model_name, dimension, duration_ms)
+            AgentEvent::EmbeddingGenerated {
+                memory_id,
+                model_name,
+                dimension,
+                duration_ms,
+            } => {
+                format!(
+                    "Embedding generated for {} using {} (dimension: {}, {}ms)",
+                    memory_id, model_name, dimension, duration_ms
+                )
             }
-            AgentEvent::EmbeddingBatchCompleted { batch_size, successful, failed, total_duration_ms } => {
-                format!("Embedding batch completed in {}ms: {}/{} successful, {} failed",
-                    total_duration_ms, successful, batch_size, failed)
+            AgentEvent::EmbeddingBatchCompleted {
+                batch_size,
+                successful,
+                failed,
+                total_duration_ms,
+            } => {
+                format!(
+                    "Embedding batch completed in {}ms: {}/{} successful, {} failed",
+                    total_duration_ms, successful, batch_size, failed
+                )
             }
-            AgentEvent::ModelOperationCompleted { operation, model_name, result_summary } => {
-                match model_name {
-                    Some(name) => format!("Model operation '{}' on {}: {}", operation, name, result_summary),
-                    None => format!("Model operation '{}': {}", operation, result_summary),
-                }
+            AgentEvent::ModelOperationCompleted {
+                operation,
+                model_name,
+                result_summary,
+            } => match model_name {
+                Some(name) => format!(
+                    "Model operation '{}' on {}: {}",
+                    operation, name, result_summary
+                ),
+                None => format!("Model operation '{}': {}", operation, result_summary),
+            },
+            AgentEvent::ArtifactCreated {
+                artifact_type,
+                artifact_id,
+                size_bytes,
+            } => {
+                format!(
+                    "Artifact created: {} {} ({} bytes)",
+                    artifact_type, artifact_id, size_bytes
+                )
             }
-            AgentEvent::ArtifactCreated { artifact_type, artifact_id, size_bytes } => {
-                format!("Artifact created: {} {} ({} bytes)", artifact_type, artifact_id, size_bytes)
-            }
-            AgentEvent::ArtifactLoaded { artifact_type, artifact_id, last_modified } => {
-                format!("Artifact loaded: {} {} (modified: {})",
-                    artifact_type, artifact_id, last_modified.format("%Y-%m-%d %H:%M:%S UTC"))
+            AgentEvent::ArtifactLoaded {
+                artifact_type,
+                artifact_id,
+                last_modified,
+            } => {
+                format!(
+                    "Artifact loaded: {} {} (modified: {})",
+                    artifact_type,
+                    artifact_id,
+                    last_modified.format("%Y-%m-%d %H:%M:%S UTC")
+                )
             }
             AgentEvent::InteractiveModeStarted { mode, .. } => {
                 format!("Interactive mode started: {}", mode)
             }
-            AgentEvent::InteractiveModeEnded { commands_executed, duration_ms } => {
-                format!("Interactive mode ended: {} commands in {}ms", commands_executed, duration_ms)
+            AgentEvent::InteractiveModeEnded {
+                commands_executed,
+                duration_ms,
+            } => {
+                format!(
+                    "Interactive mode ended: {} commands in {}ms",
+                    commands_executed, duration_ms
+                )
             }
-            AgentEvent::ServerStarted { server_type, listen_addr, instance_id } => {
-                format!("Server started: {} at {} (instance: {})", server_type, listen_addr, instance_id)
+            AgentEvent::ServerStarted {
+                server_type,
+                listen_addr,
+                instance_id,
+            } => {
+                format!(
+                    "Server started: {} at {} (instance: {})",
+                    server_type, listen_addr, instance_id
+                )
             }
-            AgentEvent::ServerStopped { server_type, uptime_ms, requests_handled } => {
-                format!("Server stopped: {} (uptime: {}ms, {} requests handled)",
-                    server_type, uptime_ms, requests_handled)
+            AgentEvent::ServerStopped {
+                server_type,
+                uptime_ms,
+                requests_handled,
+            } => {
+                format!(
+                    "Server stopped: {} (uptime: {}ms, {} requests handled)",
+                    server_type, uptime_ms, requests_handled
+                )
             }
             AgentEvent::DashboardStarted { dashboard_type, .. } => {
                 format!("Dashboard started: {}", dashboard_type)
             }
-            AgentEvent::DashboardStopped { dashboard_type, duration_ms } => {
-                format!("Dashboard stopped: {} (ran for {}ms)", dashboard_type, duration_ms)
+            AgentEvent::DashboardStopped {
+                dashboard_type,
+                duration_ms,
+            } => {
+                format!(
+                    "Dashboard stopped: {} (ran for {}ms)",
+                    dashboard_type, duration_ms
+                )
             }
-            AgentEvent::SessionStarted { instance_id, timestamp } => {
-                format!("Session started: {} at {}", instance_id, timestamp.format("%Y-%m-%d %H:%M:%S UTC"))
+            AgentEvent::SessionStarted {
+                instance_id,
+                timestamp,
+            } => {
+                format!(
+                    "Session started: {} at {}",
+                    instance_id,
+                    timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+                )
             }
-            AgentEvent::SessionEnded { instance_id, timestamp } => {
-                format!("Session ended: {} at {}", instance_id, timestamp.format("%Y-%m-%d %H:%M:%S UTC"))
+            AgentEvent::SessionEnded {
+                instance_id,
+                timestamp,
+            } => {
+                format!(
+                    "Session ended: {} at {}",
+                    instance_id,
+                    timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+                )
             }
-            AgentEvent::NetworkStateUpdate { connected_peers, known_nodes } => {
-                format!("Network state: {} peers, {} known nodes", connected_peers, known_nodes.len())
+            AgentEvent::NetworkStateUpdate {
+                connected_peers,
+                known_nodes,
+            } => {
+                format!(
+                    "Network state: {} peers, {} known nodes",
+                    connected_peers,
+                    known_nodes.len()
+                )
             }
         }
     }
@@ -752,7 +884,10 @@ impl EventPersistence {
         event_broadcaster: Option<crate::api::EventBroadcaster>,
     ) -> Self {
         if event_broadcaster.is_some() {
-            tracing::info!("Creating EventPersistence WITH broadcaster for namespace: {}", namespace);
+            tracing::info!(
+                "Creating EventPersistence WITH broadcaster for namespace: {}",
+                namespace
+            );
         } else {
             tracing::debug!("Creating EventPersistence WITHOUT broadcaster for namespace: {} (broadcaster will be registered shortly)", namespace);
         }
@@ -789,21 +924,19 @@ impl EventPersistence {
                 format!("{:?}", item_id),
                 description.clone(),
             )),
-            AgentEvent::WorkItemStarted { agent, description, .. } => {
-                Some(Event::agent_started_with_task(
-                    self.agent_role_to_id(agent),
-                    description.clone(),
-                ))
-            }
-            AgentEvent::WorkItemCompleted { agent, item_id, .. } => {
-                Some(Event::work_item_completed(
-                    self.agent_role_to_id(agent),
-                    format!("{:?}", item_id),
-                ))
-            }
-            AgentEvent::WorkItemFailed { agent, error, .. } => {
-                Some(Event::agent_failed(self.agent_role_to_id(agent), error.clone()))
-            }
+            AgentEvent::WorkItemStarted {
+                agent, description, ..
+            } => Some(Event::agent_started_with_task(
+                self.agent_role_to_id(agent),
+                description.clone(),
+            )),
+            AgentEvent::WorkItemCompleted { agent, item_id, .. } => Some(
+                Event::work_item_completed(self.agent_role_to_id(agent), format!("{:?}", item_id)),
+            ),
+            AgentEvent::WorkItemFailed { agent, error, .. } => Some(Event::agent_failed(
+                self.agent_role_to_id(agent),
+                error.clone(),
+            )),
             AgentEvent::PhaseTransition { from, to, .. } => Some(Event::phase_changed(
                 format!("{:?}", from),
                 format!("{:?}", to),
@@ -964,7 +1097,9 @@ impl EventPersistence {
 
         // Broadcast to API if broadcaster is available
         if let Some(broadcaster) = &self.event_broadcaster {
-            tracing::debug!("EventPersistence has broadcaster, checking if event can be converted to API event");
+            tracing::debug!(
+                "EventPersistence has broadcaster, checking if event can be converted to API event"
+            );
             if let Some(api_event) = self.to_api_event(&event) {
                 tracing::info!("Broadcasting event to API: {:?}", api_event.event_type);
                 if let Err(e) = broadcaster.broadcast(api_event) {

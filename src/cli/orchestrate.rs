@@ -3,15 +3,14 @@
 use mnemosyne_core::{
     api::{ApiServer, ApiServerConfig},
     error::Result,
-    icons,
-    launcher,
+    icons, launcher,
     orchestration::events::AgentEvent,
 };
 use std::sync::Arc;
 use tracing::debug;
 
-use super::helpers::{get_db_path, process_structured_plan};
 use super::event_helpers;
+use super::helpers::{get_db_path, process_structured_plan};
 
 /// Handle multi-agent orchestration command
 pub async fn handle(
@@ -31,7 +30,10 @@ pub async fn handle(
     println!("Configuration:");
     println!("  Database: {}", db_path);
     println!("  Max concurrent agents: {}", max_concurrent);
-    println!("  Dashboard: {}", if dashboard { "enabled" } else { "disabled" });
+    println!(
+        "  Dashboard: {}",
+        if dashboard { "enabled" } else { "disabled" }
+    );
     println!("  Work plan: {}", plan);
     println!();
 
@@ -50,7 +52,8 @@ pub async fn handle(
         plan_description,
         max_concurrent,
         timestamp: chrono::Utc::now(),
-    }).await;
+    })
+    .await;
 
     // Start embedded API server if dashboard requested
     let (event_broadcaster, state_manager, api_task) = if dashboard {
@@ -77,7 +80,10 @@ pub async fn handle(
             }
         });
 
-        println!("{} Dashboard API: http://127.0.0.1:3000", icons::action::link());
+        println!(
+            "{} Dashboard API: http://127.0.0.1:3000",
+            icons::action::link()
+        );
         println!("   Connect dashboard: mnemosyne-dash --api http://127.0.0.1:3000");
         println!();
 
@@ -133,10 +139,11 @@ pub async fn handle(
     // For now, we don't have work item counts from launch_orchestrated_session
     // TODO: Update launch_orchestrated_session to return work item stats
     event_helpers::emit_domain_event(AgentEvent::OrchestrationCompleted {
-        work_items_completed: 0,  // TODO: extract from results
-        work_items_failed: 0,     // TODO: extract from results
+        work_items_completed: 0, // TODO: extract from results
+        work_items_failed: 0,    // TODO: extract from results
         duration_ms,
-    }).await;
+    })
+    .await;
 
     Ok(())
 }

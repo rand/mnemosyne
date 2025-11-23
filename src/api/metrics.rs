@@ -210,7 +210,12 @@ impl MetricsCollector {
     }
 
     /// Update memory operation rates (call periodically, e.g., every second)
-    pub fn update_memory_rates(&mut self, evolutions: usize, consolidations: usize, graph_nodes: usize) {
+    pub fn update_memory_rates(
+        &mut self,
+        evolutions: usize,
+        consolidations: usize,
+        graph_nodes: usize,
+    ) {
         let now = Utc::now();
         let elapsed = (now - self.last_rate_calc).num_seconds() as f32;
 

@@ -24,8 +24,14 @@ pub struct IrohTransport {
 
 impl IrohTransport {
     /// Create a new Iroh transport
-    pub fn new(endpoint: Arc<RwLock<Option<AgentEndpoint>>>, cluster_secret: Option<String>) -> Self {
-        Self { endpoint, cluster_secret }
+    pub fn new(
+        endpoint: Arc<RwLock<Option<AgentEndpoint>>>,
+        cluster_secret: Option<String>,
+    ) -> Self {
+        Self {
+            endpoint,
+            cluster_secret,
+        }
     }
 }
 
@@ -39,9 +45,9 @@ impl RemoteTransport for IrohTransport {
             .ok_or_else(|| "Agent endpoint not initialized".to_string())?;
 
         // Parse node ID
-        let node_id_parsed = NodeId::from_str(node_id)
-            .map_err(|e| format!("Invalid node ID: {}", e))?;
-        
+        let node_id_parsed =
+            NodeId::from_str(node_id).map_err(|e| format!("Invalid node ID: {}", e))?;
+
         // Try to get full address from endpoint cache (if available)
         // This ensures we use direct addresses added via join_peer/add_peer
         let node_addr = if let Some(addr) = endpoint.get_peer_addr(node_id).await {
@@ -64,15 +70,19 @@ impl RemoteTransport for IrohTransport {
             .map_err(|e| format!("Failed to open stream: {}", e))?;
 
         // Perform handshake
-        AgentProtocol::handshake_initiator(&mut send_stream, &mut recv_stream, self.cluster_secret.clone())
-            .await
-            .map_err(|e| format!("Handshake failed: {}", e))?;
+        AgentProtocol::handshake_initiator(
+            &mut send_stream,
+            &mut recv_stream,
+            self.cluster_secret.clone(),
+        )
+        .await
+        .map_err(|e| format!("Handshake failed: {}", e))?;
 
         // Send the message using AgentProtocol
         AgentProtocol::send_message(&mut send_stream, message)
             .await
             .map_err(|e| format!("Failed to send message: {}", e))?;
-            
+
         // Finish the stream to signal we are done sending
         send_stream
             .finish()
