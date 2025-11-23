@@ -88,6 +88,7 @@ impl EventCategory {
             | EventType::Heartbeat { .. }
             | EventType::DatabaseOperation { .. }
             | EventType::NetworkStateUpdate { .. } => Self::System,
+            EventType::SessionEnded { .. } => Self::System,
         }
     }
 
@@ -237,7 +238,8 @@ impl EventFilter {
             | CliCommandFailed { timestamp, .. }
             | SearchPerformed { timestamp, .. }
             | DatabaseOperation { timestamp, .. }
-            | NetworkStateUpdate { timestamp, .. } => Some(*timestamp),
+            | EventType::NetworkStateUpdate { timestamp, .. } => Some(*timestamp),
+            EventType::SessionEnded { timestamp, .. } => Some(*timestamp),
         }
     }
 }

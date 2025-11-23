@@ -58,11 +58,19 @@ pub enum EventType {
     },
     /// Session started
     SessionStarted {
+        #[serde(default)]
+        instance_id: String,
+        timestamp: DateTime<Utc>,
+    },
+    /// Session ended
+    SessionEnded {
+        #[serde(default)]
         instance_id: String,
         timestamp: DateTime<Utc>,
     },
     /// Heartbeat (published periodically when idle)
     Heartbeat {
+        #[serde(default)]
         instance_id: String,
         timestamp: DateTime<Utc>,
     },
@@ -283,6 +291,7 @@ pub struct Event {
     pub id: String,
     /// Instance ID (for multi-instance coordination)
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub instance_id: Option<String>,
     /// Event payload
     #[serde(flatten)]

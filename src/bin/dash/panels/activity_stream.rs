@@ -280,6 +280,7 @@ impl ActivityStreamPanel {
             | SearchPerformed { timestamp, .. }
             | DatabaseOperation { timestamp, .. }
             | NetworkStateUpdate { timestamp, .. } => Some(*timestamp),
+            SessionEnded { timestamp, .. } => Some(*timestamp),
         }
     }
 

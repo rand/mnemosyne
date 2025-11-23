@@ -356,7 +356,7 @@ async fn main() -> Result<()> {
         .with_writer(std::io::stderr) // Write logs to stderr, not stdout
         .init();
 
-    debug!("Mnemosyne v{} starting...", env!("CARGO_PKG_VERSION"));
+    debug!("Mnemosyne v{} (patched) starting...", env!("CARGO_PKG_VERSION"));
 
     // Handle --serve flag (start MCP server without Claude Code)
     if cli.serve && cli.command.is_none() {

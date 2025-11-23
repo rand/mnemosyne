@@ -340,6 +340,14 @@ fn convert_api_event_to_agent_event(api_event: &ApiEvent) -> Option<AgentEvent> 
             timestamp: *timestamp,
         }),
 
+        EventType::SessionEnded {
+            instance_id,
+            timestamp,
+        } => Some(AgentEvent::SessionEnded {
+            instance_id: instance_id.clone(),
+            timestamp: *timestamp,
+        }),
+
         // Other events are dashboard-only (not needed for orchestration)
         _ => None,
     }

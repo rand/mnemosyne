@@ -758,6 +758,7 @@ impl StateManager {
 
             EventType::HealthUpdate { .. }
             | EventType::SessionStarted { .. }
+            | EventType::SessionEnded { .. }
             | EventType::CliCommandStarted { .. }
             | EventType::CliCommandCompleted { .. }
             | EventType::CliCommandFailed { .. }
