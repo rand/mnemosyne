@@ -108,9 +108,9 @@ Remaining TODOs are **future enhancements** for upcoming releases:
 | 243 | Implement actual weight lookup from database | High | 1h |
 | 262 | Implement weight update in database | High | 1h |
 
-**Status**: Currently returns placeholder values
+**Status**: Completed ✓
 **Impact**: Evaluation system weight persistence
-**Subtotal**: ~2 hours
+**Subtotal**: 0 hours
 
 ---
 
@@ -201,14 +201,14 @@ Based on impact and dependencies:
 - ✅ Production-ready
 
 ### v2.2.0 (Planned)
-- [ ] Python Bindings: 0/2 TODOs complete
+- [x] Python Bindings: 2/2 TODOs complete
 - [ ] Orchestration: 0/3 TODOs complete
 - [ ] DSPy: 0/3 TODOs complete
 - [ ] TUI: 0/5 TODOs complete
 - [ ] CLI: 0/2 TODOs complete
 - [ ] Semantic: 0/1 TODOs complete
 
-**Total Progress**: 0/16 TODOs complete (0%)
+**Total Progress**: 2/16 TODOs complete (12.5%)
 
 ---
 

@@ -2,7 +2,7 @@
 
 use super::{
     ChatView, CommandPalette, Dashboard, Dialog, EventLoop, HelpOverlay, IcsPanel, LayoutManager,
-    TerminalConfig, TerminalManager, TuiEvent,
+    NotificationKind, NotificationManager, TerminalConfig, TerminalManager, TuiEvent,
 };
 use crate::pty::ClaudeCodeWrapper;
 use anyhow::Result;
@@ -53,6 +53,8 @@ pub struct TuiApp {
     pending_dialog_action: PendingDialogAction,
     /// Claude Code wrapper
     wrapper: Option<ClaudeCodeWrapper>,
+    /// Notification manager
+    notifications: NotificationManager,
     /// Application state
     state: AppState,
 }
@@ -135,6 +137,7 @@ impl TuiApp {
 
         let layout = LayoutManager::new(ratatui::layout::Rect::default());
         let help_overlay = HelpOverlay::new();
+        let notifications = NotificationManager::new();
 
         Ok(Self {
             terminal,
@@ -148,6 +151,7 @@ impl TuiApp {
             active_dialog: None,
             pending_dialog_action: PendingDialogAction::None,
             wrapper: None,
+            notifications,
             state: AppState::Running,
         })
     }
@@ -156,6 +160,30 @@ impl TuiApp {
     pub fn with_wrapper(mut self, wrapper: ClaudeCodeWrapper) -> Self {
         self.wrapper = Some(wrapper);
         self
+    }
+
+    /// Show info notification
+    pub fn notify_info(&mut self, message: &str) {
+        self.notifications
+            .notify(NotificationKind::Info, message.to_string());
+    }
+
+    /// Show success notification
+    pub fn notify_success(&mut self, message: &str) {
+        self.notifications
+            .notify(NotificationKind::Success, message.to_string());
+    }
+
+    /// Show warning notification
+    pub fn notify_warning(&mut self, message: &str) {
+        self.notifications
+            .notify(NotificationKind::Warning, message.to_string());
+    }
+
+    /// Show error notification
+    pub fn notify_error(&mut self, message: &str) {
+        self.notifications
+            .notify(NotificationKind::Error, message.to_string());
     }
 
     /// Run the application
@@ -188,6 +216,9 @@ impl TuiApp {
             if self.state == AppState::Quitting {
                 break;
             }
+
+            // Update notifications
+            self.notifications.tick();
 
             // Small delay to avoid busy looping
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
@@ -371,11 +402,11 @@ impl TuiApp {
                 match std::fs::write(&filepath, content) {
                     Ok(_) => {
                         tracing::info!("ICS: Exported to {}", filepath);
-                        // TODO: Show success notification when notification system is implemented
+                        self.notify_success(&format!("Context exported to {}", filename));
                     }
                     Err(e) => {
                         tracing::error!("ICS: Export failed: {}", e);
-                        // TODO: Show error dialog when error notification system is implemented
+                        self.notify_error(&format!("Export failed: {}", e));
                     }
                 }
             }
@@ -421,11 +452,11 @@ impl TuiApp {
                     match std::fs::write(&input, &content) {
                         Ok(_) => {
                             tracing::info!("ICS: File saved to {}", input);
-                            // TODO: Show success notification
+                            self.notify_success(&format!("File saved to {}", input));
                         }
                         Err(e) => {
                             tracing::error!("ICS: Failed to save file: {}", e);
-                            // TODO: Show error dialog
+                            self.notify_error(&format!("Failed to save file: {}", e));
                         }
                     }
                 }
@@ -510,6 +541,9 @@ impl TuiApp {
             if let Some(dialog) = &self.active_dialog {
                 dialog.render(frame, size);
             }
+
+            // Render notifications (overlay on top of everything including dialogs)
+            frame.render_widget(&self.notifications, size);
 
             // Build and render status bar with context-aware hints
             use super::StatusBar;

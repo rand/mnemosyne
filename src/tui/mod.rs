@@ -14,6 +14,7 @@
 mod app;
 mod events;
 mod layout;
+mod notifications;
 mod terminal;
 mod views;
 mod widgets;
@@ -21,6 +22,7 @@ mod widgets;
 pub use app::TuiApp;
 pub use events::{EventHandler, EventLoop, TuiEvent};
 pub use layout::{LayoutManager, PanelConfig, Split};
+pub use notifications::{NotificationKind, NotificationManager};
 pub use terminal::{TerminalConfig, TerminalManager};
 pub use views::{ChatView, Dashboard, IcsPanel};
 pub use widgets::{
