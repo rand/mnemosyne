@@ -15,12 +15,10 @@
 
 use mnemosyne_core::{
     api::{ApiServer, ApiServerConfig, Event as ApiEvent, EventType},
-    launcher::agents::AgentRole,
     orchestration::{
         events::AgentEvent,
         messages::OrchestratorMessage,
         sse_subscriber::{SseSubscriber, SseSubscriberConfig},
-        state::{Phase, WorkItem},
         OrchestrationEngine, SupervisionConfig,
     },
     types::{MemoryId, Namespace},
@@ -29,7 +27,6 @@ use mnemosyne_core::{
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
-use tokio::sync::Mutex;
 
 /// Helper to create test storage with temporary database
 async fn create_test_storage() -> (Arc<LibsqlStorage>, TempDir) {
@@ -55,7 +52,11 @@ fn create_test_namespace() -> Namespace {
 }
 
 /// Helper to start API server on fixed port for testing
-async fn start_test_api_server() -> (tokio::task::JoinHandle<()>, std::sync::Arc<mnemosyne_core::api::EventBroadcaster>, u16) {
+async fn start_test_api_server() -> (
+    tokio::task::JoinHandle<()>,
+    std::sync::Arc<mnemosyne_core::api::EventBroadcaster>,
+    u16,
+) {
     let port = 13000 + (std::process::id() % 1000) as u16; // Semi-unique port per process
     let config = ApiServerConfig {
         addr: ([127, 0, 0, 1], port).into(),
@@ -126,19 +127,16 @@ async fn test_cli_event_emission_to_api_server() {
 
 #[tokio::test]
 async fn test_event_persistence_via_api() {
-    let (storage, _temp) = create_test_storage().await;
-    let namespace = create_test_namespace();
+    let (_storage, _temp) = create_test_storage().await;
+    let _namespace = create_test_namespace();
 
     // Start API server
-    let (_handle, broadcaster, port) = start_test_api_server().await;
+    let (_handle, _broadcaster, port) = start_test_api_server().await;
 
     // Emit multiple events
     let client = reqwest::Client::new();
     for i in 0..3 {
-        let event = ApiEvent::cli_command_started(
-            format!("command-{}", i),
-            vec![],
-        );
+        let event = ApiEvent::cli_command_started(format!("command-{}", i), vec![]);
 
         let _ = client
             .post(format!("http://127.0.0.1:{}/events/emit", port))
@@ -153,7 +151,6 @@ async fn test_event_persistence_via_api() {
 
     // Events are stored in memory (broadcaster), persistence requires orchestration setup
     // This test verifies the API accepts events
-    assert!(true, "API accepts and broadcasts events");
 }
 
 #[tokio::test]
@@ -167,7 +164,9 @@ async fn test_event_broadcaster_forwards_to_sse_stream() {
 
     // Broadcast event
     let event = ApiEvent::memory_stored("mem-123".to_string(), "Test".to_string());
-    broadcaster.broadcast(event.clone()).expect("Broadcast should succeed");
+    broadcaster
+        .broadcast(event.clone())
+        .expect("Broadcast should succeed");
 
     // Both subscribers should receive
     let received1 = tokio::time::timeout(Duration::from_millis(100), rx1.recv())
@@ -270,7 +269,9 @@ async fn test_sse_subscriber_receives_events() {
 
     // Broadcast CLI event
     let event = ApiEvent::cli_command_started("status".to_string(), vec![]);
-    broadcaster.broadcast(event).expect("Broadcast should succeed");
+    broadcaster
+        .broadcast(event)
+        .expect("Broadcast should succeed");
 
     // Give time for subscriber to receive and forward
     tokio::time::sleep(Duration::from_millis(200)).await;
@@ -284,10 +285,8 @@ async fn test_sse_subscriber_receives_events() {
 
 #[tokio::test]
 async fn test_sse_subscriber_converts_api_event_to_agent_event() {
-    use mnemosyne_core::orchestration::sse_subscriber;
-
     // Test event conversion function directly
-    let api_event = ApiEvent {
+    let _api_event = ApiEvent {
         id: "test-1".to_string(),
         instance_id: None,
         event_type: EventType::CliCommandStarted {
@@ -299,7 +298,6 @@ async fn test_sse_subscriber_converts_api_event_to_agent_event() {
 
     // Access conversion logic via test
     // (The conversion function is private, but we test it via SSE flow)
-    assert!(true, "Event conversion tested via end-to-end flow");
 }
 
 // =============================================================================
@@ -320,7 +318,7 @@ async fn test_end_to_end_cli_event_flow() {
     let orchestrator = engine.orchestrator();
 
     // Start API server
-    let (_handle, broadcaster, port) = start_test_api_server().await;
+    let (_handle, _broadcaster, port) = start_test_api_server().await;
     // broadcaster already available from start_test_api_server();
 
     // Create SSE subscriber
@@ -377,7 +375,7 @@ async fn test_memory_operation_event_flow() {
     engine.start().await.expect("Failed to start engine");
 
     // Start API server
-    let (_handle, broadcaster, port) = start_test_api_server().await;
+    let (_handle, broadcaster, _port) = start_test_api_server().await;
     // broadcaster already available from start_test_api_server();
 
     // Subscribe to events
@@ -390,7 +388,9 @@ async fn test_memory_operation_event_flow() {
     ];
 
     for event in events {
-        broadcaster.broadcast(event).expect("Broadcast should succeed");
+        broadcaster
+            .broadcast(event)
+            .expect("Broadcast should succeed");
     }
 
     // Verify events are received
@@ -433,7 +433,9 @@ async fn test_session_lifecycle_event_flow() {
 
     // Emit session started
     let event = ApiEvent::session_started("test-instance".to_string());
-    broadcaster.broadcast(event).expect("Broadcast should succeed");
+    broadcaster
+        .broadcast(event)
+        .expect("Broadcast should succeed");
 
     // Verify event received
     let received = tokio::time::timeout(Duration::from_millis(200), rx.recv())
@@ -557,7 +559,9 @@ async fn test_event_ordering_preserved() {
     let mut event_ids = Vec::new();
     for event in events {
         event_ids.push(event.id.clone());
-        broadcaster.broadcast(event).expect("Broadcast should succeed");
+        broadcaster
+            .broadcast(event)
+            .expect("Broadcast should succeed");
     }
 
     // Verify order preserved
