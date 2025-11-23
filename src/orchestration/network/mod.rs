@@ -9,6 +9,7 @@
 pub mod endpoint;
 pub mod protocol;
 pub mod router;
+pub mod transport;
 
 pub use endpoint::{AgentEndpoint, AgentKeypair};
 pub use protocol::AgentProtocol;
@@ -60,6 +61,10 @@ impl NetworkLayer {
             let mut ep = self.endpoint.write().await;
             *ep = Some(endpoint);
         }
+
+        // Initialize and register transport
+        let transport = Arc::new(transport::IrohTransport::new(self.endpoint.clone()));
+        self.router.set_transport(transport).await;
 
         *started = true;
 
