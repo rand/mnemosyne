@@ -64,7 +64,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "Re-signing binaries for macOS compatibility..."
 
     for binary in "${BINARIES[@]}"; do
-        local bin_path="${BIN_DIR}/${binary}"
+        bin_path="${BIN_DIR}/${binary}"
 
         # Strip com.apple.provenance attribute
         xattr -d com.apple.provenance "$bin_path" 2>/dev/null || true
