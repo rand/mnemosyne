@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Agent-scoped `MemoryManager` API with recall, listing, updates, archival, context prefetch, and turn sync helpers.
+- `agent:` namespaces plus `list`, `prefetch`, and `sync` CLI commands.
+- Context fencing/scrubbing helpers and offline local-embedding fallback paths.
+
+### Changed
+- Added `remember --no-enrich` for fast raw-memory imports.
+- Reduced evaluation/evolution test overhead through in-memory fixtures, synchronous pure-computation tests, and batched migrations.
+
+### Fixed
+- Removed the recall CLI's per-result memory fetch in vector-search merging.
+- Made agent database filenames reject path traversal and made prefetch/sync honor the configured database path and namespace.
+
 ## [2.3.1] - 2025-11-09
 
 ### Fixed

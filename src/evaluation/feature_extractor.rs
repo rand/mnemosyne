@@ -20,6 +20,8 @@ use std::path::Path;
 use std::sync::Arc;
 use tracing::{debug, warn};
 
+use tokio::sync::OnceCell;
+
 /// Privacy-preserving relevance features
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RelevanceFeatures {
@@ -50,6 +52,9 @@ pub struct RelevanceFeatures {
 /// Feature extractor
 pub struct FeatureExtractor {
     db_path: String,
+    /// Cached Database handle — avoids re-opening the database on every
+    /// query method call (get_memory_recency, compute_historical_success, etc.)
+    db: OnceCell<libsql::Database>,
     embedding_service: Option<Arc<LocalEmbeddingService>>,
 }
 
@@ -58,8 +63,30 @@ impl FeatureExtractor {
     pub fn new(db_path: String) -> Self {
         Self {
             db_path,
+            db: OnceCell::const_new(),
             embedding_service: None,
         }
+    }
+
+    /// Get a cached database connection.
+    ///
+    /// Lazily initializes and caches the Database handle, avoiding
+    /// re-opening the database on every query method call.
+    async fn get_conn(&self) -> Result<libsql::Connection> {
+        let db = self
+            .db
+            .get_or_try_init(|| async {
+                libsql::Builder::new_local(&self.db_path)
+                    .build()
+                    .await
+                    .map_err(|e| {
+                        MnemosyneError::Database(format!("Failed to open database: {}", e))
+                    })
+            })
+            .await?;
+
+        db.connect()
+            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))
     }
 
     /// Get the database path
@@ -153,6 +180,7 @@ impl FeatureExtractor {
     /// Compute keyword overlap using Jaccard similarity
     ///
     /// Privacy-preserving: computes score, doesn't store keywords
+    #[inline]
     fn compute_keyword_overlap(
         &self,
         task_keywords: &[String],
@@ -315,6 +343,7 @@ impl FeatureExtractor {
     /// Check if the context's namespace matches the task's namespace.
     /// For memory contexts, check if memory namespace matches task namespace.
     /// For skill/file contexts, they're typically global so match any namespace.
+    #[inline]
     fn compute_namespace_match(&self, evaluation: &ContextEvaluation) -> bool {
         match &evaluation.context_type {
             ContextType::Memory => {
@@ -334,6 +363,7 @@ impl FeatureExtractor {
     }
 
     /// Compute file type match
+    #[inline]
     fn compute_file_type_match(&self, evaluation: &ContextEvaluation) -> bool {
         // Check if context involves files matching task file types
         if let (Some(task_files), ContextType::File) =
@@ -348,6 +378,8 @@ impl FeatureExtractor {
     /// Compute agent role affinity
     ///
     /// How well does this context type suit this agent role?
+    /// Compute agent role affinity
+    #[inline]
     fn compute_agent_affinity(&self, agent_role: &str, context_type: &ContextType) -> f32 {
         // Hardcoded affinity matrix (could be learned over time)
         match (agent_role, context_type) {
@@ -363,14 +395,7 @@ impl FeatureExtractor {
 
     /// Get memory recency (days since created)
     async fn get_memory_recency(&self, memory_id: &str) -> Result<f32> {
-        let db = libsql::Builder::new_local(&self.db_path)
-            .build()
-            .await
-            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
-
-        let conn = db
-            .connect()
-            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
+        let conn = self.get_conn().await?;
 
         let mut rows = conn
             .query(
@@ -405,14 +430,7 @@ impl FeatureExtractor {
 
     /// Get memory access frequency (accesses per day)
     async fn get_memory_access_frequency(&self, memory_id: &str) -> Result<f32> {
-        let db = libsql::Builder::new_local(&self.db_path)
-            .build()
-            .await
-            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
-
-        let conn = db
-            .connect()
-            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
+        let conn = self.get_conn().await?;
 
         let mut rows = conn
             .query(
@@ -455,14 +473,7 @@ impl FeatureExtractor {
 
     /// Get days since memory was last accessed
     async fn get_memory_last_used_days(&self, memory_id: &str) -> Result<Option<f32>> {
-        let db = libsql::Builder::new_local(&self.db_path)
-            .build()
-            .await
-            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
-
-        let conn = db
-            .connect()
-            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
+        let conn = self.get_conn().await?;
 
         let mut rows = conn
             .query(
@@ -507,14 +518,7 @@ impl FeatureExtractor {
         context_id: &str,
         context_type: &ContextType,
     ) -> Result<Option<f32>> {
-        let db = libsql::Builder::new_local(&self.db_path)
-            .build()
-            .await
-            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
-
-        let conn = db
-            .connect()
-            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
+        let conn = self.get_conn().await?;
 
         let context_type_str = match context_type {
             ContextType::Memory => "memory",
@@ -577,14 +581,7 @@ impl FeatureExtractor {
         context_id: &str,
         _session_id: &str,
     ) -> Result<Option<f32>> {
-        let db = libsql::Builder::new_local(&self.db_path)
-            .build()
-            .await
-            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
-
-        let conn = db
-            .connect()
-            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
+        let conn = self.get_conn().await?;
 
         // Find sessions where this context appeared
         let mut rows = conn
@@ -664,6 +661,7 @@ impl FeatureExtractor {
     /// - Accessed + (edited OR committed OR cited) = useful
     /// - Explicit positive rating = useful
     /// - Not accessed within reasonable time = not useful
+    #[inline]
     fn determine_usefulness(&self, evaluation: &ContextEvaluation) -> bool {
         // Explicit rating takes precedence
         if let Some(rating) = evaluation.user_rating {
@@ -687,14 +685,7 @@ impl FeatureExtractor {
     pub async fn store_features(&self, features: &RelevanceFeatures) -> Result<()> {
         debug!("Storing features for evaluation {}", features.evaluation_id);
 
-        let db = libsql::Builder::new_local(&self.db_path)
-            .build()
-            .await
-            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
-
-        let conn = db
-            .connect()
-            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
+        let conn = self.get_conn().await?;
 
         conn.execute(
             r#"
@@ -741,14 +732,7 @@ impl FeatureExtractor {
 
     /// Get features for an evaluation
     pub async fn get_features(&self, evaluation_id: &str) -> Result<RelevanceFeatures> {
-        let db = libsql::Builder::new_local(&self.db_path)
-            .build()
-            .await
-            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
-
-        let conn = db
-            .connect()
-            .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))?;
+        let conn = self.get_conn().await?;
 
         let mut rows = conn
             .query(

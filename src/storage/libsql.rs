@@ -10,10 +10,191 @@ use crate::types::{MemoryId, MemoryLink, MemoryNote, Namespace, SearchResult};
 use async_trait::async_trait;
 use chrono::Utc;
 use libsql::{params, Builder, Connection, Database};
+use once_cell::sync::Lazy;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{debug, info, warn};
+
+// ---------------------------------------------------------------------------
+// Migration SQL embedded at compile time via include_str!
+// Eliminates runtime file I/O during database initialization — critical for
+// test performance where 30+ tests each create a fresh LibsqlStorage.
+// ---------------------------------------------------------------------------
+
+/// Migration file names for LibSQL schema
+static LIBSQL_MIGRATION_NAMES: &[&str] = &[
+    "001_initial_schema.sql",
+    "002_add_indexes.sql",
+    "003_audit_trail.sql",
+    "011_work_items.sql",
+    "012_requirement_tracking.sql",
+    "015_version_check_cache.sql",
+];
+
+/// Migration file names for StandardSQLite schema
+static SQLITE_MIGRATION_NAMES: &[&str] = &[
+    "001_initial_schema.sql",
+    "002_add_indexes.sql",
+    "003_fix_fts_triggers.sql",
+    "011_work_items.sql",
+    "012_requirement_tracking.sql",
+    "013_add_task_and_agent_event_types.sql",
+    "014_add_specification_workflow_types.sql",
+    "016_version_check_cache.sql",
+];
+
+/// (filename, SQL content) pairs for LibSQL migrations — SQL embedded at
+/// compile time so no file I/O is needed at runtime.
+static LIBSQL_MIGRATIONS: &[(&str, &str)] = &[
+    (
+        "001_initial_schema.sql",
+        include_str!("../../migrations/libsql/001_initial_schema.sql"),
+    ),
+    (
+        "002_add_indexes.sql",
+        include_str!("../../migrations/libsql/002_add_indexes.sql"),
+    ),
+    (
+        "003_audit_trail.sql",
+        include_str!("../../migrations/libsql/003_audit_trail.sql"),
+    ),
+    (
+        "011_work_items.sql",
+        include_str!("../../migrations/libsql/011_work_items.sql"),
+    ),
+    (
+        "012_requirement_tracking.sql",
+        include_str!("../../migrations/libsql/012_requirement_tracking.sql"),
+    ),
+    (
+        "015_version_check_cache.sql",
+        include_str!("../../migrations/libsql/015_version_check_cache.sql"),
+    ),
+];
+
+/// (filename, SQL content) pairs for StandardSQLite migrations
+static SQLITE_MIGRATIONS: &[(&str, &str)] = &[
+    (
+        "001_initial_schema.sql",
+        include_str!("../../migrations/sqlite/001_initial_schema.sql"),
+    ),
+    (
+        "002_add_indexes.sql",
+        include_str!("../../migrations/sqlite/002_add_indexes.sql"),
+    ),
+    (
+        "003_fix_fts_triggers.sql",
+        include_str!("../../migrations/sqlite/003_fix_fts_triggers.sql"),
+    ),
+    (
+        "011_work_items.sql",
+        include_str!("../../migrations/sqlite/011_work_items.sql"),
+    ),
+    (
+        "012_requirement_tracking.sql",
+        include_str!("../../migrations/sqlite/012_requirement_tracking.sql"),
+    ),
+    (
+        "013_add_task_and_agent_event_types.sql",
+        include_str!("../../migrations/sqlite/013_add_task_and_agent_event_types.sql"),
+    ),
+    (
+        "014_add_specification_workflow_types.sql",
+        include_str!("../../migrations/sqlite/014_add_specification_workflow_types.sql"),
+    ),
+    (
+        "016_version_check_cache.sql",
+        include_str!("../../migrations/sqlite/016_version_check_cache.sql"),
+    ),
+];
+
+/// Pre-parsed and pre-batched migration SQL for fresh databases.
+/// Includes: CREATE TABLE IF NOT EXISTS _migrations_applied + all migration SQL
+/// + INSERT records. Computed once on first access via Lazy, then reused for
+/// every subsequent fresh database creation (including in tests).
+static LIBSQL_FRESH_SQL: Lazy<String> = Lazy::new(|| {
+    let now = Utc::now().timestamp();
+    let mut parts: Vec<String> = Vec::new();
+    // Create migrations tracking table
+    parts.push("CREATE TABLE IF NOT EXISTS _migrations_applied (migration_name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)".to_string());
+    // Add all migration SQL
+    for (_, sql) in LIBSQL_MIGRATIONS {
+        let statements = parse_sql_statements(sql);
+        for stmt in statements {
+            let trimmed = stmt.trim();
+            if !trimmed.is_empty() {
+                parts.push(trimmed.to_string());
+            }
+        }
+    }
+    // Record all migrations as applied
+    for (name, _) in LIBSQL_MIGRATIONS {
+        parts.push(format!(
+            "INSERT INTO _migrations_applied (migration_name, applied_at) VALUES ('{}', {})",
+            name, now
+        ));
+    }
+    parts.join(";\n")
+});
+
+/// Pre-parsed and pre-batched migration SQL for fresh StandardSQLite databases.
+static SQLITE_FRESH_SQL: Lazy<String> = Lazy::new(|| {
+    let now = Utc::now().timestamp();
+    let mut parts: Vec<String> = Vec::new();
+    // Create migrations tracking table
+    parts.push("CREATE TABLE IF NOT EXISTS _migrations_applied (migration_name TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)".to_string());
+    // Add all migration SQL
+    for (_, sql) in SQLITE_MIGRATIONS {
+        let statements = parse_sql_statements(sql);
+        for stmt in statements {
+            let trimmed = stmt.trim();
+            if !trimmed.is_empty() {
+                parts.push(trimmed.to_string());
+            }
+        }
+    }
+    // Record all migrations as applied
+    for (name, _) in SQLITE_MIGRATIONS {
+        parts.push(format!(
+            "INSERT INTO _migrations_applied (migration_name, applied_at) VALUES ('{}', {})",
+            name, now
+        ));
+    }
+    parts.join(";\n")
+});
+
+/// PRAGMA-prefixed fresh migration SQL for in-memory databases.
+/// Merges speed-optimized PRAGMAs into the migration batch so a single
+/// execute_batch call sets PRAGMAs AND creates the schema, eliminating
+/// a separate connection + execute_batch round-trip per in-memory DB creation.
+static LIBSQL_FRESH_SQL_MEM: Lazy<String> = Lazy::new(|| {
+    format!(
+        "PRAGMA journal_mode=MEMORY; PRAGMA synchronous=OFF; PRAGMA temp_store=MEMORY; PRAGMA cache_size=-65536; {}",
+        &*LIBSQL_FRESH_SQL
+    )
+});
+
+/// Same as above for StandardSQLite schema.
+static SQLITE_FRESH_SQL_MEM: Lazy<String> = Lazy::new(|| {
+    format!(
+        "PRAGMA journal_mode=MEMORY; PRAGMA synchronous=OFF; PRAGMA temp_store=MEMORY; PRAGMA cache_size=-65536; {}",
+        &*SQLITE_FRESH_SQL
+    )
+});
+
+/// Look up pre-compiled migration SQL by file name
+fn lookup_migration_sql(schema_type: SchemaType, file_name: &str) -> &'static str {
+    let migrations = match schema_type {
+        SchemaType::LibSQL => LIBSQL_MIGRATIONS,
+        SchemaType::StandardSQLite => SQLITE_MIGRATIONS,
+    };
+    migrations
+        .iter()
+        .find(|(name, _)| *name == file_name)
+        .map(|(_, sql)| *sql)
+        .unwrap_or("")
+}
 
 /// Parse SQL file into individual statements, handling multi-line constructs like triggers
 fn parse_sql_statements(sql: &str) -> Vec<String> {
@@ -76,6 +257,20 @@ pub struct LibsqlStorage {
     schema_type: SchemaType,
     db_path: String,
 }
+
+/// Shared in-memory storage cache for test builds.
+///
+/// Many evolution/evaluation tests create a LibsqlStorage solely to construct
+/// job structs (e.g., ArchivalJob::new(storage)) whose pure-computation methods
+/// (should_archive, calculate_importance, etc.) never access the storage.
+/// Creating 24+ separate in-memory DBs adds ~10ms each.
+/// This caches a single in-memory DB; pure-computation tests reuse it via
+/// `shared_test_storage()`. Tests that write data keep their own isolated DBs.
+#[cfg(test)]
+use std::sync::OnceLock;
+
+#[cfg(test)]
+static SHARED_TEST_STORAGE: OnceLock<Arc<LibsqlStorage>> = OnceLock::new();
 
 /// Database connection mode
 #[derive(Debug, Clone)]
@@ -310,11 +505,16 @@ impl LibsqlStorage {
             _ => mode,
         };
 
+        // Track whether this is a fresh database (file didn't exist before creation).
+        // Fresh databases can skip schema detection and health checks.
+        let mut is_fresh = false;
+
         // Validate database before connecting (for local paths only)
         match &mode {
             ConnectionMode::Local(ref path) => {
                 // Validate database file
                 let exists = Self::validate_database_file(path, !create_if_missing)?;
+                is_fresh = create_if_missing && !exists;
 
                 // If creating and doesn't exist, create parent directory
                 if create_if_missing && !exists {
@@ -340,6 +540,7 @@ impl LibsqlStorage {
             ConnectionMode::EmbeddedReplica { ref path, .. } => {
                 // Validate replica database file
                 let exists = Self::validate_database_file(path, !create_if_missing)?;
+                is_fresh = create_if_missing && !exists;
 
                 // If creating and doesn't exist, create parent directory
                 if create_if_missing && !exists {
@@ -358,7 +559,11 @@ impl LibsqlStorage {
                 }
             }
             ConnectionMode::InMemory | ConnectionMode::Remote { .. } => {
-                // Skip validation for in-memory and remote databases
+                // In-memory databases are always fresh
+                if matches!(mode, ConnectionMode::InMemory) {
+                    is_fresh = true;
+                }
+                // Skip validation for remote databases
                 // Remote validation happens server-side
             }
         }
@@ -391,7 +596,15 @@ impl LibsqlStorage {
                 })?
             }
             ConnectionMode::InMemory => {
-                Builder::new_local(":memory:").build().await.map_err(|e| {
+                // Skip SQLite safety assertion in test builds — safe because
+                // libsql is the only SQLite user in the test process, so there
+                // can be no threading mode conflicts. The assertion check adds
+                // overhead per database open, and in-memory databases are
+                // created in 20+ tests per run.
+                let builder = Builder::new_local(":memory:");
+                #[cfg(test)]
+                let builder = unsafe { builder.skip_safety_assert(true) };
+                builder.build().await.map_err(|e| {
                     MnemosyneError::Database(format!("Failed to create in-memory database: {}", e))
                 })?
             }
@@ -435,11 +648,24 @@ impl LibsqlStorage {
 
         debug!("LibSQL database connection established");
 
+        // For in-memory databases, PRAGMAs are now merged into the pre-compiled
+        // migration batch SQL (LIBSQL_FRESH_SQL_MEM / SQLITE_FRESH_SQL_MEM) in
+        // run_migrations(), eliminating the need for a separate connection here.
+        // journal_mode=MEMORY, synchronous=OFF, temp_store=MEMORY, cache_size=64MB
+        // are applied as part of the single migration execute_batch call.
+
         // Detect schema type by checking if embedding column exists in memories table
         // LibSQL schema: embedding stored as F32_BLOB in memories table (native vector support)
         // StandardSQLite schema: embeddings stored in separate memory_embeddings table
-        let schema_type = Self::detect_schema_type(&db).await?;
-        info!(
+        // Skip detection for fresh databases — default to LibSQL schema (new databases
+        // always use native F32_BLOB support).
+        let schema_type = if is_fresh {
+            debug!("Fresh database — defaulting to LibSQL schema (skipping detection)");
+            SchemaType::LibSQL
+        } else {
+            Self::detect_schema_type(&db).await?
+        };
+        debug!(
             "Detected database schema: {:?} (embedding column {} in memories table)",
             schema_type,
             if schema_type == SchemaType::LibSQL {
@@ -479,8 +705,13 @@ impl LibsqlStorage {
                 })?;
             }
             _ => {
-                storage.verify_database_health().await?;
-                storage.run_migrations().await?;
+                // Skip health check for fresh databases — they were just
+                // created and haven't been corrupted yet. Only verify
+                // existing databases that could be in a bad state.
+                if !is_fresh {
+                    storage.verify_database_health().await?;
+                }
+                storage.run_migrations(is_fresh).await?;
             }
         }
 
@@ -536,6 +767,41 @@ impl LibsqlStorage {
     /// ```
     pub async fn new_local(path: &str) -> Result<Self> {
         Self::new(ConnectionMode::Local(path.to_string())).await
+    }
+
+    /// Get a shared in-memory storage for test-only use.
+    ///
+    /// Creates one in-memory database on first call and returns an `Arc<LibsqlStorage>`
+    /// clone for all subsequent calls. Safe ONLY for tests whose pure-computation
+    /// methods (should_archive, calculate_importance, calculate_decay, etc.) never
+    /// read from or write to the database. Tests that perform actual DB operations
+    /// should call `LibsqlStorage::new()` directly for isolated DB instances.
+    #[cfg(test)]
+    pub async fn shared_test_storage() -> Result<Arc<LibsqlStorage>> {
+        LibsqlStorage::shared_test_storage_sync()
+    }
+
+    /// Synchronous version of `shared_test_storage()` that doesn't require a tokio
+    /// runtime. Uses `OnceLock::get()` for cached lookups (O(1) atomic load) and
+    /// only creates a temporary runtime for the one-time initialization on first call.
+    ///
+    /// This allows pure-computation tests to use `#[test]` instead of `#[tokio::test]`,
+    /// avoiding the ~0.15ms tokio runtime creation overhead per test.
+    #[cfg(test)]
+    pub fn shared_test_storage_sync() -> Result<Arc<LibsqlStorage>> {
+        if let Some(cached) = SHARED_TEST_STORAGE.get() {
+            return Ok(cached.clone());
+        }
+
+        // First call: block on async initialization. Only happens once per process.
+        let rt = tokio::runtime::Runtime::new().map_err(|e| {
+            MnemosyneError::Database(format!("Failed to create test runtime: {}", e))
+        })?;
+        let storage =
+            Arc::new(rt.block_on(Self::new_with_validation(ConnectionMode::InMemory, true))?);
+        let _ = SHARED_TEST_STORAGE.set(storage.clone());
+        rt.shutdown_background();
+        Ok(storage)
     }
 
     /// Create from string path (backward compatibility)
@@ -620,119 +886,152 @@ impl LibsqlStorage {
     }
 
     /// Run database migrations
-    pub async fn run_migrations(&self) -> Result<()> {
+    pub async fn run_migrations(&self, is_fresh: bool) -> Result<()> {
         debug!("Running database migrations...");
 
         // Get a connection for migrations
         let conn = self.get_conn()?;
 
-        // Create migrations tracking table if it doesn't exist
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS _migrations_applied (
-                migration_name TEXT PRIMARY KEY,
-                applied_at INTEGER NOT NULL
-            )",
-            params![],
-        )
-        .await
-        .map_err(|e| {
-            MnemosyneError::Migration(format!("Failed to create migrations table: {}", e))
-        })?;
+        // For fresh databases, skip the separate CREATE TABLE call —
+        // the pre-compiled batch SQL already includes it, reducing DB round-trips.
+        if !is_fresh {
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS _migrations_applied (
+                    migration_name TEXT PRIMARY KEY,
+                    applied_at INTEGER NOT NULL
+                )",
+                params![],
+            )
+            .await
+            .map_err(|e| {
+                MnemosyneError::Migration(format!("Failed to create migrations table: {}", e))
+            })?;
+        }
 
-        // Manually run migrations for better control
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let migration_folder = match self.schema_type {
-            SchemaType::LibSQL => "libsql",
-            SchemaType::StandardSQLite => "sqlite",
+        // For fresh databases, we know the _migrations_applied table is empty,
+        // so we can skip the COUNT(*) query and batch all migrations in a single
+        // execute_batch call.
+        if is_fresh {
+            debug!("Fresh database — using pre-compiled migration SQL (no file I/O)");
+
+            // Use pre-compiled migration SQL embedded at build time via include_str!.
+            // Lazy<String> ensures SQL is parsed once per process, not per test.
+            // For in-memory databases, include PRAGMA optimizations at the start of
+            // the batch so a single execute_batch call sets PRAGMAs + creates schema.
+            let is_mem = self.db_path == ":memory:";
+            let (batch_sql, migration_names) = match (self.schema_type, is_mem) {
+                (SchemaType::LibSQL, true) => (&*LIBSQL_FRESH_SQL_MEM, LIBSQL_MIGRATION_NAMES),
+                (SchemaType::LibSQL, false) => (&*LIBSQL_FRESH_SQL, LIBSQL_MIGRATION_NAMES),
+                (SchemaType::StandardSQLite, true) => {
+                    (&*SQLITE_FRESH_SQL_MEM, SQLITE_MIGRATION_NAMES)
+                }
+                (SchemaType::StandardSQLite, false) => (&*SQLITE_FRESH_SQL, SQLITE_MIGRATION_NAMES),
+            };
+
+            // Execute all migration SQL + record inserts in a single batch
+            conn.execute_batch(batch_sql).await.map_err(|e| {
+                MnemosyneError::Migration(format!("Failed to execute combined migrations: {}", e))
+            })?;
+
+            #[cfg(not(test))]
+            for name in migration_names {
+                debug!("Executed migration: {}", name);
+            }
+
+            debug!("Database migrations completed (single batch, pre-compiled)");
+            return Ok(());
+        }
+
+        // Non-fresh database: check which migrations are already applied
+        let mut count_rows = conn
+            .query("SELECT COUNT(*) FROM _migrations_applied", params![])
+            .await
+            .map_err(|e| {
+                MnemosyneError::Migration(format!("Failed to check migrations count: {}", e))
+            })?;
+        let has_applied_migrations = count_rows
+            .next()
+            .await
+            .map_err(|e| {
+                MnemosyneError::Migration(format!("Failed to read migration count: {}", e))
+            })?
+            .map(|row| {
+                let count: i64 = row.get(0).unwrap_or(0);
+                count > 0
+            })
+            .unwrap_or(false);
+
+        if has_applied_migrations {
+            debug!("Existing migrations found - will check each file individually");
+        } else {
+            debug!("No migrations applied yet - skipping per-file checks for fresh database");
+        }
+
+        // Use pre-compiled migration SQL (no file I/O) — different
+        // files for each schema type, looked up via lookup_migration_sql()
+        let migration_files: &[&str] = match self.schema_type {
+            SchemaType::LibSQL => LIBSQL_MIGRATION_NAMES,
+            SchemaType::StandardSQLite => SQLITE_MIGRATION_NAMES,
         };
-        let migrations_path = std::path::PathBuf::from(manifest_dir)
-            .join("migrations")
-            .join(migration_folder);
 
         debug!(
-            "Migrations path: {:?} (schema type: {:?})",
-            migrations_path, self.schema_type
+            "Running {} migrations (schema type: {:?})",
+            migration_files.len(),
+            self.schema_type
         );
-
-        // Read and execute migration files in order - different files for each schema type
-        let migration_files: Vec<&str> = match self.schema_type {
-            SchemaType::LibSQL => vec![
-                "001_initial_schema.sql",
-                "002_add_indexes.sql",
-                "003_audit_trail.sql",
-                "011_work_items.sql",
-                "012_requirement_tracking.sql",
-                "015_version_check_cache.sql",
-                // Note: LibSQL schema uses native embedding column in memories table (F32_BLOB)
-            ],
-            SchemaType::StandardSQLite => vec![
-                "001_initial_schema.sql",
-                "002_add_indexes.sql",
-                "003_fix_fts_triggers.sql",
-                // 007_evolution.sql is obsolete (columns already in 001_initial_schema.sql)
-                "011_work_items.sql",
-                "012_requirement_tracking.sql",
-                "013_add_task_and_agent_event_types.sql",
-                "014_add_specification_workflow_types.sql",
-                "016_version_check_cache.sql",
-                // 015_fix_audit_log_schema.sql is only for production databases affected by ghost migration 003
-                // Fresh databases from 001_initial_schema.sql already have correct audit_log schema
-                // Note: SQLite schema uses separate memory_embeddings table
-                // 003_add_vector_search.sql is disabled (requires sqlite-vec extension)
-            ],
-        };
 
         for migration_file in migration_files {
             // Check if migration already applied
-            let mut rows = conn
-                .query(
-                    "SELECT COUNT(*) FROM _migrations_applied WHERE migration_name = ?",
-                    params![migration_file],
-                )
-                .await?;
+            if has_applied_migrations {
+                let mut rows = conn
+                    .query(
+                        "SELECT COUNT(*) FROM _migrations_applied WHERE migration_name = ?",
+                        params![migration_file],
+                    )
+                    .await?;
 
-            let already_applied = if let Some(row) = rows.next().await? {
-                row.get::<i64>(0).unwrap_or(0)
-            } else {
-                0
-            };
+                let already_applied = if let Some(row) = rows.next().await? {
+                    row.get::<i64>(0).unwrap_or(0)
+                } else {
+                    0
+                };
 
-            if already_applied > 0 {
-                debug!("Skipping already applied migration: {}", migration_file);
-                continue;
+                if already_applied > 0 {
+                    debug!("Skipping already applied migration: {}", migration_file);
+                    continue;
+                }
             }
-            let file_path = migrations_path.join(migration_file);
-            debug!("Executing migration: {:?}", file_path);
+            debug!("Executing migration: {}", migration_file);
 
-            let sql = std::fs::read_to_string(&file_path).map_err(|e| {
-                MnemosyneError::Migration(format!(
-                    "Failed to read migration file {}: {}",
-                    migration_file, e
-                ))
-            })?;
+            // Use pre-compiled SQL from include_str! (no file I/O)
+            let sql = lookup_migration_sql(self.schema_type, migration_file);
 
-            // Execute the migration SQL
             // Parse SQL statements properly, handling multi-line statements like triggers
-            let statements = parse_sql_statements(&sql);
+            let statements = parse_sql_statements(sql);
             debug!(
                 "Parsed {} statements from {}",
                 statements.len(),
                 migration_file
             );
-            for (i, statement) in statements.iter().enumerate() {
-                let statement = statement.trim();
-                if !statement.is_empty() {
-                    debug!("Executing statement {}/{}", i + 1, statements.len());
-                    conn.execute(statement, params![]).await.map_err(|e| {
-                        MnemosyneError::Migration(format!(
-                            "Failed to execute statement #{} in {}: {}\nStatement: {}",
-                            i + 1,
-                            migration_file,
-                            e,
-                            &statement[..statement.len().min(300)]
-                        ))
-                    })?;
-                }
+            // Execute all non-empty statements in a single batch call.
+            // This reduces database round-trips from N (one per statement) to 1.
+            let batch_sql: String = statements
+                .iter()
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
+                .join(";\n");
+
+            if !batch_sql.is_empty() {
+                conn.execute_batch(&batch_sql).await.map_err(|e| {
+                    MnemosyneError::Migration(format!(
+                        "Failed to execute migration {}: {}\nSQL: {}",
+                        migration_file,
+                        e,
+                        &batch_sql[..batch_sql.len().min(500)]
+                    ))
+                })?;
             }
 
             // Record migration as applied
@@ -1159,6 +1458,8 @@ impl LibsqlStorage {
             || term.contains('(')
             || term.contains(')')
             || term.contains('"')
+            || term.contains('?')
+            || term.contains('*')
             || term.to_lowercase().contains(" not ")
             || term.to_lowercase().contains(" and ")
             || term.to_lowercase().contains(" or ");
@@ -1953,6 +2254,22 @@ impl StorageBackend for LibsqlStorage {
             .await?;
         }
 
+        // Inline audit log INSERT within the transaction (avoids a separate DB connection round-trip)
+        tx.execute(
+            "INSERT INTO audit_log (operation, memory_id, metadata) VALUES (?, ?, ?)",
+            params![
+                "create",
+                memory.id.to_string(),
+                serde_json::json!({
+                    "namespace": memory.namespace,
+                    "memory_type": memory.memory_type,
+                    "importance": memory.importance,
+                })
+                .to_string(),
+            ],
+        )
+        .await?;
+
         tx.commit().await.map_err(|e| {
             let error_msg = e.to_string();
             if error_msg.contains("readonly") || error_msg.contains("permission") {
@@ -1967,17 +2284,6 @@ impl StorageBackend for LibsqlStorage {
                 MnemosyneError::Database(format!("Transaction commit failed: {}", error_msg))
             }
         })?;
-
-        self.log_audit(
-            "create",
-            Some(memory.id),
-            serde_json::json!({
-                "namespace": memory.namespace,
-                "memory_type": memory.memory_type,
-                "importance": memory.importance,
-            }),
-        )
-        .await?;
 
         // Auto-generate embedding if embedding service is configured
         // This is a fire-and-forget operation - failures are logged but don't fail the store
@@ -2179,6 +2485,17 @@ impl StorageBackend for LibsqlStorage {
             .await?;
         }
 
+        // Inline audit log INSERT within the transaction (avoids a separate DB connection round-trip)
+        tx.execute(
+            "INSERT INTO audit_log (operation, memory_id, metadata) VALUES (?, ?, ?)",
+            params![
+                "update",
+                memory.id.to_string(),
+                serde_json::json!({"importance": memory.importance}).to_string(),
+            ],
+        )
+        .await?;
+
         tx.commit().await.map_err(|e| {
             let error_msg = e.to_string();
             if error_msg.contains("readonly") || error_msg.contains("permission") {
@@ -2193,13 +2510,6 @@ impl StorageBackend for LibsqlStorage {
                 MnemosyneError::Database(format!("Transaction commit failed: {}", error_msg))
             }
         })?;
-
-        self.log_audit(
-            "update",
-            Some(memory.id),
-            serde_json::json!({"importance": memory.importance}),
-        )
-        .await?;
 
         Ok(())
     }
@@ -2219,8 +2529,12 @@ impl StorageBackend for LibsqlStorage {
         )
         .await?;
 
-        self.log_audit("archive", Some(id), serde_json::json!({}))
-            .await?;
+        // Inline audit log INSERT on same connection (avoids separate get_conn() round-trip)
+        conn.execute(
+            "INSERT INTO audit_log (operation, memory_id, metadata) VALUES (?, ?, ?)",
+            params!["archive", id.to_string(), "{}".to_string()],
+        )
+        .await?;
 
         Ok(())
     }
@@ -2376,8 +2690,8 @@ impl StorageBackend for LibsqlStorage {
                 "#
             };
 
-            if let Some(ref ns) = namespace_filter {
-                conn.query(sql, params![fts_query, ns.clone()]).await?
+            if let Some(ref ns_json) = namespace_filter {
+                conn.query(sql, params![fts_query, ns_json.clone()]).await?
             } else {
                 conn.query(sql, params![fts_query]).await?
             }
@@ -3442,35 +3756,61 @@ impl StorageBackend for LibsqlStorage {
         &self,
         state: crate::orchestration::state::AgentState,
     ) -> Result<Vec<crate::orchestration::state::WorkItem>> {
-        debug!("Loading work items by state: {:?}", state);
+        self.load_work_items_by_states(&[state]).await
+    }
+
+    /// Load work items by multiple states in a single query
+    async fn load_work_items_by_states(
+        &self,
+        states: &[crate::orchestration::state::AgentState],
+    ) -> Result<Vec<crate::orchestration::state::WorkItem>> {
+        debug!("Loading work items by states: {:?}", states);
         let conn = self.get_conn()?;
 
-        let state_str = format!("{:?}", state);
+        if states.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let state_strs: Vec<String> = states.iter().map(|s| format!("{:?}", s)).collect();
+        debug!("Querying work items in states: {:?}", state_strs);
+
+        // Build IN clause with dynamic number of placeholders
+        let placeholders = (0..states.len())
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(", ");
+        let state_params: Vec<libsql::Value> =
+            state_strs.into_iter().map(libsql::Value::Text).collect();
 
         let stmt = conn
             .prepare(
-                r#"
-                SELECT id, description, original_intent, agent_role, state, phase, priority,
-                       dependencies, created_at, started_at, completed_at, error, timeout_secs,
-                       review_feedback, suggested_tests, review_attempt,
-                       execution_memory_ids, consolidated_context_id, estimated_context_tokens,
-                       assigned_branch, file_scope, requirements, requirement_status, implementation_evidence
-                FROM work_items
-                WHERE state = ?
-                ORDER BY priority DESC, created_at ASC
-                "#,
+                &format!(
+                    r#"
+                    SELECT id, description, original_intent, agent_role, state, phase, priority,
+                           dependencies, created_at, started_at, completed_at, error, timeout_secs,
+                           review_feedback, suggested_tests, review_attempt,
+                           execution_memory_ids, consolidated_context_id, estimated_context_tokens,
+                           assigned_branch, file_scope, requirements, requirement_status, implementation_evidence
+                    FROM work_items
+                    WHERE state IN ({placeholders})
+                    ORDER BY priority DESC, created_at ASC
+                    "#,
+                ),
             )
             .await
             .map_err(|e| {
                 MnemosyneError::Database(format!(
-                    "Failed to prepare load_work_items_by_state query: {}",
+                    "Failed to prepare load_work_items_by_states query: {}",
                     e
                 ))
             })?;
 
-        let mut rows = stmt.query(params![state_str]).await.map_err(|e| {
-            MnemosyneError::Database(format!("Failed to query work items by state: {}", e))
-        })?;
+        let mut rows = stmt
+            .query(libsql::params_from_iter(state_params))
+            .await
+            .map_err(|e| {
+                MnemosyneError::Database(format!("Failed to query work items by states: {}", e))
+            })?;
 
         let mut work_items = Vec::new();
 
@@ -3733,9 +4073,9 @@ impl StorageBackend for LibsqlStorage {
         }
 
         debug!(
-            "Loaded {} work items by state: {:?}",
+            "Loaded {} work items by states: {:?}",
             work_items.len(),
-            state
+            states
         );
         Ok(work_items)
     }

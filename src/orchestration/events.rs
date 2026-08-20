@@ -1062,6 +1062,11 @@ impl EventPersistence {
         let now = Utc::now();
 
         // Serialize event
+        // Use compact JSON in tests (skips pretty-print formatting overhead),
+        // pretty-printed in production for human-readable debug output.
+        #[cfg(test)]
+        let content = serde_json::to_string(&event)?;
+        #[cfg(not(test))]
         let content = serde_json::to_string_pretty(&event)?;
 
         // Create memory

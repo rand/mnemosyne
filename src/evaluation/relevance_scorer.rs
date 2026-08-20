@@ -34,6 +34,8 @@ use std::collections::HashMap;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
+use tokio::sync::OnceCell;
+
 /// Scope of learned weights
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -128,6 +130,7 @@ impl WeightSet {
     /// - 10 samples → 0.5 confidence
     /// - 20 samples → ~0.88 confidence
     /// - 50+ samples → ~1.0 confidence
+    #[inline]
     pub fn calculate_confidence(&self) -> f32 {
         let x = (self.sample_count as f32 - 10.0) / 5.0;
         1.0 / (1.0 + (-x).exp())
@@ -139,6 +142,7 @@ impl WeightSet {
     }
 
     /// Normalize weights to sum to 1.0
+    #[inline]
     pub fn normalize_weights(&mut self) {
         let sum: f32 = self.weights.values().sum();
         if sum > 0.0 {
@@ -152,12 +156,18 @@ impl WeightSet {
 /// Relevance scorer with online learning
 pub struct RelevanceScorer {
     db_path: String,
+    /// Cached Database handle — avoids re-opening the database on every
+    /// get_conn() call in score_context, get_weights, store_weights, etc.
+    db: OnceCell<libsql::Database>,
 }
 
 impl RelevanceScorer {
     /// Create a new relevance scorer
     pub fn new(db_path: String) -> Self {
-        Self { db_path }
+        Self {
+            db_path,
+            db: OnceCell::const_new(),
+        }
     }
 
     /// Get database path
@@ -212,6 +222,7 @@ impl RelevanceScorer {
     }
 
     /// Compute weighted score from features
+    #[inline]
     fn compute_weighted_score(
         &self,
         features: &RelevanceFeatures,
@@ -813,11 +824,21 @@ impl RelevanceScorer {
     }
 
     /// Get database connection
+    ///
+    /// Uses a cached Database handle (OnceCell) to avoid re-opening
+    /// the database on every call.
     async fn get_conn(&self) -> Result<libsql::Connection> {
-        let db = libsql::Builder::new_local(&self.db_path)
-            .build()
-            .await
-            .map_err(|e| MnemosyneError::Database(format!("Failed to open database: {}", e)))?;
+        let db = self
+            .db
+            .get_or_try_init(|| async {
+                libsql::Builder::new_local(&self.db_path)
+                    .build()
+                    .await
+                    .map_err(|e| {
+                        MnemosyneError::Database(format!("Failed to open database: {}", e))
+                    })
+            })
+            .await?;
 
         db.connect()
             .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))

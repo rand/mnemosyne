@@ -16,6 +16,8 @@ use std::collections::HashMap;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
+use tokio::sync::OnceCell;
+
 /// Context type being evaluated
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -174,6 +176,9 @@ pub struct ContextEvaluation {
 /// Feedback collector for context evaluation
 pub struct FeedbackCollector {
     db_path: String,
+    /// Cached Database handle — avoids re-opening the database and re-running
+    /// validation + health checks + migrations on every get_conn() call.
+    db: OnceCell<libsql::Database>,
     // Track active contexts for access timing
     active_contexts: tokio::sync::RwLock<HashMap<String, i64>>,
 }
@@ -183,6 +188,7 @@ impl FeedbackCollector {
     pub fn new(db_path: String) -> Self {
         Self {
             db_path,
+            db: OnceCell::const_new(),
             active_contexts: tokio::sync::RwLock::new(HashMap::new()),
         }
     }
@@ -519,18 +525,19 @@ impl FeedbackCollector {
     }
 
     /// Get connection to database
+    ///
+    /// Uses a cached Database handle (OnceCell) to avoid re-opening the database
+    /// and re-running validation/health checks/migrations on every call.
     async fn get_conn(&self) -> Result<libsql::Connection> {
-        use crate::storage::libsql::{ConnectionMode, LibsqlStorage};
-
-        let _storage = LibsqlStorage::new(ConnectionMode::Local(self.db_path.clone())).await?;
-
-        // Get connection from storage
-        // We need to use the internal database instance
-        // For now, create a temporary connection
-        let db = libsql::Builder::new_local(&self.db_path)
-            .build()
-            .await
-            .map_err(|e| MnemosyneError::Database(format!("Failed to connect: {}", e)))?;
+        let db = self
+            .db
+            .get_or_try_init(|| async {
+                libsql::Builder::new_local(&self.db_path)
+                    .build()
+                    .await
+                    .map_err(|e| MnemosyneError::Database(format!("Failed to connect: {}", e)))
+            })
+            .await?;
 
         db.connect()
             .map_err(|e| MnemosyneError::Database(format!("Failed to get connection: {}", e)))

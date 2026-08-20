@@ -122,6 +122,15 @@ pub trait StorageBackend: Send + Sync {
         state: crate::orchestration::state::AgentState,
     ) -> Result<Vec<crate::orchestration::state::WorkItem>>;
 
+    /// Load work items by multiple states in a single query (for bootstrap)
+    ///
+    /// This is more efficient than calling load_work_items_by_state multiple times
+    /// since it uses a single database connection and query.
+    async fn load_work_items_by_states(
+        &self,
+        states: &[crate::orchestration::state::AgentState],
+    ) -> Result<Vec<crate::orchestration::state::WorkItem>>;
+
     /// Delete a work item (when permanently completed)
     async fn delete_work_item(&self, id: &crate::orchestration::state::WorkItemId) -> Result<()>;
 }

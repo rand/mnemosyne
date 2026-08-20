@@ -121,7 +121,6 @@ mod tests {
     use async_trait::async_trait;
     use std::sync::Arc;
     use std::time::Duration;
-    use tempfile::TempDir;
 
     /// Mock evolution job for testing
     struct MockEvolutionJob {
@@ -136,7 +135,7 @@ mod tests {
         }
 
         async fn run(&self, _config: &JobConfig) -> std::result::Result<JobReport, JobError> {
-            tokio::time::sleep(Duration::from_millis(50)).await;
+            tokio::time::sleep(Duration::from_millis(0)).await;
 
             if self.should_fail {
                 return Err(JobError::ExecutionError("Mock failure".to_string()));
@@ -145,7 +144,7 @@ mod tests {
             Ok(JobReport {
                 memories_processed: 100,
                 changes_made: 10,
-                duration: Duration::from_millis(50),
+                duration: Duration::from_millis(0),
                 errors: 0,
                 error_message: None,
             })
@@ -156,20 +155,15 @@ mod tests {
         }
     }
 
-    async fn create_test_storage() -> (Arc<LibsqlStorage>, TempDir) {
-        let temp_dir = TempDir::new().unwrap();
-        let db_path = temp_dir.path().join("test.db");
-
-        let storage = Arc::new(
-            LibsqlStorage::new_with_validation(
-                ConnectionMode::Local(db_path.to_str().unwrap().to_string()),
-                true,
-            )
+    async fn create_test_storage() -> Arc<LibsqlStorage> {
+        // Use shared_test_storage to avoid creating a new in-memory DB per test.
+        // The 3 orchestration integration tests each create an OrchestratorActor
+        // with a unique UUID-based namespace, so event-sourcing records from one
+        // test don't interfere with another. The work queue is per-actor (in-memory),
+        // not persisted in the DB, so there's no cross-test contamination.
+        LibsqlStorage::shared_test_storage()
             .await
-            .expect("Failed to create storage"),
-        );
-
-        (storage, temp_dir)
+            .expect("Failed to create shared test storage")
     }
 
     fn create_test_namespace() -> Namespace {
@@ -181,7 +175,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_submit_evolution_job() {
-        let (storage, _temp) = create_test_storage().await;
+        let storage = create_test_storage().await;
         let namespace = create_test_namespace();
 
         let config = SupervisionConfig::default();
@@ -214,15 +208,15 @@ mod tests {
 
         assert!(!work_id.to_string().is_empty());
 
-        // Give time for job to complete
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        // Give time for job to complete (2x buffer over 0ms mock job)
+        tokio::time::sleep(Duration::from_millis(2)).await;
 
         engine.stop().await.expect("Failed to stop");
     }
 
     #[tokio::test]
     async fn test_evolution_job_failure() {
-        let (storage, _temp) = create_test_storage().await;
+        let storage = create_test_storage().await;
         let namespace = create_test_namespace();
 
         let config = SupervisionConfig::default();
@@ -255,15 +249,15 @@ mod tests {
 
         assert!(!work_id.to_string().is_empty());
 
-        // Give time for job to fail
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        // Give time for job to fail (2x buffer over 0ms mock job)
+        tokio::time::sleep(Duration::from_millis(2)).await;
 
         engine.stop().await.expect("Failed to stop");
     }
 
     #[tokio::test]
     async fn test_evolution_batch_submission() {
-        let (storage, _temp) = create_test_storage().await;
+        let storage = create_test_storage().await;
         let namespace = create_test_namespace();
 
         let config = SupervisionConfig::default();
@@ -313,8 +307,8 @@ mod tests {
 
         assert_eq!(work_ids.len(), 2);
 
-        // Give time for jobs to complete
-        tokio::time::sleep(Duration::from_millis(300)).await;
+        // Give time for jobs to complete (2x buffer over 0ms mock jobs)
+        tokio::time::sleep(Duration::from_millis(2)).await;
 
         engine.stop().await.expect("Failed to stop");
     }

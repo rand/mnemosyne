@@ -73,6 +73,32 @@ enum Commands {
         namespace: Option<String>,
     },
 
+    /// List stored memories (browse by recency, importance, or access count)
+    ///
+    /// Useful for personal agents to review their memory history and
+    /// verify what the system has retained.
+    List {
+        /// Namespace filter (e.g., "project:myapp", "global")
+        #[arg(short, long)]
+        namespace: Option<String>,
+
+        /// Maximum results (default: 20)
+        #[arg(short, long, default_value = "20")]
+        limit: usize,
+
+        /// Sort order (recent, importance, access_count)
+        #[arg(long, default_value = "recent")]
+        sort_by: String,
+
+        /// Tags filter (comma-separated, e.g., "important,task")
+        #[arg(long)]
+        tags: Option<String>,
+
+        /// Output format (text/json)
+        #[arg(short, long, default_value = "text")]
+        format: String,
+    },
+
     /// Show system status
     Status,
 
@@ -177,6 +203,11 @@ enum Commands {
         /// Output format
         #[arg(short, long, default_value = "text")]
         format: String,
+
+        /// Skip LLM enrichment (store raw memory without summary/keywords/tags).
+        /// Useful for personal agents doing bulk imports.
+        #[arg(long, default_value_t = false)]
+        no_enrich: bool,
     },
 
     /// Recall memories (search and retrieve)
@@ -197,9 +228,54 @@ enum Commands {
         #[arg(long)]
         min_importance: Option<u8>,
 
-        /// Output format (text/json)
+        /// Tags filter (comma-separated, e.g., "important,task")
+        #[arg(short, long)]
+        tags: Option<String>,
+
+        /// Output format (text/json/context). "context" outputs a
+        /// `<memory-context>` block for agent prompt injection.
         #[arg(short, long, default_value = "text")]
         format: String,
+    },
+
+    /// Warm up memory context for the next agent turn (fire-and-forget recall).
+    ///
+    /// Designed to be called after a turn completes.  Prints the prefetched
+    /// context to stdout so the runtime can enqueue it for the next turn.
+    Prefetch {
+        /// Search query to warm up
+        #[arg(short, long)]
+        query: String,
+
+        /// Namespace filter
+        #[arg(short, long)]
+        namespace: Option<String>,
+
+        /// Maximum results
+        #[arg(short, long, default_value = "5")]
+        limit: usize,
+    },
+
+    /// Record a completed user+assistant turn as a session memory.
+    ///
+    /// Call this at the end of a turn so the exchange is surfaced again on
+    /// future recalls.  Mirrors the post-turn sync in hermes-agent.
+    Sync {
+        /// User message text
+        #[arg(long)]
+        user: String,
+
+        /// Assistant response text
+        #[arg(long)]
+        assistant: String,
+
+        /// Namespace (default: session:default)
+        #[arg(short, long, default_value = "session:default")]
+        namespace: String,
+
+        /// Memory type tag (architecture|code_pattern|insight|...)
+        #[arg(short = 'y', long)]
+        memory_type: Option<String>,
     },
 
     /// Generate embeddings for memories
@@ -356,7 +432,10 @@ async fn main() -> Result<()> {
         .with_writer(std::io::stderr) // Write logs to stderr, not stdout
         .init();
 
-    debug!("Mnemosyne v{} (patched) starting...", env!("CARGO_PKG_VERSION"));
+    debug!(
+        "Mnemosyne v{} (patched) starting...",
+        env!("CARGO_PKG_VERSION")
+    );
 
     // Handle --serve flag (start MCP server without Claude Code)
     if cli.serve && cli.command.is_none() {
@@ -412,6 +491,7 @@ async fn main() -> Result<()> {
             tags,
             memory_type,
             format,
+            no_enrich,
         }) => {
             cli::remember::handle(
                 content,
@@ -421,6 +501,7 @@ async fn main() -> Result<()> {
                 tags,
                 memory_type,
                 format,
+                no_enrich,
                 cli.db_path.clone(),
             )
             .await
@@ -430,6 +511,7 @@ async fn main() -> Result<()> {
             namespace,
             limit,
             min_importance,
+            tags,
             format,
         }) => {
             cli::recall::handle(
@@ -437,11 +519,30 @@ async fn main() -> Result<()> {
                 namespace,
                 limit,
                 min_importance,
+                tags,
                 format,
                 cli.db_path.clone(),
             )
             .await
         }
+        Some(Commands::Prefetch {
+            query,
+            namespace,
+            limit,
+        }) => cli::prefetch::handle(query, namespace, limit, cli.db_path.clone()).await,
+        Some(Commands::Sync {
+            user,
+            assistant,
+            namespace,
+            memory_type,
+        }) => cli::sync::handle(user, assistant, namespace, memory_type, cli.db_path.clone()).await,
+        Some(Commands::List {
+            namespace,
+            limit,
+            sort_by,
+            tags,
+            format,
+        }) => cli::list::handle(namespace, limit, sort_by, format, tags, cli.db_path.clone()).await,
         Some(Commands::Embed {
             all,
             memory_id,

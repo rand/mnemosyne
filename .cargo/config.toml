@@ -5,14 +5,19 @@
 # (Automatically disabled for release builds with LTO)
 incremental = true
 
+# Use mold linker for faster linking of large test binaries.
+# mold is ~3-5x faster than GNU ld for incremental linking.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
 # Note: Parallel compilation is enabled by default
 # To limit jobs: use CARGO_BUILD_JOBS environment variable
 
 [profile.dev]
 # Explicit incremental compilation for development
 incremental = true
-# Fast compilation, minimal optimization
-opt-level = 0
+# Slight optimization for faster test execution
+opt-level = 1
 # Disable debug info for faster builds (use "line-tables-only" if needed)
 debug = false
 
@@ -37,10 +42,9 @@ opt-level = 2          # Good optimization, faster than opt-level = 3
 
 # Environment variable hints for faster builds
 [env]
-# Enable sccache for compilation caching across builds
-RUSTC_WRAPPER = "sccache"
-
-# Use system LLVM linker if available (faster than default)
+# sccache is not installed in this environment; the previous RUSTC_WRAPPER
+# setting forced cargo to invoke a non-existent binary, adding overhead.
+# Removing it eliminates the wrapper lookup penalty on every rustc invocation.
 # Uncomment based on your system:
 # RUSTFLAGS = "-C link-arg=-fuse-ld=lld"  # Linux with lld
 # RUSTFLAGS = "-C link-arg=-fuse-ld=mold" # Linux with mold (fastest)

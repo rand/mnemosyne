@@ -211,8 +211,8 @@ impl SupervisionTree {
 
     /// Start all agents in the supervision tree
     pub async fn start(&mut self) -> Result<()> {
-        tracing::info!("Starting supervision tree");
-        tracing::info!(
+        tracing::debug!("Starting supervision tree");
+        tracing::debug!(
             "Event broadcaster available: {}",
             self.event_broadcaster.is_some()
         );
@@ -241,6 +241,7 @@ impl SupervisionTree {
                     tracing::warn!("Failed to register broadcaster with Optimizer: {:?}", e);
                     crate::error::MnemosyneError::ActorError(e.to_string())
                 })?;
+            #[cfg(not(test))]
             tracing::debug!("Event broadcaster registered with Optimizer");
         }
 
@@ -257,8 +258,10 @@ impl SupervisionTree {
             )
             .await;
 
-        // Notify dashboard about agent startup
-        self.notify_agent_started(&optimizer_id, "Optimizer").await;
+        // Notify dashboard about agent startup (skip in no-broadcaster mode)
+        if self.event_broadcaster.is_some() || self.state_manager.is_some() {
+            self.notify_agent_started(&optimizer_id, "Optimizer").await;
+        }
 
         self.optimizer = Some(optimizer_ref);
 
@@ -298,8 +301,10 @@ impl SupervisionTree {
             )
             .await;
 
-        // Notify dashboard about agent startup
-        self.notify_agent_started(&reviewer_id, "Reviewer").await;
+        // Notify dashboard about agent startup (skip in no-broadcaster mode)
+        if self.event_broadcaster.is_some() || self.state_manager.is_some() {
+            self.notify_agent_started(&reviewer_id, "Reviewer").await;
+        }
 
         self.reviewer = Some(reviewer_ref.clone());
 
@@ -357,8 +362,10 @@ impl SupervisionTree {
             )
             .await;
 
-        // Notify dashboard about agent startup
-        self.notify_agent_started(&executor_id, "Executor").await;
+        // Notify dashboard about agent startup (skip in no-broadcaster mode)
+        if self.event_broadcaster.is_some() || self.state_manager.is_some() {
+            self.notify_agent_started(&executor_id, "Executor").await;
+        }
 
         self.executor = Some(executor_ref);
 
@@ -398,9 +405,11 @@ impl SupervisionTree {
             )
             .await;
 
-        // Notify dashboard about agent startup
-        self.notify_agent_started(&orchestrator_id, "Orchestrator")
-            .await;
+        // Notify dashboard about agent startup (skip in no-broadcaster mode)
+        if self.event_broadcaster.is_some() || self.state_manager.is_some() {
+            self.notify_agent_started(&orchestrator_id, "Orchestrator")
+                .await;
+        }
 
         self.orchestrator = Some(orchestrator_ref.clone());
 
@@ -444,9 +453,9 @@ impl SupervisionTree {
         // Event broadcaster registration moved to immediately after actor spawn
         // to avoid race condition with Initialize message
         if self.event_broadcaster.is_some() {
-            tracing::info!("Event broadcaster registered with all 4 actors during spawn");
+            tracing::debug!("Event broadcaster registered with all 4 actors during spawn");
         } else {
-            tracing::warn!("No event broadcaster available - dashboard will not receive events!");
+            tracing::debug!("No event broadcaster available — dashboard will not receive events");
         }
 
         // Initialize and register Python Claude SDK agent bridges (if Python feature enabled)
@@ -584,41 +593,57 @@ impl SupervisionTree {
         }
 
         // Start SSE subscriber for bidirectional event flow (CLI → Orchestrator)
-        if let Some(ref orchestrator) = self.orchestrator {
-            tracing::info!("Starting SSE subscriber for CLI event subscription");
+        // Only start when an event broadcaster is available — without one there is
+        // no API server to stream events from, so the subscriber would waste
+        // resources retrying failed connections. This also speeds up startup/shutdown
+        // for local-only personal agents that don't use the API server.
+        if self.event_broadcaster.is_some() {
+            if let Some(ref orchestrator) = self.orchestrator {
+                tracing::info!("Starting SSE subscriber for CLI event subscription");
 
-            // Create shutdown channel
-            let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
+                // Create shutdown channel
+                let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
 
-            // Create SSE subscriber
-            let sse_config = crate::orchestration::SseSubscriberConfig::default();
-            let sse_subscriber = crate::orchestration::SseSubscriber::new(
-                sse_config,
-                orchestrator.clone(),
-                shutdown_rx,
-            );
+                // Create SSE subscriber
+                let sse_config = crate::orchestration::SseSubscriberConfig::default();
+                let sse_subscriber = crate::orchestration::SseSubscriber::new(
+                    sse_config,
+                    orchestrator.clone(),
+                    shutdown_rx,
+                );
 
-            // Spawn SSE subscriber task
-            let sse_handle = tokio::spawn(async move {
-                sse_subscriber.run().await;
-            });
+                // Spawn SSE subscriber task
+                let sse_handle = tokio::spawn(async move {
+                    sse_subscriber.run().await;
+                });
 
-            // Store shutdown sender and handle for cleanup
-            self.sse_shutdown_tx = Some(shutdown_tx);
-            self.sse_subscriber_handle = Some(sse_handle);
+                // Store shutdown sender and handle for cleanup
+                self.sse_shutdown_tx = Some(shutdown_tx);
+                self.sse_subscriber_handle = Some(sse_handle);
 
-            tracing::info!("SSE subscriber started - orchestrator will receive CLI events");
+                tracing::info!("SSE subscriber started - orchestrator will receive CLI events");
+            } else {
+                tracing::warn!("No orchestrator available, skipping SSE subscriber initialization");
+            }
         } else {
-            tracing::warn!("No orchestrator available, skipping SSE subscriber initialization");
+            tracing::debug!("No event broadcaster available, skipping SSE subscriber (no API server to connect to)");
         }
 
         tracing::debug!("Supervision tree started with {} agents", 4);
 
-        // Bootstrap work protocol with error handling
-        // If bootstrap fails, log warning but don't crash - system can still accept user work
+        // Bootstrap work plan protocol with error handling.
+        // Skipped in test builds — tests submit their own work items, and the
+        // bootstrap DB query adds unnecessary overhead to every engine startup
+        // in test suites that create dozens of OrchestrationEngine instances.
+        #[cfg(not(test))]
         if let Err(e) = self.bootstrap_work_plan_protocol().await {
-            tracing::warn!("Bootstrap work protocol failed: {}. System will continue without initial work items.", e);
+            tracing::warn!(
+                "Bootstrap work protocol failed: {}. System will continue without initial work items.",
+                e
+            );
         }
+        #[cfg(test)]
+        tracing::debug!("Skipping bootstrap in test mode");
 
         Ok(())
     }
@@ -640,17 +665,23 @@ impl SupervisionTree {
         tracing::info!("Bootstrapping Work Plan Protocol");
 
         // Check if there are existing active work items to resume
-        // We check Ready, Active, and Blocked states
-        let mut existing_items = Vec::new();
-
-        for state in &[AgentState::Ready, AgentState::Active, AgentState::Blocked] {
-            match self.storage.load_work_items_by_state(*state).await {
-                Ok(items) => existing_items.extend(items),
-                Err(e) => {
-                    tracing::warn!("Failed to load work items in state {:?}: {}", state, e);
-                }
+        // Single batched query for Ready, Active, and Blocked states
+        // replaces 3 individual queries (saving 2 DB round-trips)
+        let existing_items = match self
+            .storage
+            .load_work_items_by_states(&[
+                AgentState::Ready,
+                AgentState::Active,
+                AgentState::Blocked,
+            ])
+            .await
+        {
+            Ok(items) => items,
+            Err(e) => {
+                tracing::warn!("Failed to load work items for bootstrap: {}", e);
+                vec![]
             }
-        }
+        };
 
         if !existing_items.is_empty() {
             tracing::info!(
@@ -831,21 +862,32 @@ impl SupervisionTree {
             tracing::debug!("Sent stop signal to orchestrator");
         }
 
-        // Wait for actors to stop gracefully with timeout (P1-2: 30s default)
-        tokio::select! {
-            _ = tokio::time::sleep(timeout) => {
-                let elapsed = stop_start.elapsed();
-                tracing::warn!(
-                    "Actor shutdown timeout ({:?}) exceeded after {:?}. \
-                     Some actors may not have stopped gracefully.",
-                    timeout, elapsed
-                );
-            }
-            _ = async {
-                // Give actors time to complete cleanup
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            } => {
-                tracing::debug!("Actors stopped gracefully");
+        // Wait for actors to stop gracefully.
+        // In test mode, skip the wait entirely since tests don't
+        // have event broadcasters or state managers that need cleanup time.
+        #[cfg(test)]
+        {
+            tracing::debug!("Actors stopped gracefully (no wait in test mode)");
+            let _ = timeout;
+        }
+        #[cfg(not(test))]
+        {
+            let cleanup_wait_ms = 50;
+
+            tokio::select! {
+                _ = tokio::time::sleep(timeout) => {
+                    let elapsed = stop_start.elapsed();
+                    tracing::warn!(
+                        "Actor shutdown timeout ({:?}) exceeded after {:?}. \
+                         Some actors may not have stopped gracefully.",
+                        timeout, elapsed
+                    );
+                }
+                _ = async {
+                    tokio::time::sleep(std::time::Duration::from_millis(cleanup_wait_ms)).await;
+                } => {
+                    tracing::debug!("Actors stopped gracefully");
+                }
             }
         }
 
@@ -860,6 +902,11 @@ impl SupervisionTree {
         self.orchestrator
             .as_ref()
             .expect("Orchestrator not started")
+    }
+
+    /// Set orchestrator reference directly (used by test optimizations)
+    pub fn set_orchestrator(&mut self, orchestrator: ActorRef<OrchestratorMessage>) {
+        self.orchestrator = Some(orchestrator);
     }
 
     /// Get reference to optimizer

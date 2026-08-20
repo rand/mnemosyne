@@ -59,33 +59,56 @@ impl NetworkLayer {
     }
 
     /// Start the network layer
+    ///
+    /// Note: the Iroh QUIC endpoint is created lazily on first use (via
+    /// `ensure_endpoint`) rather than eagerly here. This avoids expensive
+    /// crypto key generation and UDP socket binding when the network layer
+    /// is started but never used for peer communication — a common case for
+    /// local-only personal agents that don't need P2P networking.
     pub async fn start(&self) -> Result<()> {
         let mut started = self.started.write().await;
         if *started {
             return Ok(());
         }
 
-        tracing::debug!("Starting network layer");
+        tracing::debug!("Starting network layer (lazy endpoint)");
 
-        // Create agent endpoint
-        let endpoint = AgentEndpoint::new().await?;
-
-        tracing::debug!("Agent endpoint created: {}", endpoint.node_id());
-
-        // Store endpoint
-        {
-            let mut ep = self.endpoint.write().await;
-            *ep = Some(endpoint.clone());
-        }
-
-        // Initialize and register transport
+        // Initialize and register transport (endpoint will be created on first use)
         let transport = Arc::new(transport::IrohTransport::new(
             self.endpoint.clone(),
             self.cluster_secret.clone(),
         ));
         self.router.set_transport(transport).await;
 
-        // Start listener loop
+        *started = true;
+
+        tracing::debug!("Network layer started (endpoint will be created on demand)");
+        Ok(())
+    }
+
+    /// Lazily create the Iroh endpoint if it doesn't exist yet.
+    /// This defers expensive crypto key generation and UDP socket binding
+    /// until the network layer is actually used for peer communication.
+    async fn ensure_endpoint(&self) -> Result<()> {
+        {
+            let ep = self.endpoint.read().await;
+            if ep.is_some() {
+                return Ok(());
+            }
+        }
+
+        tracing::debug!("Creating Iroh endpoint (lazy)");
+        let endpoint = AgentEndpoint::new().await?;
+        tracing::debug!("Agent endpoint created: {}", endpoint.node_id());
+
+        {
+            let mut ep = self.endpoint.write().await;
+            if ep.is_none() {
+                *ep = Some(endpoint.clone());
+            }
+        }
+
+        // Start listener loop on first endpoint creation
         let listener_endpoint = endpoint.clone();
         let listener_router = self.router.clone();
         let secret = self.cluster_secret.clone();
@@ -94,9 +117,6 @@ impl NetworkLayer {
             run_listener_loop(listener_endpoint, listener_router, secret).await;
         });
 
-        *started = true;
-
-        tracing::debug!("Network layer started");
         Ok(())
     }
 
@@ -127,12 +147,16 @@ impl NetworkLayer {
 
     /// Get endpoint node ID
     pub async fn node_id(&self) -> Option<String> {
+        if self.ensure_endpoint().await.is_err() {
+            return None;
+        }
         let ep = self.endpoint.read().await;
         ep.as_ref().map(|e| e.node_id())
     }
 
     /// Create an invite ticket for this node
     pub async fn create_invite(&self) -> Result<String> {
+        self.ensure_endpoint().await?;
         let ep = self.endpoint.read().await;
         if let Some(endpoint) = ep.as_ref() {
             endpoint.create_ticket().await
@@ -145,6 +169,9 @@ impl NetworkLayer {
 
     /// Get local addresses
     pub async fn local_addrs(&self) -> Result<Vec<String>> {
+        if self.ensure_endpoint().await.is_err() {
+            return Ok(vec![]);
+        }
         let ep = self.endpoint.read().await;
         if let Some(endpoint) = ep.as_ref() {
             endpoint.local_addrs()
@@ -155,6 +182,7 @@ impl NetworkLayer {
 
     /// Join a peer using an invite ticket
     pub async fn join_peer(&self, ticket: &str) -> Result<String> {
+        self.ensure_endpoint().await?;
         let ep = self.endpoint.read().await;
         if let Some(endpoint) = ep.as_ref() {
             let peer_node_id = endpoint.add_peer(ticket).await?;

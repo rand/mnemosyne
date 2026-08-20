@@ -31,6 +31,7 @@ impl ImportanceRecalibrator {
     /// Formula: base (30%) + access (40%) + recency (20%) + links (10%)
     ///
     /// Returns score clamped to [1.0, 10.0]
+    #[inline]
     pub fn calculate_importance(&self, memory: &MemoryData) -> Result<f32, JobError> {
         let base = memory.importance / 10.0; // Normalize to 0-1
         let access = self.access_factor(memory);
@@ -54,6 +55,7 @@ impl ImportanceRecalibrator {
     /// - <0.3 accesses/day → 0.3 (floor)
     ///
     /// Uses logarithmic scaling: 0.5 + log10(accesses_per_day) * 0.5
+    #[inline]
     fn access_factor(&self, memory: &MemoryData) -> f32 {
         if memory.access_count == 0 {
             return 0.3; // Minimum score for never-accessed
@@ -74,6 +76,7 @@ impl ImportanceRecalibrator {
     /// - 30 days → 0.5
     /// - 60 days → 0.25
     /// - 180 days → ~0.016
+    #[inline]
     fn recency_factor(&self, memory: &MemoryData) -> f32 {
         let days_since_access = memory.days_since_last_access();
 
@@ -87,6 +90,7 @@ impl ImportanceRecalibrator {
     ///
     /// Based on number of inbound and outbound links.
     /// Inbound links weighted 2x outbound (being referenced is more important).
+    #[inline]
     fn link_factor(&self, memory: &MemoryData) -> f32 {
         let inbound = memory.incoming_links_count as f32;
         let outbound = memory.outgoing_links_count as f32;
@@ -101,6 +105,7 @@ impl ImportanceRecalibrator {
     /// Check if importance change is significant enough to update
     ///
     /// Avoid thrashing by only updating if change is >= 1.0
+    #[inline]
     fn is_significant_change(&self, old_importance: f32, new_importance: f32) -> bool {
         (new_importance - old_importance).abs() >= 1.0
     }
@@ -228,6 +233,7 @@ pub struct MemoryData {
 
 impl MemoryData {
     /// Calculate days since memory was created
+    #[inline]
     pub fn days_since_creation(&self) -> f32 {
         let now = Utc::now();
         let duration = now.signed_duration_since(self.created_at);
@@ -235,6 +241,7 @@ impl MemoryData {
     }
 
     /// Calculate days since memory was last accessed
+    #[inline]
     pub fn days_since_last_access(&self) -> f32 {
         let now = Utc::now();
         let last_access = self.last_accessed_at.unwrap_or(self.created_at);
@@ -269,9 +276,9 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_calculate_importance_high_access() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_calculate_importance_high_access() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let recalibrator = ImportanceRecalibrator::new(storage);
         let memory = create_test_memory(5.0, 100, 10, 0, 5, 3);
 
@@ -282,9 +289,9 @@ mod tests {
         assert!(new_importance <= 10.0);
     }
 
-    #[tokio::test]
-    async fn test_calculate_importance_decay() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_calculate_importance_decay() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let recalibrator = ImportanceRecalibrator::new(storage);
         let memory = create_test_memory(8.0, 0, 180, 180, 0, 0);
 
@@ -295,9 +302,9 @@ mod tests {
         assert!(new_importance >= 1.0);
     }
 
-    #[tokio::test]
-    async fn test_access_factor() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_access_factor() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let recalibrator = ImportanceRecalibrator::new(storage);
 
         // High access rate (10 accesses/day)
@@ -321,9 +328,9 @@ mod tests {
         assert_eq!(factor_none, 0.3); // Floor
     }
 
-    #[tokio::test]
-    async fn test_recency_factor_exponential_decay() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_recency_factor_exponential_decay() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let recalibrator = ImportanceRecalibrator::new(storage);
 
         // Just accessed
@@ -347,9 +354,9 @@ mod tests {
         assert!(factor_180d < 0.02);
     }
 
-    #[tokio::test]
-    async fn test_link_factor() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_link_factor() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let recalibrator = ImportanceRecalibrator::new(storage);
 
         // No links
@@ -373,9 +380,9 @@ mod tests {
         assert!((factor_balanced - 0.5).abs() < 0.01);
     }
 
-    #[tokio::test]
-    async fn test_is_significant_change() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_is_significant_change() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let recalibrator = ImportanceRecalibrator::new(storage);
 
         assert!(recalibrator.is_significant_change(5.0, 6.5)); // Change of 1.5

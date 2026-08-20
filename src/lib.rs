@@ -18,30 +18,32 @@
 //! # Example
 //!
 //! ```ignore
-//! use mnemosyne::{MemoryManager, Namespace, SearchQuery};
+//! use mnemosyne::storage::{LibsqlStorage, ConnectionMode, StorageBackend};
+//! use mnemosyne::types::Namespace;
+//! use std::sync::Arc;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     let config = MnemosyneConfig::from_file("config.toml")?;
-//!     let manager = MemoryManager::new(config).await?;
+//!     // Open a local memory database (creates the file and schema if missing).
+//!     let storage: Arc<dyn StorageBackend> = Arc::new(
+//!         LibsqlStorage::new_with_validation(
+//!             ConnectionMode::Local("./mnemosyne.db"),
+//!             true,
+//!         ).await?,
+//!     );
 //!
-//!     // Store a memory
-//!     let id = manager.remember(
-//!         "Decided to use PostgreSQL for user data".to_string(),
-//!         Namespace::Project { name: "myapp".to_string() },
-//!         Some(9)
-//!     ).await?;
-//!
-//!     // Recall memories
-//!     let results = manager.recall(SearchQuery {
-//!         query: "database decisions".to_string(),
-//!         ..Default::default()
-//!     }).await?;
-//!
+//!     // For personal agents, the simplest integration is the CLI:
+//!     //   mnemosyne init
+//!     //   mnemosyne remember "User prefers dark mode"
+//!     //   mnemosyne recall "coding preferences"
+//!     //
+//!     // Use the storage backend (or MCP tool handlers) for Rust library
+//!     // integrations that need direct programmatic access.
 //!     Ok(())
 //! }
 //! ```
 
+pub mod agent_context; // Agent context helpers (scrubber, context blocks)
 pub mod agents;
 pub mod api; // HTTP API for event streaming
 pub mod artifacts; // Specification workflow artifacts
@@ -58,6 +60,7 @@ pub mod icons; // Nerd Font icons with ASCII fallbacks
 pub mod ics; // Integrated Context Studio
 pub mod launcher;
 pub mod mcp;
+pub mod memory_manager; // High-level agent memory API
 pub mod namespace;
 pub mod orchestration;
 pub mod pty; // PTY wrapper for Claude Code
@@ -79,6 +82,7 @@ pub mod python_bindings;
 pub mod rpc;
 
 // Re-export commonly used types
+pub use agent_context::StreamingContextScrubber;
 pub use agents::{AgentMemoryView, AgentRole, CustomImportanceScorer, MemoryAccessControl};
 pub use config::{ConfigManager, EmbeddingConfig, SearchConfig};
 pub use diagnostics::{
@@ -98,6 +102,7 @@ pub use evolution::{
     ImportanceRecalibrator, JobConfig, JobReport, LinkDecayJob,
 };
 pub use mcp::{EventSink, McpServer, ToolHandler};
+pub use memory_manager::{build_memory_context_block, MemoryConfig, MemoryManager};
 pub use namespace::{NamespaceDetector, ProjectMetadata};
 pub use orchestration::{AgentEvent, OrchestrationEngine, SupervisionConfig, WorkItem, WorkQueue};
 pub use services::{LlmConfig, LlmService};
@@ -110,4 +115,5 @@ pub use types::{
     Namespace, SearchQuery, SearchResult,
 };
 pub use update::{prompt_for_install, prompt_for_update, UpdateManager, UpdateResult};
+pub use utils::{is_trivial_prompt, sanitize_context, string::truncate_at_char_boundary};
 pub use version_check::{Tool, VersionCheckCache, VersionChecker, VersionInfo};

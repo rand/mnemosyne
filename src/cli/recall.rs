@@ -1,10 +1,13 @@
 //! Memory recall/query command
 
+use mnemosyne_core::{build_memory_context_block, is_trivial_prompt};
 use mnemosyne_core::{
     orchestration::events::AgentEvent, utils::string::truncate_at_char_boundary, ConnectionMode,
-    EmbeddingService, LibsqlStorage, LlmConfig, Namespace, RemoteEmbeddingService, StorageBackend,
+    EmbeddingConfig, EmbeddingService, LibsqlStorage, LlmConfig, LocalEmbeddingService, Namespace,
+    RemoteEmbeddingService, StorageBackend,
 };
 use std::collections::HashMap;
+use std::sync::Arc;
 use tracing::debug;
 
 use super::event_bridge;
@@ -16,6 +19,7 @@ pub async fn handle(
     namespace: Option<String>,
     limit: usize,
     min_importance: Option<u8>,
+    tags: Option<String>,
     format: String,
     global_db_path: Option<String>,
 ) -> mnemosyne_core::error::Result<()> {
@@ -43,6 +47,10 @@ pub async fn handle(
             Namespace::Project {
                 name: project.to_string(),
             }
+        } else if let Some(agent_id) = ns_str.strip_prefix("agent:") {
+            Namespace::Agent {
+                agent_id: agent_id.to_string(),
+            }
         } else if ns_str.starts_with("session:") {
             let parts: Vec<&str> = ns_str
                 .strip_prefix("session:")
@@ -67,15 +75,18 @@ pub async fn handle(
         .hybrid_search(&query, ns.clone(), limit * 2, true)
         .await?;
 
-    // Vector search (optional - only if API key available)
-    let vector_results = if has_api_key {
+    // Vector search (optional - only if API key available).
+    // Dispatch through the StorageBackend trait so this path returns full
+    // SearchResult objects and avoids the per-ID fetch that the inherent
+    // LibsqlStorage::vector_search would trigger.
+    let vector_results: Vec<mnemosyne_core::types::SearchResult> = if has_api_key {
         match RemoteEmbeddingService::new(
             embedding_service_config.api_key.clone(),
             None, // Use default model
             None, // Use default base URL
         ) {
             Ok(embedding_service) => match embedding_service.embed(&query).await {
-                Ok(query_embedding) => storage
+                Ok(query_embedding) => (&storage as &dyn StorageBackend)
                     .vector_search(&query_embedding, limit * 2, ns.clone())
                     .await
                     .unwrap_or_default(),
@@ -84,8 +95,43 @@ pub async fn handle(
             Err(_) => Vec::new(),
         }
     } else {
-        debug!("Skipping vector search - no API key configured");
-        Vec::new()
+        // No remote API key — try local embeddings for personal agents working offline.
+        debug!("No API key — attempting local embedding for vector search");
+        let local_config = EmbeddingConfig {
+            show_download_progress: false,
+            ..EmbeddingConfig::default()
+        };
+        match LocalEmbeddingService::new(local_config).await {
+            Ok(emb) => {
+                let emb_svc: Arc<dyn EmbeddingService> = Arc::new(emb);
+                match emb_svc.embed(&query).await {
+                    Ok(query_embedding) => (&storage as &dyn StorageBackend)
+                        .vector_search(&query_embedding, limit * 2, ns.clone())
+                        .await
+                        .unwrap_or_default(),
+                    Err(e) => {
+                        debug!("Local embedding generation failed: {}", e);
+                        if format != "json" {
+                            eprintln!(
+                                "{} Local embedding failed, vector search skipped",
+                                mnemosyne_core::icons::status::warning()
+                            );
+                        }
+                        Vec::new()
+                    }
+                }
+            }
+            Err(e) => {
+                debug!("Local embedding service unavailable: {}", e);
+                if format != "json" {
+                    eprintln!(
+                        "{} Local embeddings unavailable, using keyword search only",
+                        mnemosyne_core::icons::status::warning()
+                    );
+                }
+                Vec::new()
+            }
+        }
     };
 
     // Merge results
@@ -99,15 +145,12 @@ pub async fn handle(
             .push(result.score * 0.4);
     }
 
-    for (memory_id, similarity) in vector_results {
-        // Fetch the memory for this ID
-        if let Ok(memory) = storage.get_memory(memory_id).await {
-            memory_scores
-                .entry(memory_id)
-                .or_insert((memory, vec![]))
-                .1
-                .push(similarity * 0.3);
-        }
+    for result in vector_results {
+        memory_scores
+            .entry(result.memory.id)
+            .or_insert((result.memory.clone(), vec![]))
+            .1
+            .push(result.score * 0.3);
     }
 
     let mut results: Vec<_> = memory_scores
@@ -126,7 +169,53 @@ pub async fn handle(
         results.retain(|(m, _)| m.importance >= min_imp);
     }
 
+    // Filter by tags if specified (client-side, for personal agent precision)
+    if let Some(tag_filter) = &tags {
+        let filter_tags: Vec<String> = tag_filter
+            .split(',')
+            .map(|s| s.trim().to_lowercase())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if !filter_tags.is_empty() {
+            results.retain(|(m, _)| {
+                m.tags
+                    .iter()
+                    .any(|t| filter_tags.contains(&t.to_lowercase()))
+            });
+        }
+    }
+
     let result_count = results.len();
+
+    // Agent-friendly fenced context block for prompt injection.
+    if format == "context" {
+        let block = build_memory_context_block(
+            results
+                .iter()
+                .filter(|(_, s)| *s > 0.0)
+                .map(|(m, s)| format!("[score={:.2}] {}", s, m.content.trim()))
+                .collect::<Vec<_>>()
+                .join("\n\n"),
+        );
+        if !block.is_empty() {
+            println!("{block}");
+        }
+        // Emit recall executed event
+        let duration_ms = start_time.elapsed().as_millis() as u64;
+        let _ = event_bridge::emit_event(AgentEvent::RecallExecuted {
+            query: query.clone(),
+            result_count,
+            duration_ms,
+        })
+        .await;
+        return Ok(());
+    }
+
+    // Fast-path: trivial queries yield no memory context.
+    if is_trivial_prompt(&query) {
+        eprintln!("Query is a trivial greeting; nothing to recall.");
+        return Ok(());
+    }
 
     // Output results
     if format == "json" {

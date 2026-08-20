@@ -810,12 +810,12 @@ mod tests {
     use super::*;
     use chrono::Utc;
 
-    #[tokio::test]
-    async fn test_keyword_overlap() {
+    #[test]
+    fn test_keyword_overlap() {
         use crate::types::{MemoryType, Namespace};
         use crate::ConnectionMode;
 
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ConsolidationJob::new(storage);
 
         let m1 = MemoryNote {
@@ -853,12 +853,12 @@ mod tests {
         assert!(overlap > 0.6); // 2 shared out of 3 total
     }
 
-    #[tokio::test]
-    async fn test_consolidation_decision_high_similarity() {
+    #[test]
+    fn test_consolidation_decision_high_similarity() {
         use crate::types::{MemoryType, Namespace};
         use crate::ConnectionMode;
 
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ConsolidationJob::new(storage);
 
         // Create two test memories for the cluster
@@ -903,11 +903,11 @@ mod tests {
         assert_eq!(decision.action, ConsolidationAction::Supersede);
     }
 
-    #[tokio::test]
-    async fn test_consolidation_decision_moderate_similarity() {
+    #[test]
+    fn test_consolidation_decision_moderate_similarity() {
         use crate::ConnectionMode;
 
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ConsolidationJob::new(storage);
 
         let cluster = MemoryCluster {

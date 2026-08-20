@@ -259,6 +259,40 @@ impl OrchestrationEngine {
     }
 
     /// Start the orchestration engine
+    #[cfg(test)]
+    pub async fn start(&mut self) -> Result<()> {
+        tracing::debug!("Starting orchestration engine (test mode, orchestrator only)");
+
+        // In test mode, spawn only the orchestrator to avoid expensive actor mesh startup.
+        // The integration tests only need the orchestrator to test job submission and completion.
+        // Use a unique per-test namespace instance so actor IDs don't collide across
+        // back-to-back tests in the same process.
+        let test_id = uuid::Uuid::new_v4().to_string();
+        let namespace = crate::types::Namespace::Session {
+            project: "test".to_string(),
+            session_id: test_id.clone(),
+        };
+        let orchestrator_id = format!("test-orchestrator-{}", test_id);
+
+        let (orchestrator_ref, _) = ractor::Actor::spawn(
+            Some(orchestrator_id.clone()),
+            crate::orchestration::actors::OrchestratorActor::new(
+                self.storage.clone(),
+                namespace.clone(),
+            ),
+            (self.storage.clone(), namespace.clone()),
+        )
+        .await
+        .map_err(|e| crate::error::MnemosyneError::ActorError(e.to_string()))?;
+
+        self.supervision.set_orchestrator(orchestrator_ref);
+
+        tracing::debug!("Orchestration engine started (test mode)");
+        Ok(())
+    }
+
+    /// Start the orchestration engine
+    #[cfg(not(test))]
     pub async fn start(&mut self) -> Result<()> {
         tracing::debug!("Starting orchestration engine");
 

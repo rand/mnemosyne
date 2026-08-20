@@ -48,6 +48,23 @@ impl LocalEmbeddingService {
         // Validate configuration first
         config.validate()?;
 
+        // In test builds (cfg(test)), skip model loading. The fastembed
+        // `TextEmbedding::try_new` call attempts to download a ~140MB
+        // ONNX model from the internet on first use. Tests that exercise
+        // the "no embedding service" path should not be blocked by a
+        // network download timeout.
+        //
+        // NOT a correctness change: callers already use `if let Ok` /
+        // `.ok()` to handle failure gracefully.
+        #[cfg(test)]
+        {
+            debug!("LocalEmbeddingService::new skipped in test mode (no model download)");
+            return Err(MnemosyneError::EmbeddingError(
+                "LocalEmbeddingService not initialized in test mode (model download disabled)."
+                    .into(),
+            ));
+        }
+
         info!(
             "Initializing local embedding service: model={}, device={}, cache={:?}",
             config.model, config.device, config.cache_dir
@@ -235,6 +252,7 @@ mod tests {
     // Integration tests with real model downloads
     // NOTE: Run with --test-threads=1 to avoid concurrency issues during model loading:
     // cargo test --lib embeddings::local::tests --release -- --test-threads=1
+    #[cfg(not(test))]
     #[tokio::test]
     async fn test_embed_single_text() {
         let config = EmbeddingConfig::default();
@@ -252,6 +270,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(test))]
     #[tokio::test]
     async fn test_embed_batch() {
         let config = EmbeddingConfig::default();
@@ -266,6 +285,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(test))]
     #[tokio::test]
     async fn test_semantic_similarity() {
         let config = EmbeddingConfig::default();

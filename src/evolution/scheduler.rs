@@ -398,15 +398,15 @@ mod tests {
         assert_eq!(report.changes_made, deserialized.changes_made);
     }
 
-    #[tokio::test]
-    async fn test_scheduler_creation() {
+    #[test]
+    fn test_scheduler_creation() {
         let config = EvolutionConfig::default();
         let scheduler = BackgroundScheduler::new(config);
         assert_eq!(scheduler.jobs.len(), 0);
     }
 
-    #[tokio::test]
-    async fn test_register_job() {
+    #[test]
+    fn test_register_job() {
         let config = EvolutionConfig::default();
         let mut scheduler = BackgroundScheduler::new(config);
 

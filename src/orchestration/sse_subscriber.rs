@@ -121,8 +121,14 @@ impl SseSubscriber {
                 }
                 Err(e) => {
                     error!("SSE subscriber: failed to build client: {}", e);
-                    // Wait before retry
-                    tokio::time::sleep(Duration::from_secs(reconnect_delay)).await;
+                    // Interruptible sleep: respond to shutdown signal immediately
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_secs(reconnect_delay)) => {}
+                        _ = self.shutdown_rx.recv() => {
+                            info!("SSE subscriber: shutdown signal received during reconnection delay");
+                            break;
+                        }
+                    }
                     reconnect_delay =
                         (reconnect_delay * 2).min(self.config.max_reconnect_delay_secs);
                     continue;
@@ -145,7 +151,16 @@ impl SseSubscriber {
                         "SSE subscriber: reconnecting in {} seconds",
                         reconnect_delay
                     );
-                    tokio::time::sleep(Duration::from_secs(reconnect_delay)).await;
+                    // Interruptible sleep: respond to shutdown signal immediately
+                    // instead of waiting for the full reconnect delay.
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_secs(reconnect_delay)) => {}
+                        _ = self.shutdown_rx.recv() => {
+                            info!("SSE subscriber: shutdown signal received during reconnection delay");
+                            break;
+                        }
+                    }
+                    continue;
                 }
             }
 
@@ -228,12 +243,11 @@ impl SseSubscriber {
         }
 
         // Parse as ApiEvent
-        let api_event: ApiEvent = serde_json::from_value(value.clone())
-            .map_err(|e| {
-                // Log the problematic JSON for debugging
-                warn!("Failed JSON content: {}", value);
-                format!("Failed to deserialize ApiEvent: {}", e)
-            })?;
+        let api_event: ApiEvent = serde_json::from_value(value.clone()).map_err(|e| {
+            // Log the problematic JSON for debugging
+            warn!("Failed JSON content: {}", value);
+            format!("Failed to deserialize ApiEvent: {}", e)
+        })?;
 
         // Convert to AgentEvent (if applicable)
         if let Some(agent_event) = convert_api_event_to_agent_event(&api_event) {

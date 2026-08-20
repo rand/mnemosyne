@@ -64,13 +64,21 @@ pub enum Namespace {
         /// Unique session identifier
         session_id: String,
     },
+
+    /// Agent-scoped memories for personal AI agents
+    /// Memories stored here are private to this agent instance
+    Agent {
+        /// Unique agent identifier (e.g. "hermes-local", "claude-code")
+        agent_id: String,
+    },
 }
 
 impl Namespace {
     /// Get namespace priority for retrieval ordering
-    /// Higher priority = searched first
+    /// Higher priority = searched first (Agent is most specific)
     pub fn priority(&self) -> u8 {
         match self {
+            Namespace::Agent { .. } => 4,
             Namespace::Session { .. } => 3,
             Namespace::Project { .. } => 2,
             Namespace::Global => 1,
@@ -87,11 +95,17 @@ impl Namespace {
         !matches!(self, Namespace::Global)
     }
 
+    /// Check if this namespace is agent-scoped
+    pub fn is_agent(&self) -> bool {
+        matches!(self, Namespace::Agent { .. })
+    }
+
     /// Get the project name if applicable
     pub fn project_name(&self) -> Option<&str> {
         match self {
             Namespace::Project { name } => Some(name),
             Namespace::Session { project, .. } => Some(project),
+            Namespace::Agent { agent_id } => Some(agent_id),
             Namespace::Global => None,
         }
     }
@@ -108,6 +122,7 @@ impl std::fmt::Display for Namespace {
             } => {
                 write!(f, "session:{}:{}", project, session_id)
             }
+            Namespace::Agent { agent_id } => write!(f, "agent:{}", agent_id),
         }
     }
 }

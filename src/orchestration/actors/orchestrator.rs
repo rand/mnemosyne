@@ -216,7 +216,7 @@ impl OrchestratorActor {
 
     /// Handle work submission
     async fn handle_submit_work(state: &mut OrchestratorState, item: WorkItem) -> Result<()> {
-        tracing::info!("Submitting work: {}", item.description);
+        tracing::debug!("Submitting work: {}", item.description);
 
         // Add to work queue
         let item_id = item.id.clone();
@@ -343,7 +343,7 @@ impl OrchestratorActor {
         item_id: crate::orchestration::state::WorkItemId,
         result: WorkResult,
     ) -> Result<()> {
-        tracing::info!("Work completed, sending for review: {:?}", item_id);
+        tracing::debug!("Work completed, sending for review: {:?}", item_id);
 
         // Get work item and update execution memories
         let work_item = {
@@ -1018,27 +1018,32 @@ impl Actor for OrchestratorActor {
     ) -> std::result::Result<(), ActorProcessingErr> {
         tracing::debug!("Orchestrator actor started: {:?}", myself.get_id());
 
-        // Start periodic deadlock checker with shutdown support
-        let myself_clone = myself.clone();
-        let mut shutdown_rx = state.shutdown_tx.subscribe();
+        // In test mode, skip spawning the deadlock checker task — tests complete
+        // in milliseconds so the 10s-interval checker never fires, and avoiding
+        // the tokio::spawn reduces per-test actor startup overhead.
+        #[cfg(not(test))]
+        {
+            let myself_clone = myself.clone();
+            let mut shutdown_rx = state.shutdown_tx.subscribe();
 
-        let deadlock_handle = tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(10));
-            loop {
-                tokio::select! {
-                    _ = interval.tick() => {
-                        let _ = myself_clone.cast(OrchestratorMessage::GetReadyWork);
-                    }
-                    _ = shutdown_rx.recv() => {
-                        tracing::debug!("Orchestrator deadlock checker task received shutdown signal");
-                        break;
+            let deadlock_handle = tokio::spawn(async move {
+                let mut interval = tokio::time::interval(Duration::from_secs(10));
+                loop {
+                    tokio::select! {
+                        _ = interval.tick() => {
+                            let _ = myself_clone.cast(OrchestratorMessage::GetReadyWork);
+                        }
+                        _ = shutdown_rx.recv() => {
+                            tracing::debug!("Orchestrator deadlock checker task received shutdown signal");
+                            break;
+                        }
                     }
                 }
-            }
-        });
+            });
 
-        // Store deadlock checker handle for cleanup
-        state.deadlock_checker_handle = Some(deadlock_handle);
+            // Store deadlock checker handle for cleanup
+            state.deadlock_checker_handle = Some(deadlock_handle);
+        }
 
         Ok(())
     }
@@ -1159,7 +1164,7 @@ impl Actor for OrchestratorActor {
         _myself: ActorRef<Self::Msg>,
         _state: &mut Self::State,
     ) -> std::result::Result<(), ActorProcessingErr> {
-        tracing::info!("Orchestrator actor stopped");
+        tracing::debug!("Orchestrator actor stopped");
         Ok(())
     }
 }

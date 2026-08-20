@@ -1,10 +1,11 @@
 //! Memory creation command
 
 use mnemosyne_core::{
-    error::Result, icons, orchestration::events::AgentEvent, ConnectionMode, EmbeddingService,
-    LibsqlStorage, LlmConfig, LlmService, MemoryNote, Namespace, RemoteEmbeddingService,
-    StorageBackend,
+    error::Result, icons, orchestration::events::AgentEvent, ConnectionMode, EmbeddingConfig,
+    EmbeddingService, LibsqlStorage, LlmConfig, LlmService, LocalEmbeddingService, MemoryNote,
+    Namespace, RemoteEmbeddingService, StorageBackend,
 };
+use std::sync::Arc;
 use tracing::{debug, warn};
 
 use super::event_bridge;
@@ -20,6 +21,7 @@ pub async fn handle(
     tags: Option<String>,
     memory_type: Option<String>,
     format: String,
+    no_enrich: bool,
     global_db_path: Option<String>,
 ) -> Result<()> {
     let start_time = std::time::Instant::now();
@@ -44,12 +46,19 @@ pub async fn handle(
     // Check if API key is available for LLM enrichment
     let llm_config = LlmConfig::default();
     let has_api_key = !llm_config.api_key.is_empty();
+    if no_enrich {
+        debug!("LLM enrichment skipped (--no-enrich)");
+    }
 
     // Parse namespace
     let ns = if namespace.starts_with("project:") {
         let project = namespace.strip_prefix("project:").unwrap();
         Namespace::Project {
             name: project.to_string(),
+        }
+    } else if let Some(agent_id) = namespace.strip_prefix("agent:") {
+        Namespace::Agent {
+            agent_id: agent_id.to_string(),
         }
     } else if namespace.starts_with("session:") {
         let parts: Vec<&str> = namespace
@@ -69,8 +78,9 @@ pub async fn handle(
         Namespace::Global
     };
 
-    // Create or enrich memory
-    let mut memory = if has_api_key {
+    // Create or enrich memory. When --no-enrich is set, skip LLM enrichment
+    // and fall back to basic memory construction (still generates embedding).
+    let mut memory = if has_api_key && !no_enrich {
         // Try to enrich memory with LLM, but fall back if it fails
         let llm = LlmService::new(llm_config.clone())?;
         let ctx = context.unwrap_or_else(|| "CLI input".to_string());
@@ -210,6 +220,20 @@ pub async fn handle(
             },
             Err(_) => {
                 debug!("Failed to create embedding service, storing without embedding");
+            }
+        }
+    } else {
+        // No remote API key — try local embeddings for offline personal agents.
+        debug!("No API key — attempting local embedding");
+        let embed_config = EmbeddingConfig {
+            show_download_progress: false,
+            ..EmbeddingConfig::default()
+        };
+        if let Ok(emb) = LocalEmbeddingService::new(embed_config).await {
+            let emb_svc: Arc<dyn EmbeddingService> = Arc::new(emb);
+            if let Ok(embedding) = emb_svc.embed(&memory.content).await {
+                memory.embedding = Some(embedding);
+                memory.embedding_model = "local".to_string();
             }
         }
     }

@@ -31,6 +31,7 @@ impl ArchivalJob {
     /// 1. Never accessed AND >180 days old
     /// 2. Importance <3.0 AND >90 days since access
     /// 3. Importance <2.0 AND >30 days since access
+    #[inline]
     pub fn should_archive(&self, memory: &MemoryData) -> Result<bool, JobError> {
         let days_since_access = memory.days_since_last_access();
         let importance = memory.importance;
@@ -66,6 +67,7 @@ impl ArchivalJob {
     }
 
     /// Get archival reason for logging
+    #[inline]
     pub fn archival_reason(&self, memory: &MemoryData) -> String {
         let days_since_access = memory.days_since_last_access();
         let importance = memory.importance;
@@ -189,6 +191,7 @@ pub struct MemoryData {
 
 impl MemoryData {
     /// Calculate days since memory was created
+    #[inline]
     pub fn days_since_creation(&self) -> f32 {
         let now = Utc::now();
         let duration = now.signed_duration_since(self.created_at);
@@ -196,6 +199,7 @@ impl MemoryData {
     }
 
     /// Calculate days since memory was last accessed
+    #[inline]
     pub fn days_since_last_access(&self) -> f32 {
         let now = Utc::now();
         let last_access = self.last_accessed_at.unwrap_or(self.created_at);
@@ -204,6 +208,7 @@ impl MemoryData {
     }
 
     /// Check if memory is archived
+    #[inline]
     pub fn is_archived(&self) -> bool {
         self.archived_at.is_some()
     }
@@ -233,9 +238,9 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_should_archive_never_accessed_old() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_should_archive_never_accessed_old() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ArchivalJob::new(storage);
 
         // Never accessed, 200 days old
@@ -247,9 +252,9 @@ mod tests {
         assert!(!job.should_archive(&memory_recent).unwrap());
     }
 
-    #[tokio::test]
-    async fn test_should_archive_low_importance() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_should_archive_low_importance() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ArchivalJob::new(storage);
 
         // Low importance (2.5), 100 days since access
@@ -261,9 +266,9 @@ mod tests {
         assert!(!job.should_archive(&memory_recent).unwrap());
     }
 
-    #[tokio::test]
-    async fn test_should_archive_very_low_importance() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_should_archive_very_low_importance() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ArchivalJob::new(storage);
 
         // Very low importance (1.5), 40 days since access
@@ -275,9 +280,9 @@ mod tests {
         assert!(!job.should_archive(&memory_recent).unwrap());
     }
 
-    #[tokio::test]
-    async fn test_should_not_archive_high_importance() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_should_not_archive_high_importance() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ArchivalJob::new(storage);
 
         // High importance, never accessed, very old (don't archive)
@@ -285,9 +290,9 @@ mod tests {
         assert!(!job.should_archive(&memory).unwrap());
     }
 
-    #[tokio::test]
-    async fn test_should_not_archive_already_archived() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_should_not_archive_already_archived() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ArchivalJob::new(storage);
 
         // Already archived, meets criteria but should not archive again
@@ -295,9 +300,9 @@ mod tests {
         assert!(!job.should_archive(&memory).unwrap());
     }
 
-    #[tokio::test]
-    async fn test_archival_reason_never_accessed() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_archival_reason_never_accessed() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ArchivalJob::new(storage);
         let memory = create_test_memory(5.0, 0, 200, 200, false);
 
@@ -306,9 +311,9 @@ mod tests {
         assert!(reason.contains("200 days"));
     }
 
-    #[tokio::test]
-    async fn test_archival_reason_low_importance() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_archival_reason_low_importance() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ArchivalJob::new(storage);
         let memory = create_test_memory(2.5, 10, 110, 100, false);
 
@@ -317,9 +322,9 @@ mod tests {
         assert!(reason.contains("2.5"));
     }
 
-    #[tokio::test]
-    async fn test_archival_reason_very_low_importance() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_archival_reason_very_low_importance() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ArchivalJob::new(storage);
         let memory = create_test_memory(1.5, 5, 50, 40, false);
 
@@ -367,9 +372,9 @@ mod tests {
         assert!((days - 30.0).abs() < 1.0);
     }
 
-    #[tokio::test]
-    async fn test_boundary_conditions() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_boundary_conditions() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ArchivalJob::new(storage);
 
         // Exactly at boundary (should NOT archive)
@@ -389,9 +394,9 @@ mod tests {
         assert!(job.should_archive(&memory_imp2_9).unwrap());
     }
 
-    #[tokio::test]
-    async fn test_multiple_criteria_met() {
-        let storage = Arc::new(LibsqlStorage::new(ConnectionMode::InMemory).await.unwrap());
+    #[test]
+    fn test_multiple_criteria_met() {
+        let storage = LibsqlStorage::shared_test_storage_sync().unwrap();
         let job = ArchivalJob::new(storage);
 
         // Meets multiple criteria (never accessed + low importance + old)
