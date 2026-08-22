@@ -1,15 +1,20 @@
 //! Namespace detection and project context discovery
 //!
 //! This module provides automatic namespace detection by analyzing the current
-//! directory for git repositories and CLAUDE.md project metadata files. It enables
+//! directory for git repositories and project metadata files. It enables
 //! the memory system to automatically scope memories to the appropriate project
 //! without requiring explicit namespace specification.
+//!
+//! Metadata detection is agent-agnostic: any of `CLAUDE.md`, `AGENTS.md`, or
+//! `HERMES.md` at the repository root is recognized, so the memory system works
+//! identically with Claude Code, Hermes, or any other AI agent.
 //!
 //! # Detection Strategy
 //!
 //! 1. Walk up directory tree to find `.git` folder (repository root)
 //! 2. Extract project name from git remote URL or directory name
-//! 3. Parse `CLAUDE.md` if present for project metadata
+//! 3. Parse the first project metadata file found (`CLAUDE.md`, `AGENTS.md`,
+//!    or `HERMES.md`) for project metadata
 //! 4. Generate session namespace with unique session ID
 //! 5. Fall back to Global namespace if no git repository found
 //!
@@ -30,7 +35,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
-/// Project metadata extracted from CLAUDE.md or git repository
+/// Recognized project metadata files, in priority order.
+///
+/// `CLAUDE.md` keeps top priority for backward compatibility with existing
+/// Claude Code projects; `AGENTS.md` is the emerging cross-agent standard;
+/// `HERMES.md` supports Hermes-based personal agents.
+const METADATA_FILES: &[&str] = &["CLAUDE.md", "AGENTS.md", "HERMES.md"];
+
+/// Project metadata extracted from a project metadata file (`CLAUDE.md`,
+/// `AGENTS.md`, or `HERMES.md`) or from the git repository itself
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectMetadata {
     /// Project name (from git remote or directory name)
@@ -46,7 +59,7 @@ pub struct ProjectMetadata {
 /// Namespace detector with caching for performance
 ///
 /// The detector walks up the directory tree to find git repositories and
-/// parses CLAUDE.md files for project metadata. Results are cached to avoid
+/// parses project metadata files for project metadata. Results are cached to avoid
 /// repeated filesystem operations.
 #[derive(Debug, Clone)]
 pub struct NamespaceDetector {
@@ -147,28 +160,34 @@ impl NamespaceDetector {
         }
     }
 
-    /// Read and parse project metadata from CLAUDE.md
+    /// Read and parse project metadata from a project metadata file
     ///
-    /// Extracts project name and description from the CLAUDE.md file at the
-    /// repository root. Returns None if the file doesn't exist or can't be parsed.
+    /// Extracts project name and description from the first recognized metadata
+    /// file at the repository root. Recognized files, in priority order:
+    /// `CLAUDE.md` (backward compatibility), `AGENTS.md`, `HERMES.md`.
+    /// Falls back to directory-name-derived metadata if none exist.
     pub fn read_project_metadata(&self, root: &Path) -> Result<Option<ProjectMetadata>> {
-        let claude_md_path = root.join("CLAUDE.md");
+        let metadata_path = METADATA_FILES
+            .iter()
+            .map(|f| root.join(f))
+            .find(|p| p.exists());
 
-        // If CLAUDE.md doesn't exist, derive metadata from directory
-        if !claude_md_path.exists() {
-            return self.derive_metadata_from_directory(root);
-        }
+        // If no metadata file exists, derive metadata from directory
+        let metadata_path = match metadata_path {
+            Some(p) => p,
+            None => return self.derive_metadata_from_directory(root),
+        };
 
-        // Read CLAUDE.md
-        let content = fs::read_to_string(&claude_md_path).map_err(|e| {
+        // Read the metadata file
+        let content = fs::read_to_string(&metadata_path).map_err(|e| {
             MnemosyneError::Io(std::io::Error::new(
                 e.kind(),
-                format!("Failed to read CLAUDE.md at {:?}: {}", claude_md_path, e),
+                format!("Failed to read {:?}: {}", metadata_path, e),
             ))
         })?;
 
-        // Parse metadata from CLAUDE.md
-        self.parse_claude_md(&content, root)
+        // Parse metadata from the metadata file
+        self.parse_metadata_md(&content, root)
     }
 
     /// Generate a unique session ID using UUID v4
@@ -190,17 +209,18 @@ impl NamespaceDetector {
             None => return Ok(None),
         };
 
-        // Try to read CLAUDE.md for metadata
+        // Try to read a project metadata file for metadata
         self.read_project_metadata(&root)
     }
 
-    /// Parse CLAUDE.md content to extract project metadata
+    /// Parse project metadata file content to extract project metadata
     ///
-    /// Looks for:
+    /// Works with any Markdown-based agent metadata file (`CLAUDE.md`,
+    /// `AGENTS.md`, `HERMES.md`). Looks for:
     /// - Title (first # heading)
     /// - Description (paragraph following title)
     /// - Frontmatter (YAML block at start)
-    fn parse_claude_md(&self, content: &str, root: &Path) -> Result<Option<ProjectMetadata>> {
+    fn parse_metadata_md(&self, content: &str, root: &Path) -> Result<Option<ProjectMetadata>> {
         let mut name: Option<String> = None;
         let mut description: Option<String> = None;
 
@@ -269,7 +289,7 @@ impl NamespaceDetector {
         }))
     }
 
-    /// Derive project metadata from directory name when CLAUDE.md is absent
+    /// Derive project metadata from directory name when no metadata file is present
     fn derive_metadata_from_directory(&self, root: &Path) -> Result<Option<ProjectMetadata>> {
         let name = self.extract_dir_name(root);
 
@@ -481,5 +501,107 @@ Additional content here.
         let name = detector.extract_dir_name(&git_dir);
 
         assert_eq!(name, "myproject");
+    }
+
+    // === Agent-agnostic metadata file tests (Hermes / personal agents) ===
+
+    /// Helper to write an arbitrary metadata file into a test repo
+    fn write_metadata_file(temp: &TempDir, filename: &str, content: &str) {
+        fs::write(temp.path().join(filename), content).unwrap();
+    }
+
+    #[test]
+    fn test_agents_md_recognized_when_no_claude_md() {
+        let temp = create_test_repo(false, None);
+        write_metadata_file(
+            &temp,
+            "AGENTS.md",
+            "# Hermes Personal Agent\n\nCross-agent project metadata.",
+        );
+        let detector = NamespaceDetector::with_base_dir(temp.path().to_path_buf());
+
+        let metadata = detector
+            .read_project_metadata(temp.path())
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(metadata.name, "Hermes Personal Agent");
+        assert_eq!(
+            metadata.description,
+            Some("Cross-agent project metadata.".to_string())
+        );
+    }
+
+    #[test]
+    fn test_hermes_md_recognized_when_no_claude_or_agents_md() {
+        let temp = create_test_repo(false, None);
+        write_metadata_file(
+            &temp,
+            "HERMES.md",
+            "---\nproject: hermes-memory\ndescription: \"Personal agent workspace\"\n---\n\n# Hermes Memory",
+        );
+        let detector = NamespaceDetector::with_base_dir(temp.path().to_path_buf());
+
+        let metadata = detector
+            .read_project_metadata(temp.path())
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(metadata.name, "hermes-memory");
+        assert_eq!(
+            metadata.description,
+            Some("Personal agent workspace".to_string())
+        );
+    }
+
+    #[test]
+    fn test_claude_md_takes_priority_for_backward_compatibility() {
+        let temp = create_test_repo(false, None);
+        write_metadata_file(&temp, "CLAUDE.md", "# Claude Project\n\nFrom Claude.");
+        write_metadata_file(&temp, "AGENTS.md", "# Agents Project\n\nFrom Agents.");
+        write_metadata_file(&temp, "HERMES.md", "# Hermes Project\n\nFrom Hermes.");
+        let detector = NamespaceDetector::with_base_dir(temp.path().to_path_buf());
+
+        let metadata = detector
+            .read_project_metadata(temp.path())
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(metadata.name, "Claude Project");
+    }
+
+    #[test]
+    fn test_agents_md_priority_over_hermes_md() {
+        let temp = create_test_repo(false, None);
+        write_metadata_file(&temp, "AGENTS.md", "# Agents Project\n\nFrom Agents.");
+        write_metadata_file(&temp, "HERMES.md", "# Hermes Project\n\nFrom Hermes.");
+        let detector = NamespaceDetector::with_base_dir(temp.path().to_path_buf());
+
+        let metadata = detector
+            .read_project_metadata(temp.path())
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(metadata.name, "Agents Project");
+    }
+
+    #[test]
+    fn test_no_metadata_files_falls_back_to_directory_name() {
+        let temp = create_test_repo(false, None);
+        let detector = NamespaceDetector::with_base_dir(temp.path().to_path_buf());
+
+        let metadata = detector
+            .read_project_metadata(temp.path())
+            .unwrap()
+            .unwrap();
+
+        let dir_name = temp
+            .path()
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap()
+            .to_string();
+        assert_eq!(metadata.name, dir_name);
+        assert_eq!(metadata.description, None);
     }
 }

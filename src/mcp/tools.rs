@@ -9,7 +9,7 @@
 use crate::error::Result;
 use crate::services::{EmbeddingService, LlmService};
 use crate::storage::StorageBackend;
-use crate::types::{MemoryId, Namespace};
+use crate::types::{MemoryId, MemoryNote, MemoryType, Namespace};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -366,6 +366,51 @@ impl ToolHandler {
     // === Validation Helpers ===
 
     /// Validate importance value (must be 1-10)
+    /// Build a MemoryNote heuristically when no LLM is configured.
+    ///
+    /// Uses the first sentence as the summary and simple whitespace-derived
+    /// keywords so that core remember/recall keeps working on local-only
+    /// personal agents without any cloud API key.
+    fn memory_without_enrichment(content: &str, context: &str) -> Result<MemoryNote> {
+        use chrono::Utc;
+        let now = Utc::now();
+        let summary = content
+            .split_once(". ")
+            .map(|(first, _)| format!("{}.", first))
+            .unwrap_or_else(|| content.chars().take(120).collect());
+        let keywords: Vec<String> = content
+            .split(|c: char| c.is_whitespace() || c == ',' || c == '.')
+            .filter(|w| w.len() > 3)
+            .take(8)
+            .map(|w| w.to_lowercase())
+            .collect();
+
+        Ok(MemoryNote {
+            id: MemoryId::new(),
+            namespace: Namespace::Global, // overridden by caller
+            created_at: now,
+            updated_at: now,
+            content: content.to_string(),
+            summary,
+            keywords,
+            tags: vec!["un-enriched".to_string()],
+            context: context.to_string(),
+            memory_type: MemoryType::Insight,
+            importance: 5,
+            confidence: 0.6,
+            links: Vec::new(),
+            related_files: Vec::new(),
+            related_entities: Vec::new(),
+            access_count: 0,
+            last_accessed_at: now,
+            expires_at: None,
+            is_archived: false,
+            superseded_by: None,
+            embedding: None,
+            embedding_model: String::new(),
+        })
+    }
+
     fn validate_importance(importance: u8) -> Result<()> {
         if !(1..=10).contains(&importance) {
             return Err(crate::error::MnemosyneError::ValidationError(format!(
@@ -721,11 +766,20 @@ impl ToolHandler {
         // Parse namespace
         let namespace = self.parse_namespace(&params.namespace)?;
 
-        // Enrich with LLM
+        // Enrich with LLM when available; degrade gracefully otherwise
+        // (local-first personal agents often run without any cloud LLM key)
         let context = params
             .context
             .unwrap_or_else(|| "User-provided memory".to_string());
-        let mut memory = self.llm.enrich_memory(&params.content, &context).await?;
+        let mut memory = match self.llm.enrich_memory(&params.content, &context).await {
+            Ok(m) => m,
+            Err(e) => {
+                warn!(
+                    "LLM enrichment unavailable ({}); storing memory without enrichment", e
+                );
+                Self::memory_without_enrichment(&params.content, &context)?
+            }
+        };
 
         // Override with user-provided values
         memory.namespace = namespace;
