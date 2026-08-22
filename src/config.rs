@@ -238,7 +238,7 @@ const KEYRING_USER: &str = "anthropic-api-key";
 pub struct ConfigManager {
     secrets: SecretsManager,
     #[cfg(feature = "keyring-fallback")]
-    keyring_entry: Entry,
+    keyring_entry: Option<Entry>,
 }
 
 impl ConfigManager {
@@ -260,12 +260,16 @@ impl ConfigManager {
         })?;
 
         #[cfg(feature = "keyring-fallback")]
-        let keyring_entry = Entry::new(KEYRING_SERVICE_TEST, KEYRING_USER).map_err(|e| {
-            MnemosyneError::Config(config::ConfigError::Message(format!(
-                "Failed to access keyring: {}",
-                e
-            )))
-        })?;
+        let keyring_entry = Entry::new(KEYRING_SERVICE_TEST, KEYRING_USER)
+            .map(Some)
+            .unwrap_or_else(|e| {
+                warn!(
+                    "OS keyring unavailable ({}); keychain features disabled. \
+                     Use age-encrypted secrets or env vars instead.",
+                    e
+                );
+                None
+            });
 
         Ok(Self {
             secrets,
@@ -284,12 +288,16 @@ impl ConfigManager {
         })?;
 
         #[cfg(feature = "keyring-fallback")]
-        let keyring_entry = Entry::new(service_name, KEYRING_USER).map_err(|e| {
-            MnemosyneError::Config(config::ConfigError::Message(format!(
-                "Failed to access keyring: {}",
-                e
-            )))
-        })?;
+        let keyring_entry = Entry::new(service_name, KEYRING_USER)
+            .map(Some)
+            .unwrap_or_else(|e| {
+                warn!(
+                    "OS keyring unavailable ({}); keychain features disabled. \
+                     Core memory operations are unaffected.",
+                    e
+                );
+                None
+            });
 
         Ok(Self {
             secrets,
@@ -317,16 +325,21 @@ impl ConfigManager {
         // Fallback to keychain for backward compatibility
         #[cfg(feature = "keyring-fallback")]
         {
-            match self.keyring_entry.get_password() {
-                Ok(key) => {
-                    debug!("Retrieved API key from OS keychain (fallback)");
-                    return Ok(key);
-                }
-                Err(keyring::Error::NoEntry) => {
-                    debug!("No API key found in keychain");
-                }
-                Err(e) => {
-                    warn!("Keychain error: {}", e);
+            match self.keyring_entry.as_ref() {
+                Some(entry) => match entry.get_password() {
+                    Ok(key) => {
+                        debug!("Retrieved API key from OS keychain (fallback)");
+                        return Ok(key);
+                    }
+                    Err(keyring::Error::NoEntry) => {
+                        debug!("No API key found in keychain");
+                    }
+                    Err(e) => {
+                        warn!("Keychain error: {}", e);
+                    }
+                },
+                None => {
+                    debug!("Keychain unavailable; skipping keychain fallback");
                 }
             }
         }
@@ -360,7 +373,15 @@ impl ConfigManager {
             KEYRING_SERVICE, KEYRING_USER
         );
 
-        self.keyring_entry.set_password(key).map_err(|e| {
+        let entry = self.keyring_entry.as_ref().ok_or_else(|| {
+            MnemosyneError::Config(config::ConfigError::Message(
+                "OS keyring unavailable; use 'mnemosyne secrets set' (age-encrypted file) \
+                 or the ANTHROPIC_API_KEY environment variable instead"
+                    .to_string(),
+            ))
+        })?;
+
+        entry.set_password(key).map_err(|e| {
             MnemosyneError::Config(config::ConfigError::Message(format!(
                 "Failed to store API key: {}",
                 e
@@ -370,7 +391,7 @@ impl ConfigManager {
         info!("API key securely stored in OS keychain");
 
         // Immediately verify storage
-        match self.keyring_entry.get_password() {
+        match entry.get_password() {
             Ok(_) => debug!("Verified: API key successfully stored and retrievable"),
             Err(e) => {
                 warn!(
@@ -387,7 +408,12 @@ impl ConfigManager {
     /// Delete the API key from keychain (keyring only)
     #[cfg(feature = "keyring-fallback")]
     pub fn delete_api_key(&self) -> Result<()> {
-        match self.keyring_entry.delete_credential() {
+        let entry = self.keyring_entry.as_ref().ok_or_else(|| {
+            MnemosyneError::Config(config::ConfigError::Message(
+                "OS keyring unavailable; nothing to delete".to_string(),
+            ))
+        })?;
+        match entry.delete_credential() {
             Ok(_) => {
                 info!("API key deleted from OS keychain");
                 Ok(())
@@ -421,7 +447,12 @@ impl ConfigManager {
 
         // Check keychain fallback
         #[cfg(feature = "keyring-fallback")]
-        if self.keyring_entry.get_password().is_ok() {
+        if self
+            .keyring_entry
+            .as_ref()
+            .map(|e| e.get_password().is_ok())
+            .unwrap_or(false)
+        {
             return true;
         }
 
@@ -476,8 +507,35 @@ mod tests {
     use super::*;
     use serial_test::serial;
 
+    /// Returns true if the OS keyring backend is actually usable.
+    ///
+    /// Headless environments (containers, servers, CI without a secret
+    /// service) have no working keyring; tests that require one should
+    /// skip gracefully instead of failing.
+    fn keyring_platform_available() -> bool {
+        #[cfg(feature = "keyring-fallback")]
+        {
+            match Entry::new(KEYRING_SERVICE_TEST, KEYRING_USER) {
+                Ok(entry) => !matches!(
+                    entry.get_password(),
+                    Err(keyring::Error::PlatformFailure(_))
+                        | Err(keyring::Error::NoStorageAccess(_))
+                ),
+                Err(_) => false,
+            }
+        }
+        #[cfg(not(feature = "keyring-fallback"))]
+        {
+            false
+        }
+    }
+
     #[test]
     fn test_config_manager_creation() {
+        if !keyring_platform_available() {
+            eprintln!("skipping: no usable platform keyring in this environment");
+            return;
+        }
         let manager = ConfigManager::new();
         assert!(manager.is_ok());
     }
@@ -486,6 +544,10 @@ mod tests {
     #[serial]
     #[cfg(feature = "keyring-fallback")]
     fn test_set_and_get_api_key() {
+        if !keyring_platform_available() {
+            eprintln!("skipping: no usable platform keyring in this environment");
+            return;
+        }
         let manager = ConfigManager::new_for_testing().unwrap();
 
         // Clean up first
@@ -507,6 +569,10 @@ mod tests {
     #[test]
     #[serial]
     fn test_env_var_takes_precedence() {
+        if !keyring_platform_available() {
+            eprintln!("skipping: no usable platform keyring in this environment");
+            return;
+        }
         // Clean up first to avoid interference from other tests
         env::remove_var("ANTHROPIC_API_KEY");
 
@@ -537,6 +603,10 @@ mod tests {
     #[test]
     #[serial]
     fn test_has_api_key() {
+        if !keyring_platform_available() {
+            eprintln!("skipping: no usable platform keyring in this environment");
+            return;
+        }
         env::remove_var("ANTHROPIC_API_KEY");
 
         let manager = ConfigManager::new_for_testing().unwrap();

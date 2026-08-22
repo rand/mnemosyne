@@ -236,6 +236,7 @@ mod tests {
     // NOTE: Run with --test-threads=1 to avoid concurrency issues during model loading:
     // cargo test --lib embeddings::local::tests --release -- --test-threads=1
     #[tokio::test]
+    #[ignore = "requires downloading the ONNX embedding model from HuggingFace; run manually: cargo test --lib embeddings::local -- --ignored"]
     async fn test_embed_single_text() {
         let config = EmbeddingConfig::default();
         let service = LocalEmbeddingService::new(config).await.unwrap();
@@ -253,6 +254,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires downloading the ONNX embedding model from HuggingFace; run manually: cargo test --lib embeddings::local -- --ignored"]
     async fn test_embed_batch() {
         let config = EmbeddingConfig::default();
         let service = LocalEmbeddingService::new(config).await.unwrap();
@@ -267,6 +269,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires downloading the ONNX embedding model from HuggingFace; run manually: cargo test --lib embeddings::local -- --ignored"]
     async fn test_semantic_similarity() {
         let config = EmbeddingConfig::default();
         let service = LocalEmbeddingService::new(config).await.unwrap();
