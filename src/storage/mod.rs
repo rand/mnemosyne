@@ -4,6 +4,13 @@
 //! embeddings, links, and audit logs.
 
 pub mod libsql;
+// Legacy vector storage using rusqlite + sqlite-vec.
+// Gated behind the `legacy-vector-store` feature: this module bundles a second
+// copy of SQLite that conflicts with libsql's (duplicate symbols, and the
+// linker can silently resolve to the copy WITHOUT libsql vector functions).
+// libsql has native vector32()/vector_distance_cos() support, which is what
+// the rest of the storage layer uses.
+#[cfg(feature = "legacy-vector-store")]
 pub mod vectors;
 
 #[cfg(test)]

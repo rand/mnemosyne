@@ -1076,9 +1076,13 @@ impl LibsqlStorage {
 
         let embedding_model: String = row.get(19)?;
 
-        // Get embedding from column 20 (F32_BLOB type)
-        // Try to get as bytes and convert, or fall back to None if not present
-        let embedding: Option<Vec<f32>> =
+        // Get embedding from column 20 (F32_BLOB type) when present.
+        //
+        // Column 20 is only the embedding blob in `SELECT *`-style queries;
+        // vector_search() puts the `distance` REAL there instead. Reading a
+        // non-BLOB column as Vec<u8> panics inside libsql, so check the
+        // column type first.
+        let embedding: Option<Vec<f32>> = if matches!(row.column_type(20), Ok(libsql::ValueType::Blob)) {
             row.get::<Option<Vec<u8>>>(20)
                 .ok()
                 .flatten()
@@ -1095,7 +1099,10 @@ impl LibsqlStorage {
                             })
                             .collect(),
                     )
-                });
+                })
+        } else {
+            None
+        };
 
         Ok(MemoryNote {
             id,

@@ -34,12 +34,21 @@ lto = "thin"           # Thin LTO instead of full LTO (much faster)
 codegen-units = 16     # Parallel codegen (faster builds)
 incremental = true     # Enable incremental compilation
 opt-level = 2          # Good optimization, faster than opt-level = 3
+# NOTE: Do not add -Wl,--allow-multiple-definition here. It was previously
+# needed because rusqlite(bundled) and libsql-ffi both vendored sqlite3.c;
+# the legacy rusqlite vector store is now feature-gated (legacy-vector-store)
+# so exactly one SQLite is linked in default builds.
 
 # Environment variable hints for faster builds
 [env]
-# Enable sccache for compilation caching across builds
-RUSTC_WRAPPER = "sccache"
-
+# Optional: sccache for compilation caching across builds.
+#
+# NOTE: This is intentionally NOT set here. Forcing RUSTC_WRAPPER = "sccache"
+# broke builds for anyone without sccache installed (cargo fails when the
+# wrapper binary is missing). To opt in, set it in your shell instead:
+#
+#   export RUSTC_WRAPPER=sccache   # then: cargo build
+#
 # Use system LLVM linker if available (faster than default)
 # Uncomment based on your system:
 # RUSTFLAGS = "-C link-arg=-fuse-ld=lld"  # Linux with lld

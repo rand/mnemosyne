@@ -23,6 +23,11 @@ name = "mnemosyne-rpc"
 path = "src/bin/mnemosyne-rpc.rs"
 required-features = ["rpc"]
 
+# Legacy vector-storage integration tests require the gated rusqlite module
+[[test]]
+name = "integration_vector_storage"
+required-features = ["legacy-vector-store"]
+
 [lib]
 name = "mnemosyne_core"
 crate-type = ["cdylib", "rlib"]  # cdylib for Python, rlib for Rust binary
@@ -46,9 +51,9 @@ libsql = { version = "0.9", features = ["core", "replication", "sync"] }
 libsql_migration = { version = "0.2", features = ["dir"] }
 
 # Vector search (dual storage approach)
-rusqlite = { version = "0.32", features = ["bundled", "vtab"] }
-sqlite-vec = "0.1.1"
-deadpool-sqlite = "0.9"  # Connection pooling for rusqlite
+rusqlite = { version = "0.32", optional = true, features = ["bundled", "vtab"] }
+sqlite-vec = { version = "0.1.1", optional = true }
+deadpool-sqlite = { version = "0.9", optional = true }  # Connection pooling for rusqlite
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -164,6 +169,12 @@ profiling = ["tikv-jemallocator"]
 rpc = ["tonic", "prost", "prost-types"]
 rpc-reflection = ["rpc", "tonic-reflection"]
 rpc-health = ["rpc", "tonic-health"]
+# Legacy rusqlite+sqlite-vec vector store (src/storage/vectors.rs).
+# OFF by default: bundling a second SQLite alongside libsql produced
+# duplicate symbols and could silently drop libsql's vector functions
+# (vector32/vector_distance_cos) at link time. libsql has native vector
+# support; enable this only if you specifically need the legacy path.
+legacy-vector-store = ["dep:rusqlite", "dep:sqlite-vec", "dep:deadpool-sqlite"]
 
 [build-dependencies]
 tonic-build = "0.12"
