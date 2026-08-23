@@ -46,6 +46,7 @@ pub mod agents;
 pub mod api; // HTTP API for event streaming
 pub mod artifacts; // Specification workflow artifacts
 pub mod config;
+pub mod context_assembler; // Token-budgeted tiered context packing
 pub mod coordination; // ICS handoff coordination
 pub mod daemon;
 pub mod diagnostics; // Memory profiling and resource tracking
@@ -54,7 +55,9 @@ pub mod error;
 pub mod evaluation;
 pub mod evolution;
 pub mod health; // Health check system
+pub mod hierarchy; // Topic-tree memory organization + hierarchical retrieval
 pub mod icons; // Nerd Font icons with ASCII fallbacks
+pub mod intent; // Typed query planning / chit-chat detection
 pub mod ics; // Integrated Context Studio
 pub mod launcher;
 pub mod mcp;
@@ -63,6 +66,7 @@ pub mod orchestration;
 pub mod pty; // PTY wrapper for Claude Code
 pub mod secrets;
 pub mod services;
+pub mod session_extract; // Session commit → memory extraction pipeline
 pub mod storage;
 pub mod tui; // Shared TUI infrastructure
 pub mod types;
