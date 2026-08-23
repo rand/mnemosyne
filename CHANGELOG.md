@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - OpenViking-inspired hierarchical memory (feature/openviking-borrows)
+- **Topic-tree memory organization** (`src/hierarchy.rs`): deterministic topic paths from namespace+type+tag, directory L0/L1 sidecars aggregated bottom-up, freshness metadata with stable sampling
+- **Hierarchical retriever**: global search -> priority-queue recursion with score propagation (`alpha*own + (1-alpha)*parent`), convergence detection, replayable retrieval trajectory
+- **Tiered content (L0/L1/L2)**: 256-char abstracts / 4k overviews / full detail loaded on demand
+- **Token-budgeted context assembler** (`src/context_assembler.rs`): breadth-first-then-depth tier filling, fallback-instead-of-truncate, token ledger
+- **Intent analyzer** (`src/intent.rs`): typed query planning with chit-chat skip (0 queries), style rewrites per context type
+- **Session commit pipeline** (`src/session_extract.rs`): two-phase archive + extraction, similarity pre-filter dedup decisions (skip/merge/delete/create), memory_diff audit logs
+- **Hotness scoring** (`src/utils/hotness.rs`): sigmoid(log1p(access)) x recency decay blended into reranking
+- **MCP tools**: `mnemosyne.used` (usage feedback), `mnemosyne.hierarchy` (tree browsing); `mnemosyne.recall` gains optional `hierarchical` mode returning trajectories
+- **CLI**: `mnemosyne recall --hierarchical --trace --budget-tokens`
+- **Doctor**: API-key resolution and data-directory writability checks
+- **Benchmarks**: `benchmark/retrieval/locomo_eval.py` Hit@k/MRR harness with flat-vs-hierarchical compare mode
+
 ## [2.3.1] - 2025-11-09
 
 ### Fixed

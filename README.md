@@ -14,6 +14,7 @@ Mnemosyne provides persistent semantic memory with sub-millisecond retrieval, bu
 - **Type System**: Insight, Architecture, Decision, Task, Reference memory types
 - **Graph Linking**: Automatic bidirectional relationship management
 - **Privacy-First**: Local-only storage with optional privacy-preserving evaluation
+- **Hierarchical Topic Tree** *(OpenViking-inspired)*: memories organized into directories with L0 abstracts / L1 overviews / L2 full content; directory-recursive retrieval with score propagation, retrieval trajectories, and token-budgeted context assembly — see [docs/HIERARCHICAL_MEMORY.md](docs/HIERARCHICAL_MEMORY.md)
 
 ### Multi-Agent Orchestration
 - **Ractor Actors**: 4 specialized agents (Orchestrator, Optimizer, Reviewer, Executor)

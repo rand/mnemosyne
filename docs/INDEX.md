@@ -24,6 +24,7 @@ Navigate the Mnemosyne documentation efficiently with this comprehensive index.
 ## 📚 Technical References
 
 ### Core Documentation
+- [**HIERARCHICAL_MEMORY**](HIERARCHICAL_MEMORY.md) - Topic-tree memory organization, L0/L1/L2 tiers, hierarchical retrieval, context assembly, session commit pipeline
 - [**TYPES_REFERENCE**](TYPES_REFERENCE.md) - Complete type system reference
   - MemoryNote, Namespace, MemoryType, LinkType, WorkItem, etc.
   - JSON serialization formats
