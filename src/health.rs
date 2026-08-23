@@ -117,7 +117,13 @@ pub async fn run_health_checks(
     // Phase 7: Worktree Cleanup (LOW)
     checks.extend(check_worktree_cleanup(verbose, fix).await?);
 
-    // Phase 8: Version Updates (INFO)
+    // Phase 8: Secrets & API Key Resolution (MEDIUM)
+    checks.push(check_api_key_resolution());
+
+    // Phase 9: Disk Space (LOW)
+    checks.push(check_disk_space());
+
+    // Phase 10: Version Updates (INFO)
     checks.extend(check_version_updates(verbose).await?);
 
     // Calculate summary
@@ -630,6 +636,57 @@ async fn check_worktree_cleanup(_verbose: bool, fix: bool) -> Result<Vec<CheckRe
 }
 
 /// Print health summary to console
+/// Check that an Anthropic API key can be resolved from env, keyring, or
+/// encrypted secrets config (mirrors OpenViking's `doctor` provider check).
+fn check_api_key_resolution() -> CheckResult {
+    if std::env::var("ANTHROPIC_API_KEY")
+        .map(|k| !k.is_empty())
+        .unwrap_or(false)
+    {
+        return CheckResult::pass(
+            "API Key",
+            "ANTHROPIC_API_KEY set via environment variable",
+        );
+    }
+    match crate::config::ConfigManager::new() {
+        Ok(manager) => match manager.get_api_key() {
+            Ok(key) if !key.is_empty() => CheckResult::pass(
+                "API Key",
+                "API key resolved from keyring or encrypted secrets",
+            ),
+            _ => CheckResult::warn(
+                "API Key",
+                "No API key found; vector search and LLM enrichment disabled. \\n                 Run `mnemosyne config set-key` or export ANTHROPIC_API_KEY",
+            ),
+        },
+        Err(e) => CheckResult::warn(
+            "API Key",
+            format!("Could not query keyring/secret store: {}", e),
+        ),
+    }
+}
+
+/// Check that the data directory is writable (disk space / permissions proxy).
+fn check_disk_space() -> CheckResult {
+    let probe_dir = std::env::var("HOME")
+        .map(|h| std::path::PathBuf::from(h).join(".mnemosyne"))
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let probe = probe_dir.join(format!(".doctor_probe_{}", std::process::id()));
+    match std::fs::write(&probe, b"ok") {
+        Ok(()) => {
+            let _ = std::fs::remove_file(&probe);
+            CheckResult::pass(
+                "Disk Space",
+                format!("Data directory {:?} is writable", probe_dir),
+            )
+        }
+        Err(e) => CheckResult::warn(
+            "Disk Space",
+            format!("Cannot write to {:?}: {} (disk full or permissions?)", probe_dir, e),
+        ),
+    }
+}
+
 pub fn print_health_summary(summary: &HealthSummary, verbose: bool) {
     println!("{} Mnemosyne Health Check", crate::icons::system::gear());
     println!("━━━━━━━━━━━━━━━━━━━━━━━━");

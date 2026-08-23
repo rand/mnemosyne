@@ -317,6 +317,38 @@ impl ToolHandler {
                     "required": ["memory_id"]
                 }),
             },
+            Tool {
+                name: "mnemosyne.used".to_string(),
+                description: "Report which recalled memories were actually useful. Strengthens future ranking via the online relevance learner.".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "memory_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "IDs of memories that were used/helpful"
+                        }
+                    },
+                    "required": ["memory_ids"]
+                }),
+            },
+            Tool {
+                name: "mnemosyne.hierarchy".to_string(),
+                description: "Browse the hierarchical topic tree over memories. Returns directories with L0 abstracts and L1 overviews plus freshness metadata, for navigation without loading full content.".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "namespace": {
+                            "type": "string",
+                            "description": "Optional namespace filter (e.g. 'project:myapp')"
+                        },
+                        "max_nodes": {
+                            "type": "integer",
+                            "description": "Maximum tree nodes to return (default 200)"
+                        }
+                    }
+                }),
+            },
         ]
     }
 
@@ -328,6 +360,8 @@ impl ToolHandler {
         let result = match tool_name {
             "mnemosyne.recall" => self.recall(params).await,
             "mnemosyne.list" => self.list(params).await,
+            "mnemosyne.used" => self.used(params).await,
+            "mnemosyne.hierarchy" => self.hierarchy(params).await,
             "mnemosyne.graph" => self.graph(params).await,
             "mnemosyne.context" => self.context(params).await,
             "mnemosyne.remember" => self.remember(params).await,
@@ -424,6 +458,8 @@ impl ToolHandler {
             max_results: Option<usize>,
             min_importance: Option<u8>,
             expand_graph: Option<bool>,
+            hierarchical: Option<bool>,
+            budget_tokens: Option<usize>,
         }
 
         let params: RecallParams = serde_json::from_value(params)?;
@@ -523,6 +559,29 @@ impl ToolHandler {
             results.retain(|r| r.memory.importance >= min_importance);
         }
 
+        // Optional hierarchical reranking through the topic tree
+        let mut trajectory_json: Option<serde_json::Value> = None;
+        if params.hierarchical.unwrap_or(false) {
+            let note_refs: Vec<&crate::types::MemoryNote> =
+                results.iter().map(|r| &r.memory).collect();
+            let raw_scores: Vec<f32> = results.iter().map(|r| r.score).collect();
+            let (ranked, trajectory) = crate::hierarchy::rerank_results(
+                &note_refs,
+                &raw_scores,
+                crate::hierarchy::RetrieverConfig::default(),
+                true,
+            );
+            trajectory_json = serde_json::from_str(&trajectory.to_json()).ok();
+            results = ranked
+                .into_iter()
+                .filter_map(|(i, s)| results.get(i).cloned().map(|mut r| {
+                    r.score = s;
+                    r.match_reason = format!("{} [hierarchical]", r.match_reason);
+                    r
+                }))
+                .collect();
+        }
+
         // Increment access counts for returned memories
         for result in &results {
             if let Err(e) = self.storage.increment_access(result.memory.id).await {
@@ -548,7 +607,84 @@ impl ToolHandler {
             "results": results,
             "query": params.query,
             "count": results.len(),
-            "method": "hybrid_search (keyword 40% + vector 30% + graph)"
+            "method": if params.hierarchical.unwrap_or(false) {
+                "hierarchical_hybrid_search"
+            } else {
+                "hybrid_search (keyword 40% + vector 30% + graph)"
+            },
+            "trajectory": trajectory_json,
+        }))
+    }
+
+    async fn used(&self, params: Value) -> Result<Value> {
+        #[derive(Deserialize)]
+        struct UsedParams {
+            memory_ids: Vec<String>,
+        }
+
+        let params: UsedParams = serde_json::from_value(params)?;
+
+        let mut confirmed = Vec::new();
+        let mut failed = Vec::new();
+        for id_str in &params.memory_ids {
+            match MemoryId::from_string(id_str) {
+                Ok(id) => match self.storage.increment_access(id).await {
+                    Ok(()) => confirmed.push(id_str.clone()),
+                    Err(e) => failed.push(serde_json::json!({"id": id_str, "error": e.to_string()})),
+                },
+                Err(e) => failed.push(serde_json::json!({"id": id_str, "error": e.to_string()})),
+            }
+        }
+
+        // Emit usage feedback event for the online relevance learner
+        let event = crate::api::Event::memory_recalled("used-feedback".to_string(), confirmed.len());
+        if let Err(e) = self.event_sink.emit(event).await {
+            warn!("Failed to emit used feedback event: {}", e);
+        }
+
+        info!(
+            "{} MCP used: {} memories marked as helpful",
+            crate::icons::status::success(),
+            confirmed.len()
+        );
+
+        Ok(serde_json::json!({
+            "confirmed": confirmed,
+            "failed": failed,
+            "count": confirmed.len()
+        }))
+    }
+
+    async fn hierarchy(&self, params: Value) -> Result<Value> {
+        #[derive(Deserialize)]
+        struct HierarchyParams {
+            namespace: Option<String>,
+            max_nodes: Option<usize>,
+        }
+
+        let params: HierarchyParams = serde_json::from_value(params)?;
+
+        let namespace = if let Some(ns_str) = &params.namespace {
+            Some(self.parse_namespace(ns_str)?)
+        } else {
+            None
+        };
+        let max_nodes = params.max_nodes.unwrap_or(200).min(2000);
+
+        let notes = self.storage.list_memories(namespace, max_nodes * 4, crate::storage::MemorySortOrder::Recent).await?;
+        let refs: Vec<&crate::types::MemoryNote> = notes.iter().collect();
+        let tree = crate::hierarchy::build_tree(&refs);
+
+        info!(
+            "{} MCP hierarchy: {} nodes over {} memories",
+            crate::icons::action::search(),
+            tree.len(),
+            notes.len()
+        );
+
+        Ok(serde_json::json!({
+            "nodes": tree.into_iter().take(max_nodes).collect::<Vec<_>>(),
+            "memory_count": notes.len()
         }))
     }
 

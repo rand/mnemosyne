@@ -200,6 +200,18 @@ enum Commands {
         /// Output format (text/json)
         #[arg(short, long, default_value = "text")]
         format: String,
+
+        /// Rerank results through the hierarchical topic tree
+        #[arg(long, default_value = "false")]
+        hierarchical: bool,
+
+        /// Print the retrieval trajectory (with --hierarchical)
+        #[arg(long, default_value = "false")]
+        trace: bool,
+
+        /// Token budget for context assembly (with --hierarchical)
+        #[arg(long)]
+        budget_tokens: Option<usize>,
     },
 
     /// Generate embeddings for memories
@@ -431,6 +443,9 @@ async fn main() -> Result<()> {
             limit,
             min_importance,
             format,
+            hierarchical,
+            trace,
+            budget_tokens,
         }) => {
             cli::recall::handle(
                 query,
@@ -439,6 +454,9 @@ async fn main() -> Result<()> {
                 min_importance,
                 format,
                 cli.db_path.clone(),
+                hierarchical,
+                trace,
+                budget_tokens,
             )
             .await
         }

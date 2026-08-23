@@ -11,6 +11,7 @@ use super::event_bridge;
 use super::helpers::get_db_path;
 
 /// Handle memory recall command
+#[allow(clippy::too_many_arguments)]
 pub async fn handle(
     query: String,
     namespace: Option<String>,
@@ -18,6 +19,9 @@ pub async fn handle(
     min_importance: Option<u8>,
     format: String,
     global_db_path: Option<String>,
+    hierarchical: bool,
+    trace: bool,
+    budget_tokens: Option<usize>,
 ) -> mnemosyne_core::error::Result<()> {
     let start_time = std::time::Instant::now();
 
@@ -119,6 +123,49 @@ pub async fn handle(
         .collect();
 
     results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Hierarchical reranking through the topic tree (OpenViking-style)
+    let mut trajectory_json: Option<String> = None;
+    if hierarchical {
+        // Intent analysis first: chit-chat skips retrieval entirely
+        let plan = mnemosyne_core::intent::plan_queries(&query);
+        if plan.should_skip_retrieval() {
+            if format == "json" {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "results": [],
+                        "count": 0,
+                        "skipped": true,
+                        "skip_reason": plan.skip_reason,
+                    })
+                );
+            } else {
+                eprintln!(
+                    "No retrieval needed ({})",
+                    plan.skip_reason.as_deref().unwrap_or("intent analysis")
+                );
+            }
+            return Ok(());
+        }
+
+        let note_refs: Vec<&mnemosyne_core::types::MemoryNote> =
+            results.iter().map(|(m, _)| m).collect();
+        let raw_scores: Vec<f32> = results.iter().map(|(_, s)| *s).collect();
+        let config = mnemosyne_core::hierarchy::RetrieverConfig::default();
+        let (ranked, trajectory) = mnemosyne_core::hierarchy::rerank_results(
+            &note_refs,
+            &raw_scores,
+            config,
+            true,
+        );
+        results = ranked.into_iter().filter_map(|(i, s)| results.get(i).map(|(m, _)| (m.clone(), s))).collect();
+        if trace {
+            trajectory_json = Some(trajectory.to_json());
+            eprintln!("Retrieval trajectory:\n{}", trajectory.to_json());
+        }
+    }
+
     results.truncate(limit);
 
     // Filter by importance if specified
@@ -146,11 +193,35 @@ pub async fn handle(
             })
             .collect();
 
+        // Optional token-budgeted context assembly
+        let assembled = budget_tokens.map(|budget| {
+            let candidates: Vec<mnemosyne_core::context_assembler::Candidate> = results
+                .iter()
+                .map(|(m, score)| {
+                    mnemosyne_core::context_assembler::Candidate::new(
+                        m.id.to_string(),
+                        m.summary.clone(),
+                        mnemosyne_core::hierarchy::l0_abstract_for(m),
+                        mnemosyne_core::hierarchy::l1_overview_for(m),
+                        m.content.clone(),
+                        *score,
+                    )
+                })
+                .collect();
+            let plan = mnemosyne_core::context_assembler::assemble(&candidates, budget);
+            mnemosyne_core::context_assembler::render_markdown(
+                &plan,
+                &format!("Recall Context: {}", query),
+            )
+        });
+
         println!(
             "{}",
             serde_json::json!({
                 "results": json_results,
-                "count": json_results.len()
+                "count": json_results.len(),
+                "trajectory": trajectory_json,
+                "assembled_context": assembled,
             })
         );
     } else if results.is_empty() {
